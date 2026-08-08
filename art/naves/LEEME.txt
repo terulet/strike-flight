@@ -30,6 +30,11 @@ falta renombrar nada. La lista esta arriba del
 todo de index.html, en CARPETAS: si un dia usas
 otro nombre, se anade ahi y listo.
 
+OJO: assets\ esta en .gitignore. Un dibujo que
+se quede SOLO ahi funciona en el ordenador donde
+esta y no llega a GitHub, ni a la web, ni al iPad.
+Los definitivos van en art\
+
 CUIDADO CON LAS MAYUSCULAS: en Windows da igual
 KALI.PNG que kali.png, pero en GitHub Pages NO.
 Si el archivo se llama KALI.PNG funcionara en tu

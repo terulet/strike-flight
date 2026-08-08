@@ -27,6 +27,11 @@ orden:
   assets\enemigos\veloz.png
   assets\veloz.png          <- sueltas
 
+OJO: assets\ esta en .gitignore. Un dibujo que
+se quede SOLO ahi funciona en el ordenador donde
+esta y no llega a GitHub, ni a la web, ni al iPad.
+Los definitivos van en art\
+
 En minusculas siempre: en Windows da igual, en
 GitHub Pages no.
 

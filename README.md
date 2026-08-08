@@ -47,9 +47,15 @@ Cada dibujo se busca en varias carpetas y gana la primera que lo tenga:
 art/naves/kali.png  →  assets/naves/kali.png  →  assets/kali.png
 ```
 
-Así que si tu carpeta se llama `assets\`, o si tienes los PNG sueltos sin
-subcarpeta, funciona igual sin renombrar nada. La lista está en `CARPETAS`,
-arriba del todo de `index.html`: añadir un sitio donde buscar es una línea.
+Así que si tienes los PNG sueltos sin subcarpeta, o en otra carpeta, el juego
+los encuentra igual. La lista está en `CARPETAS`, arriba del todo de
+`index.html`: añadir un sitio donde buscar es una línea.
+
+> **Pero `assets/` está en `.gitignore`**, a propósito: es el cajón de
+> originales en bruto. Un dibujo que se quede solo ahí funciona en el
+> ordenador donde está y **no llega a GitHub, ni a Pages, ni a la tablet**.
+> Se vería bien en una pantalla y estaría roto en todas las demás, sin avisar.
+> **Los dibujos definitivos van en `art/`.**
 
 > Los nombres, **en minúsculas**. Windows no distingue `KALI.PNG` de
 > `kali.png`, pero GitHub Pages sí: en mayúsculas te funcionaría en el
