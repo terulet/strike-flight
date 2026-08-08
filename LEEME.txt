@@ -1,0 +1,119 @@
+===========================================
+  STRIKE FLIGHT
+===========================================
+
+Un solo archivo. No hay que instalar nada.
+
+
+-------------------------------------------
+  JUGAR EN EL PC
+-------------------------------------------
+
+Doble clic en index.html. Se abre en el navegador
+y ya esta.
+
+Se juega arrastrando el raton (o el dedo). Dispara
+sola: solo hay que esquivar y recoger premios.
+
+
+-------------------------------------------
+  PONER UNA NAVE NUEVA  <-- LO IMPORTANTE
+-------------------------------------------
+
+En el menu, casilla "+ CARGAR".
+
+  1. Pulsa el +
+  2. Elige el PNG de la nave
+  3. Ya esta: aparece en el menu y se queda
+     guardada aunque cierres el navegador
+
+El juego le quita solo el fondo si es de un
+color plano (magenta, blanco, verde...), la
+recorta y la ajusta de tamano. No hace falta
+retocar nada antes.
+
+Caben 4 naves cargadas. Para borrar una, pulsa
+la x de su esquina.
+
+Esto funciona igual en el iPad: el + abre la
+galeria de fotos.
+
+
+-------------------------------------------
+  LA CARPETA art\
+-------------------------------------------
+
+Sirve para que las naves vengan puestas de
+serie, sin tener que cargarlas a mano:
+
+  art\naves\kali.png
+  art\naves\yoli.png
+  art\naves\silvia.png
+
+  art\enemigos\normal.png
+  art\enemigos\veloz.png
+  art\enemigos\torreta.png
+  art\enemigos\tanque.png
+
+Si un archivo no esta, esa pieza se dibuja por
+codigo como hasta ahora. No se rompe nada.
+
+OJO: por seguridad, el navegador NO deja leer
+los pixeles de un archivo del disco cuando abres
+el juego con doble clic. Eso significa que a las
+imagenes de art\ no se les puede quitar el fondo
+en ese modo: tienen que venir ya con fondo
+transparente.
+
+Si tienen fondo magenta, cargalas con el boton +,
+que ahi si funciona el recorte automatico.
+
+
+-------------------------------------------
+  COMO DEBEN SER LAS IMAGENES
+-------------------------------------------
+
+  - La nave MIRANDO HACIA ARRIBA
+  - Los enemigos mirando hacia abajo, o simetricos
+  - PNG con fondo transparente (lo ideal)
+    o con fondo de un color plano
+  - Del tamano que sea: se reducen solas a 256 px
+
+
+-------------------------------------------
+  PONERLO EN EL IPAD
+-------------------------------------------
+
+  1. Sube esta carpeta a GitHub Pages (gratis)
+     o a cualquier hosting con enlace
+  2. Abre el enlace en Safari en el iPad
+  3. Compartir -> Anadir a pantalla de inicio
+
+Queda con icono propio y a pantalla completa,
+como una app. Y funciona sin internet.
+
+
+-------------------------------------------
+  TOCAR LOS AJUSTES
+-------------------------------------------
+
+Abre index.html con el Bloc de notas. Arriba del
+todo hay dos bloques comentados en espanol:
+
+  CONFIG  -> vidas, velocidad, cadencia de
+             disparo, dificultad...
+
+  TEMAS   -> los cuatro mundos. Copiar un bloque
+             y cambiar los colores = mundo nuevo
+
+Guardar, recargar el navegador, y ya se ve.
+
+
+-------------------------------------------
+  SI SALE ALGO RARO
+-------------------------------------------
+
+En la consola del navegador (F12) apareceran
+errores 404 de los PNG que faltan en art\.
+Es normal y no afecta a nada: son los archivos
+que todavia no has puesto.
