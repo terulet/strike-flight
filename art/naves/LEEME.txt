@@ -1,0 +1,53 @@
+===========================================
+  NAVES  -  suelta aqui los PNG
+===========================================
+
+Los nombres tienen que ser EXACTAMENTE estos,
+en minusculas:
+
+  kali.png
+  yoli.png
+  silvia.png
+
+Aparecen solas en el menu, en la fila "TU NAVE".
+Si falta alguna, su casilla pone "falta el PNG"
+y el resto del juego sigue funcionando igual.
+
+
+-------------------------------------------
+  COMO TIENE QUE SER EL DIBUJO
+-------------------------------------------
+
+  - La nave MIRANDO HACIA ARRIBA
+  - Fondo transparente (lo ideal), o de un
+    color plano: magenta, blanco, verde...
+  - Del tamano que sea. Se reduce sola a
+    512 px por el lado largo.
+
+El fondo se quita por inundacion DESDE LOS
+BORDES: solo se va el color que toca el marco.
+Un blanco de dentro de la nave, rodeado de
+contorno, se queda. Por eso una nave blanca
+sobre fondo blanco tambien sale bien.
+
+
+-------------------------------------------
+  SI LA NAVE SALE CON SU FONDO
+-------------------------------------------
+
+Pasa solo al abrir index.html con doble clic:
+en ese modo el navegador prohibe leer los
+pixeles de un archivo del disco, asi que el
+recorte automatico no puede actuar.
+
+Se arregla de una vez y para siempre pasando
+los PNG por la herramienta:
+
+  node herramientas/recortar.mjs art/naves/
+
+Guarda el resultado ya recortado en el propio
+archivo. A partir de ahi se ve bien en todas
+partes: doble clic, GitHub Pages y el iPad.
+
+Servido por HTTP (GitHub Pages) el juego lo
+hace solo y no hace falta nada de esto.

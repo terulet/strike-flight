@@ -26,25 +26,39 @@ En el iPad el `+` abre la galería de fotos.
 
 ## La carpeta `art/`
 
-Para que las naves vengan puestas de serie en vez de cargarlas a mano:
+Para que las naves vengan puestas de serie en vez de cargarlas a mano. Cada
+subcarpeta tiene su `LEEME.txt` con los nombres exactos:
 
 ```
-art/naves/kali.png
-art/naves/yoli.png
-art/naves/silvia.png
-
-art/enemigos/normal.png
-art/enemigos/veloz.png
-art/enemigos/torreta.png
-art/enemigos/tanque.png
+art/naves/kali.png       art/enemigos/normal.png
+art/naves/yoli.png       art/enemigos/veloz.png
+art/naves/silvia.png     art/enemigos/torreta.png
+                         art/enemigos/tanque.png
+                         art/enemigos/kamikaze.png
 ```
 
 Lo que falte se dibuja por código. No se rompe nada.
 
-> Abriendo con `file://`, el navegador no deja leer los píxeles de una imagen
-> de disco, así que a estas no se les puede quitar el fondo: tienen que venir
-> ya con transparencia. Servido por HTTP (GitHub Pages) sí funciona el
-> recorte automático.
+### Dejar los PNG recortados
+
+Abriendo con `file://`, el navegador no deja leer los píxeles de una imagen
+de disco, así que a las de `art/` no se les puede quitar el fondo en ese modo.
+Servido por HTTP —GitHub Pages— el juego lo hace solo.
+
+Para que funcione también con doble clic, se pasan una vez por la herramienta:
+
+```
+npm i -D playwright && npx playwright install chromium
+node herramientas/recortar.mjs art/
+```
+
+Quita el fondo, recorta al contenido, reduce a 512 px y guarda el resultado en
+el propio archivo. Es idempotente: volver a pasarla no estropea nada.
+
+No duplica el algoritmo — abre el propio `index.html` en un navegador sin
+ventana y llama a su `prepararSprite()`, así que el resultado es idéntico al
+del juego por construcción. Playwright hace falta solo para esto: el juego
+sigue sin dependencias.
 
 ## Requisitos de las imágenes
 
@@ -65,14 +79,45 @@ Todo en la cabecera de `index.html`, comentado en español:
 
 ## Contenido
 
-Cuatro mundos, cuatro tipos de enemigo (normales, veloces en zigzag, torretas
-que apuntan, y acorazados con barra de vida), seis niveles de arma, cinco
-premios, combos con multiplicador, y récord guardado.
+Cuatro mundos y cinco tipos de enemigo: normales, veloces en zigzag, torretas
+que apuntan, acorazados con barra de vida, y kamikazes que persiguen a la nave
+con giro limitado —siempre esquivables—. Seis niveles de arma, cinco premios,
+combos con multiplicador y récord guardado.
 
 Sonido generado por síntesis: cero archivos de audio.
+
+## Añadir un enemigo
+
+Los enemigos están dirigidos por datos: una entrada en la tabla `ENEMIGOS` y
+listo. No hay que tocar `update()` ni el dibujado. El kamikaze completo son
+estas líneas:
+
+```js
+kamikaze: {
+  r: 15, hp: 2, puntos: 35, vel: 1.2, forma: "punta",
+  color: t => t.enemigoB,
+  init(e) { e.vx = 0; },
+  mover(e, dt) {
+    caer(e, dt);
+    e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * dt, -230, 230);
+    e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
+    e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
+  },
+},
+```
+
+Si además pones `art/enemigos/kamikaze.png`, se recoge solo.
+
+El modo de juego actual es **supervivencia** (`elegirTipo()`): mezcla
+aleatoria que se abre según el nivel. La campaña por niveles se construye al
+lado, sin sustituirlo. El plan completo está en [`AUDITORIA.md`](AUDITORIA.md).
 
 ## Ponerlo en la tablet
 
 Con Pages activado, abrir el enlace en Safari y **Compartir → Añadir a
-pantalla de inicio**. Queda con icono propio, a pantalla completa y funciona
-sin conexión.
+pantalla de inicio**. Queda a pantalla completa y funciona sin conexión.
+
+> GitHub Pages necesita que el repositorio sea público en las cuentas
+> gratuitas. Si en algún momento pasa a privado, Pages deja de servir: la
+> alternativa sin repositorio es [Netlify Drop](https://app.netlify.com/drop),
+> que publica arrastrando la carpeta.

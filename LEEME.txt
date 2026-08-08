@@ -54,6 +54,11 @@ serie, sin tener que cargarlas a mano:
   art\enemigos\veloz.png
   art\enemigos\torreta.png
   art\enemigos\tanque.png
+  art\enemigos\kamikaze.png
+
+Los nombres tienen que ser esos, en minusculas.
+Dentro de cada carpeta hay un LEEME.txt que lo
+repite, por si se te olvida.
 
 Si un archivo no esta, esa pieza se dibuja por
 codigo como hasta ahora. No se rompe nada.
@@ -65,8 +70,33 @@ imagenes de art\ no se les puede quitar el fondo
 en ese modo: tienen que venir ya con fondo
 transparente.
 
-Si tienen fondo magenta, cargalas con el boton +,
-que ahi si funciona el recorte automatico.
+Hay dos maneras de arreglarlo:
+
+  - Cargarlas con el boton +, que ahi si
+    funciona el recorte automatico.
+
+  - O dejarlas recortadas de una vez, con:
+        node herramientas\recortar.mjs art\
+    (ver mas abajo)
+
+Servido por internet (GitHub Pages) el juego lo
+hace solo y no hace falta nada de esto.
+
+
+-------------------------------------------
+  DEJAR LOS PNG YA RECORTADOS
+-------------------------------------------
+
+Solo si quieres que se vean bien tambien con
+doble clic. Una vez, y ya esta:
+
+  npm i -D playwright
+  npx playwright install chromium
+  node herramientas\recortar.mjs art\
+
+Les quita el fondo, las recorta y las guarda
+recortadas en su propio archivo. Pasarla otra
+vez no estropea nada.
 
 
 -------------------------------------------
@@ -77,7 +107,7 @@ que ahi si funciona el recorte automatico.
   - Los enemigos mirando hacia abajo, o simetricos
   - PNG con fondo transparente (lo ideal)
     o con fondo de un color plano
-  - Del tamano que sea: se reducen solas a 256 px
+  - Del tamano que sea: se reducen solas a 512 px
 
 
 -------------------------------------------
@@ -89,8 +119,14 @@ que ahi si funciona el recorte automatico.
   2. Abre el enlace en Safari en el iPad
   3. Compartir -> Anadir a pantalla de inicio
 
-Queda con icono propio y a pantalla completa,
-como una app. Y funciona sin internet.
+Queda a pantalla completa, como una app. Y
+funciona sin internet.
+
+OJO: GitHub Pages gratis solo sirve repositorios
+PUBLICOS. Si algun dia lo pones en privado, la
+pagina deja de verse. La alternativa es Netlify
+Drop (app.netlify.com/drop), que no necesita
+repositorio: se arrastra la carpeta y ya.
 
 
 -------------------------------------------
