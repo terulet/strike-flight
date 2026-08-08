@@ -98,6 +98,7 @@ const TEMAS = [
 const CARPETAS = {
   naves:    ["art/naves/",    "assets/naves/",    "assets/"],
   enemigos: ["art/enemigos/", "assets/enemigos/", "assets/"],
+  fondos:   ["art/fondos/",   "assets/fondos/",   "assets/"],
 };
 const buscar = (grupo, archivo) => CARPETAS[grupo].map(d => d + archivo);
 
@@ -266,6 +267,20 @@ function cargarSprite(id, rutas) {
     if (!src) return;
     const img = new Image();
     img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; else siguiente(); };
+    img.onerror = siguiente;
+    img.src = src;
+  })();
+}
+
+// Igual, pero tal cual viene: ni recorte de fondo ni recorte al contenido.
+// Para imágenes que YA son el fondo.
+function cargarImagen(id, rutas) {
+  const cola = Array.isArray(rutas) ? rutas.slice() : [rutas];
+  (function siguiente() {
+    const src = cola.shift();
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => { SPRITES[id] = img; };
     img.onerror = siguiente;
     img.src = src;
   })();
@@ -531,8 +546,14 @@ const DETALLES = {
 // Si pones PNG de enemigos en cualquiera de las carpetas, se recogen solos
 Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, buscar("enemigos", t + ".png")));
 
+// Fondos: art/fondos/espacio.png, oceano.png, volcan.png, neon.png
+// Van por cargarImagen y NO por cargarSprite: al fondo no se le quita el
+// fondo. Pasarlo por el recorte por inundación le comería el cielo, que es
+// justo lo que queremos ver.
+TEMAS.forEach(t => cargarImagen("f_" + t.id, buscar("fondos", t.id + ".png")));
+
 // ── Estado ────────────────────────────────────────────────
-let T, naveSel = 0;
+let T, naveSel = 0, fondoY = 0;
 let state = "menu";
 let player, bullets, eBullets, enemies, premios, particles, bg, flotantes, ondas;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
@@ -757,6 +778,7 @@ function disparar() {
 
 // ── Actualizar ────────────────────────────────────────────
 function update(dt) {
+  fondoY += 42 * dt;          // la imagen de fondo, más lenta que el polvo
   for (const s of bg) {
     s.y += (T.bg === "rejilla" ? 120 : 34 + s.z * 78) * dt;
     if (T.bg === "burbujas") s.x += Math.sin(s.f += dt * 2) * 14 * dt;
@@ -866,35 +888,49 @@ function update(dt) {
 
 // ── Dibujo ────────────────────────────────────────────────
 function fondo() {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Si hay imagen de fondo para este mundo, manda ella: se ajusta al ancho
+  // y se repite hacia arriba, así que basta con que enlace por arriba y por
+  // abajo para que el desplazamiento sea infinito y sin costura.
+  const img = SPRITES["f_" + T.id];
+  let iw = 0, ih = 0;
+  if (img) { iw = img.naturalWidth || img.width; ih = img.naturalHeight || img.height; }
+  if (iw && ih) {
+    const alto = W * ih / iw;
+    for (let y = -(fondoY % alto); y < H; y += alto) ctx.drawImage(img, 0, y, W, alto);
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
 
+  // Con imagen detrás, el polvo de siempre se queda como capa de parallax
+  // por encima: da sensación de velocidad sin taparla.
+  const cap = (iw && ih) ? 0.4 : 1;
   ctx.fillStyle = T.bgColor; ctx.strokeStyle = T.bgColor;
   if (T.bg === "rejilla") {
     ctx.lineWidth = 1;
     for (const s of bg) {
-      ctx.globalAlpha = 0.10 + s.z * 0.16;
+      ctx.globalAlpha = (0.10 + s.z * 0.16) * cap;
       ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(W, s.y); ctx.stroke();
     }
-    ctx.globalAlpha = 0.07;
+    ctx.globalAlpha = 0.07 * cap;
     for (let i = 0; i <= 10; i++) {
       const x = (i / 10) * W;
       ctx.beginPath(); ctx.moveTo(W / 2 + (x - W / 2) * 0.15, H * 0.1); ctx.lineTo(x, H); ctx.stroke();
     }
   } else if (T.bg === "burbujas") {
     for (const s of bg) {
-      ctx.globalAlpha = 0.12 + s.z * 0.26;
+      ctx.globalAlpha = (0.12 + s.z * 0.26) * cap;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 2.2, 0, TAU); ctx.stroke();
     }
   } else if (T.bg === "brasas") {
     for (const s of bg) {
-      ctx.globalAlpha = 0.2 + s.z * 0.45;
+      ctx.globalAlpha = (0.2 + s.z * 0.45) * cap;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 1.1, 0, TAU); ctx.fill();
     }
   } else {
     for (const s of bg) {
-      ctx.globalAlpha = 0.25 + s.z * 0.55;
+      ctx.globalAlpha = (0.25 + s.z * 0.55) * cap;
       ctx.fillRect(s.x, s.y, s.r, s.r * 2.6);
     }
   }
