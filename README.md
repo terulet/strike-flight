@@ -88,10 +88,30 @@ sigue sin dependencias.
 Todo en la cabecera de `index.html`, comentado en español:
 
 - **`CONFIG`** — vidas, velocidad, cadencia de disparo, dificultad, tamaño de
-  la nave, y `llamasMotor` (ponlo a `false` si tu nave ya lleva las llamas
-  dibujadas).
+  la nave, y `llamasMotor` (viene en `false` porque las naves ya traen las
+  llamas dibujadas; ponlo a `true` si alguna viene sin ellas).
 - **`TEMAS`** — los cuatro mundos. Copiar un bloque y cambiar los colores es
   un mundo nuevo.
+- **`CARPETAS`** — dónde se buscan los dibujos.
+
+## Lenguaje visual
+
+Dos reglas que no dependen del mundo, y conviene no romperlas al añadir cosas:
+
+**Tu disparo es alargado y cian. El suyo es redondo y rosa.** Fijo en los
+cuatro mundos (`TIRO_TUYO` y `TIRO_SUYO`), porque lo que te mata no puede
+cambiar de aspecto cada vez que cambias de mundo. Y se distingue por **forma**
+antes que por color: en blanco y negro se seguiría leyendo. Los premios son
+chapas **cuadradas** — no hay ningún otro cuadrado en pantalla.
+
+**Los mundos van oscuros y el color lo pone la nave.** La nave y el mundo se
+eligen por separado, así que cualquiera puede acabar en cualquiera: si el
+fondo también grita, se pelean. Los enemigos tienen prohibido el rosa y el
+cian, que están reservados a las balas.
+
+Todo lo que dibuja el código lleva contorno oscuro (`TINTA`) más un filo claro
+por fuera, para pegar con arte de contorno grueso. El filo claro hace falta:
+un contorno negro sobre fondo negro no separa nada.
 
 ## Contenido
 

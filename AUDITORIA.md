@@ -190,7 +190,7 @@ el del tipo, no hace falta.
 | Todo en ámbito global | Colisión de nombres al crecer | Separar en archivos al entrar R3 |
 | `localStorage` para las naves cargadas | ~5 MB de tope; 4 naves × 512 px ya son ~70 KB | Vigilar si suben muchos assets |
 | Boss modular con partes | Es el sistema más caro de la lista | Dejarlo para el final del vertical slice, con R1 y R2 ya asentados |
-| Legibilidad (punto 13) | Las balas del jugador y las de algún mundo comparten color | Fijar lenguaje visual: enemigo = rojo/naranja + forma redonda; jugador = cian + forma alargada. Y no depender solo del color |
+| Legibilidad (punto 13) | En CIUDAD NEÓN coincidían enemigos, balas enemigas y premios en el mismo amarillo | **Resuelto.** Lenguaje fijo e independiente del mundo: tu disparo alargado y cian (`TIRO_TUYO`), el suyo redondo y rosa (`TIRO_SUYO`), premios en chapa cuadrada. Los enemigos tienen prohibido el rosa y el cian. Se distingue por forma antes que por color |
 | El recorte de fondo no actúa con `file://` | Las naves de `art/` se verían con su fondo al abrir por doble clic | Resuelto: `herramientas/recortar.mjs` las deja recortadas en disco, y usa el propio `prepararSprite()` del juego para que no haya dos algoritmos |
 
 ---
