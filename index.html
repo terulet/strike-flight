@@ -124,9 +124,32 @@ const ctx = c.getContext("2d");
 const fileInput = document.getElementById("file");
 let W = 0, H = 0;
 
+// ── Escala por tamaño de pantalla ─────────────────────────
+//  El juego está calibrado en el móvil (414×896). Sin esto, ese mismo
+//  número de píxeles en un iPad ocupa una fracción menor de la pantalla:
+//  la nave se ve diminuta y esquivar es más fácil de lo que se diseñó.
+//  ESC multiplica tamaños Y velocidades de lo que se juega —nave, enemigos,
+//  balas, premios— para que ocupen el mismo % de pantalla y se crucen en
+//  el mismo tiempo relativo en cualquier dispositivo.
+//
+//  Se usa el MENOR de los dos ratios (ancho y alto), no solo el ancho.
+//  El iPad es más "cuadrado" que el móvil (menos alto en proporción a lo
+//  ancho que es), así que escalar solo por ancho aceleraba la caída de
+//  los enemigos más de lo que crecía la pantalla: menos tiempo de
+//  reacción, no el mismo. Con el menor de los dos, el eje que manda es
+//  el que de verdad determina cuánto tiempo hay para esquivar, y en el
+//  peor de los casos sobra margen de reacción, nunca falta.
+//
+//  Solo CRECE (mínimo 1): por debajo de la referencia el juego ya está
+//  probado y no se toca. Tope en 2x para que una ventana de escritorio
+//  enorme no convierta la nave en un pantallazo.
+const REF_ANCHO = 414, REF_ALTO = 896;
+let ESC = 1;
+
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
+  ESC = Math.min(2, Math.max(1, Math.min(W / REF_ANCHO, H / REF_ALTO)));
   c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
   c.style.width = W + "px"; c.style.height = H + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -401,14 +424,14 @@ const PATRONES = {
   abanico(x, y, ang, vel, n, apertura, r) {
     for (let i = 0; i < n; i++) {
       const a = ang + (n === 1 ? 0 : (i - (n - 1) / 2) * apertura);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 * ESC });
     }
   },
   // n disparos repartidos por toda la circunferencia
   circulo(x, y, vel, n, fase, r) {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + (fase || 0);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 * ESC });
     }
   },
 };
@@ -437,7 +460,7 @@ const ENEMIGOS = {
   veloz: {
     r: 13, hp: 1, puntos: 25, vel: 1.7, forma: "rombo",
     color: t => t.enemigoB,
-    init(e) { e.zig = rand(70, 150) * (Math.random() < 0.5 ? -1 : 1); },
+    init(e) { e.zig = rand(70, 150) * ESC * (Math.random() < 0.5 ? -1 : 1); },
     mover(e, dt) {
       caer(e, dt);
       e.fase += dt * 3;
@@ -451,7 +474,7 @@ const ENEMIGOS = {
     mover: caer,
     recarga: () => rand(1.1, 1.9),
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 1, 0);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250 * ESC, 1, 0);
       beep(220, 0.09, "sawtooth", 0.03);
     },
   },
@@ -462,7 +485,7 @@ const ENEMIGOS = {
     mover: caer,
     recarga: () => rand(0.7, 1.1),
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 3, 0.24);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250 * ESC, 3, 0.24);
       beep(220, 0.09, "sawtooth", 0.03);
     },
   },
@@ -476,7 +499,7 @@ const ENEMIGOS = {
     init(e) { e.vx = 0; },
     mover(e, dt) {
       caer(e, dt);
-      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * dt, -230, 230);
+      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * ESC * dt, -230 * ESC, 230 * ESC);
       e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
       e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
     },
@@ -582,7 +605,7 @@ function crearFondo() {
 
 function reset() {
   state = "play";
-  player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
+  player = { x: W / 2, y: H * 0.78, r: 16 * ESC, px: W / 2 };
   targetX = player.x; targetY = player.y;
   bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
   crearFondo();
@@ -594,7 +617,7 @@ function reset() {
 
 // El menú también anima, así que todo esto tiene que existir ya
 bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
-player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
+player = { x: W / 2, y: H * 0.78, r: 16 * ESC, px: W / 2 };
 targetX = player.x; targetY = player.y;
 score = 0; lives = 0; elapsed = 0; level = 1; spawnAcc = 0; shootAcc = 0; invulnT = 0;
 arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
@@ -603,7 +626,7 @@ crearFondo();
 
 // ── Entrada ───────────────────────────────────────────────
 function pos(e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo; }
+function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo * ESC; }
 const dentro = (p, r) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 
 c.addEventListener("pointerdown", (e) => {
@@ -685,11 +708,12 @@ function elegirTipo() {
 function spawnEnemy(tipo, x) {
   const k = tipo || elegirTipo();
   const d = ENEMIGOS[k];
+  const r = d.r * ESC;   // el tamaño de la tabla es "a 414 px de ancho"
   const e = {
-    tipo: k, r: d.r, hp: d.hp, hpMax: d.hp,
-    x: x != null ? clamp(x, d.r, W - d.r) : rand(d.r + 10, W - d.r - 10),
-    y: -d.r - 12,
-    vy: CONFIG.velocidadEnemigo * (1 + (level - 1) * 0.13) * d.vel,
+    tipo: k, r, hp: d.hp, hpMax: d.hp,
+    x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
+    y: -r - 12,
+    vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
     cd: d.recarga ? d.recarga() : 0, flash: 0,
   };
@@ -698,7 +722,7 @@ function spawnEnemy(tipo, x) {
   return e;
 }
 
-function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95, r: 15, tipo, f: rand(0, TAU) }); }
+function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95 * ESC, r: 15 * ESC, tipo, f: rand(0, TAU) }); }
 
 function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
@@ -765,8 +789,10 @@ function golpe() {
 }
 
 function disparar() {
-  const y = player.y - 18;
-  const add = (dx, vx) => bullets.push({ x: player.x + dx, y, vx: vx || 0, r: 3.6 });
+  const y = player.y - 18 * ESC;
+  // dx/vx están escritos "a 414 px de ancho"; add() los lleva a la escala
+  // real, así que los patrones de abajo no cambian ni se repiten por talla.
+  const add = (dx, vx) => bullets.push({ x: player.x + dx * ESC, y, vx: (vx || 0) * ESC, r: 3.6 * ESC });
   if (arma === 1) add(0, 0);
   else if (arma === 2) { add(-9, 0); add(9, 0); }
   else if (arma === 3) { add(0, 0); add(-12, -80); add(12, 80); }
@@ -817,7 +843,9 @@ function update(dt) {
   bank += (clamp((player.x - player.px) * 0.045, -0.45, 0.45) - bank) * (1 - Math.exp(-9 * dt));
 
   if (Math.random() < 0.9) {
-    particles.push({ x: player.x + rand(-5, 5), y: player.y + 16, vx: rand(-18, 18), vy: rand(90, 190),
+    // El punto de anclaje sigue al tamaño de la nave; la velocidad y el
+    // tamaño de la partícula son sensación pura y no se tocan.
+    particles.push({ x: player.x + rand(-5, 5) * ESC, y: player.y + player.r, vx: rand(-18, 18), vy: rand(90, 190),
       life: rand(0.18, 0.36), t: 0, color: T.motor, r: rand(1.2, 2.8) });
   }
 
@@ -827,7 +855,7 @@ function update(dt) {
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.y -= CONFIG.velocidadBala * dt; b.x += (b.vx || 0) * dt;
+    b.y -= CONFIG.velocidadBala * ESC * dt; b.x += (b.vx || 0) * dt;
     if (b.y < -24 || b.x < -24 || b.x > W + 24) bullets.splice(i, 1);
   }
   for (let i = eBullets.length - 1; i >= 0; i--) {

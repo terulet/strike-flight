@@ -51,6 +51,38 @@ Chromium real, servido por HTTP, 414×896 a DPR 2:
 Los únicos errores de consola son los 404 de `art/`, previstos mientras
 falten los PNG.
 
+### Escala por tamaño de pantalla
+
+El juego estaba calibrado en píxeles fijos a 414×896 (el móvil). En un iPad,
+esos mismos píxeles ocupan una fracción menor de la pantalla: la nave se veía
+diminuta y esquivar era más fácil de lo diseñado — medido, no a ojo: en una
+partida ciega simulada (el dedo barriendo la pantalla en seno, sin reaccionar
+a nada) el iPad perdía una partida entera en 45 s con daño 0 en el móvil.
+
+`ESC` (l. 127-152) multiplica tamaños y velocidades de lo que se juega —nave,
+enemigos, balas, premios— por el **menor** de los dos ratios, ancho y alto,
+no solo el ancho. Hace falta el de los dos: el iPad es más "cuadrado" que el
+móvil, así que escalar solo por ancho aceleraba la caída de los enemigos más
+de lo que crecía la pantalla, y el tiempo de reacción bajaba en vez de
+mantenerse igual. Con el menor de los dos ratios, ese mismo test ciego pasa a
+dar **0 golpes en las dos pantallas**, y el nivel alcanzado en 45 s es
+comparable (5 en móvil, 5 en iPad, frente al 2 de antes de la corrección).
+
+No toca `CONFIG.velocidadNave` (es un tiempo de respuesta al dedo, no una
+distancia) ni la capa de sensación —partículas, sacudida, fogonazo—, que
+sigue calibrada tal cual estaba.
+
+**Hallazgo aparte, no causado por esto:** con el lienzo del iPad (más
+píxeles reales que el móvil a la misma densidad), el juego rinde a la mitad
+de fps que el original — 21-23 fps frente a los ~45 del móvil, medido
+headless y sin GPU. Forzando `ESC=1` en ese mismo lienzo el fps no cambia
+(22 → 23), así que **no es el escalado**: es el coste fijo de la capa visual
+—viñeta de pantalla completa y degradados por enemigo— sobre más píxeles.
+Con GPU real (cualquier iPad físico) los degradados son mucho más baratos que
+en Chromium headless sin aceleración, así que no está claro que esto se note
+fuera de este entorno de pruebas. Sin optimizar sin medir en el dispositivo
+real primero.
+
 ---
 
 ## 1. Qué existe
@@ -186,7 +218,8 @@ el del tipo, no hace falta.
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | Sin agrupación de objetos; `splice` en cada fotograma | A densidad de bullet hell, tirones por recolección de basura en iPad | Reutilizar objetos cuando entren los bosses, no antes. Medido: 88 partículas de pico en 60 s, muy lejos del problema |
-| Colisiones O(balas × enemigos) (l. 760) | Con formaciones + boss modular se dispara | Rejilla espacial simple, solo si se mide caída de FPS. Hoy: 60 fps con 19 enemigos |
+| Colisiones O(balas × enemigos) (l. 760) | Con formaciones + boss modular se dispara | Rejilla espacial simple, solo si se mide caída de FPS. Hoy en móvil: ~45 fps con 20 enemigos |
+| Rendimiento en pantalla grande | Medido: en iPad el fps cae a la mitad que en móvil (21-23 frente a ~45), por la viñeta y los degradados de la capa visual sobre más píxeles. No es el escalado por pantalla: forzando `ESC=1` en el mismo lienzo el fps no cambia | Sin optimizar todavía: headless no tiene GPU y un iPad real sí acelera los degradados. Medir en un dispositivo real antes de simplificar la capa visual |
 | Todo en ámbito global | Colisión de nombres al crecer | Separar en archivos al entrar R3 |
 | `localStorage` para las naves cargadas | ~5 MB de tope; 4 naves × 512 px ya son ~70 KB | Vigilar si suben muchos assets |
 | Boss modular con partes | Es el sistema más caro de la lista | Dejarlo para el final del vertical slice, con R1 y R2 ya asentados |
