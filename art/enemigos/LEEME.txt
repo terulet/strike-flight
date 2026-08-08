@@ -20,6 +20,16 @@ Cuando se anadan tipos nuevos a la tabla, el
 archivo que toca es <nombre del tipo>.png y
 se recoge solo, sin tocar codigo.
 
+Vale cualquiera de estas carpetas, en este
+orden:
+
+  art\enemigos\veloz.png    <- la de este repo
+  assets\enemigos\veloz.png
+  assets\veloz.png          <- sueltas
+
+En minusculas siempre: en Windows da igual, en
+GitHub Pages no.
+
 
 -------------------------------------------
   COMO TIENE QUE SER EL DIBUJO

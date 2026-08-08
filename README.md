@@ -39,6 +39,22 @@ art/naves/silvia.png     art/enemigos/torreta.png
 
 Lo que falte se dibuja por código. No se rompe nada.
 
+### También vale `assets/`
+
+Cada dibujo se busca en varias carpetas y gana la primera que lo tenga:
+
+```
+art/naves/kali.png  →  assets/naves/kali.png  →  assets/kali.png
+```
+
+Así que si tu carpeta se llama `assets\`, o si tienes los PNG sueltos sin
+subcarpeta, funciona igual sin renombrar nada. La lista está en `CARPETAS`,
+arriba del todo de `index.html`: añadir un sitio donde buscar es una línea.
+
+> Los nombres, **en minúsculas**. Windows no distingue `KALI.PNG` de
+> `kali.png`, pero GitHub Pages sí: en mayúsculas te funcionaría en el
+> ordenador y fallaría en el iPad.
+
 ### Dejar los PNG recortados
 
 Abriendo con `file://`, el navegador no deja leer los píxeles de una imagen

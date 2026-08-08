@@ -56,9 +56,25 @@ serie, sin tener que cargarlas a mano:
   art\enemigos\tanque.png
   art\enemigos\kamikaze.png
 
-Los nombres tienen que ser esos, en minusculas.
-Dentro de cada carpeta hay un LEEME.txt que lo
-repite, por si se te olvida.
+Dentro de cada carpeta hay un LEEME.txt que
+repite los nombres, por si se te olvida.
+
+TAMBIEN VALE assets\ : cada dibujo se busca en
+varios sitios y gana el primero que lo tenga:
+
+  art\naves\kali.png
+  assets\naves\kali.png
+  assets\kali.png        (sueltas, sin subcarpeta)
+
+O sea que si tu carpeta ya se llama assets\, no
+tienes que renombrar nada. La lista de sitios
+donde buscar esta arriba del todo de index.html,
+en CARPETAS.
+
+LOS NOMBRES EN MINUSCULAS. En Windows da igual
+KALI.PNG que kali.png, pero en GitHub Pages no:
+en mayusculas funcionaria en el ordenador y
+fallaria en el iPad.
 
 Si un archivo no esta, esa pieza se dibuja por
 codigo como hasta ahora. No se rompe nada.

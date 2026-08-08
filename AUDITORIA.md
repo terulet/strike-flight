@@ -157,10 +157,17 @@ desbloquea todo lo demás. `spawnEnemy(tipo, x)` (l. 595) ya acepta tipo y
 posición, así que el guion de eventos puede escribirse sin tocar nada más.
 
 **R4 — Registro de assets. PENDIENTE a medias.** Las rutas ya no están
-cableadas una a una: los enemigos salen de `Object.keys(ENEMIGOS)` (l. 471) y
-las naves de la tabla `NAVES` (l. 78). Falta el manifiesto identificador
-lógico → archivo para poder soltar carpetas con nomenclatura tipo
-`ENE_001_fighter.png` sin tocar código.
+cableadas una a una: los enemigos salen de `Object.keys(ENEMIGOS)` y las naves
+de la tabla `NAVES`, y ambos pasan por `CARPETAS` (l. 72-83), que prueba
+varios sitios —`art/naves/`, `assets/naves/`, `assets/`— y se queda con el
+primero que tenga el archivo. `cargarSprite()` recorre la lista y cae al
+siguiente candidato en `onerror`.
+
+Eso resuelve el caso «la carpeta se llama de otra manera», que es el que
+estaba mordiendo de verdad. Lo que falta del R4 es el otro: el manifiesto
+identificador lógico → archivo, para soltar carpetas con nomenclatura tipo
+`ENE_001_fighter.png` sin renombrar nada. Mientras el nombre del archivo sea
+el del tipo, no hace falta.
 
 ### Lo que NO hay que hacer
 

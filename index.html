@@ -70,16 +70,29 @@ const TEMAS = [
 ];
 
 // ════════════════════════════════════════════════════════════
+//  DÓNDE ESTÁN LOS DIBUJOS
+//  Se prueban estas carpetas en orden y gana la primera que tenga
+//  el archivo. Así da igual que la carpeta se llame art\ o assets\,
+//  y da igual que las naves estén en su subcarpeta o sueltas.
+//  ¿Otra carpeta? Se añade a la lista y ya.
+// ════════════════════════════════════════════════════════════
+const CARPETAS = {
+  naves:    ["art/naves/",    "assets/naves/",    "assets/"],
+  enemigos: ["art/enemigos/", "assets/enemigos/", "assets/"],
+};
+const buscar = (grupo, archivo) => CARPETAS[grupo].map(d => d + archivo);
+
+// ════════════════════════════════════════════════════════════
 //  NAVES
 //  - "clasica" es la dibujada por código, siempre está.
-//  - Las de art/naves/*.png se cargan solas SI existen.
+//  - Las demás se cargan solas SI existe su PNG en alguna carpeta.
 //  - Las que ella cargue con el botón + se guardan en el navegador.
 // ════════════════════════════════════════════════════════════
 const NAVES = [
-  { id:"clasica", nombre:"CLÁSICA", src:null,                  fija:true },
-  { id:"kali",    nombre:"KALI",    src:"art/naves/kali.png",  fija:true },
-  { id:"yoli",    nombre:"YOLI",    src:"art/naves/yoli.png",  fija:true },
-  { id:"silvia",  nombre:"SILVIA",  src:"art/naves/silvia.png",fija:true },
+  { id:"clasica", nombre:"CLÁSICA", src:null,                      fija:true },
+  { id:"kali",    nombre:"KALI",    src:buscar("naves","kali.png"),   fija:true },
+  { id:"yoli",    nombre:"YOLI",    src:buscar("naves","yoli.png"),   fija:true },
+  { id:"silvia",  nombre:"SILVIA",  src:buscar("naves","silvia.png"), fija:true },
 ];
 
 // ════════════════════════════════════════════════════════════
@@ -215,11 +228,18 @@ function prepararSprite(img) {
 }
 
 const SPRITES = {};
-function cargarSprite(id, src) {
-  const img = new Image();
-  img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; };
-  img.onerror = () => {};      // no existe el archivo: se dibuja por código
-  img.src = src;
+// Prueba las rutas una tras otra y se queda con la primera que cargue.
+// Si no está en ninguna, esa pieza se dibuja por código y no pasa nada.
+function cargarSprite(id, rutas) {
+  const cola = Array.isArray(rutas) ? rutas.slice() : [rutas];
+  (function siguiente() {
+    const src = cola.shift();
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; else siguiente(); };
+    img.onerror = siguiente;
+    img.src = src;
+  })();
 }
 for (const n of NAVES) if (n.src) cargarSprite(n.id, n.src);
 // (los sprites de enemigos se precargan más abajo, con la tabla ENEMIGOS)
@@ -467,8 +487,8 @@ const FORMAS = {
   },
 };
 
-// Si pones PNG en art/enemigos/, se recogen solos
-Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, "art/enemigos/" + t + ".png"));
+// Si pones PNG de enemigos en cualquiera de las carpetas, se recogen solos
+Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, buscar("enemigos", t + ".png")));
 
 // ── Estado ────────────────────────────────────────────────
 let T, naveSel = 0;
