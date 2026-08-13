@@ -49,7 +49,45 @@ const CONFIG = {
   llamasMotor:        false, // las naves ya traen las llamas dibujadas; ponlo
                              // en true si alguna viene sin ellas
   sonido:             true,
+  comboTiempo:        2.6,   // segundos que aguanta el combo sin sumar
 };
+
+// ════════════════════════════════════════════════════════════
+//  CAMPO DE JUEGO VERTICAL
+// ════════════════════════════════════════════════════════════
+//  La plataforma es el iPad en vertical. Un monitor de 2048×858 no puede
+//  ensanchar el mundo hasta volver trivial el bullet hell: si el campo mide
+//  cinco veces la nave, esquivar deja de ser una decisión. Así que el mundo
+//  tiene una proporción máxima y lo que sobra a los lados es marco, no
+//  terreno jugable. 0.75 = 4:3, que es justo el iPad: allí no sobra nada.
+const PROPORCION_MAX = 0.75;
+
+// ════════════════════════════════════════════════════════════
+//  AJUSTES DEL JUGADOR — se guardan en el navegador
+// ════════════════════════════════════════════════════════════
+const OPCIONES = {
+  volMaster: 0.9,
+  volMusica: 0.6,
+  volSfx:    0.9,
+  silencio:  false,
+  sacudida:  1,        // 0 = sin sacudida de cámara
+  hitstop:   1,        // 0 = sin congelado de impacto
+  calidad:   "auto",   // "auto" | "alta" | "media" | "baja"
+  nucleo:    true,     // pinta la zona de impacto real de la nave
+};
+
+// ── Niveles de calidad ────────────────────────────────────
+//  Se recorta SIEMPRE por el lado decorativo: partículas secundarias,
+//  estelas, restos, brillo. Nunca por el lado de la lógica — un enemigo
+//  que deja de dispararte porque el móvil va justo es un juego roto, no
+//  un juego optimizado.
+const CALIDADES = {
+  alta:  { part: 1,    estela: 1,   glowSprite: true,  maxPart: 420, sombras: true  },
+  media: { part: 0.6,  estela: 0.6, glowSprite: true,  maxPart: 240, sombras: false },
+  baja:  { part: 0.32, estela: 0,   glowSprite: false, maxPart: 120, sombras: false },
+};
+let Q = CALIDADES.alta;
+let calidadAuto = "alta";
 
 // El negro de los contornos. Uno solo para todo el juego: es lo que hace que
 // las naves dibujadas y lo que pinta el código parezcan la misma cosa.
@@ -107,6 +145,12 @@ const CARPETAS = {
   fondos:   ["art/fondos/",   "assets/fondos/",   "assets/"],
   hazards:  ["art/hazards/",  "assets/hazards/",  "assets/"],
   defensas: ["art/defensas/", "assets/defensas/", "assets/"],
+  powerups: ["art/powerups/", "assets/powerups/", "assets/"],
+  proyectiles: ["art/proyectiles/", "assets/proyectiles/", "assets/"],
+  vfx:      ["art/vfx/",      "assets/vfx/",      "assets/"],
+  impactos: ["art/impactos/", "assets/impactos/", "assets/"],
+  bosses:   ["art/bosses/",   "assets/bosses/",   "assets/"],
+  proyEne:  ["art/proy_enemigos/", "assets/proy_enemigos/", "assets/"],
 };
 const buscar = (grupo, archivo) => CARPETAS[grupo].map(d => d + archivo);
 
@@ -362,12 +406,41 @@ const MISIONES = [
 //  - Las demás se cargan solas SI existe su PNG en alguna carpeta.
 //  - Las que ella cargue con el botón + se guardan en el navegador.
 // ════════════════════════════════════════════════════════════
+//  Las tres tienen que sentirse distintas en la MANO, no solo en la ficha:
+//  la diferencia va en velocidad de respuesta, tamaño de la zona de impacto
+//  y arma de salida. Los números están acotados a propósito — ±35 % — para
+//  que elegir sea una preferencia y no una trampa.
+//
+//    vel     pegada al dedo        dmg     daño por proyectil
+//    cad     multiplicador de cadencia (menos = dispara más)
+//    hitbox  tamaño de la zona de impacto real
 const NAVES = [
-  { id:"clasica", nombre:"CLÁSICA", src:null,                      fija:true },
-  { id:"kali",    nombre:"KALI",    src:buscar("naves","kali.png"),   fija:true },
-  { id:"yoli",    nombre:"YOLI",    src:buscar("naves","yoli.png"),   fija:true },
-  { id:"silvia",  nombre:"SILVIA",  src:buscar("naves","silvia.png"), fija:true },
+  { id:"clasica", nombre:"CLÁSICA", src:null, fija:true,
+    lema:"POLIVALENTE", desc:"Sin manías. Hace de todo.",
+    arma:"cannon", vel:1, cad:1, dmg:1, hitbox:1, escudo:0,
+    motor:"#ffcf5c", stats:{ ATAQUE:3, VELOCIDAD:3, CONTROL:3 } },
+
+  { id:"kali", nombre:"KALI", src:buscar("naves","kali.png"), fija:true,
+    lema:"ASALTO", desc:"Pega el doble y gira la mitad.",
+    arma:"cannon", vel:0.86, cad:1.14, dmg:1.38, hitbox:1.1, escudo:0,
+    motor:"#ff7a1f", stats:{ ATAQUE:5, VELOCIDAD:2, CONTROL:3 } },
+
+  { id:"yoli", nombre:"YOLI", src:buscar("naves","yoli.png"), fija:true,
+    lema:"INTERCEPTOR", desc:"Rapidísima. Zona de impacto mínima.",
+    arma:"rapid", vel:1.32, cad:0.88, dmg:0.82, hitbox:0.78, escudo:0,
+    motor:"#7df9ff", stats:{ ATAQUE:2, VELOCIDAD:5, CONTROL:4 } },
+
+  { id:"silvia", nombre:"SILVIA", src:buscar("naves","silvia.png"), fija:true,
+    lema:"VANGUARDIA", desc:"Sale con escudo y arma de energía.",
+    arma:"electrico", vel:1.08, cad:0.96, dmg:1, hitbox:0.84, escudo:1,
+    motor:"#c77dff", stats:{ ATAQUE:3, VELOCIDAD:4, CONTROL:5 } },
 ];
+const NAVE_BASE = { arma:"cannon", vel:1, cad:1, dmg:1, hitbox:1, escudo:0, motor:null,
+  lema:"PERSONAL", desc:"Tu nave.", stats:{ ATAQUE:3, VELOCIDAD:3, CONTROL:3 } };
+function naveActual() {
+  const n = NAVES[naveSel] || NAVES[0];
+  return n.vel ? n : Object.assign({}, NAVE_BASE, n);
+}
 
 // ════════════════════════════════════════════════════════════
 //  A partir de aquí es la maquinaria.
@@ -377,24 +450,32 @@ const c = document.getElementById("c");
 const ctx = c.getContext("2d");
 let SAFE_TOP = 0, SAFE_BOTTOM = 0;
 const fileInput = document.getElementById("file");
-let W = 0, H = 0;
+// W, H = el CAMPO DE JUEGO. VW, VH = la ventana. Todo el juego trabaja en
+// coordenadas de campo y no se entera de que existe un marco: el desfase
+// va metido en la transformación base del contexto.
+let W = 0, H = 0, VW = 0, VH = 0, PX = 0, DPR = 1;
 
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = window.innerWidth; VH = window.innerHeight;
+  H = VH;
+  W = Math.min(VW, Math.round(VH * PROPORCION_MAX));
+  PX = Math.round((VW - W) / 2);
   // Leer safe-area-insets para apartar el HUD de la muesca/home bar
   const cs = getComputedStyle(document.documentElement);
   SAFE_TOP    = parseInt(cs.getPropertyValue("--sat") || "0") || 0;
   SAFE_BOTTOM = parseInt(cs.getPropertyValue("--sab") || "0") || 0;
-  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
-  c.style.width = W + "px"; c.style.height = H + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.width = Math.round(VW * DPR); c.height = Math.round(VH * DPR);
+  c.style.width = VW + "px"; c.style.height = VH + "px";
+  aCampo();
   // Tocar canvas.width reinicia TODO el estado del contexto, así que la
   // calidad de filtrado hay que volver a ponerla aquí. Si no, las naves
   // se reducen con el filtro malo y pierden detalle en cada fotograma.
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 }
+const aCampo   = () => ctx.setTransform(DPR, 0, 0, DPR, PX * DPR, 0);
+const aVentana = () => ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));
 resize();
@@ -402,6 +483,13 @@ resize();
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const TAU = Math.PI * 2;
+
+// La zona de impacto real de la nave, más pequeña que el dibujo. Es la
+// convención del género y lo que hace que esquivar se sienta justo: rozar
+// un ala no puede matarte. Un único sitio para que no se desincronice con
+// el núcleo que se pinta encima.
+function hitR() { return player.r * 0.66 * (naveActual().hitbox || 1); }
+const nvColor = () => naveActual().motor || T.motor;
 
 // Mezcla dos colores "#rrggbb". Sirve para sacar la luz y la sombra de un
 // color base sin tener que declarar tres tonos por cada cosa.
@@ -613,46 +701,485 @@ fileInput.addEventListener("change", (ev) => {
   fr.readAsDataURL(f);
 });
 
-// ── Sonido generado, cero archivos ────────────────────────
+// ════════════════════════════════════════════════════════════
+//  MOTOR DE AUDIO
+// ════════════════════════════════════════════════════════════
+//  Cuatro buses (MASTER · MUSICA · SFX · UI), cada uno con su volumen, y
+//  un compresor a la salida. El compresor no es adorno: con seis cañones
+//  disparando a 6 disparos/segundo y tres explosiones encima, la suma de
+//  las voces se sale de rango y lo que se oye es un chasquido. Con él,
+//  agacha el conjunto en vez de recortar la onda.
+//
+//  Cada sonido declara además:
+//    prio      cuál gana cuando hay que tirar voces
+//    voces     cuántas copias suyas pueden sonar a la vez
+//    espera    ms mínimos entre dos disparos suyos (antiametralladora)
+//    tono      variación aleatoria de afinación, en semitonos
+//
+//  Todo es síntesis: cero archivos, cero latencia de carga, cero
+//  licencias que verificar. La ruta para muestras externas está en
+//  cargarMuestra() y documentada en THIRD_PARTY_AUDIO_LICENSES.md.
 let audio = null;
+const BUS = {};
+let voces = 0;
+const VOCES_MAX = 24;
+const sonUltimo = {}, sonVivos = {};
+
 function unlockAudio() {
   if (audio || !CONFIG.sonido) return;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   audio = new AC();
+  const comp = audio.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.knee.value = 24;
+  comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.22;
+  BUS.master = audio.createGain();
+  BUS.master.connect(comp).connect(audio.destination);
+  for (const k of ["sfx", "musica", "ui"]) {
+    BUS[k] = audio.createGain();
+    BUS[k].connect(BUS.master);
+  }
+  aplicarVolumenes();
   if (audio.state === "suspended") audio.resume();
 }
-function beep(f, dur, type, vol, f2) {
-  if (!audio || audio.state !== "running") return;
-  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
-  o.type = type || "square";
-  o.frequency.setValueAtTime(f, t);
-  o.frequency.exponentialRampToValueAtTime(Math.max(f2 || f * 0.5, 20), t + dur);
-  g.gain.setValueAtTime(vol || 0.04, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(audio.destination);
-  o.start(t); o.stop(t + dur);
-}
-function ruido(dur, vol) {
-  if (!audio || audio.state !== "running") return;
-  const n = Math.floor(audio.sampleRate * dur);
-  const buf = audio.createBuffer(1, n, audio.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
-  const s = audio.createBufferSource(), g = audio.createGain();
-  s.buffer = buf; g.gain.value = vol || 0.08;
-  s.connect(g).connect(audio.destination); s.start();
+function aplicarVolumenes() {
+  if (!BUS.master) return;
+  const m = OPCIONES.silencio ? 0 : OPCIONES.volMaster;
+  BUS.master.gain.value = m;
+  BUS.sfx.gain.value = OPCIONES.volSfx;
+  BUS.ui.gain.value = Math.min(1, OPCIONES.volSfx + 0.1);
+  BUS.musica.gain.value = OPCIONES.volMusica;
 }
 
-// ── Premios ───────────────────────────────────────────────
+// Ruido blanco reutilizado: generar el buffer en cada explosión son 20 000
+// llamadas a Math.random() dentro del fotograma. Se genera uno largo y
+// cada disparo entra por un punto distinto.
+let bufRuido = null;
+function ruidoBuf() {
+  if (bufRuido) return bufRuido;
+  const n = audio.sampleRate * 2;
+  bufRuido = audio.createBuffer(1, n, audio.sampleRate);
+  const d = bufRuido.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return bufRuido;
+}
+
+// ── Ladrillos de síntesis ─────────────────────────────────
+function vozOsc(dest, t0, o) {
+  const osc = audio.createOscillator(), g = audio.createGain();
+  osc.type = o.tipo || "square";
+  const f1 = Math.max(20, o.f), f2 = Math.max(20, o.f2 != null ? o.f2 : o.f);
+  osc.frequency.setValueAtTime(f1, t0);
+  if (f2 !== f1) osc.frequency.exponentialRampToValueAtTime(f2, t0 + o.dur);
+  const at = o.at != null ? o.at : 0.004;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, o.vol), t0 + at);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+  let n = osc;
+  if (o.lp) {
+    const f = audio.createBiquadFilter();
+    f.type = "lowpass"; f.frequency.setValueAtTime(o.lp, t0);
+    if (o.lp2) f.frequency.exponentialRampToValueAtTime(Math.max(60, o.lp2), t0 + o.dur);
+    f.Q.value = o.q || 1;
+    n.connect(f); n = f;
+  }
+  n.connect(g).connect(dest);
+  osc.start(t0); osc.stop(t0 + o.dur + 0.02);
+}
+function vozRuido(dest, t0, o) {
+  const s = audio.createBufferSource(), g = audio.createGain();
+  s.buffer = ruidoBuf(); s.loop = true;
+  s.playbackRate.value = o.rate || 1;
+  let n = s;
+  if (o.lp || o.hp) {
+    const f = audio.createBiquadFilter();
+    f.type = o.hp ? "highpass" : "lowpass";
+    const fr = o.hp || o.lp;
+    f.frequency.setValueAtTime(fr, t0);
+    if (o.lp2) f.frequency.exponentialRampToValueAtTime(Math.max(60, o.lp2), t0 + o.dur);
+    f.Q.value = o.q || 0.8;
+    n.connect(f); n = f;
+  }
+  const at = o.at != null ? o.at : 0.003;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, o.vol), t0 + at);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+  n.connect(g).connect(dest);
+  s.start(t0, Math.random() * 1.5); s.stop(t0 + o.dur + 0.02);
+}
+
+// ── Catálogo ──────────────────────────────────────────────
+//  hacer(d, t, p) — d: destino, t: instante, p: multiplicador de tono
+const SONIDOS = {
+  // ARMAS DEL JUGADOR — cada familia suena a lo que es
+  cannon:    { bus:"sfx", prio:2, voces:5, espera:40, tono:0.6, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:900*p,f2:260*p,dur:0.07,tipo:"square",vol:0.055,lp:3800});
+    vozRuido(d,t,{dur:0.045,vol:0.03,hp:1800}); } },
+  rapid:     { bus:"sfx", prio:2, voces:6, espera:24, tono:1.1, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:1400*p,f2:520*p,dur:0.045,tipo:"square",vol:0.038,lp:5200}); } },
+  plasma:    { bus:"sfx", prio:2, voces:4, espera:55, tono:0.5, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:520*p,f2:140*p,dur:0.16,tipo:"sawtooth",vol:0.05,lp:2600,lp2:600,q:6});
+    vozOsc(d,t,{f:1040*p,f2:300*p,dur:0.1,tipo:"sine",vol:0.03}); } },
+  laser:     { bus:"sfx", prio:2, voces:3, espera:70, tono:0.3, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:2400*p,f2:1500*p,dur:0.13,tipo:"sawtooth",vol:0.032,lp:6000,q:9});
+    vozOsc(d,t,{f:600*p,f2:400*p,dur:0.13,tipo:"sine",vol:0.026}); } },
+  railgun:   { bus:"sfx", prio:3, voces:2, espera:120, tono:0.2, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:160*p,f2:60*p,dur:0.34,tipo:"sawtooth",vol:0.075,lp:1800,lp2:220});
+    vozRuido(d,t,{dur:0.22,vol:0.06,hp:900,rate:1.4});
+    vozOsc(d,t+0.01,{f:3000*p,f2:900*p,dur:0.09,tipo:"square",vol:0.03}); } },
+  electrico: { bus:"sfx", prio:2, voces:4, espera:50, tono:1.4, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.1,vol:0.05,hp:2600,q:6,rate:1.9});
+    vozOsc(d,t,{f:2200*p,f2:5200*p,dur:0.07,tipo:"square",vol:0.022}); } },
+  fuego:     { bus:"sfx", prio:2, voces:4, espera:50, tono:0.5, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.19,vol:0.055,lp:2400,lp2:500,q:1.6});
+    vozOsc(d,t,{f:300*p,f2:110*p,dur:0.12,tipo:"sawtooth",vol:0.03,lp:1200}); } },
+  cryo:      { bus:"sfx", prio:2, voces:4, espera:55, tono:0.8, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:2600*p,f2:1300*p,dur:0.14,tipo:"triangle",vol:0.035});
+    vozRuido(d,t,{dur:0.12,vol:0.028,hp:4200,rate:0.7}); } },
+  misil:     { bus:"sfx", prio:3, voces:3, espera:90, tono:0.5, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.3,vol:0.05,lp:1400,lp2:3200,q:1.2,at:0.05});
+    vozOsc(d,t,{f:180*p,f2:420*p,dur:0.26,tipo:"sawtooth",vol:0.03,lp:900}); } },
+  ultimate:  { bus:"sfx", prio:5, voces:2, espera:150, tono:0.2, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:90*p,f2:1400*p,dur:0.5,tipo:"sawtooth",vol:0.08,lp:900,lp2:6000});
+    vozOsc(d,t,{f:180*p,f2:2800*p,dur:0.5,tipo:"square",vol:0.04,lp:5000});
+    vozRuido(d,t+0.28,{dur:0.5,vol:0.08,lp:5000,lp2:400}); } },
+
+  // ENEMIGOS
+  ene_disparo:{ bus:"sfx", prio:1, voces:5, espera:55, tono:1.2, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:340*p,f2:150*p,dur:0.09,tipo:"sawtooth",vol:0.03,lp:2000}); } },
+  ene_pesado:{ bus:"sfx", prio:2, voces:3, espera:80, tono:0.6, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:150*p,f2:60*p,dur:0.2,tipo:"sawtooth",vol:0.05,lp:1100,lp2:260});
+    vozRuido(d,t,{dur:0.14,vol:0.03,lp:900}); } },
+  sniper_lock:{ bus:"sfx", prio:5, voces:3, espera:120, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:1760,dur:0.09,tipo:"sine",vol:0.05});
+    vozOsc(d,t+0.13,{f:2349,dur:0.09,tipo:"sine",vol:0.05}); } },
+  sniper_aviso:{ bus:"sfx", prio:4, voces:3, espera:200, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:1200,dur:0.06,tipo:"square",vol:0.028}); } },
+  sniper_tiro:{ bus:"sfx", prio:6, voces:3, espera:60, tono:0.3, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:2600*p,f2:220*p,dur:0.16,tipo:"square",vol:0.07,lp:6000});
+    vozRuido(d,t,{dur:0.1,vol:0.05,hp:1400}); } },
+  kamikaze:  { bus:"sfx", prio:4, voces:4, espera:100, tono:0.4, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:220*p,f2:900*p,dur:0.55,tipo:"sawtooth",vol:0.045,lp:1400,lp2:3400,at:0.15}); } },
+  escudo_zumb:{ bus:"sfx", prio:2, voces:3, espera:90, tono:0.6, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:420*p,f2:210*p,dur:0.24,tipo:"sine",vol:0.045});
+    vozOsc(d,t,{f:632*p,f2:316*p,dur:0.24,tipo:"triangle",vol:0.022}); } },
+
+  // IMPACTOS
+  imp_ligero:{ bus:"sfx", prio:1, voces:6, espera:26, tono:2, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.035,vol:0.024,hp:3400*p}); } },
+  imp_medio: { bus:"sfx", prio:2, voces:5, espera:40, tono:1.4, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.07,vol:0.04,hp:1500*p,rate:1.3});
+    vozOsc(d,t,{f:520*p,f2:180*p,dur:0.06,tipo:"square",vol:0.022}); } },
+  imp_pesado:{ bus:"sfx", prio:4, voces:3, espera:60, tono:0.5, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.2,vol:0.07,lp:2200,lp2:280});
+    vozOsc(d,t,{f:150*p,f2:48*p,dur:0.22,tipo:"square",vol:0.05,lp:800}); } },
+  imp_escudo:{ bus:"sfx", prio:3, voces:4, espera:50, tono:0.9, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:1400*p,f2:700*p,dur:0.13,tipo:"sine",vol:0.045});
+    vozOsc(d,t,{f:2100*p,f2:1050*p,dur:0.09,tipo:"triangle",vol:0.022}); } },
+
+  // EXPLOSIONES
+  exp_peq:   { bus:"sfx", prio:3, voces:5, espera:40, tono:1.1, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.24,vol:0.07,lp:3000*p,lp2:400});
+    vozOsc(d,t,{f:220*p,f2:60*p,dur:0.18,tipo:"square",vol:0.035,lp:900}); } },
+  exp_med:   { bus:"sfx", prio:4, voces:4, espera:60, tono:0.7, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.42,vol:0.1,lp:2400*p,lp2:200});
+    vozOsc(d,t,{f:140*p,f2:38*p,dur:0.34,tipo:"sawtooth",vol:0.055,lp:700}); } },
+  exp_grande:{ bus:"sfx", prio:6, voces:3, espera:90, tono:0.4, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.75,vol:0.13,lp:2000*p,lp2:120});
+    vozOsc(d,t,{f:100*p,f2:26*p,dur:0.62,tipo:"sawtooth",vol:0.075,lp:520});
+    vozOsc(d,t+0.05,{f:60*p,f2:22*p,dur:0.7,tipo:"sine",vol:0.06}); } },
+  exp_boss:  { bus:"sfx", prio:9, voces:2, espera:120, tono:0.2, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:1.5,vol:0.16,lp:2600*p,lp2:90});
+    vozOsc(d,t,{f:88*p,f2:20*p,dur:1.3,tipo:"sawtooth",vol:0.1,lp:440});
+    vozOsc(d,t+0.1,{f:44*p,f2:18*p,dur:1.4,tipo:"sine",vol:0.08});
+    vozOsc(d,t+0.24,{f:2400,f2:200,dur:0.5,tipo:"square",vol:0.03,lp:4000}); } },
+
+  // SISTEMA
+  pickup:    { bus:"sfx", prio:5, voces:4, espera:50, tono:0.3, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:880*p,f2:1760*p,dur:0.1,tipo:"triangle",vol:0.05});
+    vozOsc(d,t+0.06,{f:1320*p,f2:2640*p,dur:0.1,tipo:"triangle",vol:0.035}); } },
+  mejora:    { bus:"sfx", prio:6, voces:3, espera:80, tono:0, hacer:(d,t)=>{
+    [523,659,784,1046].forEach((f,i)=>vozOsc(d,t+i*0.055,{f,dur:0.16,tipo:"triangle",vol:0.05})); } },
+  combo:     { bus:"ui",  prio:5, voces:3, espera:80, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:1046,dur:0.09,tipo:"triangle",vol:0.04});
+    vozOsc(d,t+0.06,{f:1568,dur:0.12,tipo:"triangle",vol:0.045}); } },
+  aviso:     { bus:"ui",  prio:8, voces:2, espera:300, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:660,f2:640,dur:0.3,tipo:"square",vol:0.05,lp:2400});
+    vozOsc(d,t+0.34,{f:660,f2:640,dur:0.3,tipo:"square",vol:0.05,lp:2400}); } },
+  boss_llega:{ bus:"ui",  prio:10,voces:1, espera:1000,tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:70,f2:52,dur:1.6,tipo:"sawtooth",vol:0.09,lp:600,lp2:180});
+    vozOsc(d,t,{f:140,f2:104,dur:1.6,tipo:"square",vol:0.04,lp:900});
+    vozRuido(d,t+0.5,{dur:1.1,vol:0.05,lp:400,at:0.4}); } },
+  escudo_on: { bus:"sfx", prio:6, voces:2, espera:100, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:300,f2:1200,dur:0.35,tipo:"sine",vol:0.05,at:0.02});
+    vozOsc(d,t,{f:450,f2:1800,dur:0.35,tipo:"triangle",vol:0.025,at:0.02}); } },
+  bomba:     { bus:"sfx", prio:10,voces:1, espera:300, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:1600,f2:60,dur:0.7,tipo:"sawtooth",vol:0.1,lp:6000,lp2:200});
+    vozRuido(d,t,{dur:1.0,vol:0.13,lp:5000,lp2:150});
+    vozOsc(d,t+0.02,{f:55,f2:26,dur:0.9,tipo:"sine",vol:0.09}); } },
+  emp:       { bus:"sfx", prio:8, voces:2, espera:200, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:3200,f2:180,dur:0.45,tipo:"square",vol:0.05,lp:7000,lp2:400});
+    vozRuido(d,t,{dur:0.35,vol:0.05,hp:2000,rate:1.6}); } },
+  fase:      { bus:"sfx", prio:9, voces:1, espera:400, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:120,f2:60,dur:0.8,tipo:"sawtooth",vol:0.08,lp:1200,lp2:200});
+    vozOsc(d,t+0.06,{f:1800,f2:400,dur:0.5,tipo:"square",vol:0.035,lp:4000});
+    vozRuido(d,t,{dur:0.6,vol:0.06,lp:2000,lp2:300}); } },
+
+  // INTERFAZ
+  ui_sel:    { bus:"ui", prio:4, voces:3, espera:35, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:760,f2:1140,dur:0.07,tipo:"triangle",vol:0.04}); } },
+  ui_ok:     { bus:"ui", prio:6, voces:2, espera:60, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:660,dur:0.08,tipo:"triangle",vol:0.045});
+    vozOsc(d,t+0.05,{f:990,dur:0.14,tipo:"triangle",vol:0.05}); } },
+  ui_atras:  { bus:"ui", prio:4, voces:2, espera:60, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:520,f2:300,dur:0.1,tipo:"triangle",vol:0.04}); } },
+  ui_no:     { bus:"ui", prio:4, voces:2, espera:80, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:200,f2:150,dur:0.13,tipo:"square",vol:0.04,lp:1200}); } },
+
+  // PARTIDA
+  mision_ini:{ bus:"ui", prio:9, voces:1, espera:500, tono:0, hacer:(d,t)=>{
+    [392,523,659].forEach((f,i)=>vozOsc(d,t+i*0.1,{f,dur:0.3,tipo:"triangle",vol:0.05}));
+    vozOsc(d,t+0.3,{f:784,dur:0.5,tipo:"triangle",vol:0.06}); } },
+  victoria:  { bus:"ui", prio:10,voces:1, espera:800, tono:0, hacer:(d,t)=>{
+    [523,659,784,1046,1319].forEach((f,i)=>{
+      vozOsc(d,t+i*0.11,{f,dur:0.45,tipo:"triangle",vol:0.055});
+      vozOsc(d,t+i*0.11,{f:f/2,dur:0.45,tipo:"sine",vol:0.03}); }); } },
+  derrota:   { bus:"ui", prio:10,voces:1, espera:800, tono:0, hacer:(d,t)=>{
+    [440,392,330,247].forEach((f,i)=>vozOsc(d,t+i*0.17,{f,f2:f*0.94,dur:0.5,tipo:"sawtooth",vol:0.05,lp:1400})); } },
+};
+
+// ── Reproducir ────────────────────────────────────────────
+function sfx(id, opts) {
+  if (!audio || audio.state !== "running" || OPCIONES.silencio) return;
+  const s = SONIDOS[id];
+  if (!s) return;
+  const o = opts || {};
+  const ahora = performance.now();
+  if (ahora - (sonUltimo[id] || -1e9) < (s.espera || 0)) return;
+  if ((sonVivos[id] || 0) >= (s.voces || 4)) return;
+  // Cuando el presupuesto de voces está lleno, entra solo lo importante:
+  // una explosión de jefe siempre; el impacto número treinta, no.
+  if (voces >= VOCES_MAX && (s.prio || 1) < 5) return;
+
+  sonUltimo[id] = ahora;
+  sonVivos[id] = (sonVivos[id] || 0) + 1;
+  voces++;
+  const dur = o.dur || 1.2;
+  setTimeout(() => { sonVivos[id]--; voces--; }, dur * 1000);
+
+  const semis = (s.tono || 0) * (Math.random() * 2 - 1);
+  const p = Math.pow(2, semis / 12) * (o.tono || 1);
+  const bus = BUS[s.bus] || BUS.sfx;
+  let dest = bus;
+  if (o.vol != null && o.vol !== 1) {
+    dest = audio.createGain(); dest.gain.value = o.vol; dest.connect(bus);
+  }
+  try { s.hacer(dest, audio.currentTime + 0.001, p); } catch (_) {}
+}
+
+// Compatibilidad con las llamadas antiguas mientras queden.
+function beep(f, dur, type, vol, f2) {
+  if (!audio || audio.state !== "running" || OPCIONES.silencio || voces >= VOCES_MAX) return;
+  vozOsc(BUS.sfx, audio.currentTime + 0.001,
+    { f, f2: f2 || f * 0.5, dur: dur || 0.1, tipo: type || "square", vol: vol || 0.04 });
+}
+function ruido(dur, vol) {
+  if (!audio || audio.state !== "running" || OPCIONES.silencio || voces >= VOCES_MAX) return;
+  vozRuido(BUS.sfx, audio.currentTime + 0.001, { dur: dur || 0.2, vol: vol || 0.08, lp: 3000, lp2: 300 });
+}
+
+// ── Música ────────────────────────────────────────────────
+//  Arquitectura lista, sin pistas. Deliberado: no hay música metida por
+//  tenerla. En cuanto haya un .mp3 con licencia comercial verificada en
+//  audio/musica/, esto lo recoge sin tocar una línea más.
+//  Pendientes y criterios: THIRD_PARTY_AUDIO_LICENSES.md
+const PISTAS = { menu:null, combate:null, jefe:null, victoria:null, derrota:null };
+let pistaActual = null, pistaNodo = null;
+function musica(nombre) {
+  if (pistaActual === nombre) return;
+  pistaActual = nombre;
+  if (pistaNodo) { try { pistaNodo.pause(); } catch (_) {} pistaNodo = null; }
+  const src = PISTAS[nombre];
+  if (!src || !audio || OPCIONES.silencio) return;
+  const el = new Audio(src);
+  el.loop = true; el.volume = OPCIONES.volMusica * OPCIONES.volMaster;
+  el.play().catch(() => {});
+  pistaNodo = el;
+}
+function cargarMuestra(id, url) {   // punto de entrada para muestras externas
+  if (!audio) return;
+  fetch(url).then(r => r.arrayBuffer()).then(b => audio.decodeAudioData(b))
+    .then(buf => { SONIDOS[id] = { bus:"sfx", prio:3, voces:4, espera:30, tono:0.4,
+      hacer:(d,t,p)=>{ const s=audio.createBufferSource(); s.buffer=buf;
+        s.playbackRate.value=p; s.connect(d); s.start(t); } }; })
+    .catch(() => {});
+}
+
+// ════════════════════════════════════════════════════════════
+//  PREMIOS
+// ════════════════════════════════════════════════════════════
+//  Cada uno es un objeto energético con su PNG. La letra gigante dentro
+//  de una caja era un marcador de posición, no un diseño: lo que el
+//  premio hace se dice DESPUÉS de cogerlo, con el texto flotante, no
+//  imprimiendo una "W" sobre el icono.
+//
+//    arma   sube un nivel dentro de la familia actual
+//    familia cambia de familia de disparo y conserva el nivel
 const PREMIOS = {
-  arma:   { letra:"W", color:"#ffe066", nombre:"ARMA +1" },
-  escudo: { letra:"S", color:"#5ce1ff", nombre:"ESCUDO" },
-  bomba:  { letra:"B", color:"#ff5c8a", nombre:"BOMBA" },
-  vida:   { letra:"♥", color:"#ff5d8f", nombre:"VIDA EXTRA" },
-  rapido: { letra:"R", color:"#8affd1", nombre:"TURBO FUEGO" },
+  arma:      { sp:"pu_arma",      color:"#ffe066", nombre:"ARMA +1" },
+  escudo:    { sp:"pu_escudo",    color:"#5ce1ff", nombre:"ESCUDO" },
+  bomba:     { sp:"pu_bomba",     color:"#ff5c8a", nombre:"BOMBA" },
+  vida:      { sp:"pu_vida",      color:"#ff5d8f", nombre:"VIDA EXTRA" },
+  rapido:    { sp:"pu_rapido",    color:"#8affd1", nombre:"TURBO FUEGO" },
+  plasma:    { sp:"pu_plasma",    color:"#c77dff", nombre:"PLASMA",     familia:"plasma"    },
+  fuego:     { sp:"pu_fuego",     color:"#ff8a1f", nombre:"LANZALLAMAS",familia:"fuego"     },
+  cryo:      { sp:"pu_cryo",      color:"#88ddff", nombre:"CRIO",       familia:"cryo"      },
+  electrico: { sp:"pu_electrico", color:"#ffd34d", nombre:"ELÉCTRICO",  familia:"electrico" },
+  misil:     { sp:"pu_misil",     color:"#ff6b3d", nombre:"MISILES",    familia:"misil"     },
+  laser:     { sp:"pu_laser",     color:"#7df9ff", nombre:"LÁSER",      familia:"laser"     },
+  void:      { sp:"pu_void",      color:"#b45cff", nombre:"VACÍO",      familia:"void"      },
 };
 const ARMA_MAX = 6;
+
+// ════════════════════════════════════════════════════════════
+//  ARMAS DEL JUGADOR
+// ════════════════════════════════════════════════════════════
+//  La lógica y la presentación están separadas a propósito: `tiros(n)`
+//  dice DÓNDE y HACIA DÓNDE sale cada proyectil, y el resto de la ficha
+//  dice a qué suena, qué deja al impactar y de qué color es. Cambiar el
+//  aspecto de un arma no puede obligar a tocar cómo dispara.
+//
+//    cad    ms entre ráfagas          pierce  enemigos que atraviesa
+//    dmg    daño por proyectil        area    radio de daño al impactar
+//    guia   fuerza de seguimiento     cadena  daño que salta al vecino
+//    lento  frena al enemigo tocado
+const ARMAS = {
+  cannon: {
+    nombre:"CAÑÓN", sp:"pr_cannon", col:"#7df9ff", cad:165, vel:820,
+    dmg:1, r:5, largo:48, snd:"cannon", imp:"ligero", estela:0.5,
+    tiros(n) {
+      if (n <= 1) return [{ dx:0 }];
+      if (n === 2) return [{ dx:-9 }, { dx:9 }];
+      if (n === 3) return [{ dx:0 }, { dx:-12, vx:-80 }, { dx:12, vx:80 }];
+      if (n === 4) return [{ dx:-8 }, { dx:8 }, { dx:-16, vx:-150 }, { dx:16, vx:150 }];
+      if (n === 5) return [{ dx:0 }, { dx:-10, vx:-90 }, { dx:10, vx:90 }, { dx:-18, vx:-210 }, { dx:18, vx:210 }];
+      return [{ dx:-6 }, { dx:6 }, { dx:-14, vx:-110 }, { dx:14, vx:110 }, { dx:-22, vx:-260 }, { dx:22, vx:260 }];
+    },
+  },
+
+  // Cadencia altísima, daño mínimo. Se nota en las manos antes que en la
+  // barra de vida del enemigo: es un arma de sensación.
+  rapid: {
+    nombre:"REPETIDOR", sp:"pr_rapid", col:"#8affd1", cad:78, vel:980,
+    dmg:0.6, r:4, largo:36, snd:"rapid", imp:"ligero", estela:0.35,
+    tiros(n) {
+      const t = [{ dx: n % 2 ? 0 : -7 }];
+      if (!(n % 2)) t.push({ dx:7 });
+      if (n >= 3) { t.push({ dx:-15, vx:-120 }); t.push({ dx:15, vx:120 }); }
+      if (n >= 5) { t.push({ dx:-23, vx:-260 }); t.push({ dx:23, vx:260 }); }
+      return t;
+    },
+  },
+
+  // Lento, gordo, atraviesa. Cada disparo es una decisión, no una lluvia.
+  plasma: {
+    nombre:"PLASMA", sp:"pr_plasma", col:"#c77dff", cad:330, vel:520,
+    dmg:3.2, r:12, largo:74, snd:"plasma", imp:"medio", pierce:1, estela:1.1,
+    tiros(n) {
+      if (n <= 2) return [{ dx:0 }];
+      if (n <= 4) return [{ dx:-13 }, { dx:13 }];
+      return [{ dx:0 }, { dx:-19, vx:-90 }, { dx:19, vx:90 }];
+    },
+  },
+
+  // Chorro corto y ancho: mata rápido de cerca y no llega lejos.
+  fuego: {
+    nombre:"LANZALLAMAS", sp:"pr_fuego", col:"#ff8a1f", cad:62, vel:600,
+    dmg:0.55, r:8, largo:46, snd:"fuego", imp:"ligero", vida:0.55, estela:0.8,
+    tiros(n) {
+      const abre = 0.09 + n * 0.022, k = Math.min(3, 1 + Math.floor(n / 2));
+      const t = [];
+      for (let i = 0; i < k; i++) {
+        const a = (i - (k - 1) / 2) * abre + rand(-0.05, 0.05);
+        t.push({ dx: a * 40, vx: Math.sin(a) * 600 });
+      }
+      return t;
+    },
+  },
+
+  // Frena a quien toca. Convierte una oleada rápida en una lenta, que es
+  // otra manera de hacer daño.
+  cryo: {
+    nombre:"CRIO", sp:"pr_cryo", col:"#88ddff", cad:205, vel:760,
+    dmg:1.3, r:7, largo:50, snd:"cryo", imp:"ligero", lento:0.45, estela:0.6,
+    tiros(n) {
+      const k = Math.min(4, 1 + Math.floor((n - 1) / 1.5));
+      return Array.from({ length:k }, (_, i) => ({ dx:(i - (k - 1) / 2) * 15, vx:(i - (k - 1) / 2) * 70 }));
+    },
+  },
+
+  // Salta al enemigo de al lado. Premia meterse en formaciones cerradas.
+  electrico: {
+    nombre:"ELÉCTRICO", sp:"pr_electrico", col:"#ffd34d", cad:190, vel:900,
+    dmg:1.1, r:7, largo:58, snd:"electrico", imp:"medio", cadena:1, estela:0.7,
+    tiros(n) {
+      if (n <= 2) return [{ dx:0 }];
+      if (n <= 4) return [{ dx:-11 }, { dx:11 }];
+      return [{ dx:0 }, { dx:-17 }, { dx:17 }];
+    },
+  },
+
+  // Pocos, lentos, teledirigidos y con radio. Es el arma que perdona.
+  misil: {
+    nombre:"MISILES", sp:"pr_misil", col:"#ff6b3d", cad:390, vel:430,
+    dmg:2.6, r:9, largo:50, snd:"misil", imp:"pesado", guia:3.4, area:52, estela:1.4,
+    tiros(n) {
+      const k = Math.min(4, 1 + Math.floor(n / 2));
+      return Array.from({ length:k }, (_, i) => ({ dx:(i - (k - 1) / 2) * 17, vx:(i - (k - 1) / 2) * 160 }));
+    },
+  },
+
+  // Un disparo cada medio segundo que atraviesa la pantalla entera.
+  railgun: {
+    nombre:"RAÍL", sp:"pr_railgun", col:"#ffffff", cad:560, vel:1750,
+    dmg:6, r:9, largo:170, snd:"railgun", imp:"pesado", pierce:99, estela:1.6, sac:"small",
+    tiros(n) {
+      if (n <= 3) return [{ dx:0 }];
+      if (n <= 5) return [{ dx:-14 }, { dx:14 }];
+      return [{ dx:0 }, { dx:-20 }, { dx:20 }];
+    },
+  },
+
+  laser: {
+    nombre:"LÁSER", sp:"pr_laser", col:"#7df9ff", cad:110, vel:1400,
+    dmg:0.85, r:6, largo:110, snd:"laser", imp:"ligero", pierce:2, estela:0.4,
+    tiros(n) {
+      const k = Math.min(3, 1 + Math.floor((n - 1) / 2));
+      return Array.from({ length:k }, (_, i) => ({ dx:(i - (k - 1) / 2) * 16 }));
+    },
+  },
+
+  void: {
+    nombre:"VACÍO", sp:"pr_void", col:"#b45cff", cad:300, vel:620,
+    dmg:2.4, r:11, largo:70, snd:"plasma", imp:"medio", pierce:2, area:34, estela:1.2,
+    tiros(n) {
+      if (n <= 3) return [{ dx:0 }];
+      return [{ dx:-15, vx:-60 }, { dx:15, vx:60 }];
+    },
+  },
+
+  ultimate: {
+    nombre:"ANIQUILADOR", sp:"pr_ultimate", col:"#ffd700", cad:130, vel:900,
+    dmg:2.2, r:10, largo:78, snd:"ultimate", imp:"pesado", pierce:3, area:40, estela:1.5, sac:"tiny",
+    tiros(n) {
+      const k = 3 + Math.min(4, n);
+      return Array.from({ length:k }, (_, i) => {
+        const a = (i - (k - 1) / 2) * 0.13;
+        return { dx: a * 60, vx: Math.sin(a) * 900 };
+      });
+    },
+  },
+};
 
 // ════════════════════════════════════════════════════════════
 //  PATRONES DE DISPARO
@@ -870,6 +1397,7 @@ const HAZARD_TIPOS = {
   cristal:   { r: 26, vel: 165, hp: 4, lateral: false },
 };
 let hazards = [], hazardEnabled = false, hazardAcc = 0, hazardTipo = "asteroide";
+const esCristal = h => h.tipo === "cristal";
 
 function spawnHazard() {
   const d = HAZARD_TIPOS[hazardTipo];
@@ -898,17 +1426,24 @@ function actualizarHazards(dt) {
     if (h.y - h.r > H + 30) { hazards.splice(i, 1); continue; }
     if (state !== "play" || paused) continue;
     const dx = player.x - h.x, dy = player.y - h.y;
-    if (dx * dx + dy * dy < (player.r * 0.72 + h.r * 0.72) ** 2) {
-      boom(h.x, h.y, "#ff6600", 18, 1.1); hazards.splice(i, 1); golpe(); continue;
+    if (dx * dx + dy * dy < (hitR() + h.r * 0.72) ** 2) {
+      muerte(h.x, h.y, esCristal(h) ? "#88ddff" : "#ff6600", "media");
+      hazards.splice(i, 1); golpe(); continue;
     }
     for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j], bx = b.x - h.x, by = b.y - h.y;
-      if (bx * bx + by * by < (b.r + h.r) ** 2) {
-        bullets.splice(j, 1); h.hp--;
-        if (h.hp <= 0) { boom(h.x, h.y, "#ff8800", 14, 0.9); hazards.splice(i, 1); }
-        else boom(b.x, b.y, "#ff8800", 3, 0.5);
-        break;
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const bx = b.x - h.x, by = b.y - h.y;
+      if (bx * bx + by * by >= (b.r + h.r) ** 2) continue;
+      h.hp -= b.dmg;
+      const gastada = golpearCon(b, b.x, b.y, null);
+      if (gastada) soltarBala(j);
+      if (h.hp <= 0) {
+        muerte(h.x, h.y, esCristal(h) ? "#88ddff" : "#ff8800", "basica");
+        if (esCristal(h)) vfx("cryo", h.x, h.y, 130, 0.4);
+        hazards.splice(i, 1);
       }
+      break;
     }
   }
 }
@@ -973,22 +1508,27 @@ function actualizarDefensas(dt) {
     if (state !== "play" || paused) continue;
     d.cd -= dt;
     if (d.cd <= 0) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga(); }
-    let muerta = false;
     for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j], dx = b.x - d.x, dy = b.y - d.y;
-      if (dx * dx + dy * dy < (b.r + d.r) ** 2) {
-        bullets.splice(j, 1); d.hp--; d.flash = 0.1; bulletsHit++;
-        if (d.hp <= 0) {
-          boom(d.x, d.y, "#4499ff", 20, 1.2); shake(7, 0.25); ruido(0.25, 0.07);
-          score += DEFENSA_TIPOS[d.tipo].puntos; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
-          texto(d.x, d.y - 30, "+" + DEFENSA_TIPOS[d.tipo].puntos, T.bala);
-          if (Math.random() > 0.45) soltarPremio(d.x + rand(-20, 20), d.y, elegirPremioAleatorio());
-          defensas.splice(i, 1); muerta = true;
-        } else boom(b.x, b.y, "#ffffff", 3, 0.5);
-        break;
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const dx = b.x - d.x, dy = b.y - d.y;
+      if (dx * dx + dy * dy >= (b.r + d.r) ** 2) continue;
+      d.hp -= b.dmg; d.flash = 0.1; bulletsHit++;
+      const gastada = golpearCon(b, b.x, b.y, null);
+      if (gastada) soltarBala(j);
+      if (d.hp <= 0) {
+        muerte(d.x, d.y, "#4499ff", "defensa");
+        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        maxCombo = Math.max(maxCombo, combo);
+        const pts = Math.round(DEFENSA_TIPOS[d.tipo].puntos * multCombo());
+        score += pts;
+        texto(d.x, d.y - 30, "+" + pts, T.bala, 15);
+        hitoCombo();
+        if (Math.random() > 0.45) soltarPremio(d.x + rand(-20, 20), d.y, elegirPremioAleatorio());
+        defensas.splice(i, 1);
       }
+      break;
     }
-    if (muerta) continue;
   }
 }
 
@@ -1035,7 +1575,7 @@ function actualizarZonas(dt) {
     if (z.fase === 2 && z.t >= 0.85) { zonas.splice(i, 1); continue; }
     if (z.fase !== 1 || state !== "play" || paused) continue;
     const dx = player.x - z.x, dy = player.y - z.y;
-    if (dx * dx + dy * dy < (player.r * 0.55 + z.r * 0.82) ** 2) {
+    if (dx * dx + dy * dy < (hitR() * 0.85 + z.r * 0.82) ** 2) {
       if (z.damageCd <= 0) { golpe(); z.damageCd = 1.4; }
     }
     if (z.damageCd > 0) z.damageCd -= dt;
@@ -1091,12 +1631,38 @@ cargarSprite("hz_nube_toxica", buscar("hazards",  "nube_toxica.png"));
 cargarSprite("df_torreta",     buscar("defensas", "torreta_fija.png"));
 cargarSprite("df_canon",       buscar("defensas", "canon_fijo.png"));
 
+// ── Biblioteca premium ────────────────────────────────────
+//  Efectos, impactos y proyectiles van por cargarImagen y NO por
+//  cargarSprite: ya vienen con su alfa sacado del brillo (optimizar.mjs,
+//  modo glow) y pasarlos otra vez por el recorte por inundación les
+//  comería el halo, que es justo lo que hace que brillen.
+["exp_basica","exp_media","exp_pesada","exp_boss","exp_kamikaze","onda","anillo",
+ "emp","electrico","cryo","toxico","chispa","ultimate","fase","defensa"]
+  .forEach(n => cargarImagen("vfx_" + n, buscar("vfx", n + ".png")));
+
+["ligero","medio","pesado","escudo","escudo_roto","emp","rayo","laser","plasma","bloom"]
+  .forEach(n => cargarImagen("imp_" + n, buscar("impactos", n + ".png")));
+
+["cannon","rapid","plasma","fuego","cryo","electrico","misil","railgun","laser",
+ "void","ultimate","orbe","homing"]
+  .forEach(n => cargarImagen("pr_" + n, buscar("proyectiles", n + ".png")));
+
+["lanza","misil","mina"].forEach(n => cargarImagen("pe_" + n, buscar("proyEne", n + ".png")));
+
+// Los power-ups y los jefes SÍ son objetos sólidos: alfa recortada.
+["arma","escudo","bomba","vida","rapido","plasma","fuego","cryo","electrico",
+ "misil","void","laser","x2","iman"]
+  .forEach(n => cargarSprite("pu_" + n, buscar("powerups", n + ".png")));
+
+["guardian","titan"].forEach(n => cargarSprite("bs_" + n, buscar("bosses", n + ".png")));
+
 // ── Estado ────────────────────────────────────────────────
 let T, naveSel = 0, fondoY = 0;
 let state = "menu";
 let player, bullets, eBullets, enemies, premios, particles, bg, flotantes, ondas;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
+let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0;
 let targetX, targetY, dragging = false, bank = 0;
 let menuRects = [], naveRects = [], masRect = null;
 
@@ -1154,6 +1720,18 @@ function leerMisionIdx(s) {
   const ni = NAVES.findIndex(n => n.id === naveId);
   naveSel = ni >= 0 ? ni : 0;
   misionIdx = leerMisionIdx(s.misionIdx != null ? s : { misionIdx: Number(localStorage.getItem("sf_misionIdx") || 0) });
+  if (s.opciones && typeof s.opciones === "object") {
+    for (const k of Object.keys(OPCIONES)) {
+      if (s.opciones[k] !== undefined && typeof s.opciones[k] === typeof OPCIONES[k]) {
+        OPCIONES[k] = s.opciones[k];
+      }
+    }
+  }
+  if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
+}
+function guardarOpciones() {
+  guardarSave({ opciones: OPCIONES });
+  aplicarVolumenes();
 }
 
 function crearFondo() {
@@ -1169,7 +1747,8 @@ function crearFondo() {
 
 function reset() {
   state = "play";
-  player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
+  const nv = naveActual();
+  player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2, retro: 0, empuje: 0 };
   targetX = player.x; targetY = player.y;
   bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
   spawnQueue = []; miniboss = null; misionCompletaT = 0; eventoIdx = 0;
@@ -1178,10 +1757,13 @@ function reset() {
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
-  arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
+  arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
+  armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   shakeT = 0; shakeMag = 0; flash = 0; bank = 0; fondoY = 0;
   maxCombo = 0; bulletsFiredo = 0; bulletsHit = 0; enemiesKilled = 0;
   paused = false; warningT = 0; dragging = false;
+  efectos.length = 0; fogonazos.length = 0; hitStop = 0;
+  sinDanio = true; comboHito = 0;
 }
 
 // ── Campaña ──────────────────────────────────────────────
@@ -1201,12 +1783,24 @@ function spawnFormacion(tipo, n, patron) {
   }
 }
 
+// Las familias de arma que suelta cada misión son parte de su identidad:
+// en el cinturón de asteroides caen misiles, en la fisura helada cae crio.
+// Salir de M2 con un arma distinta a la de M5 es lo que hace que la
+// campaña no sepa toda igual.
+function armasDeMision() {
+  const m = modo === "campana" && MISIONES[misionIdx];
+  return (m && m.armas) || ["plasma", "laser"];
+}
 function elegirPremioAleatorio() {
   const r = Math.random();
-  if (r > 0.92) return "vida";
-  if (r > 0.76) return "bomba";
-  if (r > 0.56) return "escudo";
-  if (r > 0.40) return "rapido";
+  if (r > 0.945) return "vida";
+  if (r > 0.855) return "bomba";
+  if (r > 0.715) return "escudo";
+  if (r > 0.595) return "rapido";
+  if (r > 0.435) {
+    const fam = armasDeMision();
+    return fam[(Math.random() * fam.length) | 0];
+  }
   return "arma";
 }
 
@@ -1292,19 +1886,21 @@ function actualizarMiniboss(dt) {
 
   // Impactos de balas del jugador
   for (let j = bullets.length - 1; j >= 0; j--) {
-    const b = bullets[j], dx = b.x - miniboss.x, dy = b.y - miniboss.y;
-    if (dx * dx + dy * dy < (b.r + miniboss.r) ** 2) {
-      bullets.splice(j, 1); miniboss.hp--; miniboss.flash = 0.08;
-      boom(b.x, b.y, "#fff", 4, 0.6);
-      if (miniboss.hp <= 0) { matarMiniboss(); return; }
-      break;
-    }
+    const b = bullets[j];
+    if (b.cd > 0) continue;
+    const dx = b.x - miniboss.x, dy = b.y - miniboss.y;
+    if (dx * dx + dy * dy >= (b.r + miniboss.r * 0.86) ** 2) continue;
+    miniboss.hp -= b.dmg; miniboss.flash = 0.07; bulletsHit++;
+    const gastada = golpearCon(b, b.x, b.y, null);
+    if (gastada) soltarBala(j);
+    if (miniboss.hp <= 0) { matarMiniboss(); return; }
+    if (gastada) break;
   }
 
   // Colisión con el jugador
   if (miniboss) {
     const dx = player.x - miniboss.x, dy = player.y - miniboss.y;
-    if (dx * dx + dy * dy < (player.r * 0.7 + miniboss.r) ** 2) golpe();
+    if (dx * dx + dy * dy < (hitR() + miniboss.r * 0.8) ** 2) golpe();
   }
 }
 
@@ -1379,7 +1975,9 @@ shakeT = 0; shakeMag = 0; flash = 0; bank = 0;
 crearFondo();
 
 // ── Entrada ───────────────────────────────────────────────
-function pos(e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+// El dedo llega en coordenadas de ventana y el juego piensa en coordenadas
+// de campo. El marco lateral se descuenta aquí y en ningún sitio más.
+function pos(e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left - PX, y: e.clientY - r.top }; }
 function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo; }
 const dentro = (p, r) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 
@@ -1438,7 +2036,12 @@ c.addEventListener("pointerdown", (e) => {
     if (performance.now() - overAt > 700) state = "menu";
     return;
   }
-  if (paused) { paused = false; unlockAudio(); return; }
+  if (paused) { paused = false; unlockAudio(); sfx("ui_ok"); return; }
+  if (state === "play") {
+    const p = pos(e);
+    if (dentro(p, hudRects.pausa)) { paused = true; sfx("ui_sel"); return; }
+    if (dentro(p, hudRects.bomba)) { usarBomba(); return; }
+  }
   dragging = true; aim(e);
   if (c.setPointerCapture) { try { c.setPointerCapture(e.pointerId); } catch (_) {} }
 });
@@ -1456,26 +2059,174 @@ window.addEventListener("keydown", e => {
   }
   if (e.ctrlKey && e.shiftKey && e.code === "KeyD") showDebug = !showDebug;
   if (e.code === "Escape" && state === "over") state = "menu";
+  if ((e.code === "Space" || e.code === "KeyB") && state === "play") { e.preventDefault(); usarBomba(); }
 });
 window.addEventListener("keyup", e => { keys[e.code] = false; });
 
-// ── Efectos ───────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+//  EFECTOS
+// ════════════════════════════════════════════════════════════
+//  Todo lo de aquí sale de una reserva. A densidad de bullet hell se
+//  crean y se tiran cientos de objetos por segundo, y en el iPad eso se
+//  nota en forma de tirón cada vez que el recolector de basura pasa. Se
+//  reutilizan: `libres` guarda los muertos y `push` los resucita.
+const libresPart = [];
+function part(x, y, vx, vy, life, color, r, tipo) {
+  if (particles.length >= Q.maxPart) return null;
+  const p = libresPart.pop() || {};
+  p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+  p.life = life; p.t = 0; p.color = color; p.r = r;
+  p.tipo = tipo || 0; p.roce = 0.93; p.grav = 0;
+  particles.push(p);
+  return p;
+}
+function soltarPart(i) { libresPart.push(particles[i]); particles.splice(i, 1); }
+
 function boom(x, y, color, n, fuerza) {
   const f = fuerza || 1;
+  n = Math.max(1, Math.round(n * Q.part));
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU), s = rand(50, 300) * f;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-      life: rand(0.25, 0.65), t: 0, color, r: rand(1.5, 4) * f });
+    part(x, y, Math.cos(a) * s, Math.sin(a) * s, rand(0.25, 0.65), color, rand(1.5, 4) * f);
   }
 }
-function shake(mag, dur) { shakeMag = Math.max(shakeMag, mag); shakeT = Math.max(shakeT, dur); }
+
+// Restos: fragmentos que salen despedidos y caen. Lo que separa "ha
+// desaparecido" de "se ha roto".
+function restos(x, y, color, n, fuerza) {
+  if (!Q.estela) return;
+  n = Math.round(n * Q.part);
+  for (let i = 0; i < n; i++) {
+    const a = rand(-TAU / 2, 0), s = rand(80, 320) * (fuerza || 1);
+    const p = part(x, y, Math.cos(a) * s, Math.sin(a) * s + rand(-60, 40),
+      rand(0.5, 1.2), color, rand(1.2, 3), 1);
+    if (p) { p.roce = 0.985; p.grav = 320; }
+  }
+}
+
+// ── Efectos de sprite ─────────────────────────────────────
+//  Un PNG luminoso escalando y apagándose. Es lo que hace que una
+//  explosión parezca una explosión y no cuarenta puntos de colores.
+let efectos = [];
+const libresFx = [];
+function vfx(id, x, y, tam, dur, o) {
+  const sp = SPRITES["vfx_" + id] || SPRITES["imp_" + id];
+  if (!sp) return;
+  o = o || {};
+  if (efectos.length > 60) return;
+  const f = libresFx.pop() || {};
+  f.sp = sp; f.x = x; f.y = y; f.tam = tam; f.t = 0; f.life = dur;
+  f.rot = o.rot != null ? o.rot : rand(0, TAU);
+  f.spin = o.spin || 0;
+  f.crece = o.crece != null ? o.crece : 1.35;
+  f.desde = o.desde != null ? o.desde : 0.55;
+  f.alpha = o.alpha != null ? o.alpha : 1;
+  f.aditivo = o.aditivo !== false;
+  f.vx = o.vx || 0; f.vy = o.vy || 0;
+  efectos.push(f);
+}
+function actualizarEfectos(dt) {
+  for (let i = efectos.length - 1; i >= 0; i--) {
+    const f = efectos[i];
+    f.t += dt;
+    f.rot += f.spin * dt;
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    if (f.t >= f.life) { libresFx.push(f); efectos.splice(i, 1); }
+  }
+}
+function dibujarEfectos() {
+  if (!efectos.length) return;
+  for (const f of efectos) {
+    const k = f.t / f.life;
+    ctx.globalCompositeOperation = f.aditivo ? "lighter" : "source-over";
+    // Sube rápido y se apaga despacio: al revés parece un parpadeo.
+    ctx.globalAlpha = f.alpha * (k < 0.12 ? k / 0.12 : Math.pow(1 - (k - 0.12) / 0.88, 1.6));
+    const s = f.tam * (f.desde + (f.crece - f.desde) * Math.pow(k, 0.45));
+    ctx.save();
+    ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    const w = f.sp.width || f.sp.naturalWidth, h = f.sp.height || f.sp.naturalHeight;
+    const esc = s / Math.max(w, h);
+    ctx.drawImage(f.sp, -w * esc / 2, -h * esc / 2, w * esc, h * esc);
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+}
+
+// ── Muertes ───────────────────────────────────────────────
+//  La misma explosión para todo hace que matar un caza y matar un
+//  acorazado se sientan igual, que es exactamente lo que no queremos.
+const MUERTES = {
+  basica:   { vfx:"exp_basica",   tam:120, dur:0.42, part:16, fuerza:1.0, sac:"tiny",   snd:"exp_peq",    onda:0 },
+  rapida:   { vfx:"chispa",       tam:100, dur:0.3,  part:12, fuerza:1.2, sac:"tiny",   snd:"exp_peq",    onda:0 },
+  media:    { vfx:"exp_media",    tam:170, dur:0.5,  part:26, fuerza:1.3, sac:"small",  snd:"exp_med",    onda:0 },
+  pesada:   { vfx:"exp_pesada",   tam:250, dur:0.62, part:44, fuerza:1.7, sac:"medium", snd:"exp_grande", onda:7, stop:0.045 },
+  kamikaze: { vfx:"exp_kamikaze", tam:190, dur:0.5,  part:30, fuerza:1.5, sac:"small",  snd:"exp_med",    onda:4 },
+  defensa:  { vfx:"defensa",      tam:200, dur:0.55, part:28, fuerza:1.4, sac:"small",  snd:"exp_med",    onda:5 },
+  miniboss: { vfx:"exp_boss",     tam:420, dur:1.1,  part:80, fuerza:2.4, sac:"boss",   snd:"exp_boss",   onda:14, stop:0.12 },
+};
+function muerte(x, y, color, tipo) {
+  const d = MUERTES[tipo] || MUERTES.basica;
+  vfx(d.vfx, x, y, d.tam, d.dur, { spin: rand(-1, 1) });
+  boom(x, y, color, d.part, d.fuerza);
+  restos(x, y, mezcla(color, "#ffffff", 0.4), d.part * 0.35, d.fuerza);
+  if (d.onda) onda(x, y, color, d.onda * 22, 0.55);
+  sacudir(d.sac);
+  sfx(d.snd);
+  if (d.stop) hitstop(d.stop);
+}
+
+// ── Impactos ──────────────────────────────────────────────
+//  Cada golpe tiene que sentirse pegado al disparo que lo causó. Un
+//  proyectil que entra en un enemigo sin que pase nada es un proyectil
+//  que el jugador cree que ha fallado.
+const IMPACTOS = {
+  ligero: { vfx:"ligero", tam:44, dur:0.2, part:3, snd:"imp_ligero" },
+  medio:  { vfx:"medio",  tam:76, dur:0.26, part:7, snd:"imp_medio", sac:"tiny" },
+  pesado: { vfx:"pesado", tam:130, dur:0.36, part:14, snd:"imp_pesado", sac:"small", stop:0.03 },
+  escudo: { vfx:"escudo", tam:96, dur:0.3,  part:6, snd:"imp_escudo" },
+  rotura: { vfx:"escudo_roto", tam:170, dur:0.5, part:20, snd:"emp", sac:"small" },
+};
+function impacto(x, y, peso, color) {
+  const d = IMPACTOS[peso] || IMPACTOS.ligero;
+  vfx(d.vfx, x, y, d.tam, d.dur, { aditivo: true });
+  if (d.part) boom(x, y, color || "#ffffff", d.part, 0.6);
+  if (d.sac) sacudir(d.sac);
+  if (d.stop) hitstop(d.stop);
+  sfx(d.snd);
+}
+
+// ── Sacudida de cámara ────────────────────────────────────
+//  Cinco intensidades y ninguna continua. Una sacudida que no para deja
+//  de comunicar nada y solo marea, sobre todo en una tablet a 30 cm.
+const SACUDIDAS = { tiny:[3,0.1], small:[6,0.18], medium:[11,0.28], heavy:[17,0.42], boss:[26,0.7] };
+let shakeDur = 0.4;
+function shake(mag, dur) {
+  if (!OPCIONES.sacudida) return;
+  mag *= OPCIONES.sacudida;
+  if (mag >= shakeMag) { shakeMag = mag; shakeDur = dur; shakeT = dur; }
+  else if (dur > shakeT) shakeT = Math.min(dur, shakeDur);
+}
+function sacudir(nivel) {
+  const s = SACUDIDAS[nivel];
+  if (s) shake(s[0], s[1]);
+}
+
+// ── Congelado de impacto ──────────────────────────────────
+//  Milisegundos, y solo en lo que pesa. Es lo que hace que un golpe
+//  fuerte se sienta fuerte; usado a diario, hace que el juego vaya a
+//  tirones.
+let hitStop = 0;
+function hitstop(s) { hitStop = Math.max(hitStop, s * OPCIONES.hitstop); }
+
 // Anillo de choque. Solo para lo que pesa: acorazados, bombas y la nave.
 // Si sale en cada muerte deja de significar nada.
 function onda(x, y, color, rMax, dur) {
+  if (ondas.length > 14) return;
   ondas.push({ x, y, color, rMax, t: 0, life: dur || 0.45 });
 }
-function texto(x, y, txt, color) {
-  flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9 });
+function texto(x, y, txt, color, tam) {
+  flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9, tam: tam || 16 });
 }
 
 // ── Enemigos ──────────────────────────────────────────────
@@ -1506,68 +2257,170 @@ function spawnEnemy(tipo, x) {
   return e;
 }
 
-function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95, r: 15, tipo, f: rand(0, TAU) }); }
+function soltarPremio(x, y, tipo) {
+  premios.push({ x, y, vy: 95, r: 17, tipo, f: rand(0, TAU), giro: rand(0, TAU), t: 0 });
+}
+
+// ── Daño ──────────────────────────────────────────────────
+function enemigoMasCerca(x, y, max, excluir) {
+  let mejor = null, md = max * max;
+  for (const e of enemies) {
+    if (e === excluir || e.hp <= 0) continue;
+    const dx = e.x - x, dy = e.y - y, d = dx * dx + dy * dy;
+    if (d < md) { md = d; mejor = e; }
+  }
+  return mejor;
+}
+function danioArea(x, y, r, dmg, excluir) {
+  const r2 = r * r;
+  for (const e of enemies) {
+    if (e === excluir || e.hp <= 0) continue;
+    const dx = e.x - x, dy = e.y - y;
+    if (dx * dx + dy * dy < r2) { e.hp -= dmg; e.flash = 0.08; }
+  }
+  if (miniboss) {
+    const dx = miniboss.x - x, dy = miniboss.y - y;
+    if (dx * dx + dy * dy < (r + miniboss.r) ** 2) { miniboss.hp -= dmg; miniboss.flash = 0.06; }
+  }
+}
+let rayos = [];
+function cadenaElectrica(b, x, y, victima) {
+  const o = enemigoMasCerca(x, y, 150, victima);
+  if (!o) return;
+  o.hp -= b.cadena; o.flash = 0.1;
+  rayos.push({ x1: x, y1: y, x2: o.x, y2: o.y, col: b.col, t: 0, life: 0.13 });
+  impacto(o.x, o.y, "ligero", b.col);
+}
+// Devuelve true si la bala se ha consumido.
+function golpearCon(b, x, y, victima) {
+  impacto(x, y, b.imp, b.col);
+  if (b.area) danioArea(x, y, b.area, b.dmg * 0.6, victima);
+  if (b.cadena) cadenaElectrica(b, x, y, victima);
+  if (b.lento && victima) victima.lentoT = Math.max(victima.lentoT || 0, 1.6);
+  if (b.pierce > 0) { b.pierce--; b.cd = 0.07; return false; }
+  return true;
+}
 
 function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
-  combo++; comboT = 2.6; enemiesKilled++;
+  combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
   maxCombo = Math.max(maxCombo, combo);
-  const mult = 1 + Math.floor(combo / 8);
-  score += d.puntos * mult;
-  boom(e.x, e.y, d.color(T), d.grande ? 42 : 18, d.grande ? 1.6 : 1);
-  beep(d.grande ? 120 : 300, d.grande ? 0.32 : 0.12, "square", 0.055);
-  if (d.grande) { shake(11, 0.35); ruido(0.3, 0.1); onda(e.x, e.y, d.color(T), e.r * 6); }
-  if (mult > 1) texto(e.x, e.y, "x" + mult, T.bala);
+  const mult = multCombo();
+  const pts = Math.round(d.puntos * mult);
+  score += pts;
+  muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
+  if (mult > 1) texto(e.x, e.y - e.r, "+" + pts, T.bala, 13 + Math.min(8, mult));
+  hitoCombo();
 
   const p = CONFIG.probPremio * (d.premio || 1);
-  if (Math.random() < p) {
-    const r = Math.random();
-    let tipo = "arma";
-    if (r > 0.92) tipo = "vida";
-    else if (r > 0.76) tipo = "bomba";
-    else if (r > 0.56) tipo = "escudo";
-    else if (r > 0.40) tipo = "rapido";
-    soltarPremio(e.x, e.y, tipo);
-  }
+  if (Math.random() < p) soltarPremio(e.x, e.y, elegirPremioAleatorio());
   enemies.splice(i, 1);
 }
 
-function cogerPremio(p) {
-  beep(880, 0.16, "triangle", 0.06, 1760);
-  boom(p.x, p.y, PREMIOS[p.tipo].color, 14);
-  texto(p.x, p.y - 10, PREMIOS[p.tipo].nombre, PREMIOS[p.tipo].color);
-  if (p.tipo === "arma") arma = Math.min(arma + 1, ARMA_MAX);
-  else if (p.tipo === "escudo") escudo = 1;
-  else if (p.tipo === "vida") lives = Math.min(lives + 1, 6);
-  else if (p.tipo === "rapido") turbo = 8;
-  else if (p.tipo === "bomba") {
-    flash = 1; shake(16, 0.5); ruido(0.5, 0.14);
-    onda(player.x, player.y, "#ffffff", Math.max(W, H) * 1.1, 0.7);
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      score += 15; boom(enemies[i].x, enemies[i].y, T.enemigoB, 14);
-      enemies.splice(i, 1);
+// ── Combo ─────────────────────────────────────────────────
+//  Sube por muertes encadenadas y se cae al recibir daño. Los hitos
+//  (x5, x10, x25, x50, x100) sí avisan; los demás números, no: llenar la
+//  pantalla de cifras es la manera más rápida de que dejen de leerse.
+const HITOS = [5, 10, 25, 50, 100];
+const multCombo = () => 1 + Math.floor(combo / 8);
+function hitoCombo() {
+  for (const h of HITOS) {
+    if (combo === h && comboHito < h) {
+      comboHito = h;
+      texto(W / 2, H * 0.62, "COMBO ×" + h, h >= 50 ? "#ffd700" : T.bala, 22 + h / 10);
+      vfx("chispa", W / 2, H * 0.62, 90 + h, 0.4);
+      sfx("combo", { tono: 1 + HITOS.indexOf(h) * 0.12 });
+      if (h >= 25) sacudir("tiny");
     }
-    eBullets.length = 0;
   }
+}
+
+function cogerPremio(p) {
+  const d = PREMIOS[p.tipo];
+  sfx("pickup");
+  vfx("chispa", p.x, p.y, 96, 0.34);
+  boom(p.x, p.y, d.color, 18, 0.9);
+  onda(p.x, p.y, d.color, 78, 0.34);
+  // El nombre va FUERA del PNG, y solo al recogerlo. Un icono con letras
+  // encima es un cartel; sin ellas, es un objeto.
+  texto(p.x, p.y - 26, d.nombre, d.color, 17);
+
+  if (d.familia) { armaId = d.familia; shootAcc = 0; sfx("mejora"); flash = Math.max(flash, 0.22); }
+  else if (p.tipo === "arma") {
+    if (arma >= ARMA_MAX) { score += 250; texto(p.x, p.y - 46, "+250", "#ffd700", 14); }
+    else { arma++; sfx("mejora"); }
+  }
+  else if (p.tipo === "escudo") { escudo = 1; sfx("escudo_on"); }
+  else if (p.tipo === "vida") { lives = Math.min(lives + 1, 6); sfx("mejora"); }
+  else if (p.tipo === "rapido") turbo = 8;
+  else if (p.tipo === "bomba") bombas = Math.min(bombas + 1, 5);
+}
+
+// ── Bomba ─────────────────────────────────────────────────
+//  El momento más satisfactorio del juego tiene que estar en las manos
+//  del jugador, no caer del cielo. Se guarda y se gasta cuando ella
+//  decide. Y no deja la pantalla en blanco: un fogonazo corto, una onda
+//  que recorre el campo y el daño llegando con ella.
+let bombaT = 0;
+function usarBomba() {
+  if (bombas <= 0 || state !== "play" || paused || misionCompletaT > 0) {
+    if (state === "play") sfx("ui_no");
+    return;
+  }
+  bombas--;
+  bombaT = 0.85;
+  flash = Math.max(flash, 0.55);
+  sacudir("heavy");
+  hitstop(0.07);
+  sfx("bomba");
+  vfx("ultimate", player.x, player.y, Math.max(W, H) * 1.25, 0.8, { crece: 1.5, desde: 0.1, alpha: 0.85 });
+  onda(player.x, player.y, "#ffffff", Math.max(W, H) * 1.2, 0.65);
+  onda(player.x, player.y, T.nave, Math.max(W, H) * 0.9, 0.5);
+  invulnT = Math.max(invulnT, 0.9);
+
+  // Los proyectiles no desaparecen: se convierten en puntos. Ver la
+  // pantalla llena de balas volverse puntuación es la recompensa.
+  const balas = eBullets.length;
+  for (const b of eBullets) { if (Math.random() < 0.35) boom(b.x, b.y, TIRO_SUYO, 2, 0.5); }
+  score += balas * 5;
+  eBullets.length = 0;
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.hp -= 14;
+    if (e.hp <= 0) matar(e, i);
+    else e.flash = 0.2;
+  }
+  for (let i = defensas.length - 1; i >= 0; i--) {
+    defensas[i].hp -= 10;
+    if (defensas[i].hp <= 0) { muerte(defensas[i].x, defensas[i].y, "#4499ff", "defensa"); defensas.splice(i, 1); }
+  }
+  for (let i = hazards.length - 1; i >= 0; i--) { muerte(hazards[i].x, hazards[i].y, "#ff8800", "basica"); hazards.splice(i, 1); }
+  if (miniboss) { miniboss.hp -= Math.ceil(miniboss.hpMax * 0.09); miniboss.flash = 0.3; }
+  if (balas) texto(W / 2, H * 0.5, "+" + balas * 5, "#ffffff", 24);
 }
 
 function golpe() {
   if (invulnT > 0) return;
   if (escudo > 0) {
     escudo = 0; invulnT = 0.9;
+    impacto(player.x, player.y, "rotura", "#5ce1ff");
     boom(player.x, player.y, "#5ce1ff", 30, 1.3);
-    beep(500, 0.3, "sine", 0.07, 120); shake(9, 0.3);
-    texto(player.x, player.y - 30, "ESCUDO ROTO", "#5ce1ff");
+    onda(player.x, player.y, "#5ce1ff", player.r * 7, 0.4);
+    texto(player.x, player.y - 34, "ESCUDO ROTO", "#5ce1ff", 15);
     return;
   }
   lives--; invulnT = CONFIG.invulnerable;
-  arma = Math.max(1, arma - 1); combo = 0;
-  boom(player.x, player.y, T.nave, 34, 1.4);
+  sinDanio = false;
+  arma = Math.max(1, arma - 1);
+  combo = 0; comboHito = 0; comboT = 0;
+  muerte(player.x, player.y, T.nave, "media");
   onda(player.x, player.y, T.nave, player.r * 9);
-  beep(150, 0.35, "sawtooth", 0.08); ruido(0.25, 0.1); shake(14, 0.4);
+  sacudir("heavy"); hitstop(0.05);
   if (lives <= 0) {
     state = "over"; overAt = performance.now();
-    boom(player.x, player.y, T.motor, 60, 2); shake(20, 0.7);
+    muerte(player.x, player.y, nvColor(), "pesada");
+    sacudir("boss"); sfx("derrota");
     onda(player.x, player.y, T.motor, player.r * 20, 0.9);
     if (score > best) { best = score; guardarSave({ record: best }); }
     // Limpiar campo para que el overlay quede limpio
@@ -1578,18 +2431,53 @@ function golpe() {
   }
 }
 
+// ── Disparo ───────────────────────────────────────────────
+//  Un disparo son SIETE cosas, no una: núcleo, halo, estela, fogonazo en
+//  la boca del cañón, impacto, sonido y retroceso. Quitar cualquiera de
+//  ellas y el arma deja de sentirse conectada a la mano.
+const libresBala = [];
+function nuevaBala(x, y, vx, vy, a) {
+  const b = libresBala.pop() || {};
+  b.x = x; b.y = y; b.vx = vx; b.vy = vy;
+  b.r = a.r; b.dmg = a.dmg * (naveActual().dmg || 1);
+  b.col = a.col; b.sp = SPRITES[a.sp]; b.largo = a.largo;
+  b.pierce = a.pierce || 0; b.area = a.area || 0;
+  b.cadena = a.cadena || 0; b.lento = a.lento || 0;
+  b.guia = a.guia || 0; b.vida = a.vida || 0;
+  b.imp = a.imp; b.estela = a.estela || 0;
+  b.t = 0; b.cd = 0; b.ang = Math.atan2(vy, vx) + Math.PI / 2;
+  return b;
+}
+function soltarBala(i) { libresBala.push(bullets[i]); bullets.splice(i, 1); }
+
+let fogonazos = [];
+function fogonazo(x, y, col, tam) {
+  if (fogonazos.length > 14) return;
+  fogonazos.push({ x, y, col, tam, t: 0, life: 0.08 });
+}
+
 function disparar() {
-  const y = player.y - 18;
-  const add = (dx, vx) => bullets.push({ x: player.x + dx, y, vx: vx || 0, r: 3.6 });
-  let bAntes = bullets.length;
-  if (arma === 1) add(0, 0);
-  else if (arma === 2) { add(-9, 0); add(9, 0); }
-  else if (arma === 3) { add(0, 0); add(-12, -80); add(12, 80); }
-  else if (arma === 4) { add(-8, 0); add(8, 0); add(-16, -150); add(16, 150); }
-  else if (arma === 5) { add(0, 0); add(-10, -90); add(10, 90); add(-18, -210); add(18, 210); }
-  else { add(-6, 0); add(6, 0); add(-14, -110); add(14, 110); add(-22, -260); add(22, 260); }
-  bulletsFiredo += bullets.length - bAntes;
-  beep(1050 + arma * 40, 0.045, "square", 0.02);
+  const a = ARMAS[armaId] || ARMAS.cannon;
+  const y = player.y - player.r * 1.1;
+  const tiros = a.tiros(arma);
+  for (const t of tiros) {
+    const bx = player.x + (t.dx || 0);
+    bullets.push(nuevaBala(bx, y, t.vx || 0, -a.vel, a));
+    fogonazo(bx, y - 4, a.col, a.r * 3.4);
+  }
+  bulletsFiredo += tiros.length;
+  player.retro = Math.min(6, a.dmg * 1.6);
+  sfx(a.snd);
+  if (a.sac) sacudir(a.sac);
+}
+
+// Cambiar de familia conserva el nivel: subir el arma seis veces y perderlo
+// todo por recoger un premio nuevo se siente como un castigo, no como una
+// mejora.
+function ponerArma(id) {
+  if (!ARMAS[id] || armaId === id) { arma = Math.min(arma + 1, ARMA_MAX); return; }
+  armaId = id;
+  shootAcc = 0;
 }
 
 // ── Actualizar ────────────────────────────────────────────
@@ -1606,9 +2494,12 @@ function update(dt) {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.t += dt;
-      if (p.t >= p.life) { particles.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.93; p.vy *= 0.93;
+      if (p.t >= p.life) { soltarPart(i); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.grav) p.vy += p.grav * dt;
+      p.vx *= p.roce; p.vy *= p.roce;
     }
+    actualizarEfectos(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) flotantes.splice(i, 1);
@@ -1636,32 +2527,76 @@ function update(dt) {
   if (keys["ArrowUp"]    || keys["KeyW"]) targetY = Math.max(player.r + 40, targetY - kbSpeed);
   if (keys["ArrowDown"]  || keys["KeyS"]) targetY = Math.min(H - player.r, targetY + kbSpeed);
 
-  const k = 1 - Math.exp(-CONFIG.velocidadNave * dt);
-  player.px = player.x;
+  const nv = naveActual();
+  const k = 1 - Math.exp(-CONFIG.velocidadNave * nv.vel * dt);
+  player.px = player.x; const pyAnt = player.y;
   player.x += (clamp(targetX, player.r, W - player.r) - player.x) * k;
   player.y += (clamp(targetY, player.r + 40, H - player.r) - player.y) * k;
   bank += (clamp((player.x - player.px) * 0.045, -0.45, 0.45) - bank) * (1 - Math.exp(-9 * dt));
+  if (player.retro > 0) player.retro = Math.max(0, player.retro - dt * 42);
 
-  if (Math.random() < 0.9) {
-    particles.push({ x: player.x + rand(-5, 5), y: player.y + 16, vx: rand(-18, 18), vy: rand(90, 190),
-      life: rand(0.18, 0.36), t: 0, color: T.motor, r: rand(1.2, 2.8) });
+  // ── Propulsión ──
+  //  El empuje se mide por lo que la nave se ha movido este fotograma. Al
+  //  frenar en seco los motores bajan, al lanzarse suben: es lo que hace
+  //  que un PNG deje de parecer una pegatina flotando.
+  const desp = Math.hypot(player.x - player.px, player.y - pyAnt) / Math.max(dt, 0.001);
+  player.empuje += (clamp(desp / 900, 0, 1) - player.empuje) * (1 - Math.exp(-12 * dt));
+  const motorCol = nv.motor || T.motor;
+  const nCh = Q.part * (1.6 + player.empuje * 2.4);
+  for (let i = 0; i < nCh; i++) {
+    if (Math.random() > nCh - i) break;
+    const sep = player.r * 0.42;
+    const sx = (Math.random() < 0.5 ? -sep : sep) + rand(-2, 2);
+    part(player.x + sx - bank * 12, player.y + player.r * 0.9,
+      rand(-22, 22) - bank * 60, rand(110, 220) + player.empuje * 170,
+      rand(0.14, 0.3), Math.random() < 0.35 ? "#ffffff" : motorCol,
+      rand(1.1, 2.6) * (0.7 + player.empuje * 0.6));
   }
 
-  const cad = CONFIG.cadenciaDisparo * (turbo > 0 ? 0.55 : 1);
+  const armaAct = ARMAS[armaId] || ARMAS.cannon;
+  const cad = armaAct.cad * nv.cad * (turbo > 0 ? 0.55 : 1);
   shootAcc += dt * 1000;
-  while (shootAcc >= cad) { shootAcc -= cad; disparar(); }
+  let disparos = 0;
+  while (shootAcc >= cad && disparos < 4) { shootAcc -= cad; disparar(); disparos++; }
+  if (shootAcc > cad * 4) shootAcc = 0;
+
+  for (let i = fogonazos.length - 1; i >= 0; i--) {
+    fogonazos[i].t += dt;
+    if (fogonazos[i].t >= fogonazos[i].life) fogonazos.splice(i, 1);
+  }
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.y -= CONFIG.velocidadBala * dt; b.x += (b.vx || 0) * dt;
-    if (b.y < -24 || b.x < -24 || b.x > W + 24) bullets.splice(i, 1);
+    b.t += dt;
+    if (b.cd > 0) b.cd -= dt;
+    if (b.guia) {
+      // Guiado con giro limitado. Un misil que gira sin límite acierta
+      // siempre y deja de ser un misil: es un botón de matar.
+      const o = enemigoMasCerca(b.x, b.y, 420);
+      if (o) {
+        const deseado = Math.atan2(o.y - b.y, o.x - b.x);
+        const actual = Math.atan2(b.vy, b.vx);
+        let d = ((deseado - actual + Math.PI * 3) % TAU) - Math.PI;
+        const giro = clamp(d, -b.guia * dt, b.guia * dt);
+        const v = Math.hypot(b.vx, b.vy);
+        b.vx = Math.cos(actual + giro) * v; b.vy = Math.sin(actual + giro) * v;
+      }
+    }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+    if (b.estela && Q.estela && Math.random() < b.estela * Q.estela) {
+      const p = part(b.x, b.y, rand(-14, 14), rand(-14, 14) + 60,
+        rand(0.1, 0.24) * b.estela, b.col, b.r * rand(0.4, 0.8));
+      if (p) p.roce = 0.9;
+    }
+    if ((b.vida && b.t > b.vida) || b.y < -40 || b.y > H + 40 || b.x < -40 || b.x > W + 40) soltarBala(i);
   }
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.y > H + 24 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
     const dx = b.x - player.x, dy = b.y - player.y;
-    if (dx * dx + dy * dy < (b.r + player.r * 0.66) ** 2) { eBullets.splice(i, 1); golpe(); }
+    if (dx * dx + dy * dy < (b.r + hitR()) ** 2) { eBullets.splice(i, 1); golpe(); }
   }
 
   // Spawn: campaña vs supervivencia
@@ -1723,48 +2658,61 @@ function update(dt) {
   // Miniboss
   actualizarMiniboss(dt);
 
+  for (let i = rayos.length - 1; i >= 0; i--) { rayos[i].t += dt; if (rayos[i].t >= rayos[i].life) rayos.splice(i, 1); }
+
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], d = ENEMIGOS[e.tipo];
     if (e.flash > 0) e.flash -= dt;
+    if (e.lentoT > 0) e.lentoT -= dt;
     e.giro += dt * 1.6;
-    d.mover(e, dt);
+    // Congelado: se mueve y recarga a la mitad. Frenar es hacer daño.
+    const edt = e.lentoT > 0 ? dt * 0.5 : dt;
+    d.mover(e, edt);
     if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
 
     if (d.atacar) {
-      e.cd -= dt;
+      e.cd -= edt;
       if (e.cd <= 0 && e.y > 30) { e.cd = d.recarga(); d.atacar(e); }
     }
 
     let muerto = false;
     for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j], bx = b.x - e.x, by = b.y - e.y;
-      if (bx * bx + by * by < (b.r + e.r) ** 2) {
-        bullets.splice(j, 1); e.hp--; e.flash = 0.08; bulletsHit++;
-        if (e.hp <= 0) { matar(e, i); muerto = true; }
-        else { boom(b.x, b.y, "#ffffff", 3, 0.6); beep(700, 0.03, "square", 0.015); }
-        break;
-      }
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const bx = b.x - e.x, by = b.y - e.y;
+      if (bx * bx + by * by >= (b.r + e.r) ** 2) continue;
+      e.hp -= b.dmg; e.flash = 0.09; bulletsHit++;
+      const gastada = golpearCon(b, b.x, b.y, e);
+      if (gastada) soltarBala(j);
+      if (e.hp <= 0) { matar(e, i); muerto = true; break; }
+      if (gastada) break;
     }
     if (muerto) continue;
 
     const px = player.x - e.x, py = player.y - e.y;
-    if (px * px + py * py < (player.r * 0.7 + e.r) ** 2) {
+    if (px * px + py * py < (hitR() + e.r) ** 2) {
       boom(e.x, e.y, d.color(T), 16);
-      if (!d.embiste) enemies.splice(i, 1);
+      if (!d.embiste) { muerte(e.x, e.y, d.color(T), d.muerte || "basica"); enemies.splice(i, 1); }
       golpe();
     }
   }
 
   for (let i = premios.length - 1; i >= 0; i--) {
     const p = premios[i];
-    p.f += dt * 4;
+    p.f += dt * 4; p.t += dt; p.giro += dt * 1.1;
     const dx = player.x - p.x, dy = player.y - p.y;
     const d = Math.hypot(dx, dy);
-    if (d < 150) { p.x += (dx / d) * 240 * dt; p.y += (dy / d) * 240 * dt; }
+    if (d < 165) { p.x += (dx / d) * 260 * dt; p.y += (dy / d) * 260 * dt; }
     else p.y += p.vy * dt;
+    if (Q.estela && Math.random() < 0.35) {
+      part(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), rand(-12, 12), rand(-30, -8),
+        rand(0.3, 0.6), PREMIOS[p.tipo].color, rand(0.8, 1.8));
+    }
     if (p.y > H + 30) { premios.splice(i, 1); continue; }
-    if (d < player.r + p.r) { cogerPremio(p); premios.splice(i, 1); }
+    // Recogida generosa: perder una mejora por dos píxeles no enseña nada.
+    if (d < player.r * 1.3 + p.r) { cogerPremio(p); premios.splice(i, 1); }
   }
+  if (bombaT > 0) bombaT -= dt;
 }
 
 // ── Dibujo ────────────────────────────────────────────────
@@ -1776,8 +2724,18 @@ function fondo() {
   let iw = 0, ih = 0;
   if (img) { iw = img.naturalWidth || img.width; ih = img.naturalHeight || img.height; }
   if (iw && ih) {
-    const alto = W * ih / iw;
-    for (let y = -(fondoY % alto); y < H; y += alto) ctx.drawImage(img, 0, y, W, alto);
+    // Espejo alternado. Un fondo pintado no enlaza consigo mismo, así que
+    // repetirlo tal cual deja una costura horizontal recorriendo la
+    // pantalla cada pocos segundos. Volteando una de cada dos copias, el
+    // borde de abajo enlaza con su propio reflejo y desaparece.
+    const alto = W * ih / iw, per = alto * 2;
+    for (let y = -(fondoY % per) - per; y < H; y += per) {
+      ctx.drawImage(img, 0, y, W, alto);
+      ctx.save();
+      ctx.translate(0, y + per); ctx.scale(1, -1);
+      ctx.drawImage(img, 0, 0, W, alto);
+      ctx.restore();
+    }
   } else {
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
@@ -1871,10 +2829,12 @@ function pintarSprite(s, ancho) {
 }
 
 function dibujarNave(x, y, r, ang) {
+  const nv = naveActual();
+  const motorCol = nv.motor || T.motor;
   ctx.save();
-  ctx.translate(x, y); ctx.rotate(ang);
+  ctx.translate(x, y + (player.retro || 0) * 0.5); ctx.rotate(ang);
 
-  // Medidas del sprite, si hay. Las llamas se ajustan a ellas.
+  // Medidas del sprite, si hay. Las toberas se ajustan a ellas.
   const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
   let ws = 0, hs = 0;
   if (sp) {
@@ -1882,29 +2842,47 @@ function dibujarNave(x, y, r, ang) {
     if (iw && ih) { ws = r * CONFIG.tamanoNave; hs = ws * ih / iw; }
   }
 
-  const llama = 1 + Math.random() * 0.7;
-  const sep    = ws ? ws * 0.16 : 7;
-  const yMotor = ws ? hs * 0.40 : r * 0.5;
-  const largo  = ws ? ws * 0.32 : 22;
-  const grosor = ws ? ws * 0.075 : 4;
-  // Si la nave trae las llamas ya dibujadas, se apagan las del juego
-  for (const sx of (CONFIG.llamasMotor || !ws) ? [-sep, sep] : []) {
-    const g = ctx.createLinearGradient(0, yMotor, 0, yMotor + largo * llama);
-    g.addColorStop(0, T.motor); g.addColorStop(1, "rgba(255,255,255,0)");
+  // ── Propulsión ──
+  //  Tres capas: resplandor de tobera, llama y pulso. Las tres reaccionan
+  //  al empuje, así que frenar y lanzarse se VEN. Va debajo del casco,
+  //  para que la llama salga de dentro de la nave y no encima de ella.
+  const emp = 0.35 + (player.empuje || 0) * 0.65;
+  const sep    = ws ? ws * 0.155 : 7;
+  const yMotor = ws ? hs * 0.34 : r * 0.5;
+  const largo  = (ws ? ws * 0.34 : 24) * (0.55 + emp * 0.75) * (1 + Math.random() * 0.28);
+  const grosor = (ws ? ws * 0.07 : 4) * (0.8 + emp * 0.4);
+  ctx.globalCompositeOperation = "lighter";
+  for (const sx of [-sep, sep]) {
+    const g = ctx.createRadialGradient(sx, yMotor + largo * 0.25, 0, sx, yMotor + largo * 0.25, largo * 1.1);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.28, motorCol);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = 0.5 + emp * 0.4;
     ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, yMotor + largo * 0.25, largo * 1.1, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 0.9;
+    const gl = ctx.createLinearGradient(0, yMotor, 0, yMotor + largo);
+    gl.addColorStop(0, "#ffffff");
+    gl.addColorStop(0.35, motorCol);
+    gl.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gl;
     ctx.beginPath();
     ctx.moveTo(sx - grosor, yMotor); ctx.lineTo(sx + grosor, yMotor);
-    ctx.lineTo(sx, yMotor + largo * llama); ctx.closePath(); ctx.fill();
+    ctx.lineTo(sx + grosor * 0.2, yMotor + largo);
+    ctx.lineTo(sx - grosor * 0.2, yMotor + largo);
+    ctx.closePath(); ctx.fill();
   }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
 
   if (ws) {
     // Sombra oscura, no de color: despega la nave del fondo sin pelearse
     // con la paleta del mundo, sea cual sea la nave que haya cargado.
-    ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10;
+    if (Q.sombras) { ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10; }
     ctx.drawImage(sp, -ws / 2, -hs / 2, ws, hs);
     ctx.shadowBlur = 0;
   } else {
-    ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10;
+    if (Q.sombras) { ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10; }
     naveVector(r);
     ctx.shadowBlur = 0;
     ctx.fillStyle = T.bala;
@@ -1914,13 +2892,46 @@ function dibujarNave(x, y, r, ang) {
       ctx.beginPath(); ctx.arc(-px, r * 0.55, 2.4, 0, TAU); ctx.fill();
     }
   }
+  ctx.restore();
 
+  // ── Escudo y núcleo ──
+  //  Fuera de la rotación del casco: un escudo que se inclina con la nave
+  //  parece parte del dibujo, y tiene que leerse como una capa aparte.
+  ctx.save();
+  ctx.translate(x, y);
   if (escudo > 0) {
-    ctx.strokeStyle = "#5ce1ff"; ctx.lineWidth = 2.5;
-    ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 140) * 0.25;
-    ctx.shadowColor = "#5ce1ff"; ctx.shadowBlur = 16;
+    const pul = 0.5 + Math.sin(performance.now() / 140) * 0.25;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = pul * 0.45;
+    const g = ctx.createRadialGradient(0, 0, r * 1.2, 0, 0, r * 2.1);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "#5ce1ff");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r * 2.1, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.55 + pul * 0.3;
+    ctx.strokeStyle = "#9beeff"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, r * 2, 0, TAU); ctx.stroke();
-    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
+  }
+  // El núcleo: la zona de impacto de VERDAD. En un bullet hell el jugador
+  // necesita saber exactamente qué píxeles le matan, y el dibujo de la
+  // nave es más grande que eso a propósito.
+  if (OPCIONES.nucleo) {
+    const hr = hitR();
+    const denso = eBullets.length > 24;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = denso ? 0.95 : 0.6;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, hr * 1.9);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.5, T.bala);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, hr * 1.9, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(0, 0, hr * 0.45, 0, TAU); ctx.fill();
   }
   ctx.restore();
 }
@@ -1990,30 +3001,62 @@ function dibujarEnemigo(e) {
   }
 }
 
+// ── Premios ───────────────────────────────────────────────
+//  Un objeto energético flotando, no una chapa con una letra: halo que
+//  respira, cabeceo, un anillo que gira alrededor y el icono con su
+//  propio brillo. Lo que hace tiene nombre — pero el nombre aparece al
+//  cogerlo, no impreso encima.
 function dibujarPremio(p) {
-  const s = 1 + Math.sin(p.f) * 0.12;
   const d = PREMIOS[p.tipo];
+  const pulso = 0.5 + 0.5 * Math.sin(p.f);
+  const bob = Math.sin(p.t * 2.4) * 3.5;
+  const s = 1 + pulso * 0.07;
   ctx.save();
-  ctx.translate(p.x, p.y); ctx.scale(s, s);
-  // CHAPA CUADRADA, no un círculo. El círculo ya significa "bala enemiga",
-  // y un premio redondo del mismo color se coge por error o se esquiva por
-  // error. En el juego no hay ningún otro cuadrado.
-  const l = p.r * 1.05;
-  const chapa = (m) => {
+  ctx.translate(p.x, p.y + bob);
+
+  // Halo. Aditivo para que se lea sobre cualquier fondo de misión.
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(0, 0, p.r * 0.2, 0, 0, p.r * (2.4 + pulso * 0.5));
+  g.addColorStop(0, mezcla(d.color, "#ffffff", 0.35));
+  g.addColorStop(0.45, d.color);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.globalAlpha = 0.42 + pulso * 0.2;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, p.r * (2.4 + pulso * 0.5), 0, TAU); ctx.fill();
+
+  // Anillo orbital: da eje y velocidad sin gastar partículas.
+  ctx.globalAlpha = 0.55 + pulso * 0.25;
+  ctx.strokeStyle = mezcla(d.color, "#ffffff", 0.5);
+  ctx.lineWidth = 1.6;
+  ctx.save();
+  ctx.rotate(p.giro); ctx.scale(1, 0.38);
+  ctx.beginPath(); ctx.arc(0, 0, p.r * 1.75, 0, TAU); ctx.stroke();
+  ctx.restore();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+
+  const sp = SPRITES[d.sp];
+  ctx.scale(s, s);
+  if (sp) {
+    if (Q.sombras) { ctx.shadowColor = d.color; ctx.shadowBlur = 14; }
+    pintarSprite(sp, p.r * 2.5);
+    ctx.shadowBlur = 0;
+  } else {
+    // Sin PNG, representación procedural. Nunca una letra: un cristal
+    // facetado con el color del premio, que sigue leyéndose como objeto.
+    ctx.rotate(p.giro * 0.4);
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(-l - m, -l - m, (l + m) * 2, (l + m) * 2, 5 + m)
-                  : ctx.rect(-l - m, -l - m, (l + m) * 2, (l + m) * 2);
-  };
-  chapa(3.5); ctx.fillStyle = mezcla(d.color, "#ffffff", 0.7); ctx.fill();
-  chapa(2);   ctx.fillStyle = TINTA; ctx.fill();
-  const g = ctx.createLinearGradient(0, -l, 0, l);
-  g.addColorStop(0, mezcla(d.color, "#ffffff", 0.55));
-  g.addColorStop(1, mezcla(d.color, TINTA, 0.14));
-  chapa(0); ctx.fillStyle = g; ctx.fill();
-  ctx.fillStyle = "rgba(10,7,20,0.85)";
-  ctx.font = "900 16px -apple-system, system-ui, sans-serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(d.letra, 0, 1);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU, r = i % 2 ? p.r * 0.62 : p.r * 1.05;
+      ctx[i ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    const gg = ctx.createLinearGradient(0, -p.r, 0, p.r);
+    gg.addColorStop(0, mezcla(d.color, "#ffffff", 0.7));
+    gg.addColorStop(1, mezcla(d.color, TINTA, 0.35));
+    ctx.fillStyle = gg; ctx.fill();
+    ctx.strokeStyle = mezcla(d.color, "#ffffff", 0.85); ctx.lineWidth = 1.6; ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -2029,54 +3072,165 @@ function corazon(x, y, s, color) {
 
 const F = "-apple-system, system-ui, Segoe UI, Roboto, sans-serif";
 
-function hud() {
-  const top = 14;
-  const g = ctx.createLinearGradient(0, 0, 0, 132);
-  g.addColorStop(0, "rgba(0,0,0,0.55)"); g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 132);
+// ════════════════════════════════════════════════════════════
+//  HUD
+// ════════════════════════════════════════════════════════════
+//  Reglas: nada de cajas de página web, nada de tipografía de 9 px, y
+//  todo lo tocable con área de 44 px como mínimo. Los datos viven en dos
+//  franjas —arriba lo que se consulta, abajo lo que se usa— y el centro
+//  de la pantalla se deja libre, que es donde está el juego.
+let hudRects = {};
 
-  // Todo el HUD con sombra dura: tiene que leerse igual sobre un fondo
-  // negro que sobre una explosión blanca.
-  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
-  ctx.textBaseline = "top";
-  ctx.font = "700 12px " + F;
-  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
-  ctx.textAlign = "left";
-  if (modo === "campana") {
-    ctx.fillText("M" + (misionIdx + 1) + " " + MISIONES[misionIdx].nombre, 16, top + 2);
-  } else {
-    ctx.fillText("NIVEL " + level, 16, top + 2);
-  }
-  ctx.textAlign = "right"; ctx.fillText("RÉCORD " + best, W - 16, top + 2);
+function panel(x, y, w, h, r, alpha) {
+  ctx.fillStyle = "rgba(6,9,22," + (alpha != null ? alpha : 0.55) + ")";
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
+  ctx.fill();
+}
+function filo(x, y, w, h, r, col, alpha) {
+  ctx.strokeStyle = col; ctx.globalAlpha = alpha != null ? alpha : 0.35;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, r) : ctx.rect(x, y, w, h);
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+// Texto con espaciado. En una interfaz sci-fi el interletraje hace más
+// por el tono que cualquier adorno, y el canvas no tiene letter-spacing
+// en los navegadores viejos, así que se hace a mano.
+function letras(txt, x, y, esp, alinear) {
+  const w = ctx.measureText(txt).width + esp * (txt.length - 1);
+  let cx = alinear === "center" ? x - w / 2 : alinear === "right" ? x - w : x;
+  const ta = ctx.textAlign; ctx.textAlign = "left";
+  for (const ch of txt) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + esp; }
+  ctx.textAlign = ta;
+  return w;
+}
+
+function hud() {
+  const acc = T.nave;
+  const top = SAFE_TOP + 10;
+  const bot = H - SAFE_BOTTOM - 10;
+  hudRects = {};
+
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4;
+
+  // ── Franja superior ──
+  const g = ctx.createLinearGradient(0, 0, 0, top + 96);
+  g.addColorStop(0, "rgba(3,5,14,0.72)"); g.addColorStop(1, "rgba(3,5,14,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, top + 96);
+
+  // Marcador. Es el número que el jugador mira, así que es el más grande
+  // de la pantalla después del juego.
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+  ctx.font = "800 " + Math.round(clamp(W * 0.075, 26, 38)) + "px " + F;
+  ctx.fillText(score.toLocaleString("es"), W / 2, top + 22);
+  ctx.font = "700 10px " + F; ctx.fillStyle = acc; ctx.globalAlpha = 0.7;
+  letras(best > 0 ? "RÉCORD " + best.toLocaleString("es") : "PUNTOS", W / 2, top + 44, 1.6, "center");
   ctx.globalAlpha = 1;
 
+  // Etiqueta de misión
+  ctx.textAlign = "left";
+  ctx.font = "800 11px " + F;
+  ctx.fillStyle = acc; ctx.globalAlpha = 0.9;
+  const et = modo === "campana" ? "M" + (misionIdx + 1) : "NIVEL " + level;
+  letras(et, 14, top + 14, 1.4);
+  ctx.globalAlpha = 0.45; ctx.fillStyle = "#fff"; ctx.font = "700 10px " + F;
+  letras(modo === "campana" ? MISIONES[misionIdx].nombre : "SUPERVIVENCIA", 14, top + 30, 1.2);
+  ctx.globalAlpha = 1;
+
+  // Pausa: 44 px de área tocable aunque el icono sea pequeño.
+  const pb = { x: W - 14 - 40, y: top - 4, w: 40, h: 40 };
+  hudRects.pausa = pb;
+  panel(pb.x, pb.y, pb.w, pb.h, 12, 0.5);
+  filo(pb.x, pb.y, pb.w, pb.h, 12, acc, 0.3);
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillRect(pb.x + 14, pb.y + 12, 4, 16);
+  ctx.fillRect(pb.x + 22, pb.y + 12, 4, 16);
+
+  // ── Combo ──
+  //  Solo aparece cuando hay algo que decir, y el arco enseña cuánto
+  //  queda antes de perderlo. Un número suelto no avisa de nada.
+  if (combo >= 3) {
+    const cy = top + 84, cx = W / 2;
+    const k = clamp(comboT / CONFIG.comboTiempo, 0, 1);
+    ctx.globalAlpha = Math.min(1, comboT * 2.5);
+    ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = combo >= 25 ? "#ffd700" : acc; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, 20, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center";
+    ctx.font = "800 15px " + F;
+    ctx.fillText("×" + combo, cx, cy + 1);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Franja inferior ──
+  const bh = 46, by = bot - bh;
+  const gb = ctx.createLinearGradient(0, by - 26, 0, H);
+  gb.addColorStop(0, "rgba(3,5,14,0)"); gb.addColorStop(1, "rgba(3,5,14,0.8)");
+  ctx.fillStyle = gb; ctx.fillRect(0, by - 26, W, H - by + 26);
+
+  // Integridad: barras, no corazones. Se lee de un vistazo cuánto queda
+  // y no compite con los premios rosas que hay por la pantalla.
+  const seg = Math.min(6, Math.max(3, CONFIG.vidas + 3));
+  const segW = Math.min(20, (W * 0.34) / seg), segH = 7;
+  for (let i = 0; i < seg; i++) {
+    const x = 14 + i * (segW + 4);
+    const vivo = i < lives;
+    ctx.fillStyle = vivo ? (lives <= 1 ? "#ff3b5c" : "#ff5d8f") : "rgba(255,255,255,0.12)";
+    if (vivo && lives <= 1) ctx.globalAlpha = 0.6 + 0.4 * Math.sin(performance.now() / 140);
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, by + 6, segW, segH, 3) : ctx.rect(x, by + 6, segW, segH);
+    ctx.fill(); ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = "left"; ctx.font = "700 9px " + F;
+  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.4;
+  letras("INTEGRIDAD", 14, by + 26, 1.4);
+  ctx.globalAlpha = 1;
+  if (escudo > 0) {
+    const sx = 14 + seg * (segW + 4) + 8;
+    ctx.fillStyle = "#5ce1ff"; ctx.globalAlpha = 0.75 + 0.25 * Math.sin(performance.now() / 200);
+    ctx.beginPath(); ctx.arc(sx + 6, by + 9, 6, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Arma: nombre y nivel. El nombre importa — es lo que hace que recoger
+  // un premio de familia se sienta como un cambio y no como un +1.
+  const aData = ARMAS[armaId] || ARMAS.cannon;
   ctx.textAlign = "center";
-  ctx.font = "800 32px " + F;
-  ctx.fillText(String(score), W / 2, top + 18);
-
-  for (let i = 0; i < lives; i++) corazon(26 + i * 25, top + 78, 20, "#ff5d8f");
-
-  ctx.textAlign = "right";
-  ctx.font = "700 11px " + F;
-  ctx.globalAlpha = 0.55; ctx.fillStyle = "#fff";
-  ctx.fillText("ARMA", W - 16, top + 56); ctx.globalAlpha = 1;
+  ctx.font = "800 11px " + F; ctx.fillStyle = aData.col;
+  letras(aData.nombre, W / 2, by + 10, 1.6, "center");
+  const pipW = 12, pipTot = ARMA_MAX * pipW - 3;
   for (let i = 0; i < ARMA_MAX; i++) {
-    ctx.fillStyle = i < arma ? T.bala : "rgba(255,255,255,0.16)";
-    ctx.fillRect(W - 16 - (ARMA_MAX - i) * 11, top + 72, 8, 8);
+    ctx.fillStyle = i < arma ? aData.col : "rgba(255,255,255,0.14)";
+    ctx.fillRect(W / 2 - pipTot / 2 + i * pipW, by + 22, pipW - 3, 4);
   }
   if (turbo > 0) {
-    ctx.fillStyle = "#8affd1"; ctx.globalAlpha = 0.9;
-    ctx.font = "800 11px " + F;
-    ctx.fillText("TURBO " + turbo.toFixed(1), W - 16, top + 88);
+    ctx.fillStyle = "#8affd1"; ctx.font = "800 9px " + F;
+    ctx.globalAlpha = 0.85;
+    letras("TURBO " + turbo.toFixed(1), W / 2, by + 36, 1.2, "center");
     ctx.globalAlpha = 1;
   }
-  if (combo >= 8) {
-    ctx.textAlign = "center"; ctx.fillStyle = T.bala;
-    ctx.globalAlpha = clamp(comboT, 0, 1);
-    ctx.font = "800 18px " + F;
-    ctx.fillText("COMBO x" + (1 + Math.floor(combo / 8)), W / 2, top + 76);
-    ctx.globalAlpha = 1;
-  }
+
+  // Bomba: botón de verdad, en la esquina del pulgar.
+  const bb = { x: W - 14 - 52, y: by - 6, w: 52, h: 52 };
+  hudRects.bomba = bb;
+  const hay = bombas > 0;
+  panel(bb.x, bb.y, bb.w, bb.h, 16, hay ? 0.6 : 0.3);
+  filo(bb.x, bb.y, bb.w, bb.h, 16, hay ? "#ff5c8a" : "#666", hay ? 0.65 : 0.2);
+  const spB = SPRITES["pu_bomba"];
+  ctx.save();
+  ctx.translate(bb.x + bb.w / 2, bb.y + bb.h / 2 - 3);
+  ctx.globalAlpha = hay ? 1 : 0.25;
+  if (spB) pintarSprite(spB, 30);
+  else { ctx.fillStyle = "#ff5c8a"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill(); }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center"; ctx.font = "800 10px " + F;
+  ctx.fillStyle = hay ? "#ffffff" : "rgba(255,255,255,0.3)";
+  ctx.fillText("×" + bombas, bb.x + bb.w / 2, bb.y + bb.h - 9);
+
   ctx.shadowBlur = 0;
 }
 
@@ -2273,10 +3427,38 @@ function menu() {
   }
 }
 
+// ── Marco ─────────────────────────────────────────────────
+//  Lo que queda a los lados del campo en una pantalla ancha. No es un
+//  vacío negro: es el chasis de la cabina, y el degradado hacia dentro
+//  hace que el campo parezca iluminado desde el propio juego.
+function marco() {
+  if (!PX) return;
+  aVentana();
+  ctx.fillStyle = "#04050c";
+  ctx.fillRect(0, 0, PX + 1, VH);
+  ctx.fillRect(PX + W - 1, 0, VW - PX - W + 1, VH);
+  const col = (T && T.nave) || "#5ce1ff";
+  for (const [x0, dir] of [[PX, -1], [PX + W, 1]]) {
+    const g = ctx.createLinearGradient(x0, 0, x0 + dir * Math.min(PX, 220), 0);
+    g.addColorStop(0, mezcla(col, "#04050c", 0.82));
+    g.addColorStop(1, "rgba(4,5,12,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(dir < 0 ? x0 - Math.min(PX, 220) : x0, 0, Math.min(PX, 220), VH);
+    ctx.fillStyle = mezcla(col, "#04050c", 0.35);
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(x0 - (dir < 0 ? 2 : 0), 0, 2, VH);
+    ctx.globalAlpha = 1;
+  }
+  aCampo();
+}
+
 function render() {
+  marco();
   ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
   if (shakeT > 0) {
-    const m = shakeMag * (shakeT / 0.4);
+    const k = shakeT / Math.max(shakeDur, 0.001);
+    const m = shakeMag * k * k;
     ctx.translate(rand(-m, m), rand(-m, m));
   }
   fondo();
@@ -2293,11 +3475,23 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
+  ctx.globalCompositeOperation = "lighter";
   for (const p of particles) {
-    ctx.globalAlpha = 1 - p.t / p.life;
+    const k = 1 - p.t / p.life;
+    ctx.globalAlpha = k;
     ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+    if (p.tipo === 1) {
+      // Los restos se estiran en su dirección: una chispa que vuela no es
+      // un punto, y estirada se lee la velocidad sin gastar más partículas.
+      const l = Math.min(14, Math.hypot(p.vx, p.vy) * 0.035);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.vy, p.vx));
+      ctx.fillRect(-l, -p.r * 0.5, l * 2, p.r);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.4 + k * 0.6), 0, TAU); ctx.fill();
+    }
   }
+  ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1;
 
   if (state !== "menu") {
@@ -2310,17 +3504,81 @@ function render() {
       ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
     };
     ctx.lineJoin = "round";
+    // TUS disparos: cada familia con su PNG luminoso, pintado en aditivo
+    // y orientado a su vector. El fondo del PNG desapareció al prepararlo
+    // (optimizar.mjs, modo glow), así que se puede sumar sin recuadro.
+    ctx.globalCompositeOperation = "lighter";
     for (const b of bullets) {
-      caja(b.x - b.r - 1.5, b.y - 12.5, (b.r + 1.5) * 2, 25, b.r + 1.5);
+      if (!b.sp) continue;
+      // Halo debajo del PNG. Un proyectil fino sobre una nebulosa no se ve
+      // sin él, y subir el tamaño del dibujo para compensar lo convertiría
+      // en un tablón. La luz es lo que lo hace legible, no el grosor.
+      if (Q.glowSprite) {
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 3.4);
+        g.addColorStop(0, b.col);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 3.4, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.save();
+      ctx.translate(b.x, b.y); ctx.rotate(b.ang);
+      const w = b.sp.width, h = b.sp.height;
+      const alto = b.largo, ancho = Math.max(alto * w / h, b.r * 2.2);
+      ctx.drawImage(b.sp, -ancho / 2, -alto / 2, ancho, alto);
+      ctx.restore();
+    }
+    // Fogonazo de boca: 80 ms, pero es lo que ata el disparo a la nave.
+    for (const f of fogonazos) {
+      const k = 1 - f.t / f.life;
+      ctx.globalAlpha = k;
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.tam * (0.6 + k * 0.6));
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.4, f.col);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.tam * (0.6 + k * 0.6), 0, TAU); ctx.fill();
+    }
+    // Arcos de la cadena eléctrica
+    for (const r of rayos) {
+      ctx.globalAlpha = 1 - r.t / r.life;
+      ctx.strokeStyle = r.col; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(r.x1, r.y1);
+      const n = 4;
+      for (let i = 1; i < n; i++) {
+        const t = i / n;
+        ctx.lineTo(r.x1 + (r.x2 - r.x1) * t + rand(-9, 9), r.y1 + (r.y2 - r.y1) * t + rand(-9, 9));
+      }
+      ctx.lineTo(r.x2, r.y2); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    // Repuesto vectorial: si un PNG no ha cargado, el disparo sigue
+    // siendo alargado y cian. La regla de lectura no depende del arte.
+    for (const b of bullets) {
+      if (b.sp) continue;
+      caja(b.x - b.r - 1.5, b.y - b.largo / 2 - 1.5, (b.r + 1.5) * 2, b.largo + 3, b.r + 1.5);
       ctx.fillStyle = TINTA; ctx.fill();
-      caja(b.x - b.r, b.y - 11, b.r * 2, 22, b.r);
-      ctx.fillStyle = TIRO_TUYO; ctx.fill();
-      caja(b.x - b.r * 0.4, b.y - 7.5, b.r * 0.8, 15, b.r * 0.4);
+      caja(b.x - b.r, b.y - b.largo / 2, b.r * 2, b.largo, b.r);
+      ctx.fillStyle = b.col || TIRO_TUYO; ctx.fill();
+      caja(b.x - b.r * 0.4, b.y - b.largo * 0.32, b.r * 0.8, b.largo * 0.64, b.r * 0.4);
       ctx.fillStyle = "rgba(255,255,255,0.92)"; ctx.fill();
     }
+
+    // SUS disparos: redondos y rosas, SIEMPRE. Es la única cosa del juego
+    // que no cambia nunca de aspecto, porque es la que te mata.
     for (const b of eBullets) {
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 3.5, 0, TAU);
-      ctx.fillStyle = "rgba(255,47,110,0.3)"; ctx.fill();
+      if (b.halo !== false) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.5;
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 3.2);
+        g.addColorStop(0, TIRO_SUYO); g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 3.2, 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
+      }
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 1.8, 0, TAU);
       ctx.fillStyle = TINTA; ctx.fill();
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU);
@@ -2339,13 +3597,14 @@ function render() {
     if (state === "play" && !(invulnT > 0 && Math.floor(invulnT * 15) % 2 === 0)) {
       dibujarNave(player.x, player.y, player.r, bank);
     }
+    dibujarEfectos();
   }
 
   ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4;
   for (const f of flotantes) {
     ctx.globalAlpha = 1 - f.t / f.life;
     ctx.fillStyle = f.color;
-    ctx.font = "800 16px " + F;
+    ctx.font = "800 " + (f.tam || 16) + "px " + F;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(f.txt, f.x, f.y);
   }
@@ -2467,13 +3726,34 @@ function render() {
 }
 
 let last = performance.now();
+let calAcc = 0, calBajos = 0;
 function loop(now) {
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const real = Math.min((now - last) / 1000, 0.05);
   last = now;
 
   // FPS suavizado
-  fpsFrames++; fpsAcc += dt;
+  fpsFrames++; fpsAcc += real;
   if (fpsAcc >= 0.5) { fps = fpsFrames / fpsAcc; fpsFrames = 0; fpsAcc = 0; }
+
+  // Calidad automática. Se mide durante 3 s antes de decidir: bajar de
+  // nivel por un pico de un fotograma haría que el juego cambie de aspecto
+  // cada vez que explota algo.
+  if (OPCIONES.calidad === "auto" && state === "play" && !paused) {
+    calAcc += real;
+    if (fps < 46) calBajos += real; else calBajos = Math.max(0, calBajos - real * 0.5);
+    if (calAcc > 3) {
+      if (calBajos > 1.5 && calidadAuto !== "baja") {
+        calidadAuto = calidadAuto === "alta" ? "media" : "baja";
+      }
+      calAcc = 0; calBajos = 0;
+      Q = CALIDADES[calidadAuto];
+    }
+  } else if (OPCIONES.calidad !== "auto") {
+    Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
+  }
+
+  let dt = real;
+  if (hitStop > 0) { hitStop -= real; dt = real * 0.06; }
 
   update(dt); render();
   requestAnimationFrame(loop);
