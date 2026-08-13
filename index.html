@@ -103,6 +103,200 @@ const CARPETAS = {
 const buscar = (grupo, archivo) => CARPETAS[grupo].map(d => d + archivo);
 
 // ════════════════════════════════════════════════════════════
+//  FORMACIONES — posiciones de spawn para oleadas diseñadas
+// ════════════════════════════════════════════════════════════
+const FORMACIONES = {
+  linea(n) {
+    const sep = W / (n + 1);
+    return Array.from({length: n}, (_, i) => ({ x: sep * (i + 1), y: -52, d: i * 0.14 }));
+  },
+  V(n) {
+    const cx = W / 2, sep = Math.min(50, W * 0.08);
+    return Array.from({length: n}, (_, i) => {
+      const p = i - Math.floor(n / 2);
+      return { x: clamp(cx + p * sep, 40, W - 40), y: -52 - Math.abs(p) * 36, d: Math.abs(p) * 0.16 };
+    });
+  },
+  pinza(n) {
+    const half = Math.ceil(n / 2);
+    return Array.from({length: n}, (_, i) => ({
+      x: i < half ? rand(W * 0.06, W * 0.36) : rand(W * 0.64, W * 0.94),
+      y: -52, d: i * 0.12,
+    }));
+  },
+  zigzag(n) {
+    const sep = W / (n + 1);
+    return Array.from({length: n}, (_, i) => ({ x: sep * (i + 1), y: -52 - (i % 2) * 88, d: i * 0.1 }));
+  },
+  ola(n) {
+    const sep = W / (n + 1);
+    return Array.from({length: n}, (_, i) => ({
+      x: sep * (i + 1),
+      y: -52 - Math.sin(i / Math.max(n - 1, 1) * Math.PI) * 68,
+      d: i * 0.11,
+    }));
+  },
+};
+
+// ════════════════════════════════════════════════════════════
+//  MINIBOSSES
+// ════════════════════════════════════════════════════════════
+const MINIBOSSES = {
+  guardian: {
+    r: 46, hpMax: 120, nombre: "GUARDIÁN",
+    color: t => t.enemigoC,
+    puntos: 600, drops: ["arma", "escudo", "vida"],
+    init(mb) { mb.faseT = 0; mb.fase = 1; mb.cd1 = 2.6; mb.cd2 = Infinity; mb.targetY = H * 0.22; },
+    mover(mb, dt) {
+      if (mb.y < mb.targetY) mb.y = Math.min(mb.y + 130 * dt, mb.targetY);
+      mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.55) * W * 0.28, mb.r + 10, W - mb.r - 10);
+      mb.faseT += dt;
+    },
+    ataque1(mb) {
+      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 300, 5, 0.26, 7);
+      beep(180, 0.14, "sawtooth", 0.04);
+    },
+    ataque2(mb) {
+      PATRONES.circulo(mb.x, mb.y, 250, 12, mb.faseT, 6);
+      beep(120, 0.22, "sawtooth", 0.07);
+    },
+  },
+  titan: {
+    r: 58, hpMax: 220, nombre: "TITÁN",
+    color: t => mezcla(t.enemigoC, "#cc0000", 0.4),
+    puntos: 1200, drops: ["arma", "arma", "escudo", "vida"],
+    init(mb) { mb.faseT = 0; mb.fase = 1; mb.cd1 = 2.0; mb.cd2 = Infinity; mb.targetY = H * 0.22; },
+    mover(mb, dt) {
+      if (mb.y < mb.targetY) mb.y = Math.min(mb.y + 110 * dt, mb.targetY);
+      mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.5) * W * 0.32 + Math.cos(mb.faseT * 1.1) * W * 0.1,
+                   mb.r + 10, W - mb.r - 10);
+      mb.faseT += dt;
+    },
+    ataque1(mb) {
+      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 320, 7, 0.22, 8);
+      beep(160, 0.16, "sawtooth", 0.05);
+    },
+    ataque2(mb) {
+      PATRONES.circulo(mb.x, mb.y, 270, 16, mb.faseT, 6);
+      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 400, 3, 0.18, 7);
+      beep(100, 0.25, "sawtooth", 0.08);
+    },
+  },
+};
+
+// ════════════════════════════════════════════════════════════
+//  MISIONES — guión de la campaña (5 misiones)
+//  Cada evento: { t, fn, ...params }
+//  fn: "ola" | "reward" | "miniboss"
+// ════════════════════════════════════════════════════════════
+const MISIONES = [
+  {
+    nombre: "PRIMER CONTACTO", temaId: "espacio",
+    desc: "Las primeras oleadas enemigas. Aprende a moverte.",
+    eventos: [
+      { t:  5, fn:"ola", tipo:"normal",     n:4, patron:"linea"  },
+      { t: 12, fn:"ola", tipo:"normal",     n:5, patron:"V"      },
+      { t: 19, fn:"reward" },
+      { t: 24, fn:"ola", tipo:"veloz",      n:4, patron:"pinza"  },
+      { t: 32, fn:"ola", tipo:"normal",     n:6, patron:"ola"    },
+      { t: 40, fn:"ola", tipo:"torreta",    n:3, patron:"linea"  },
+      { t: 48, fn:"reward" },
+      { t: 54, fn:"ola", tipo:"veloz",      n:5, patron:"zigzag" },
+      { t: 62, fn:"ola", tipo:"normal",     n:5, patron:"V"      },
+      { t: 70, fn:"ola", tipo:"kamikaze",   n:4, patron:"ola"    },
+      { t: 78, fn:"reward" },
+      { t: 85, fn:"ola", tipo:"torreta",    n:4, patron:"linea"  },
+      { t: 93, fn:"ola", tipo:"kamikaze",   n:5, patron:"pinza"  },
+      { t:102, fn:"miniboss", tipo:"guardian" },
+    ],
+  },
+  {
+    nombre: "CINTURÓN DE ASTEROIDES", temaId: "volcan",
+    desc: "Kamikazes y bombarderos. Mantente en movimiento.",
+    eventos: [
+      { t:  4, fn:"ola", tipo:"normal",     n:5, patron:"V"      },
+      { t:  9, fn:"ola", tipo:"veloz",      n:5, patron:"zigzag" },
+      { t: 15, fn:"reward" },
+      { t: 20, fn:"ola", tipo:"kamikaze",   n:6, patron:"pinza"  },
+      { t: 28, fn:"ola", tipo:"torreta",    n:4, patron:"linea"  },
+      { t: 36, fn:"ola", tipo:"normal",     n:7, patron:"ola"    },
+      { t: 44, fn:"reward" },
+      { t: 50, fn:"ola", tipo:"veloz",      n:7, patron:"V"      },
+      { t: 57, fn:"ola", tipo:"tanque",     n:2, patron:"linea"  },
+      { t: 64, fn:"ola", tipo:"kamikaze",   n:6, patron:"zigzag" },
+      { t: 72, fn:"reward" },
+      { t: 79, fn:"ola", tipo:"torreta",    n:5, patron:"pinza"  },
+      { t: 86, fn:"ola", tipo:"bombardero", n:3, patron:"linea"  },
+      { t: 94, fn:"ola", tipo:"normal",     n:8, patron:"V"      },
+      { t:102, fn:"miniboss", tipo:"guardian" },
+    ],
+  },
+  {
+    nombre: "RED DE DEFENSA", temaId: "neon",
+    desc: "Los Francotiradores se detienen y apuntan directo.",
+    eventos: [
+      { t:  4, fn:"ola", tipo:"torreta",       n:4, patron:"linea"  },
+      { t:  9, fn:"ola", tipo:"normal",        n:6, patron:"V"      },
+      { t: 15, fn:"ola", tipo:"francotirador", n:3, patron:"linea"  },
+      { t: 23, fn:"reward" },
+      { t: 28, fn:"ola", tipo:"veloz",         n:6, patron:"pinza"  },
+      { t: 36, fn:"ola", tipo:"torreta",       n:5, patron:"ola"    },
+      { t: 44, fn:"ola", tipo:"bombardero",    n:4, patron:"linea"  },
+      { t: 52, fn:"reward" },
+      { t: 58, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
+      { t: 65, fn:"ola", tipo:"kamikaze",      n:7, patron:"zigzag" },
+      { t: 73, fn:"ola", tipo:"francotirador", n:4, patron:"pinza"  },
+      { t: 81, fn:"reward" },
+      { t: 88, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
+      { t: 95, fn:"ola", tipo:"bombardero",    n:5, patron:"ola"    },
+      { t:104, fn:"miniboss", tipo:"guardian" },
+    ],
+  },
+  {
+    nombre: "SECTOR TÓXICO", temaId: "oceano",
+    desc: "Los Portaescudos absorben mucho daño. Apunta bien.",
+    eventos: [
+      { t:  3, fn:"ola", tipo:"veloz",         n:7, patron:"V"      },
+      { t:  8, fn:"ola", tipo:"bombardero",    n:4, patron:"pinza"  },
+      { t: 14, fn:"ola", tipo:"normal",        n:8, patron:"ola"    },
+      { t: 22, fn:"reward" },
+      { t: 28, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
+      { t: 35, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
+      { t: 42, fn:"ola", tipo:"kamikaze",      n:8, patron:"zigzag" },
+      { t: 50, fn:"reward" },
+      { t: 56, fn:"ola", tipo:"portaescudos",  n:3, patron:"linea"  },
+      { t: 64, fn:"ola", tipo:"torreta",       n:5, patron:"pinza"  },
+      { t: 72, fn:"ola", tipo:"bombardero",    n:5, patron:"ola"    },
+      { t: 80, fn:"reward" },
+      { t: 88, fn:"ola", tipo:"veloz",         n:9, patron:"V"      },
+      { t: 95, fn:"ola", tipo:"tanque",        n:4, patron:"linea"  },
+      { t:104, fn:"miniboss", tipo:"guardian" },
+    ],
+  },
+  {
+    nombre: "GOLPE FINAL", temaId: "neon",
+    desc: "Todas las fuerzas. El Titán te espera al final.",
+    eventos: [
+      { t:  3, fn:"ola", tipo:"bombardero",    n:5, patron:"V"      },
+      { t:  8, fn:"ola", tipo:"francotirador", n:5, patron:"linea"  },
+      { t: 14, fn:"ola", tipo:"veloz",         n:8, patron:"zigzag" },
+      { t: 20, fn:"reward" },
+      { t: 25, fn:"ola", tipo:"portaescudos",  n:4, patron:"pinza"  },
+      { t: 32, fn:"ola", tipo:"tanque",        n:4, patron:"linea"  },
+      { t: 40, fn:"ola", tipo:"kamikaze",      n:9, patron:"ola"    },
+      { t: 48, fn:"reward" },
+      { t: 54, fn:"ola", tipo:"bombardero",    n:6, patron:"V"      },
+      { t: 60, fn:"ola", tipo:"francotirador", n:6, patron:"zigzag" },
+      { t: 68, fn:"ola", tipo:"tanque",        n:5, patron:"linea"  },
+      { t: 76, fn:"reward" },
+      { t: 82, fn:"ola", tipo:"portaescudos",  n:5, patron:"V"      },
+      { t: 90, fn:"ola", tipo:"kamikaze",      n:10, patron:"pinza" },
+      { t: 98, fn:"miniboss", tipo:"titan" },
+    ],
+  },
+];
+
+// ════════════════════════════════════════════════════════════
 //  NAVES
 //  - "clasica" es la dibujada por código, siempre está.
 //  - Las demás se cargan solas SI existe su PNG en alguna carpeta.
@@ -481,6 +675,60 @@ const ENEMIGOS = {
       e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
     },
   },
+
+  // ── BOMBARDERO: ráfaga triple hacia abajo ──────────────
+  bombardero: {
+    r: 24, hp: 8, puntos: 80, vel: 0.55, forma: "acorazado",
+    color: t => t.enemigoA, grande: true, premio: 4,
+    mover: caer,
+    recarga: () => rand(1.8, 2.6),
+    atacar(e) {
+      for (let i = -1; i <= 1; i++) {
+        const ang = Math.PI / 2 + i * 0.28;
+        eBullets.push({ x: e.x + i * 14, y: e.y + 10, vx: Math.cos(ang) * 215, vy: Math.sin(ang) * 215, r: 7 });
+      }
+      beep(180, 0.14, "sawtooth", 0.04);
+    },
+  },
+
+  // ── FRANCOTIRADOR: se detiene, avisa y dispara preciso ─
+  francotirador: {
+    r: 14, hp: 3, puntos: 55, vel: 0.7, forma: "rombo",
+    color: t => t.enemigoB,
+    init(e) { e.detenido = false; e.aviso = 0; },
+    mover(e, dt) {
+      if (e.detenido) { e.aviso = Math.max(0, e.aviso - dt); return; }
+      caer(e, dt);
+      if (e.y > H * 0.18) { e.detenido = true; e.aviso = 0.85; e.cd = 0.85; }
+    },
+    recarga: () => rand(1.8, 2.5),
+    atacar(e) {
+      if (!e.detenido || e.aviso > 0) return;
+      const ang = haciaJugador(e);
+      eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 600, vy: Math.sin(ang) * 600, r: 4 });
+      beep(620, 0.1, "square", 0.05, 200);
+    },
+    dibujarExtra(e) {
+      if (e.aviso <= 0) return;
+      const a = 0.45 * (e.aviso / 0.85) * (0.5 + 0.5 * Math.sin(performance.now() / 70));
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = TIRO_SUYO; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(player.x - e.x, player.y - e.y); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    },
+  },
+
+  // ── PORTAESCUDOS: resistente, círculo lento ────────────
+  portaescudos: {
+    r: 26, hp: 18, puntos: 95, vel: 0.42, forma: "hexagono",
+    color: t => t.enemigoC, embiste: true, grande: true, premio: 5,
+    mover: caer,
+    recarga: () => rand(2.2, 3.0),
+    atacar(e) {
+      PATRONES.circulo(e.x, e.y, 195, 8, e.fase, 5);
+      beep(150, 0.15, "sawtooth", 0.04);
+    },
+  },
 };
 
 // Formas por defecto, para cuando todavía no hay PNG del enemigo.
@@ -561,6 +809,17 @@ let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let targetX, targetY, dragging = false, bank = 0;
 let menuRects = [], naveRects = [], masRect = null;
 
+// Estado de campaña
+let modo = "campana";           // "campana" | "supervivencia"
+let misionIdx = 0;
+let eventoIdx = 0;
+let spawnQueue = [];            // { tipo, x, y, at } — spawns con retraso de formación
+let miniboss = null;
+let misionCompletaT = 0;       // cuenta regresiva de pantalla de misión completa
+let menuModo = "selector";     // "selector" | "misiones" | "mundos" — sub-estado del menú
+let modoRects = [];            // botones de modo
+let misionRects = [];          // botones de misión en campaña
+
 best = Number(localStorage.getItem("sf_record") || 0);
 T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
 {
@@ -585,6 +844,7 @@ function reset() {
   player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
   targetX = player.x; targetY = player.y;
   bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
+  spawnQueue = []; miniboss = null; misionCompletaT = 0;
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
@@ -592,8 +852,145 @@ function reset() {
   shakeT = 0; shakeMag = 0; flash = 0; bank = 0;
 }
 
+// ── Campaña ──────────────────────────────────────────────
+function iniciarMision(idx) {
+  misionIdx = idx; eventoIdx = 0;
+  const m = MISIONES[idx];
+  T = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
+  localStorage.setItem("sf_tema", T.id);
+  reset();
+}
+
+function spawnFormacion(tipo, n, patron) {
+  const fn = FORMACIONES[patron] || FORMACIONES.linea;
+  const poss = fn(n);
+  for (const p of poss) {
+    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d });
+  }
+}
+
+function elegirPremioAleatorio() {
+  const r = Math.random();
+  if (r > 0.92) return "vida";
+  if (r > 0.76) return "bomba";
+  if (r > 0.56) return "escudo";
+  if (r > 0.40) return "rapido";
+  return "arma";
+}
+
+function procesarEvento(ev) {
+  if (ev.fn === "ola") {
+    spawnFormacion(ev.tipo, ev.n, ev.patron || "linea");
+  } else if (ev.fn === "reward") {
+    soltarPremio(W / 2 + rand(-80, 80), -30, elegirPremioAleatorio());
+  } else if (ev.fn === "miniboss") {
+    spawnMiniboss(ev.tipo);
+  }
+}
+
+function spawnMiniboss(tipo) {
+  const d = MINIBOSSES[tipo];
+  miniboss = { tipo, r: d.r, hp: d.hpMax, hpMax: d.hpMax,
+    x: W / 2, y: -d.r - 30, fase: 1, faseT: 0, flash: 0,
+    cd1: 2.5, cd2: Infinity, targetY: H * 0.22 };
+  if (d.init) d.init(miniboss);
+  texto(W / 2, H * 0.4, d.nombre, "#ff2f6e");
+  beep(80, 0.9, "sawtooth", 0.1, 160); shake(16, 0.7); flash = 0.4;
+}
+
+function actualizarMiniboss(dt) {
+  if (!miniboss) return;
+  const d = MINIBOSSES[miniboss.tipo];
+  if (miniboss.flash > 0) miniboss.flash -= dt;
+  d.mover(miniboss, dt);
+
+  // Transición de fase al 50% de HP
+  if (miniboss.fase === 1 && miniboss.hp < miniboss.hpMax * 0.5) {
+    miniboss.fase = 2; miniboss.cd1 = 1.5; miniboss.cd2 = 3.5;
+    shake(14, 0.6); texto(miniboss.x, miniboss.y - 70, "¡FASE 2!", "#ff2f6e");
+    beep(90, 0.6, "sawtooth", 0.09, 180);
+  }
+
+  miniboss.cd1 -= dt;
+  if (miniboss.cd1 <= 0) {
+    d.ataque1(miniboss);
+    miniboss.cd1 = (miniboss.fase === 2 ? 1.6 : 2.6) * (0.85 + Math.random() * 0.3);
+  }
+  if (miniboss.fase === 2 && isFinite(miniboss.cd2)) {
+    miniboss.cd2 -= dt;
+    if (miniboss.cd2 <= 0) { d.ataque2(miniboss); miniboss.cd2 = 3.5 * (0.85 + Math.random() * 0.3); }
+  }
+
+  // Impactos de balas del jugador
+  for (let j = bullets.length - 1; j >= 0; j--) {
+    const b = bullets[j], dx = b.x - miniboss.x, dy = b.y - miniboss.y;
+    if (dx * dx + dy * dy < (b.r + miniboss.r) ** 2) {
+      bullets.splice(j, 1); miniboss.hp--; miniboss.flash = 0.08;
+      boom(b.x, b.y, "#fff", 4, 0.6);
+      if (miniboss.hp <= 0) { matarMiniboss(); return; }
+      break;
+    }
+  }
+
+  // Colisión con el jugador
+  if (miniboss) {
+    const dx = player.x - miniboss.x, dy = player.y - miniboss.y;
+    if (dx * dx + dy * dy < (player.r * 0.7 + miniboss.r) ** 2) golpe();
+  }
+}
+
+function matarMiniboss() {
+  const d = MINIBOSSES[miniboss.tipo];
+  boom(miniboss.x, miniboss.y, d.color(T), 90, 2.8);
+  shake(22, 0.9); ruido(0.7, 0.15);
+  onda(miniboss.x, miniboss.y, d.color(T), miniboss.r * 14, 1.0);
+  score += d.puntos;
+  texto(miniboss.x, miniboss.y - 50, "+" + d.puntos, T.bala);
+  beep(80, 0.9, "sawtooth", 0.12, 160);
+  for (const tipo of d.drops) soltarPremio(miniboss.x + rand(-40, 40), miniboss.y + rand(-20, 20), tipo);
+  miniboss = null;
+}
+
+function dibujarMiniboss() {
+  if (!miniboss) return;
+  const d = MINIBOSSES[miniboss.tipo];
+  const col = d.color(T);
+  ctx.save(); ctx.translate(miniboss.x, miniboss.y);
+  ctx.beginPath();
+  FORMAS.acorazado({ r: miniboss.r, giro: miniboss.faseT * 0.04 });
+  const lw = Math.max(3, miniboss.r * 0.12);
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = mezcla(col, "#ffffff", 0.55); ctx.lineWidth = lw + 8; ctx.stroke();
+  ctx.strokeStyle = TINKA; ctx.lineWidth = lw + 3; ctx.stroke();
+  const g = ctx.createLinearGradient(0, -miniboss.r, 0, miniboss.r);
+  g.addColorStop(0, mezcla(col, "#fff", 0.42));
+  g.addColorStop(0.5, col);
+  g.addColorStop(1, mezcla(col, TINKA, 0.5));
+  ctx.fillStyle = miniboss.flash > 0 ? "#ffffff" : g; ctx.fill();
+  if (miniboss.fase === 2) {
+    const glow = 0.4 + 0.3 * Math.sin(performance.now() / 150);
+    ctx.globalAlpha = glow; ctx.fillStyle = "#ff2f6e";
+    ctx.beginPath(); ctx.arc(0, 0, miniboss.r * 0.3, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  // Barra de HP del jefe en la parte inferior
+  const bW = W * 0.65, bH = 10, bX = (W - bW) / 2, bY = H - 34;
+  ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(bX - 4, bY - 20, bW + 8, bH + 28);
+  ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(bX, bY, bW, bH);
+  const fill = Math.max(0, miniboss.hp / miniboss.hpMax);
+  ctx.fillStyle = fill > 0.5 ? "#ff2f6e" : fill > 0.25 ? "#ff8a1f" : "#ffffff";
+  ctx.fillRect(bX, bY, bW * fill, bH);
+  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.85;
+  ctx.font = "700 10px " + F; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(d.nombre + "  —  FASE " + miniboss.fase, W / 2, bY - 9);
+  ctx.globalAlpha = 1;
+}
+
 // El menú también anima, así que todo esto tiene que existir ya
 bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
+spawnQueue = []; miniboss = null; misionCompletaT = 0;
 player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
 targetX = player.x; targetY = player.y;
 score = 0; lives = 0; elapsed = 0; level = 1; spawnAcc = 0; shootAcc = 0; invulnT = 0;
@@ -629,6 +1026,23 @@ c.addEventListener("pointerdown", (e) => {
 
     if (dentro(p, masRect)) { fileInput.click(); return; }
 
+    for (const m of modoRects || []) {
+      if (dentro(p, m)) {
+        modo = m.id; beep(660, 0.1, "triangle", 0.04, 1100); return;
+      }
+    }
+
+    // Campaña: clic en misión
+    for (const m of misionRects || []) {
+      if (dentro(p, m) && m.idx <= misionIdx) {
+        misionIdx = m.idx;
+        beep(760, 0.12, "triangle", 0.05, 1400);
+        iniciarMision(misionIdx);
+        return;
+      }
+    }
+
+    // Supervivencia: clic en mundo
     for (const m of menuRects) {
       if (dentro(p, m)) {
         T = m.tema;
@@ -804,8 +1218,6 @@ function update(dt) {
   if (state !== "play") return;
 
   elapsed += dt;
-  const nl = 1 + Math.floor(elapsed / CONFIG.subeDificultadCada);
-  if (nl > level) { level = nl; beep(700, 0.2, "triangle", 0.05, 1400); texto(W / 2, H * 0.42, "NIVEL " + level, T.bala); }
   if (invulnT > 0) invulnT -= dt;
   if (turbo > 0) turbo -= dt;
   if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
@@ -838,14 +1250,54 @@ function update(dt) {
     if (dx * dx + dy * dy < (b.r + player.r * 0.66) ** 2) { eBullets.splice(i, 1); golpe(); }
   }
 
-  spawnAcc += dt;
-  const ritmo = 1 / (CONFIG.enemigosPorSegundo * (1 + (level - 1) * 0.2));
-  while (spawnAcc >= ritmo) { spawnAcc -= ritmo; spawnEnemy(); }
+  // Spawn: campaña vs supervivencia
+  if (modo === "campana") {
+    // Cola de spawn con retraso (formaciones)
+    for (let i = spawnQueue.length - 1; i >= 0; i--) {
+      const q = spawnQueue[i];
+      if (elapsed >= q.at) {
+        const e = spawnEnemy(q.tipo, q.x);
+        if (q.y !== undefined) e.y = q.y;
+        spawnQueue.splice(i, 1);
+      }
+    }
+    // Procesar eventos de la misión
+    const mision = MISIONES[misionIdx];
+    while (eventoIdx < mision.eventos.length) {
+      const ev = mision.eventos[eventoIdx];
+      if (elapsed < ev.t) break;
+      procesarEvento(ev); eventoIdx++;
+    }
+    // Detección de misión completa
+    if (misionCompletaT <= 0 && eventoIdx >= mision.eventos.length &&
+        !miniboss && enemies.length === 0 && spawnQueue.length === 0) {
+      misionCompletaT = 5;
+      beep(880, 0.6, "triangle", 0.08, 1760);
+      texto(W / 2, H * 0.4, "¡MISIÓN COMPLETA!", T.bala);
+    }
+    if (misionCompletaT > 0) {
+      misionCompletaT -= dt;
+      if (misionCompletaT <= 0) {
+        misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
+        state = "menu"; menuModo = "misiones";
+      }
+    }
+  } else {
+    // Supervivencia: dificultad escalada por tiempo
+    const nl = 1 + Math.floor(elapsed / CONFIG.subeDificultadCada);
+    if (nl > level) { level = nl; beep(700, 0.2, "triangle", 0.05, 1400); texto(W / 2, H * 0.42, "NIVEL " + level, T.bala); }
+    spawnAcc += dt;
+    const ritmo = 1 / (CONFIG.enemigosPorSegundo * (1 + (level - 1) * 0.2));
+    while (spawnAcc >= ritmo) { spawnAcc -= ritmo; spawnEnemy(); }
+  }
+
+  // Miniboss
+  actualizarMiniboss(dt);
 
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], d = ENEMIGOS[e.tipo];
     if (e.flash > 0) e.flash -= dt;
-    e.giro += dt * 1.6;          // antes de mover: quien fije su propio giro manda
+    e.giro += dt * 1.6;
     d.mover(e, dt);
     if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
 
@@ -1090,6 +1542,7 @@ function dibujarEnemigo(e) {
     ctx.fill();
 
     if (DETALLES[d.forma]) DETALLES[d.forma](e);
+    if (d.dibujarExtra) d.dibujarExtra(e);
 
     // Brillo especular, como el de las chapas de las naves
     ctx.fillStyle = "rgba(255,255,255,0.22)";
@@ -1159,7 +1612,12 @@ function hud() {
   ctx.textBaseline = "top";
   ctx.font = "700 12px " + F;
   ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
-  ctx.textAlign = "left";  ctx.fillText("NIVEL " + level, 16, top + 2);
+  ctx.textAlign = "left";
+  if (modo === "campana") {
+    ctx.fillText("M" + (misionIdx + 1) + " " + MISIONES[misionIdx].nombre, 16, top + 2);
+  } else {
+    ctx.fillText("NIVEL " + level, 16, top + 2);
+  }
   ctx.textAlign = "right"; ctx.fillText("RÉCORD " + best, W - 16, top + 2);
   ctx.globalAlpha = 1;
 
@@ -1208,31 +1666,17 @@ function miniNave(x, y, tam, tema) {
   ctx.restore();
 }
 
-function menu() {
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#fff";
-  ctx.font = "800 " + Math.min(40, W * 0.098) + "px " + F;
-  ctx.fillText("STRIKE FLIGHT", W / 2, 54);
-  ctx.globalAlpha = 0.5;
-  ctx.font = "600 12px " + F;
-  ctx.fillText(best > 0 ? "RÉCORD  " + best : "toca un mundo para empezar", W / 2, 80);
-  ctx.globalAlpha = 1;
-
-  // ── Fila de naves ──
+function dibujarNaves(yBase) {
   naveRects = []; masRect = null;
   const total = NAVES.length + 1;
-  // Hasta 6 caben de una fila; a partir de ahí, dos filas equilibradas
   const porFila = total <= 6 ? total : Math.ceil(total / 2);
   const filas = Math.ceil(total / porFila);
   const hueco = 8;
   const slot = Math.min(70, (W - 32 - hueco * (porFila - 1)) / porFila);
   const anchoFila = porFila * slot + hueco * (porFila - 1);
-  const yBase = 114;
 
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff";
-  ctx.font = "700 11px " + F;
-  ctx.fillText("TU NAVE", W / 2, yBase - 12);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
+  ctx.fillText("TU NAVE", W / 2, yBase - 12); ctx.globalAlpha = 1;
 
   for (let i = 0; i < total; i++) {
     const fila = Math.floor(i / porFila), col = i % porFila;
@@ -1241,119 +1685,162 @@ function menu() {
     const x = (W - (enFila === porFila ? anchoFila : ancho)) / 2 + col * (slot + hueco);
     const y = yBase + fila * (slot + hueco);
     const esMas = i === NAVES.length;
-
     ctx.fillStyle = "rgba(255,255,255,0.05)";
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
     ctx.fill();
-
     if (esMas) {
       masRect = { x, y, w: slot, h: slot };
       ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1.5;
       ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = "300 30px " + F;
+      ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.font = "300 30px " + F;
       ctx.fillText("+", x + slot / 2, y + slot / 2 - 5);
-      ctx.font = "700 9px " + F;
-      ctx.globalAlpha = 0.6;
-      ctx.fillText("CARGAR", x + slot / 2, y + slot - 13);
-      ctx.globalAlpha = 1;
+      ctx.font = "700 9px " + F; ctx.globalAlpha = 0.6;
+      ctx.fillText("CARGAR", x + slot / 2, y + slot - 13); ctx.globalAlpha = 1;
       continue;
     }
-
     const n = NAVES[i];
     naveRects.push({ x, y, w: slot, h: slot, i, borrar: !n.fija, indice: n.indice });
-
     const sel = i === naveSel;
-    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.12)";
-    ctx.lineWidth = sel ? 2.5 : 1;
+    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.12)"; ctx.lineWidth = sel ? 2.5 : 1;
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
     ctx.stroke();
-
     const sp = SPRITES[n.id];
     if (sp) {
-      ctx.save(); ctx.translate(x + slot / 2, y + slot / 2 - 4);
-      pintarSprite(sp, slot * 0.66);
-      ctx.restore();
+      ctx.save(); ctx.translate(x + slot / 2, y + slot / 2 - 4); pintarSprite(sp, slot * 0.66); ctx.restore();
     } else if (n.src) {
-      ctx.globalAlpha = 0.28; ctx.fillStyle = "#fff";
-      ctx.font = "700 9px " + F;
+      ctx.globalAlpha = 0.28; ctx.fillStyle = "#fff"; ctx.font = "700 9px " + F;
       ctx.fillText("falta", x + slot / 2, y + slot / 2 - 4);
-      ctx.fillText("el PNG", x + slot / 2, y + slot / 2 + 6);
-      ctx.globalAlpha = 1;
-    } else {
-      miniNave(x + slot / 2, y + slot / 2 - 4, slot * 0.6, T);
-    }
-
-    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.55)";
-    ctx.font = "800 9px " + F;
-    // maxWidth: un nombre largo se encoge en vez de salirse de la casilla
+      ctx.fillText("el PNG", x + slot / 2, y + slot / 2 + 6); ctx.globalAlpha = 1;
+    } else { miniNave(x + slot / 2, y + slot / 2 - 4, slot * 0.6, T); }
+    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.55)"; ctx.font = "800 9px " + F;
     ctx.fillText(n.nombre, x + slot / 2, y + slot - 11, slot - 8);
-
     if (!n.fija) {
       ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.beginPath(); ctx.arc(x + slot - 11, y + 11, 8.5, 0, TAU); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.font = "700 11px " + F;
+      ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "700 11px " + F;
       ctx.fillText("×", x + slot - 11, y + 11);
     }
   }
+  return yBase + filas * (slot + hueco);
+}
 
-  // ── Mundos ──
-  menuRects = [];
-  const yMundos = yBase + filas * (slot + hueco) + 20;
-  const disp = H - yMundos - 16;
-  const alto = clamp((disp - 3 * 10) / 4, 44, 68);
-  const bloque = 4 * alto + 3 * 10;
-  const w = Math.min(W - 40, 380);
-  // En pantallas altas, reparte el hueco sobrante en vez de dejarlo todo abajo
-  let y = yMundos + 6 + Math.max(0, (disp - bloque) * 0.35);
-
-  // La etiqueta va pegada al bloque, no a donde empezaría sin centrar
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff";
-  ctx.font = "700 11px " + F;
-  ctx.fillText("ELIGE MUNDO", W / 2, y - 16);
+function menu() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
+  ctx.font = "800 " + Math.min(40, W * 0.098) + "px " + F;
+  ctx.fillText("STRIKE FLIGHT", W / 2, 54);
+  ctx.globalAlpha = 0.5; ctx.font = "600 12px " + F;
+  ctx.fillText(best > 0 ? "RÉCORD  " + best : "elige modo para jugar", W / 2, 80);
   ctx.globalAlpha = 1;
 
-  for (const t of TEMAS) {
-    const x = (W - w) / 2;
-    menuRects.push({ x, y, w, h: alto, tema: t });
-    const g = ctx.createLinearGradient(x, y, x + w, y + alto);
-    g.addColorStop(0, t.fondoA); g.addColorStop(1, t.fondoB);
-    ctx.fillStyle = g;
+  const yNaves = dibujarNaves(114);
+
+  // ── Selector de modo ──
+  modoRects = [];
+  const yModo = yNaves + 18;
+  const bw = Math.min((W - 48) / 2, 160), bh = 36;
+  const bx1 = W / 2 - bw - 6, bx2 = W / 2 + 6;
+  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
+  ctx.fillText("MODO DE JUEGO", W / 2, yModo - 10); ctx.globalAlpha = 1;
+
+  const modos = [{ id:"campana", label:"CAMPAÑA" }, { id:"supervivencia", label:"SUPERVIVENCIA" }];
+  const bxs = [bx1, bx2];
+  for (let i = 0; i < 2; i++) {
+    const sel = modo === modos[i].id;
+    const bx = bxs[i], by = yModo;
+    modoRects.push({ x: bx, y: by, w: bw, h: bh, id: modos[i].id });
+    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.08)";
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, w, alto, 12) : ctx.rect(x, y, w, alto);
+    ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 8) : ctx.rect(bx, by, bw, bh);
     ctx.fill();
-    ctx.strokeStyle = t.id === T.id ? t.nave : "rgba(255,255,255,0.13)";
-    ctx.lineWidth = t.id === T.id ? 2.5 : 1;
+    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.18)"; ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.fillStyle = sel ? "#05060f" : "#fff"; ctx.font = "800 12px " + F;
+    ctx.fillText(modos[i].label, bx + bw / 2, by + bh / 2);
+  }
 
-    ctx.fillStyle = t.nave;
-    ctx.font = "800 22px " + F;
-    ctx.textAlign = "left";
-    ctx.fillText(t.icono, x + 20, y + alto / 2);
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 14px " + F;
-    ctx.fillText(t.nombre, x + 50, y + alto / 2);
-    ctx.textAlign = "center";
+  const yContenido = yModo + bh + 22;
+  const wCard = Math.min(W - 32, 400);
 
-    const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
-    ctx.save(); ctx.translate(x + w - 38, y + alto / 2);
-    if (sp) pintarSprite(sp, 40); else miniNave(0, 0, 40, t);
-    ctx.restore();
+  if (modo === "campana") {
+    // ── Lista de misiones ──
+    misionRects = []; menuRects = [];
+    ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
+    ctx.fillText("SELECCIONA MISIÓN", W / 2, yContenido - 10); ctx.globalAlpha = 1;
 
-    y += alto + 10;
+    const disp = H - yContenido - 16;
+    const altoCard = clamp((disp - 4 * 8) / 5, 38, 54);
+    let yc = yContenido;
+
+    for (let i = 0; i < MISIONES.length; i++) {
+      const m = MISIONES[i];
+      const temaM = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
+      const cx = (W - wCard) / 2;
+      misionRects.push({ x: cx, y: yc, w: wCard, h: altoCard, idx: i });
+
+      const bloqueada = i > misionIdx;
+      const actual = i === misionIdx;
+      ctx.fillStyle = bloqueada ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)";
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(cx, yc, wCard, altoCard, 10) : ctx.rect(cx, yc, wCard, altoCard);
+      ctx.fill();
+      ctx.strokeStyle = actual ? temaM.nave : bloqueada ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.14)";
+      ctx.lineWidth = actual ? 2 : 1; ctx.stroke();
+
+      ctx.textAlign = "left"; ctx.fillStyle = bloqueada ? "rgba(255,255,255,0.25)" : "#fff";
+      ctx.font = "800 12px " + F;
+      ctx.fillText("M" + (i + 1) + "  " + m.nombre, cx + 16, yc + altoCard * 0.38);
+      ctx.font = "600 10px " + F; ctx.globalAlpha = bloqueada ? 0.15 : 0.5;
+      ctx.fillText(bloqueada ? "bloqueada" : m.desc, cx + 16, yc + altoCard * 0.72, wCard - 60);
+      ctx.globalAlpha = 1; ctx.textAlign = "center";
+
+      if (actual) {
+        ctx.fillStyle = temaM.nave; ctx.font = "700 11px " + F;
+        ctx.fillText("▶", cx + wCard - 22, yc + altoCard / 2);
+      }
+      yc += altoCard + 8;
+    }
+
+  } else {
+    // ── Mundos (supervivencia) ──
+    menuRects = []; misionRects = [];
+    ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
+    ctx.fillText("ELIGE MUNDO", W / 2, yContenido - 10); ctx.globalAlpha = 1;
+
+    const disp = H - yContenido - 16;
+    const alto = clamp((disp - 3 * 10) / 4, 44, 68);
+    const bloque = 4 * alto + 3 * 10;
+    let y = yContenido + Math.max(0, (disp - bloque) * 0.35);
+
+    for (const t of TEMAS) {
+      const x = (W - wCard) / 2;
+      menuRects.push({ x, y, w: wCard, h: alto, tema: t });
+      const g = ctx.createLinearGradient(x, y, x + wCard, y + alto);
+      g.addColorStop(0, t.fondoA); g.addColorStop(1, t.fondoB);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x, y, wCard, alto, 12) : ctx.rect(x, y, wCard, alto);
+      ctx.fill();
+      ctx.strokeStyle = t.id === T.id ? t.nave : "rgba(255,255,255,0.13)";
+      ctx.lineWidth = t.id === T.id ? 2.5 : 1; ctx.stroke();
+      ctx.fillStyle = t.nave; ctx.font = "800 22px " + F; ctx.textAlign = "left";
+      ctx.fillText(t.icono, x + 20, y + alto / 2);
+      ctx.fillStyle = "#fff"; ctx.font = "700 14px " + F;
+      ctx.fillText(t.nombre, x + 50, y + alto / 2); ctx.textAlign = "center";
+      const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
+      ctx.save(); ctx.translate(x + wCard - 38, y + alto / 2);
+      if (sp) pintarSprite(sp, 40); else miniNave(0, 0, 40, t);
+      ctx.restore();
+      y += alto + 10;
+    }
   }
 
   if (avisoT > 0) {
-    ctx.globalAlpha = clamp(avisoT, 0, 1);
-    ctx.fillStyle = "#000"; ctx.globalAlpha *= 0.75;
+    ctx.globalAlpha = clamp(avisoT, 0, 1) * 0.75; ctx.fillStyle = "#000";
     ctx.fillRect(0, H / 2 - 26, W, 52);
-    ctx.globalAlpha = clamp(avisoT, 0, 1);
-    ctx.fillStyle = "#fff"; ctx.font = "800 16px " + F;
-    ctx.fillText(aviso, W / 2, H / 2);
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = clamp(avisoT, 0, 1); ctx.fillStyle = "#fff"; ctx.font = "800 16px " + F;
+    ctx.fillText(aviso, W / 2, H / 2); ctx.globalAlpha = 1;
   }
 }
 
@@ -1414,6 +1901,7 @@ function render() {
     }
 
     for (const e of enemies) dibujarEnemigo(e);
+    dibujarMiniboss();
     for (const p of premios) dibujarPremio(p);
 
     if (state === "play" && !(invulnT > 0 && Math.floor(invulnT * 15) % 2 === 0)) {
@@ -1446,10 +1934,28 @@ function render() {
     ctx.font = "700 14px " + F;
     ctx.globalAlpha = 0.6;
     ctx.fillText(score >= best ? "¡NUEVO RÉCORD!" : "RÉCORD  " + best, W / 2, H / 2 + 10);
-    ctx.fillText("NIVEL " + level, W / 2, H / 2 + 32);
+    if (modo === "campana") {
+      ctx.fillText("MISIÓN " + (misionIdx + 1) + " — " + MISIONES[misionIdx].nombre, W / 2, H / 2 + 32);
+    } else {
+      ctx.fillText("NIVEL " + level, W / 2, H / 2 + 32);
+    }
     ctx.globalAlpha = 0.9;
     ctx.font = "700 16px " + F;
     ctx.fillText("Toca para volver", W / 2, H / 2 + 82);
+    ctx.globalAlpha = 1;
+  }
+
+  // Overlay de misión completa (campaña)
+  if (state === "play" && misionCompletaT > 0) {
+    const a = Math.min(1, misionCompletaT, 5 - misionCompletaT) * 0.8;
+    ctx.fillStyle = "rgba(5,6,15," + a + ")"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = T.bala; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "800 " + Math.min(36, W * 0.088) + "px " + F;
+    ctx.fillText("¡MISIÓN COMPLETA!", W / 2, H / 2 - 24);
+    ctx.font = "700 14px " + F; ctx.globalAlpha = 0.75;
+    ctx.fillStyle = "#fff";
+    const sig = misionIdx + 1 < MISIONES.length ? "siguiente: " + MISIONES[misionIdx + 1].nombre : "¡campaña superada!";
+    ctx.fillText(sig, W / 2, H / 2 + 18);
     ctx.globalAlpha = 1;
   }
 }
