@@ -1,0 +1,25 @@
+{
+  "mission": "04",
+  "name": "SECTOR TÓXICO",
+  "theme": "oceano",
+  "mechanics": ["zonas_toxicas"],
+  "assets": {
+    "fondo": { "id": "f_oceano", "src": "art/fondos/oceano.png", "loader": "cargarImagen" },
+    "enemigos": {
+      "bombardero":    { "id": "e_bombardero",    "src": "art/enemigos/bombardero.png" },
+      "normal":        { "id": "e_normal",        "src": "art/enemigos/normal.png" },
+      "portaescudos":  { "id": "e_portaescudos",  "src": "art/enemigos/portaescudos.png" },
+      "veloz":         { "id": "e_veloz",         "src": "art/enemigos/veloz.png" },
+      "kamikaze":      { "id": "e_kamikaze",      "src": "art/enemigos/kamikaze.png" },
+      "tanque":        { "id": "e_tanque",        "src": "art/enemigos/tanque.png" },
+      "francotirador": { "id": "e_francotirador", "src": "art/enemigos/francotirador.png" }
+    },
+    "hazards": {
+      "nube_toxica": { "id": "hz_nube_toxica", "src": "art/hazards/nube_toxica.png" }
+    }
+  },
+  "targets": {
+    "asset_404": 0,
+    "fallbacks_active": 0
+  }
+}
