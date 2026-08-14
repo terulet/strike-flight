@@ -607,9 +607,17 @@ const NAVES = [
 ];
 const NAVE_BASE = { arma:"cannon", vel:1, cad:1, dmg:1, hitbox:1, escudo:0, motor:null,
   lema:"PERSONAL", desc:"Tu nave.", stats:{ ATAQUE:3, VELOCIDAD:3, CONTROL:3 } };
+// Con caché, y no por elegancia: hitR() llama aquí una vez POR CADA bala
+// enemiga y por fotograma. Para una nave cargada por el jugador, que no
+// trae ficha propia, eso eran 340 objetos nuevos por fotograma.
+let nvCache = null, nvIdx = -1;
 function naveActual() {
-  const n = NAVES[naveSel] || NAVES[0];
-  return n.vel ? n : Object.assign({}, NAVE_BASE, n);
+  if (nvIdx !== naveSel || !nvCache) {
+    const n = NAVES[naveSel] || NAVES[0];
+    nvCache = n.vel ? n : Object.assign({}, NAVE_BASE, n);
+    nvIdx = naveSel;
+  }
+  return nvCache;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -817,6 +825,7 @@ function leerCustom() {
   try { return JSON.parse(localStorage.getItem("sf_naves") || "[]"); } catch (_) { return []; }
 }
 function aplicarCustom() {
+  nvIdx = -1;   // la tabla cambia de tamaño: la caché de naveActual() ya no vale
   for (let i = NAVES.length - 1; i >= 0; i--) if (!NAVES[i].fija) NAVES.splice(i, 1);
   leerCustom().forEach((n, i) => {
     const id = "custom" + i;
