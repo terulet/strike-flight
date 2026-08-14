@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Strike Flight">
+<meta name="apple-mobile-web-app-title" content="Flight Strike">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Strike Flight</title>
+<title>Flight Strike</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   :root {
@@ -2119,7 +2119,7 @@ function leerMisionIdx(s) {
   T = TEMAS.find(t => t.id === temaId) || TEMAS[0];
   const naveId = s.naveId ?? localStorage.getItem("sf_nave");
   const ni = NAVES.findIndex(n => n.id === naveId);
-  naveSel = ni >= 0 ? ni : 0;
+  naveSel = ni >= 0 ? ni : 1;   // KALI de salida: la vectorial es el repuesto
   misionIdx = leerMisionIdx(s.misionIdx != null ? s : { misionIdx: Number(localStorage.getItem("sf_misionIdx") || 0) });
   if (s.opciones && typeof s.opciones === "object") {
     for (const k of Object.keys(OPCIONES)) {
@@ -2550,54 +2550,30 @@ c.addEventListener("pointerdown", (e) => {
   if (state === "menu") {
     const p = pos(e);
 
+    // La × de borrar, solo en las naves cargadas por ella, y antes que
+    // nada: cae dentro del botón de selección y tiene que ganarle.
     for (const r of naveRects) {
-      if (!dentro(p, r)) continue;
-      // La x de borrar, solo en las naves cargadas por ella
-      if (r.borrar && p.x > r.x + r.w - 22 && p.y < r.y + 22) {
+      if (!dentro(p, r) || !r.borrar) continue;
+      if (p.x > r.x + r.w - 24 && p.y < r.y + 24) {
         borrarCustom(r.indice);
         naveSel = Math.min(naveSel, NAVES.length - 1);
         guardarSave({ naveId: NAVES[naveSel].id });
-        beep(200, 0.12, "square", 0.04);
+        sfx("ui_atras");
         return;
       }
-      naveSel = r.i;
-      guardarSave({ naveId: NAVES[naveSel].id });
-      beep(760, 0.1, "triangle", 0.045, 1200);
+    }
+    // Al revés: lo último dibujado está encima y decide.
+    for (let i = botones.length - 1; i >= 0; i--) {
+      const b = botones[i];
+      if (!dentro(p, b) || !b.fn) continue;
+      sfx("ui_sel");
+      b.fn();
       return;
-    }
-
-    if (dentro(p, masRect)) { fileInput.click(); return; }
-
-    for (const m of modoRects || []) {
-      if (dentro(p, m)) {
-        modo = m.id; beep(660, 0.1, "triangle", 0.04, 1100); return;
-      }
-    }
-
-    // Campaña: clic en misión
-    for (const m of misionRects || []) {
-      if (dentro(p, m) && m.idx <= misionIdx) {
-        misionIdx = m.idx;
-        beep(760, 0.12, "triangle", 0.05, 1400);
-        iniciarMision(misionIdx);
-        return;
-      }
-    }
-
-    // Supervivencia: clic en mundo
-    for (const m of menuRects) {
-      if (dentro(p, m)) {
-        T = m.tema;
-        guardarSave({ temaId: T.id });
-        beep(660, 0.12, "triangle", 0.05, 1320);
-        reset();
-        return;
-      }
     }
     return;
   }
   if (state === "over") {
-    if (performance.now() - overAt > 700) state = "menu";
+    if (performance.now() - overAt > 700) { state = "menu"; musica("menu"); }
     return;
   }
   if (paused) { paused = false; unlockAudio(); sfx("ui_ok"); return; }
@@ -2897,6 +2873,29 @@ function matar(e, i) {
 //  Sube por muertes encadenadas y se cae al recibir daño. Los hitos
 //  (x5, x10, x25, x50, x100) sí avisan; los demás números, no: llenar la
 //  pantalla de cifras es la manera más rápida de que dejen de leerse.
+// ── Cierre de misión ──────────────────────────────────────
+//  Los extras se calculan una vez y se enseñan uno a uno. Ver la
+//  puntuación subir en tramos con nombre es lo que convierte terminar
+//  una misión en un premio y no en una pantalla de carga.
+let resultado = null;
+function cerrarMision() {
+  const prec = bulletsFiredo > 0 ? Math.round(bulletsHit / bulletsFiredo * 100) : 0;
+  const extras = [
+    ["MISIÓN COMPLETADA", 1500],
+    ["COMBO MÁXIMO ×" + maxCombo, maxCombo * 25],
+    ["PRECISIÓN " + prec + "%", prec * 15],
+  ];
+  if (sinDanio) extras.push(["SIN UN RASGUÑO", 5000]);
+  if (lives >= CONFIG.vidas) extras.push(["INTEGRIDAD INTACTA", 1200]);
+  const total = extras.reduce((a, b) => a + b[1], 0);
+  score += total;
+  resultado = { extras, total, base: score - total, prec };
+  misionCompletaT = 6.5;
+  sfx("victoria");
+  musica("victoria");
+  if (score > best) { best = score; guardarSave({ record: best }); }
+}
+
 const HITOS = [5, 10, 25, 50, 100];
 const multCombo = () => 1 + Math.floor(combo / 8);
 function hitoCombo() {
@@ -3209,16 +3208,14 @@ function update(dt) {
     // Detección de misión completa
     if (misionCompletaT <= 0 && eventoIdx >= mision.eventos.length &&
         !miniboss && enemies.length === 0 && spawnQueue.length === 0) {
-      misionCompletaT = 5;
-      beep(880, 0.6, "triangle", 0.08, 1760);
-      texto(W / 2, H * 0.4, "¡MISIÓN COMPLETA!", T.bala);
+      cerrarMision();
     }
     if (misionCompletaT > 0) {
       misionCompletaT -= dt;
       if (misionCompletaT <= 0) {
         misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
         guardarSave({ misionIdx: misionIdx });
-        state = "menu"; menuModo = "misiones";
+        state = "menu"; pantalla = "campana"; musica("menu");
       }
     }
   } else {
@@ -3866,181 +3863,454 @@ function miniNave(x, y, tam, tema) {
   ctx.restore();
 }
 
-function dibujarNaves(yBase) {
-  naveRects = []; masRect = null;
-  const total = NAVES.length + 1;
-  const porFila = total <= 6 ? total : Math.ceil(total / 2);
-  const filas = Math.ceil(total / porFila);
-  const hueco = 8;
-  const slot = Math.min(70, (W - 32 - hueco * (porFila - 1)) / porFila);
-  const anchoFila = porFila * slot + hueco * (porFila - 1);
+// ════════════════════════════════════════════════════════════
+//  MENÚ
+// ════════════════════════════════════════════════════════════
+//  Pantallas en vez de una sola lista con todo apilado. La portada
+//  tiene que parecer la entrada a un videojuego: título, nave, y tres
+//  decisiones. Lo demás vive un toque más adentro.
+let pantalla = "inicio";   // inicio · naves · campana · mundos · ajustes
+let botones = [];
+let menuT = 0;
 
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
-  ctx.fillText("TU NAVE", W / 2, yBase - 12); ctx.globalAlpha = 1;
+function boton(x, y, w, h, opts) {
+  const o = opts || {};
+  botones.push({ x, y, w, h, fn: o.fn, id: o.id });
+  const acc = o.color || T.nave;
+  const r = o.r != null ? o.r : 14;
+  ctx.save();
+  if (o.sel) {
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = acc;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x - 4, y - 4, w + 8, h + 8, r + 4) : ctx.rect(x - 4, y - 4, w + 8, h + 8);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+  }
+  panel(x, y, w, h, r, o.solido ? 0.82 : o.sel ? 0.6 : 0.42);
+  if (o.solido) {
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    g.addColorStop(0, mezcla(acc, "#ffffff", 0.25));
+    g.addColorStop(1, acc);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
+    ctx.fill();
+  }
+  filo(x, y, w, h, r, o.apagado ? "#666" : acc, o.apagado ? 0.18 : o.sel ? 0.9 : 0.45);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (o.label) {
+    ctx.fillStyle = o.solido ? "#05060f" : o.apagado ? "rgba(255,255,255,0.28)" : "#ffffff";
+    ctx.font = "800 " + (o.tam || 15) + "px " + F;
+    letras(o.label, x + w / 2, y + h / 2 + (o.sub ? -8 : 0), o.esp != null ? o.esp : 2.4, "center");
+    if (o.sub) {
+      ctx.globalAlpha = o.solido ? 0.7 : 0.5;
+      ctx.fillStyle = o.solido ? "#05060f" : "#ffffff";
+      ctx.font = "700 9px " + F;
+      letras(o.sub, x + w / 2, y + h / 2 + 11, 1.4, "center");
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function titulo() {
+  const cy = SAFE_TOP + 74;
+  const tam = Math.round(clamp(W * 0.115, 30, 54));
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  // Resplandor por detrás: el título es lo primero que se ve y tiene que
+  // pesar más que el fondo, sin recurrir a una caja.
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.22 + 0.06 * Math.sin(menuT * 1.6);
+  const g = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, W * 0.62);
+  g.addColorStop(0, T.nave); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);          // el radial ya se apaga solo: recortarlo
+  ctx.restore();      // con un rectángulo dejaba un canto horizontal visible
+
+  ctx.font = "800 " + tam + "px " + F;
+  ctx.fillStyle = TINTA;
+  letras("FLIGHT STRIKE", W / 2 + 2, cy + 2, tam * 0.14, "center");
+  ctx.fillStyle = "#ffffff";
+  letras("FLIGHT STRIKE", W / 2, cy, tam * 0.14, "center");
+
+  ctx.font = "700 10px " + F;
+  ctx.fillStyle = T.nave; ctx.globalAlpha = 0.85;
+  letras("SHOOT'EM UP VERTICAL", W / 2, cy + tam * 0.62, 4, "center");
+  ctx.globalAlpha = 1;
+}
+
+// Nave del menú: flota, respira y enciende motores. Es el escaparate.
+function naveEscaparate(cx, cy, tam) {
+  const n = naveActual();
+  const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
+  const bob = Math.sin(menuT * 1.5) * tam * 0.035;
+  const bal = Math.sin(menuT * 0.8) * 0.07;
+  ctx.save();
+  ctx.translate(cx, cy + bob);
+  ctx.rotate(bal);
+  const col = n.motor || T.motor;
+  const llama = tam * (0.2 + Math.random() * 0.07);
+  ctx.globalCompositeOperation = "lighter";
+  for (const sx of [-tam * 0.15, tam * 0.15]) {
+    const g = ctx.createLinearGradient(0, tam * 0.3, 0, tam * 0.3 + llama);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.3, col);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(sx - tam * 0.035, tam * 0.3); ctx.lineTo(sx + tam * 0.035, tam * 0.3);
+    ctx.lineTo(sx, tam * 0.3 + llama); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  if (sp) pintarSprite(sp, tam);
+  else { ctx.scale(tam / 52, tam / 52); naveVector(16); }
+  ctx.restore();
+}
+
+function barraStat(x, y, w, etiqueta, valor, color) {
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.font = "700 9px " + F; ctx.fillStyle = "#ffffff"; ctx.globalAlpha = 0.45;
+  letras(etiqueta, x, y, 1.4);
+  ctx.globalAlpha = 1;
+  const bx = x + w * 0.42, bw = w - w * 0.42;
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = i < valor ? color : "rgba(255,255,255,0.12)";
+    ctx.fillRect(bx + i * (bw / 5), y - 3, bw / 5 - 3, 6);
+  }
+}
+
+// ── Portada ───────────────────────────────────────────────
+function pantallaInicio() {
+  titulo();
+  naveEscaparate(W / 2, H * 0.42, Math.min(W * 0.5, 220));
+
+  const n = naveActual();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 13px " + F; ctx.fillStyle = "#fff";
+  letras(NAVES[naveSel].nombre, W / 2, H * 0.42 + Math.min(W * 0.5, 220) * 0.66, 3, "center");
+  ctx.font = "700 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.7;
+  letras(n.lema, W / 2, H * 0.42 + Math.min(W * 0.5, 220) * 0.66 + 16, 2, "center");
+  ctx.globalAlpha = 1;
+
+  const bw = Math.min(W - 56, 320), bx = (W - bw) / 2;
+  let y = H - SAFE_BOTTOM - 246;
+  boton(bx, y, bw, 62, { label: "JUGAR", sub: "CAMPAÑA · MISIÓN " + (misionIdx + 1), tam: 20, solido: true,
+    fn: () => { pantalla = "campana"; modo = "campana"; } });
+  y += 74;
+  boton(bx, y, bw, 46, { label: "SUPERVIVENCIA", tam: 13,
+    fn: () => { pantalla = "mundos"; modo = "supervivencia"; } });
+  y += 56;
+  const mitad = (bw - 10) / 2;
+  boton(bx, y, mitad, 46, { label: "NAVE", tam: 13, fn: () => { pantalla = "naves"; } });
+  boton(bx + mitad + 10, y, mitad, 46, { label: "AJUSTES", tam: 13, fn: () => { pantalla = "ajustes"; } });
+
+  if (best > 0) {
+    ctx.textAlign = "center";
+    ctx.font = "700 10px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.45;
+    letras("RÉCORD  " + best.toLocaleString("es"), W / 2, H - SAFE_BOTTOM - 26, 2, "center");
+    ctx.globalAlpha = 1;
+  }
+}
+
+function cabecera(txt) {
+  botones.push({ x: 8, y: SAFE_TOP + 8, w: 56, h: 44, fn: () => { pantalla = "inicio"; sfx("ui_atras"); } });
+  ctx.save();
+  ctx.strokeStyle = T.nave; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(40, SAFE_TOP + 22); ctx.lineTo(28, SAFE_TOP + 30); ctx.lineTo(40, SAFE_TOP + 38);
+  ctx.stroke();
+  ctx.restore();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 14px " + F; ctx.fillStyle = "#fff";
+  letras(txt, W / 2, SAFE_TOP + 30, 3.4, "center");
+}
+
+// ── Selección de nave ─────────────────────────────────────
+function pantallaNaves() {
+  cabecera("ELIGE NAVE");
+  const n = naveActual();
+  const tam = Math.min(W * 0.46, 200);
+  // El bloque de arriba se centra en el hueco que deja la rejilla, que va
+  // pegada abajo porque es lo que se toca. En un iPhone alto, si no, la
+  // ficha se queda arriba del todo y sobran 700 px de vacío.
+  const filasG = Math.ceil((NAVES.length + 1) / Math.min(5, NAVES.length + 1));
+  const slotG = Math.min(78, (W - 32 - 10 * (Math.min(5, NAVES.length + 1) - 1)) / Math.min(5, NAVES.length + 1));
+  const libre = (H - SAFE_BOTTOM - 24 - filasG * (slotG + 10)) - (SAFE_TOP + 60);
+  const offY = Math.max(0, (libre - (tam * 0.66 + 210)) * 0.4);
+  ctx.save();
+  ctx.translate(0, offY);
+  naveEscaparate(W / 2, SAFE_TOP + 126, tam);
+
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.06, 20, 26)) + "px " + F;
+  ctx.fillStyle = "#fff";
+  letras(NAVES[naveSel].nombre, W / 2, SAFE_TOP + 126 + tam * 0.66, 4, "center");
+  ctx.font = "700 9px " + F; ctx.fillStyle = T.nave;
+  letras(n.lema, W / 2, SAFE_TOP + 126 + tam * 0.66 + 18, 3, "center");
+  ctx.font = "600 11px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
+  ctx.fillText(n.desc, W / 2, SAFE_TOP + 126 + tam * 0.66 + 38);
+  ctx.globalAlpha = 1;
+
+  // Estadísticas y arma de salida
+  const anchoP = Math.min(W - 44, 320), px0 = (W - anchoP) / 2;
+  let sy = SAFE_TOP + 126 + tam * 0.66 + 62;
+  panel(px0, sy, anchoP, 104, 14, 0.45);
+  filo(px0, sy, anchoP, 104, 14, T.nave, 0.2);
+  let k = 0;
+  for (const [et, v] of Object.entries(n.stats)) {
+    barraStat(px0 + 16, sy + 20 + k * 21, anchoP - 32, et, v, T.nave);
+    k++;
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.1)";
+  ctx.fillRect(px0 + 16, sy + 76, anchoP - 32, 1);
+  const arm = ARMAS[n.arma] || ARMAS.cannon;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.font = "700 9px " + F;
+  ctx.fillStyle = "#ffffff"; ctx.globalAlpha = 0.45;
+  letras("ARMA", px0 + 16, sy + 90, 1.4);
+  ctx.globalAlpha = 1; ctx.fillStyle = arm.col; ctx.font = "800 10px " + F;
+  letras(arm.nombre + (n.escudo ? "  ·  ESCUDO INICIAL" : ""), px0 + 16 + anchoP * 0.42, sy + 90, 1.4);
+  ctx.restore();
+
+  // Rejilla de naves
+  const total = NAVES.length + 1;
+  const porFila = Math.min(5, total);
+  const hueco = 10;
+  const slot = Math.min(78, (W - 32 - hueco * (porFila - 1)) / porFila);
+  const filas = Math.ceil(total / porFila);
+  const y0 = H - SAFE_BOTTOM - 24 - filas * (slot + hueco);
+  naveRects = []; masRect = null;
 
   for (let i = 0; i < total; i++) {
     const fila = Math.floor(i / porFila), col = i % porFila;
     const enFila = Math.min(porFila, total - fila * porFila);
     const ancho = enFila * slot + hueco * (enFila - 1);
-    const x = (W - (enFila === porFila ? anchoFila : ancho)) / 2 + col * (slot + hueco);
-    const y = yBase + fila * (slot + hueco);
-    const esMas = i === NAVES.length;
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
-    ctx.fill();
-    if (esMas) {
+    const x = (W - ancho) / 2 + col * (slot + hueco);
+    const y = y0 + fila * (slot + hueco);
+    if (i === NAVES.length) {
       masRect = { x, y, w: slot, h: slot };
-      ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.font = "300 30px " + F;
-      ctx.fillText("+", x + slot / 2, y + slot / 2 - 5);
-      ctx.font = "700 9px " + F; ctx.globalAlpha = 0.6;
-      ctx.fillText("CARGAR", x + slot / 2, y + slot - 13); ctx.globalAlpha = 1;
+      botones.push({ x, y, w: slot, h: slot, fn: () => { fileInput.click(); } });
+      panel(x, y, slot, slot, 14, 0.3);
+      ctx.strokeStyle = "rgba(255,255,255,0.26)"; ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x + 0.5, y + 0.5, slot - 1, slot - 1, 14) : ctx.rect(x, y, slot, slot);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = "200 28px " + F;
+      ctx.fillText("+", x + slot / 2, y + slot / 2 - 6);
+      ctx.font = "700 8px " + F; ctx.globalAlpha = 0.55;
+      letras("CARGAR", x + slot / 2, y + slot - 14, 1, "center");
+      ctx.globalAlpha = 1;
       continue;
     }
-    const n = NAVES[i];
-    naveRects.push({ x, y, w: slot, h: slot, i, borrar: !n.fija, indice: n.indice });
+    const nv = NAVES[i];
     const sel = i === naveSel;
-    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.12)"; ctx.lineWidth = sel ? 2.5 : 1;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
-    ctx.stroke();
-    const sp = SPRITES[n.id];
-    if (sp) {
-      ctx.save(); ctx.translate(x + slot / 2, y + slot / 2 - 4); pintarSprite(sp, slot * 0.66); ctx.restore();
-    } else if (n.src) {
-      ctx.globalAlpha = 0.28; ctx.fillStyle = "#fff"; ctx.font = "700 9px " + F;
-      ctx.fillText("falta", x + slot / 2, y + slot / 2 - 4);
-      ctx.fillText("el PNG", x + slot / 2, y + slot / 2 + 6); ctx.globalAlpha = 1;
-    } else { miniNave(x + slot / 2, y + slot / 2 - 4, slot * 0.6, T); }
-    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.55)"; ctx.font = "800 9px " + F;
-    ctx.fillText(n.nombre, x + slot / 2, y + slot - 11, slot - 8);
-    if (!n.fija) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.beginPath(); ctx.arc(x + slot - 11, y + 11, 8.5, 0, TAU); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "700 11px " + F;
-      ctx.fillText("×", x + slot - 11, y + 11);
+    naveRects.push({ x, y, w: slot, h: slot, i, borrar: !nv.fija, indice: nv.indice });
+    boton(x, y, slot, slot, { sel, r: 14, color: nv.motor || T.nave,
+      fn: () => { naveSel = i; guardarSave({ naveId: NAVES[naveSel].id }); } });
+    const sp = SPRITES[nv.id];
+    ctx.save(); ctx.translate(x + slot / 2, y + slot / 2 - 5);
+    if (sp) pintarSprite(sp, slot * 0.62);
+    else miniNave(0, 0, slot * 0.56, T);
+    ctx.restore();
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = sel ? (nv.motor || T.nave) : "rgba(255,255,255,0.5)";
+    ctx.font = "800 8px " + F;
+    letras(nv.nombre.slice(0, 8), x + slot / 2, y + slot - 12, 0.8, "center");
+    if (!nv.fija) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.beginPath(); ctx.arc(x + slot - 12, y + 12, 9, 0, TAU); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "700 12px " + F;
+      ctx.fillText("×", x + slot - 12, y + 12);
     }
   }
-  return yBase + filas * (slot + hueco);
+}
+
+// ── Campaña ───────────────────────────────────────────────
+function pantallaCampana() {
+  cabecera("CAMPAÑA");
+  misionRects = [];
+  const wCard = Math.min(W - 32, 420);
+  const disp = H - SAFE_TOP - SAFE_BOTTOM - 96;
+  const alto = clamp((disp - 4 * 10) / 5, 52, 78);
+  let y = SAFE_TOP + 72;
+
+  for (let i = 0; i < MISIONES.length; i++) {
+    const m = MISIONES[i];
+    const tm = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
+    const x = (W - wCard) / 2;
+    const bloq = i > misionIdx;
+    const act = i === misionIdx;
+    misionRects.push({ x, y, w: wCard, h: alto, idx: i });
+    boton(x, y, wCard, alto, { sel: act, apagado: bloq, color: tm.nave, r: 14,
+      fn: () => {
+        if (bloq) { sfx("ui_no"); aviso = "Completa la misión anterior"; avisoT = 2; return; }
+        misionIdx = i; sfx("mision_ini"); iniciarMision(i); musica("combate");
+      } });
+
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillStyle = bloq ? "rgba(255,255,255,0.22)" : tm.nave;
+    ctx.font = "800 11px " + F;
+    letras("M" + (i + 1), x + 18, y + alto * 0.32, 2);
+    ctx.fillStyle = bloq ? "rgba(255,255,255,0.25)" : "#fff";
+    ctx.font = "800 13px " + F;
+    letras(m.nombre, x + 48, y + alto * 0.32, 1.6);
+    ctx.font = "600 10px " + F; ctx.globalAlpha = bloq ? 0.2 : 0.5;
+    ctx.fillStyle = "#fff";
+    ctx.fillText(bloq ? "BLOQUEADA" : m.desc, x + 18, y + alto * 0.68, wCard - 70);
+    ctx.globalAlpha = 1;
+
+    if (bloq) {
+      // Candado dibujado, no un emoji: los emojis cambian de aspecto en
+      // cada plataforma y aquí el estilo tiene que ser el mismo siempre.
+      ctx.save();
+      ctx.translate(x + wCard - 28, y + alto / 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -3, 5, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(-7, 1, 14, 11, 2) : ctx.rect(-7, 1, 14, 11);
+      ctx.fill();
+      ctx.restore();
+    } else if (act) {
+      ctx.fillStyle = tm.nave;
+      ctx.beginPath();
+      ctx.moveTo(x + wCard - 32, y + alto / 2 - 8);
+      ctx.lineTo(x + wCard - 20, y + alto / 2);
+      ctx.lineTo(x + wCard - 32, y + alto / 2 + 8);
+      ctx.closePath(); ctx.fill();
+    }
+    y += alto + 10;
+  }
+}
+
+// ── Supervivencia ─────────────────────────────────────────
+function pantallaMundos() {
+  cabecera("SUPERVIVENCIA");
+  menuRects = [];
+  const wCard = Math.min(W - 32, 420);
+  const alto = clamp((H - SAFE_TOP - SAFE_BOTTOM - 140) / 4 - 12, 60, 96);
+  let y = SAFE_TOP + 84;
+  for (const t of TEMAS) {
+    const x = (W - wCard) / 2;
+    menuRects.push({ x, y, w: wCard, h: alto, tema: t });
+    boton(x, y, wCard, alto, { sel: t.id === T.id, color: t.nave, r: 16,
+      fn: () => { T = t; guardarSave({ temaId: T.id }); modo = "supervivencia"; reset(); musica("combate"); } });
+    const g = ctx.createLinearGradient(x, y, x + wCard, y + alto);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, mezcla(t.fondoB, "#000000", 0.2));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, wCard, alto, 16) : ctx.rect(x, y, wCard, alto);
+    ctx.fill();
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillStyle = t.nave; ctx.font = "800 26px " + F;
+    ctx.fillText(t.icono, x + 22, y + alto / 2);
+    ctx.fillStyle = "#fff"; ctx.font = "800 14px " + F;
+    letras(t.nombre, x + 58, y + alto / 2 - 6, 2);
+    ctx.font = "700 9px " + F; ctx.globalAlpha = 0.45;
+    letras("OLEADAS SIN FIN", x + 58, y + alto / 2 + 12, 1.4);
+    ctx.globalAlpha = 1;
+    const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
+    ctx.save(); ctx.translate(x + wCard - 44, y + alto / 2);
+    if (sp) pintarSprite(sp, 46); else miniNave(0, 0, 46, t);
+    ctx.restore();
+    y += alto + 12;
+  }
+}
+
+// ── Ajustes ───────────────────────────────────────────────
+function filaVolumen(y, etiqueta, campo) {
+  const anchoP = Math.min(W - 44, 340), x0 = (W - anchoP) / 2;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.font = "700 10px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
+  letras(etiqueta, x0, y, 1.6);
+  ctx.globalAlpha = 1;
+  // Cinco escalones tocables en vez de un deslizador: en una tablet un
+  // deslizador de 6 px de alto no se acierta, y aquí no hace falta más
+  // resolución que ésta.
+  const bx = x0 + anchoP * 0.42, bw = anchoP - anchoP * 0.42;
+  const paso = bw / 5;
+  for (let i = 0; i < 5; i++) {
+    const v = (i + 1) / 5;
+    const on = OPCIONES[campo] >= v - 0.01;
+    botones.push({ x: bx + i * paso, y: y - 16, w: paso - 3, h: 32,
+      fn: () => { OPCIONES[campo] = OPCIONES[campo] === v && i === 0 ? 0 : v; guardarOpciones(); } });
+    ctx.fillStyle = on ? T.nave : "rgba(255,255,255,0.12)";
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx + i * paso, y - 5, paso - 3, 10, 3) : ctx.rect(bx + i * paso, y - 5, paso - 3, 10);
+    ctx.fill();
+  }
+}
+function filaOpcion(y, etiqueta, valores, campo) {
+  const anchoP = Math.min(W - 44, 340), x0 = (W - anchoP) / 2;
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.font = "700 10px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
+  letras(etiqueta, x0, y, 1.6);
+  ctx.globalAlpha = 1;
+  const bx = x0 + anchoP * 0.42, bw = anchoP - anchoP * 0.42;
+  const paso = bw / valores.length;
+  for (let i = 0; i < valores.length; i++) {
+    const [lab, val] = valores[i];
+    const on = OPCIONES[campo] === val;
+    boton(bx + i * paso, y - 15, paso - 4, 30, { sel: on, r: 8, tam: 9, esp: 1,
+      label: lab, fn: () => { OPCIONES[campo] = val; guardarOpciones();
+        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val]; } });
+  }
+}
+
+function pantallaAjustes() {
+  cabecera("AJUSTES");
+  let y = SAFE_TOP + 92;
+  const sep = 44;
+  ctx.textAlign = "left";
+  const anchoP = Math.min(W - 44, 340), x0 = (W - anchoP) / 2;
+  // Fondo propio: sobre una nebulosa, texto de 10 px en gris no se lee.
+  panel(x0 - 18, y - 44, anchoP + 36, sep * 7 + 92, 18, 0.72);
+  filo(x0 - 18, y - 44, anchoP + 36, sep * 7 + 92, 18, T.nave, 0.18);
+  ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("SONIDO", x0, y - 22, 3);
+  ctx.globalAlpha = 1;
+  filaVolumen(y, "GENERAL", "volMaster"); y += sep;
+  filaVolumen(y, "EFECTOS", "volSfx"); y += sep;
+  filaVolumen(y, "MÚSICA", "volMusica"); y += sep;
+  filaOpcion(y, "SILENCIO", [["NO", false], ["SÍ", true]], "silencio"); y += sep + 16;
+
+  ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("IMAGEN", x0, y - 22, 3);
+  ctx.globalAlpha = 1;
+  filaOpcion(y, "CALIDAD", [["AUTO", "auto"], ["ALTA", "alta"], ["MEDIA", "media"], ["BAJA", "baja"]], "calidad"); y += sep;
+  filaOpcion(y, "SACUDIDA", [["NO", 0], ["POCA", 0.5], ["NORMAL", 1]], "sacudida"); y += sep;
+  filaOpcion(y, "IMPACTO", [["NO", 0], ["SÍ", 1]], "hitstop"); y += sep;
+  filaOpcion(y, "NÚCLEO", [["NO", false], ["SÍ", true]], "nucleo"); y += sep + 16;
+
+  ctx.font = "700 9px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.35;
+  ctx.textAlign = "center";
+  ctx.fillText("El núcleo marca la zona exacta que recibe impactos.", W / 2, y - 14);
+  ctx.fillText("Calidad AUTO baja los efectos si el aparato no da 60 fps.", W / 2, y);
+  ctx.globalAlpha = 1;
 }
 
 function menu() {
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
-  ctx.font = "800 " + Math.min(40, W * 0.098) + "px " + F;
-  ctx.fillText("STRIKE FLIGHT", W / 2, 54);
-  ctx.globalAlpha = 0.5; ctx.font = "600 12px " + F;
-  ctx.fillText(best > 0 ? "RÉCORD  " + best : "elige modo para jugar", W / 2, 80);
-  ctx.globalAlpha = 1;
-
-  const yNaves = dibujarNaves(114);
-
-  // ── Selector de modo ──
-  modoRects = [];
-  const yModo = yNaves + 18;
-  const bw = Math.min((W - 48) / 2, 160), bh = 36;
-  const bx1 = W / 2 - bw - 6, bx2 = W / 2 + 6;
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
-  ctx.fillText("MODO DE JUEGO", W / 2, yModo - 10); ctx.globalAlpha = 1;
-
-  const modos = [{ id:"campana", label:"CAMPAÑA" }, { id:"supervivencia", label:"SUPERVIVENCIA" }];
-  const bxs = [bx1, bx2];
-  for (let i = 0; i < 2; i++) {
-    const sel = modo === modos[i].id;
-    const bx = bxs[i], by = yModo;
-    modoRects.push({ x: bx, y: by, w: bw, h: bh, id: modos[i].id });
-    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.08)";
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 8) : ctx.rect(bx, by, bw, bh);
-    ctx.fill();
-    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.18)"; ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = sel ? "#05060f" : "#fff"; ctx.font = "800 12px " + F;
-    ctx.fillText(modos[i].label, bx + bw / 2, by + bh / 2);
-  }
-
-  const yContenido = yModo + bh + 22;
-  const wCard = Math.min(W - 32, 400);
-
-  if (modo === "campana") {
-    // ── Lista de misiones ──
-    misionRects = []; menuRects = [];
-    ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
-    ctx.fillText("SELECCIONA MISIÓN", W / 2, yContenido - 10); ctx.globalAlpha = 1;
-
-    const disp = H - yContenido - 16;
-    const altoCard = clamp((disp - 4 * 8) / 5, 38, 54);
-    let yc = yContenido;
-
-    for (let i = 0; i < MISIONES.length; i++) {
-      const m = MISIONES[i];
-      const temaM = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
-      const cx = (W - wCard) / 2;
-      misionRects.push({ x: cx, y: yc, w: wCard, h: altoCard, idx: i });
-
-      const bloqueada = i > misionIdx;
-      const actual = i === misionIdx;
-      ctx.fillStyle = bloqueada ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)";
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(cx, yc, wCard, altoCard, 10) : ctx.rect(cx, yc, wCard, altoCard);
-      ctx.fill();
-      ctx.strokeStyle = actual ? temaM.nave : bloqueada ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.14)";
-      ctx.lineWidth = actual ? 2 : 1; ctx.stroke();
-
-      ctx.textAlign = "left"; ctx.fillStyle = bloqueada ? "rgba(255,255,255,0.25)" : "#fff";
-      ctx.font = "800 12px " + F;
-      ctx.fillText("M" + (i + 1) + "  " + m.nombre, cx + 16, yc + altoCard * 0.38);
-      ctx.font = "600 10px " + F; ctx.globalAlpha = bloqueada ? 0.15 : 0.5;
-      ctx.fillText(bloqueada ? "bloqueada" : m.desc, cx + 16, yc + altoCard * 0.72, wCard - 60);
-      ctx.globalAlpha = 1; ctx.textAlign = "center";
-
-      if (actual) {
-        ctx.fillStyle = temaM.nave; ctx.font = "700 11px " + F;
-        ctx.fillText("▶", cx + wCard - 22, yc + altoCard / 2);
-      }
-      yc += altoCard + 8;
-    }
-
-  } else {
-    // ── Mundos (supervivencia) ──
-    menuRects = []; misionRects = [];
-    ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.font = "700 11px " + F;
-    ctx.fillText("ELIGE MUNDO", W / 2, yContenido - 10); ctx.globalAlpha = 1;
-
-    const disp = H - yContenido - 16;
-    const alto = clamp((disp - 3 * 10) / 4, 44, 68);
-    const bloque = 4 * alto + 3 * 10;
-    let y = yContenido + Math.max(0, (disp - bloque) * 0.35);
-
-    for (const t of TEMAS) {
-      const x = (W - wCard) / 2;
-      menuRects.push({ x, y, w: wCard, h: alto, tema: t });
-      const g = ctx.createLinearGradient(x, y, x + wCard, y + alto);
-      g.addColorStop(0, t.fondoA); g.addColorStop(1, t.fondoB);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x, y, wCard, alto, 12) : ctx.rect(x, y, wCard, alto);
-      ctx.fill();
-      ctx.strokeStyle = t.id === T.id ? t.nave : "rgba(255,255,255,0.13)";
-      ctx.lineWidth = t.id === T.id ? 2.5 : 1; ctx.stroke();
-      ctx.fillStyle = t.nave; ctx.font = "800 22px " + F; ctx.textAlign = "left";
-      ctx.fillText(t.icono, x + 20, y + alto / 2);
-      ctx.fillStyle = "#fff"; ctx.font = "700 14px " + F;
-      ctx.fillText(t.nombre, x + 50, y + alto / 2); ctx.textAlign = "center";
-      const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
-      ctx.save(); ctx.translate(x + wCard - 38, y + alto / 2);
-      if (sp) pintarSprite(sp, 40); else miniNave(0, 0, 40, t);
-      ctx.restore();
-      y += alto + 10;
-    }
-  }
+  botones = [];
+  menuT += 1 / 60;
+  if (pantalla === "inicio") pantallaInicio();
+  else if (pantalla === "naves") pantallaNaves();
+  else if (pantalla === "campana") pantallaCampana();
+  else if (pantalla === "mundos") pantallaMundos();
+  else if (pantalla === "ajustes") pantallaAjustes();
 
   if (avisoT > 0) {
-    ctx.globalAlpha = clamp(avisoT, 0, 1) * 0.75; ctx.fillStyle = "#000";
-    ctx.fillRect(0, H / 2 - 26, W, 52);
-    ctx.globalAlpha = clamp(avisoT, 0, 1); ctx.fillStyle = "#fff"; ctx.font = "800 16px " + F;
-    ctx.fillText(aviso, W / 2, H / 2); ctx.globalAlpha = 1;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.globalAlpha = clamp(avisoT, 0, 1);
+    panel(W / 2 - 150, H / 2 - 26, 300, 52, 14, 0.88);
+    filo(W / 2 - 150, H / 2 - 26, 300, 52, 14, T.nave, 0.5);
+    ctx.fillStyle = "#fff"; ctx.font = "800 13px " + F;
+    ctx.fillText(aviso, W / 2, H / 2);
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -4316,21 +4586,59 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // Overlay de misión completa (campaña)
-  if (state === "play" && misionCompletaT > 0) {
-    const a = Math.min(1, misionCompletaT, 5 - misionCompletaT) * 0.8;
-    ctx.fillStyle = "rgba(5,6,15," + a + ")"; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = T.bala; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "800 " + Math.min(36, W * 0.088) + "px " + F;
-    ctx.fillText("¡MISIÓN COMPLETA!", W / 2, H / 2 - 24);
-    ctx.font = "700 14px " + F; ctx.globalAlpha = 0.75;
+  // ── Resultados de misión ──
+  if (state === "play" && misionCompletaT > 0 && resultado) {
+    const t = 6.5 - misionCompletaT;
+    const a = Math.min(1, t * 2, misionCompletaT * 1.5) * 0.9;
+    ctx.fillStyle = "rgba(3,5,14," + a + ")"; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = Math.min(1, t * 2, misionCompletaT * 1.5);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    const cy = H * 0.28;
+    ctx.font = "800 10px " + F; ctx.fillStyle = T.nave;
+    letras("MISIÓN " + (misionIdx + 1), W / 2, cy - 40, 4, "center");
     ctx.fillStyle = "#fff";
-    const sig = misionIdx + 1 < MISIONES.length ? "Siguiente: " + MISIONES[misionIdx + 1].nombre : "¡Campaña superada!";
-    ctx.fillText(sig, W / 2, H / 2 + 18);
-    // Stats rápidas al completar misión
-    const mins = Math.floor(elapsed / 60), secs = Math.floor(elapsed % 60);
-    ctx.fillText(enemiesKilled + " derribados · " + mins + ":" + String(secs).padStart(2,"0"), W/2, H/2+44);
+    ctx.font = "800 " + Math.round(clamp(W * 0.085, 26, 40)) + "px " + F;
+    letras("COMPLETADA", W / 2, cy, 3, "center");
+
+    // Los extras entran de uno en uno, con su sonido.
+    const anchoP = Math.min(W - 56, 340), x0 = (W - anchoP) / 2;
+    let y = cy + 52, sumado = resultado.base;
+    for (let i = 0; i < resultado.extras.length; i++) {
+      const [et, pts] = resultado.extras[i];
+      const ap = clamp((t - 0.5 - i * 0.42) * 4, 0, 1);
+      if (ap <= 0) break;
+      sumado += pts * (ap >= 1 ? 1 : 0);
+      ctx.globalAlpha = ap;
+      ctx.textAlign = "left"; ctx.font = "700 11px " + F;
+      ctx.fillStyle = "#fff";
+      ctx.globalAlpha = ap * 0.7;
+      letras(et, x0, y, 1.4);
+      ctx.globalAlpha = ap;
+      ctx.textAlign = "right"; ctx.font = "800 12px " + F;
+      ctx.fillStyle = "#ffd700";
+      ctx.fillText("+" + pts.toLocaleString("es"), x0 + anchoP, y);
+      y += 26;
+    }
     ctx.globalAlpha = 1;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(x0, y + 4, anchoP, 1);
+    ctx.font = "800 " + Math.round(clamp(W * 0.09, 30, 44)) + "px " + F;
+    ctx.fillStyle = "#fff";
+    ctx.fillText(Math.round(sumado).toLocaleString("es"), W / 2, y + 38);
+    ctx.font = "700 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.75;
+    letras("PUNTUACIÓN TOTAL", W / 2, y + 62, 3, "center");
+    ctx.globalAlpha = 1;
+
+    if (t > 2.6) {
+      ctx.globalAlpha = Math.min(1, (t - 2.6) * 2) * (0.6 + 0.4 * Math.sin(t * 3));
+      ctx.font = "700 12px " + F; ctx.fillStyle = "#fff";
+      const sig = misionIdx + 1 < MISIONES.length
+        ? "SIGUIENTE:  " + MISIONES[misionIdx + 1].nombre : "CAMPAÑA SUPERADA";
+      letras(sig, W / 2, H * 0.82, 2, "center");
+      ctx.globalAlpha = 1;
+    }
   }
 
   // ── AVISO DE JEFE ──

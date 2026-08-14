@@ -21,7 +21,22 @@ export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MIME = { ".html":"text/html", ".js":"text/javascript", ".png":"image/png",
   ".json":"application/json", ".jpg":"image/jpeg", ".webp":"image/webp", ".txt":"text/plain" };
 
+// Un error de sintaxis en index.html no da un mensaje útil: el navegador
+// no ejecuta NADA y las pruebas fallan con "iniciarMision is not defined".
+// Comprobarlo aquí ahorra el rato de buscar el fantasma.
+export async function comprobarSintaxis() {
+  const html = await readFile(join(RAIZ, "index.html"), "utf8");
+  const m = html.match(/<script>([\s\S]*?)<\/script>/);
+  if (!m) return;
+  try { new Function(m[1]); }
+  catch (e) {
+    console.error("✗ index.html no compila: " + e.message);
+    process.exit(1);
+  }
+}
+
 export async function servidor() {
+  await comprobarSintaxis();
   const s = createServer(async (req, res) => {
     const url = decodeURIComponent(req.url.split("?")[0]);
     const f = join(RAIZ, url === "/" ? "index.html" : url);
