@@ -208,7 +208,7 @@ const FORMACIONES = {
 //    ataques   [{ cd:[min,max], avisa, telegrafo, fn }]
 const JEFES = {
   guardian: {
-    r: 62, hpMax: 1100, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
+    r: 62, hpMax: 560, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
     sp: "bs_guardian", color: t => t.enemigoC,
     puntos: 3500, drops: ["arma", "escudo", "vida", "bomba"],
     fases: [
@@ -254,7 +254,7 @@ const JEFES = {
   },
 
   titan: {
-    r: 82, hpMax: 2600, nombre: "TITÁN", titulo: "PLATAFORMA DE ASEDIO CLASE FISURA",
+    r: 82, hpMax: 1150, nombre: "TITÁN", titulo: "PLATAFORMA DE ASEDIO CLASE FISURA",
     sp: "bs_titan", color: t => mezcla(t.enemigoC, "#66ccff", 0.45),
     puntos: 12000, drops: ["arma", "arma", "escudo", "escudo", "vida", "bomba", "bomba"],
     fases: [

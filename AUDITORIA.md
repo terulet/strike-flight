@@ -73,7 +73,12 @@ DPR 3.
 - **Fin de partida** y **supervivencia** siguen funcionando.
 - **Secuencia completa de jefe** capturada paso a paso: aviso, entrada,
   fase 1, transición, fase 2, fallos internos, detonación, victoria.
-- **Cero 404 y cero excepciones** en las cuatro pruebas.
+- **Cero 404 y cero excepciones** en las cinco pruebas.
+- **Duración de los combates de jefe**, con un piloto que apunta:
+  Guardián de M1 (560 HP, cañón nivel 4) **69 s** · Guardián de M4
+  (812 HP, vacío nivel 5) **55 s** · Titán (1150 HP, crio nivel 6)
+  **113 s**. Con eso las misiones quedan en 4:39 / 5:02 / 5:00 / 4:57 /
+  6:09, y eso es con un piloto experto: un jugador normal va más lento.
 
 ### Lo que NO está verificado
 
