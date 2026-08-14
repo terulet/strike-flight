@@ -193,62 +193,144 @@ const FORMACIONES = {
 // ════════════════════════════════════════════════════════════
 //  MINIBOSSES
 // ════════════════════════════════════════════════════════════
-const MINIBOSSES = {
+// ════════════════════════════════════════════════════════════
+//  JEFES
+// ════════════════════════════════════════════════════════════
+//  Un jefe no es un enemigo grande: es un ACONTECIMIENTO, y la
+//  arquitectura lo trata como tal. Todos pasan por la misma secuencia
+//    aviso → entrada → fases → transición → muerte cinemática → victoria
+//  y lo único que cambia por jefe son sus fases y sus ataques. Añadir un
+//  jefe nuevo es escribir su tabla; la puesta en escena viene de serie.
+//
+//  Cada fase declara:
+//    umbral    fracción de vida a la que empieza
+//    mover     su patrón de movimiento
+//    ataques   [{ cd:[min,max], avisa, telegrafo, fn }]
+const JEFES = {
   guardian: {
-    r: 46, hpMax: 120, nombre: "GUARDIÁN",
-    color: t => t.enemigoC,
-    puntos: 600, drops: ["arma", "escudo", "vida"],
-    init(mb) { mb.faseT = 0; mb.fase = 1; mb.cd1 = 2.6; mb.cd2 = Infinity; mb.targetY = H * 0.22; },
-    mover(mb, dt) {
-      if (mb.y < mb.targetY) mb.y = Math.min(mb.y + 130 * dt, mb.targetY);
-      mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.55) * W * 0.28, mb.r + 10, W - mb.r - 10);
-      mb.faseT += dt;
-    },
-    ataque1(mb) {
-      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 300, 5, 0.26, 7);
-      beep(180, 0.14, "sawtooth", 0.04);
-    },
-    ataque2(mb) {
-      PATRONES.circulo(mb.x, mb.y, 250, 12, mb.faseT, 6);
-      beep(120, 0.22, "sawtooth", 0.07);
-    },
+    r: 62, hpMax: 800, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
+    sp: "bs_guardian", color: t => t.enemigoC,
+    puntos: 2500, drops: ["arma", "escudo", "vida", "bomba"],
+    fases: [
+      { umbral: 1, ojo: "#c77dff",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.55) * W * 0.26, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.9) * 12;
+        },
+        ataques: [
+          { cd: [2.3, 3.0], avisa: 0.45,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.55, a2: a + 0.55, r: 900, life: 0.45, sigue: mb });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 300, 5, 0.26, 7); sfx("ene_pesado"); mb.recoil = 8; } },
+          { cd: [4.4, 5.4], avisa: 0.6,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 3, life: 0.6, sigue: mb }); },
+            fn(mb) { PATRONES.circulo(mb.x, mb.y, 250, 12, mb.faseT, 6); sfx("ene_pesado", { tono: 0.7 }); } },
+        ] },
+      { umbral: 0.5, ojo: "#ff2f6e", furia: true,
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.85) * W * 0.32, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.5) * 22;
+        },
+        ataques: [
+          { cd: [1.5, 2.0], avisa: 0.4,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.6, a2: a + 0.6, r: 900, life: 0.4, sigue: mb });
+            },
+            fn(mb) {
+              PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 340, 7, 0.2, 7);
+              sfx("ene_pesado"); mb.recoil = 10;
+            } },
+          { cd: [3.0, 3.8], avisa: 0.5,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 3.4, life: 0.5, sigue: mb }); },
+            fn(mb) { PATRONES.espiral(mb.x, mb.y, 265, 18, mb.faseT * 2, 6, 2); sfx("ene_pesado", { tono: 0.6 }); } },
+          { cd: [6.0, 7.5], avisa: 0.8,
+            telegrafo(mb) { telegrafo("banda", { y: H * 0.5, h: 70, life: 0.8 }); },
+            fn(mb) { PATRONES.muro(0, 235, 7, 2, 2.6); sfx("emp"); sacudir("small"); } },
+        ] },
+    ],
   },
+
   titan: {
-    r: 58, hpMax: 220, nombre: "TITÁN",
-    color: t => mezcla(t.enemigoC, "#cc0000", 0.5),
-    puntos: 1800, drops: ["arma", "arma", "escudo", "escudo", "vida", "vida"],
-    umbralFase2: 0.66, umbralFase3: 0.33,
-    cd1Fase2: 1.8, cd2Fase2: 3.0,
-    cd1Fase3: 1.2, cd2Fase3: 2.0, cd3Fase3: 3.5,
-    init(mb) {
-      mb.faseT = 0; mb.fase = 1;
-      mb.cd1 = 2.2; mb.cd2 = Infinity; mb.cd3 = Infinity;
-      mb.targetY = H * 0.20;
-    },
-    mover(mb, dt) {
-      if (mb.y < mb.targetY) mb.y = Math.min(mb.y + 120 * dt, mb.targetY);
-      const spd = mb.fase === 3 ? 0.72 : mb.fase === 2 ? 0.55 : 0.42;
-      const chaos = mb.fase >= 2 ? Math.cos(mb.faseT * 1.15) * W * 0.09 : 0;
-      mb.x = clamp(W / 2 + Math.sin(mb.faseT * spd) * W * 0.32 + chaos, mb.r + 10, W - mb.r - 10);
-      mb.faseT += dt;
-    },
-    ataque1(mb) {
-      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 320, 5, 0.22, 8);
-      beep(160, 0.15, "sawtooth", 0.05);
-    },
-    ataque2(mb) {
-      PATRONES.circulo(mb.x, mb.y, 270, 14, mb.faseT, 6);
-      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 380, 3, 0.20, 7);
-      beep(110, 0.22, "sawtooth", 0.07);
-    },
-    ataque3(mb) {
-      PATRONES.circulo(mb.x, mb.y, 300, 20, mb.faseT * 2, 5);
-      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 430, 6, 0.17, 9);
-      PATRONES.abanico(mb.x, mb.y, haciaJugador(mb) + Math.PI, 260, 4, 0.24, 7);
-      beep(80, 0.32, "sawtooth", 0.11, 160);
-    },
+    r: 82, hpMax: 2000, nombre: "TITÁN", titulo: "PLATAFORMA DE ASEDIO CLASE FISURA",
+    sp: "bs_titan", color: t => mezcla(t.enemigoC, "#66ccff", 0.45),
+    puntos: 8000, drops: ["arma", "arma", "escudo", "escudo", "vida", "bomba", "bomba"],
+    fases: [
+      { umbral: 1, ojo: "#88ddff",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.42) * W * 0.3, mb.r * 0.62, W - mb.r * 0.62);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.7) * 14;
+        },
+        ataques: [
+          { cd: [2.0, 2.6], avisa: 0.42,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 1000, life: 0.42, sigue: mb });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 330, 7, 0.2, 8); sfx("ene_pesado"); mb.recoil = 10; } },
+          { cd: [3.6, 4.4], avisa: 0.5,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 2.6, life: 0.5, sigue: mb }); },
+            fn(mb) { PATRONES.circulo(mb.x, mb.y, 250, 16, mb.faseT, 6); sfx("ene_pesado", { tono: 0.65 }); } },
+          { cd: [7.0, 8.5], avisa: 0.9,
+            telegrafo(mb) { telegrafo("banda", { y: H * 0.42, h: 64, life: 0.9, col: "#88ddff" }); },
+            fn(mb) { PATRONES.muro(0, 225, 7, 3, 2.4); sfx("cryo", { tono: 0.5 }); } },
+        ] },
+      { umbral: 0.62, ojo: "#c77dff", furia: true,
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.7) * W * 0.34 + Math.cos(mb.faseT * 1.3) * W * 0.07,
+            mb.r * 0.62, W - mb.r * 0.62);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.2) * 26;
+        },
+        ataques: [
+          { cd: [1.6, 2.1], avisa: 0.36,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.62, a2: a + 0.62, r: 1000, life: 0.36, sigue: mb });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 360, 9, 0.17, 8); sfx("ene_pesado"); mb.recoil = 12; } },
+          { cd: [2.8, 3.4], avisa: 0.44,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 3, life: 0.44, sigue: mb }); },
+            fn(mb) { PATRONES.espiral(mb.x, mb.y, 275, 22, mb.faseT * 2.6, 6, 3); sfx("ene_pesado", { tono: 0.6 }); } },
+          { cd: [5.5, 6.8], avisa: 0.7,
+            telegrafo(mb) { telegrafo("banda", { y: H * 0.34, h: 54, life: 0.7 }); },
+            fn(mb) { PATRONES.cruzado(H * 0.2, 260, 3, 6); sfx("emp"); } },
+        ] },
+      // FASE FINAL — el ataque insignia del Titán: la LANZA DE FISURA.
+      // Tres barridos que cierran la pantalla en tenaza, siempre con
+      // salida, y una espiral debajo para que la salida haya que buscarla.
+      { umbral: 0.28, ojo: "#ff2f6e", furia: true, final: true,
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 1.05) * W * 0.36, mb.r * 0.62, W - mb.r * 0.62);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.8) * 30;
+        },
+        ataques: [
+          { cd: [1.25, 1.6], avisa: 0.3,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.7, a2: a + 0.7, r: 1000, life: 0.3, sigue: mb });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 400, 9, 0.16, 8); sfx("ene_pesado"); mb.recoil = 12; } },
+          { cd: [3.4, 4.2], avisa: 0.85,
+            telegrafo(mb) {
+              telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 4.2, life: 0.85, sigue: mb, col: "#ff2f6e" });
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: 0.15, a2: Math.PI - 0.15, r: 1100, life: 0.85, sigue: mb });
+            },
+            fn(mb) {
+              texto(mb.x, mb.y - mb.r - 30, "LANZA DE FISURA", "#ff2f6e", 15);
+              PATRONES.barrido(mb.x, mb.y, 0.2, Math.PI - 0.2, 300, 13, 7);
+              PATRONES.barrido(mb.x, mb.y, Math.PI - 0.35, 0.35, 235, 11, 7);
+              PATRONES.espiral(mb.x, mb.y, 290, 20, mb.faseT * 3, 5, 2);
+              sfx("ultimate", { tono: 0.5 });
+              sacudir("medium"); hitstop(0.04);
+            } },
+        ] },
+    ],
   },
 };
+// Compatibilidad: el guion de las misiones sigue nombrando "miniboss".
+const MINIBOSSES = JEFES;
 
 // ════════════════════════════════════════════════════════════
 //  MISIONES — guión de la campaña (5 misiones)
@@ -257,7 +339,7 @@ const MINIBOSSES = {
 // ════════════════════════════════════════════════════════════
 const MISIONES = [
   {
-    nombre: "PRIMER CONTACTO", temaId: "espacio",
+    nombre: "PRIMER CONTACTO", temaId: "espacio", armas: ["laser", "plasma"],
     desc: "Las primeras oleadas enemigas. Aprende a moverte.",
     eventos: [
       // FASE 1 — Introducción (0-60s): patrón aprendizaje, ritmo lento
@@ -294,7 +376,7 @@ const MISIONES = [
   },
   {
     // M2: identidad = movimiento y esquiva. Asteroides + enemigos rápidos.
-    nombre: "CINTURÓN DE ASTEROIDES", temaId: "volcan",
+    nombre: "CINTURÓN DE ASTEROIDES", temaId: "volcan", armas: ["misil", "fuego"],
     desc: "Asteroides en lluvia. Muévete o muere.",
     eventos: [
       { t:  0, fn:"hazardOn"  },                                     // Lluvia de asteroides
@@ -316,12 +398,12 @@ const MISIONES = [
       { t: 99, fn:"ola", tipo:"tanque",     n:3, patron:"linea"  },
       { t:106, fn:"ola", tipo:"veloz",      n:7, patron:"V"      },
       { t:112, fn:"hazardOff" },                                      // Silencio antes del boss
-      { t:118, fn:"miniboss", tipo:"guardian" },
+      { t:118, fn:"miniboss", tipo:"guardian", mult:1.25 },
     ],
   },
   {
     // M3: identidad = priorizar objetivos. Defensas estacionarias + escolta.
-    nombre: "RED DE DEFENSA", temaId: "neon",
+    nombre: "RED DE DEFENSA", temaId: "neon", armas: ["railgun", "laser"],
     desc: "Destruye las defensas para reducir el fuego.",
     eventos: [
       { t:  2, fn:"defensa", tipo:"torreta", n:3 },                   // Primera línea de torretas
@@ -344,12 +426,12 @@ const MISIONES = [
       { t: 88, fn:"reward" },
       { t: 93, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
       { t:100, fn:"ola", tipo:"francotirador", n:5, patron:"linea"  },
-      { t:108, fn:"miniboss", tipo:"guardian" },
+      { t:108, fn:"miniboss", tipo:"guardian", mult:1.5 },
     ],
   },
   {
     // M4: identidad = control espacial. Zonas tóxicas + enemigos acorazados.
-    nombre: "SECTOR TÓXICO", temaId: "oceano",
+    nombre: "SECTOR TÓXICO", temaId: "oceano", armas: ["void", "plasma"],
     desc: "Zonas contaminadas: espera el telegráfico.",
     eventos: [
       { t:  0, fn:"zonaOn"  },                                        // Zonas tóxicas periódicas
@@ -370,12 +452,12 @@ const MISIONES = [
       { t: 96, fn:"reward" },
       { t:101, fn:"ola", tipo:"bombardero",    n:5, patron:"pinza"  },
       { t:105, fn:"zonaOff" },                                        // Silencio antes del boss
-      { t:110, fn:"miniboss", tipo:"guardian" },
+      { t:110, fn:"miniboss", tipo:"guardian", mult:1.8 },
     ],
   },
   {
     // M5: identidad = dominio total. Élites + hazards + Titán 3 fases.
-    nombre: "FISURA HELADA", temaId: "espacio",
+    nombre: "FISURA HELADA", temaId: "espacio", armas: ["cryo", "electrico"],
     desc: "Élites y cristales de hielo. El Titán cierra todo.",
     eventos: [
       { t:  0, fn:"hazardOn", subtipo:"cristal" },                    // Cristales de hielo
@@ -1030,7 +1112,7 @@ const PREMIOS = {
   escudo:    { sp:"pu_escudo",    color:"#5ce1ff", nombre:"ESCUDO" },
   bomba:     { sp:"pu_bomba",     color:"#ff5c8a", nombre:"BOMBA" },
   vida:      { sp:"pu_vida",      color:"#ff5d8f", nombre:"VIDA EXTRA" },
-  rapido:    { sp:"pu_rapido",    color:"#8affd1", nombre:"TURBO FUEGO" },
+  rapido:    { sp:"pu_turbo",     color:"#8affd1", nombre:"TURBO FUEGO" },
   plasma:    { sp:"pu_plasma",    color:"#c77dff", nombre:"PLASMA",     familia:"plasma"    },
   fuego:     { sp:"pu_fuego",     color:"#ff8a1f", nombre:"LANZALLAMAS",familia:"fuego"     },
   cryo:      { sp:"pu_cryo",      color:"#88ddff", nombre:"CRIO",       familia:"cryo"      },
@@ -1038,7 +1120,11 @@ const PREMIOS = {
   misil:     { sp:"pu_misil",     color:"#ff6b3d", nombre:"MISILES",    familia:"misil"     },
   laser:     { sp:"pu_laser",     color:"#7df9ff", nombre:"LÁSER",      familia:"laser"     },
   void:      { sp:"pu_void",      color:"#b45cff", nombre:"VACÍO",      familia:"void"      },
+  railgun:   { sp:"pu_railgun",   color:"#ffffff", nombre:"RAÍL",       familia:"railgun"   },
+  rapid:     { sp:"pu_rapid",     color:"#8affd1", nombre:"REPETIDOR",  familia:"rapid"     },
 };
+// Un premio sin ficha no puede tumbar el juego: cae al premio de arma.
+const premio = t => PREMIOS[t] || PREMIOS.arma;
 const ARMA_MAX = 6;
 
 // ════════════════════════════════════════════════════════════
@@ -1188,22 +1274,155 @@ const ARMAS = {
 // ════════════════════════════════════════════════════════════
 const haciaJugador = (e) => Math.atan2(player.y - e.y, player.x - e.x);
 
+//  Tope de proyectiles enemigos en pantalla. No es una optimización: es
+//  una regla de diseño. Por encima de esto la pantalla deja de tener
+//  huecos y el patrón se convierte en daño inevitable, que es justo lo
+//  que un bullet hell justo no puede hacer.
+const EBALAS_MAX = 340;
+function eBala(x, y, vx, vy, r, extra) {
+  if (eBullets.length >= EBALAS_MAX) return null;
+  const b = { x, y, vx, vy, r: r || 5 };
+  if (extra) Object.assign(b, extra);
+  eBullets.push(b);
+  return b;
+}
+
 const PATRONES = {
   // n disparos abiertos alrededor de un ángulo
-  abanico(x, y, ang, vel, n, apertura, r) {
+  abanico(x, y, ang, vel, n, apertura, r, extra) {
     for (let i = 0; i < n; i++) {
       const a = ang + (n === 1 ? 0 : (i - (n - 1) / 2) * apertura);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBala(x, y, Math.cos(a) * vel, Math.sin(a) * vel, r, extra);
     }
   },
   // n disparos repartidos por toda la circunferencia
-  circulo(x, y, vel, n, fase, r) {
+  circulo(x, y, vel, n, fase, r, extra) {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + (fase || 0);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBala(x, y, Math.cos(a) * vel, Math.sin(a) * vel, r, extra);
+    }
+  },
+  // Espiral: el mismo círculo pero con las velocidades escalonadas, así
+  // que los brazos se abren en curva en vez de en línea recta.
+  espiral(x, y, vel, n, fase, r, brazos) {
+    const br = brazos || 2;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU * br + (fase || 0);
+      const v = vel * (0.72 + (i % n) / n * 0.5);
+      eBala(x, y, Math.cos(a) * v, Math.sin(a) * v, r);
+    }
+  },
+  // Ráfaga escalonada: n balas por el mismo sitio a velocidades distintas.
+  // Llegan en fila india, así que hay que moverse DURANTE el ataque, no
+  // antes de él.
+  rafaga(x, y, ang, vel, n, sep, r) {
+    for (let i = 0; i < n; i++) {
+      const v = vel * (1 - i * (sep || 0.13));
+      eBala(x, y, Math.cos(ang) * v, Math.sin(ang) * v, r);
+    }
+  },
+  // Barrido: abanico con las velocidades giradas progresivamente. Barre
+  // la pantalla de un lado al otro y siempre deja por dónde salir.
+  barrido(x, y, angIni, angFin, vel, n, r) {
+    for (let i = 0; i < n; i++) {
+      const a = angIni + (angFin - angIni) * (i / Math.max(n - 1, 1));
+      const v = vel * (0.8 + i / n * 0.4);
+      eBala(x, y, Math.cos(a) * v, Math.sin(a) * v, r);
+    }
+  },
+  // Muro con huecos. El hueco es el patrón: si no hay hueco no es un
+  // muro, es una condena.
+  muro(y, vel, r, huecos, ancho) {
+    const paso = (r || 6) * 3.4;
+    const n = Math.ceil(W / paso) + 1;
+    const gaps = [];
+    const nh = huecos || 2, an = ancho || 2.2;
+    for (let i = 0; i < nh; i++) gaps.push(rand(W * 0.12, W * 0.88));
+    for (let i = 0; i < n; i++) {
+      const x = i * paso + paso / 2;
+      if (gaps.some(g => Math.abs(x - g) < paso * an)) continue;
+      eBala(x, -10, 0, vel, r);
+    }
+  },
+  // Fuego cruzado desde los dos lados.
+  cruzado(y, vel, n, r) {
+    for (let i = 0; i < n; i++) {
+      const yy = y + i * 34;
+      const a1 = Math.atan2(player.y - yy, player.x - 0);
+      const a2 = Math.atan2(player.y - yy, player.x - W);
+      eBala(0, yy, Math.cos(a1) * vel, Math.sin(a1) * vel, r);
+      eBala(W, yy, Math.cos(a2) * vel, Math.sin(a2) * vel, r);
     }
   },
 };
+
+// ════════════════════════════════════════════════════════════
+//  TELEGRÁFICOS
+// ════════════════════════════════════════════════════════════
+//  TELEGRÁFICO → ATAQUE → RECUPERACIÓN. Sin el primer paso, esquivar es
+//  adivinar; sin el tercero, no hay ventana para devolver el golpe.
+//  Dibujar el aviso es tan parte del ataque como los proyectiles.
+let telegrafos = [];
+function telegrafo(tipo, o) {
+  if (telegrafos.length > 24) return null;
+  const t = Object.assign({ tipo, t: 0, life: 0.9, col: TIRO_SUYO }, o);
+  telegrafos.push(t);
+  return t;
+}
+function actualizarTelegrafos(dt) {
+  for (let i = telegrafos.length - 1; i >= 0; i--) {
+    const g = telegrafos[i];
+    g.t += dt;
+    if (g.sigue) { g.x = g.sigue.x; g.y = g.sigue.y; }
+    if (g.t >= g.life || (g.sigue && g.sigue.hp <= 0)) telegrafos.splice(i, 1);
+  }
+}
+function dibujarTelegrafos() {
+  for (const g of telegrafos) {
+    const k = g.t / g.life;
+    const pulso = 0.45 + 0.55 * Math.abs(Math.sin(performance.now() / 90));
+    ctx.save();
+    ctx.globalAlpha = (g.tipo === "mira" ? 0.35 + k * 0.5 : 0.5) * pulso;
+    ctx.strokeStyle = g.col; ctx.fillStyle = g.col;
+    if (g.tipo === "mira") {
+      // Línea de puntería del francotirador. Se estrecha y se afila según
+      // se acerca el disparo: el jugador ve cuánto le queda.
+      ctx.lineWidth = 1 + k * 2.5;
+      ctx.setLineDash([10 - k * 7, 8 - k * 6]);
+      ctx.beginPath(); ctx.moveTo(g.x, g.y);
+      ctx.lineTo(g.x + Math.cos(g.ang) * 1400, g.y + Math.sin(g.ang) * 1400);
+      ctx.stroke(); ctx.setLineDash([]);
+      if (k > 0.55) {
+        ctx.globalAlpha = (k - 0.55) / 0.45 * pulso;
+        ctx.lineWidth = 2;
+        const bx = g.bx != null ? g.bx : player.x, by = g.by != null ? g.by : player.y;
+        ctx.beginPath(); ctx.arc(bx, by, 26 - (k - 0.55) * 30, 0, TAU); ctx.stroke();
+      }
+    } else if (g.tipo === "cono") {
+      ctx.globalAlpha *= 0.22;
+      ctx.beginPath(); ctx.moveTo(g.x, g.y);
+      ctx.arc(g.x, g.y, g.r || 700, g.a1, g.a2);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha *= 2.4; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(g.x, g.y, g.r || 700, g.a1, g.a2); ctx.stroke();
+    } else if (g.tipo === "anillo") {
+      ctx.lineWidth = 2 + k * 3;
+      ctx.setLineDash([12, 10]);
+      ctx.beginPath(); ctx.arc(g.x, g.y, (g.r || 90) * (0.3 + k * 0.8), 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (g.tipo === "banda") {
+      ctx.globalAlpha *= 0.2;
+      ctx.fillRect(0, g.y - (g.h || 30) / 2, W, g.h || 30);
+      ctx.globalAlpha *= 3; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, g.y - (g.h || 30) / 2); ctx.lineTo(W, g.y - (g.h || 30) / 2);
+      ctx.moveTo(0, g.y + (g.h || 30) / 2); ctx.lineTo(W, g.y + (g.h || 30) / 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
 
 // ════════════════════════════════════════════════════════════
 //  ENEMIGOS — dirigidos por datos
@@ -1220,111 +1439,293 @@ const PATRONES = {
 const caer = (e, dt) => { e.y += e.vy * dt; };
 
 const ENEMIGOS = {
+  // Silueta redonda, movimiento recto, un disparo de vez en cuando.
+  // Es el enemigo contra el que se aprende todo lo demás.
   normal: {
     r: 18, hp: 2, puntos: 10, vel: 1, forma: "circulo",
-    color: t => t.enemigoA,
+    color: t => t.enemigoA, muerte: "basica",
     mover: caer,
-  },
-
-  veloz: {
-    r: 13, hp: 1, puntos: 25, vel: 1.7, forma: "rombo",
-    color: t => t.enemigoB,
-    init(e) { e.zig = rand(70, 150) * (Math.random() < 0.5 ? -1 : 1); },
-    mover(e, dt) {
-      caer(e, dt);
-      e.fase += dt * 3;
-      e.x = clamp(e.x + Math.cos(e.fase) * e.zig * dt, e.r, W - e.r);
+    recarga: () => rand(2.4, 4.2),
+    atacar(e) {
+      if (e.y < 40 || e.y > H * 0.72) return;
+      PATRONES.abanico(e.x, e.y + e.r * 0.6, Math.PI / 2, 210, 1, 0, 5);
+      sfx("ene_disparo");
     },
   },
 
+  // No dispara. Su amenaza es la trayectoria: entra rápido, zigzaguea y
+  // se te echa encima antes de que la mires.
+  veloz: {
+    r: 13, hp: 1, puntos: 25, vel: 1.85, forma: "rombo",
+    color: t => t.enemigoB, muerte: "rapida", estela: true, rota: true,
+    init(e) { e.zig = rand(80, 165) * (Math.random() < 0.5 ? -1 : 1); },
+    mover(e, dt) {
+      caer(e, dt);
+      e.fase += dt * 3.2;
+      e.x = clamp(e.x + Math.cos(e.fase) * e.zig * dt, e.r, W - e.r);
+      e.giro = Math.cos(e.fase) * e.zig * 0.0022;
+    },
+  },
+
+  // Se planta y apunta. Obliga a moverse en lateral, que es lo contrario
+  // de lo que pide el veloz.
   torreta: {
     r: 20, hp: 4, puntos: 40, vel: 0.62, forma: "hexagono", premio: 2.2,
-    color: t => t.enemigoA,
-    mover: caer,
-    recarga: () => rand(1.1, 1.9),
+    color: t => t.enemigoA, muerte: "basica",
+    mover(e, dt) {
+      // Frena al llegar a su altura de tiro en vez de cruzar la pantalla.
+      if (e.y > H * 0.3) e.y += e.vy * 0.25 * dt; else caer(e, dt);
+    },
+    recarga: () => rand(1.2, 1.9),
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 1, 0);
-      beep(220, 0.09, "sawtooth", 0.03);
+      PATRONES.rafaga(e.x, e.y, haciaJugador(e), 265, 3, 0.16, 5);
+      sfx("ene_disparo");
+      e.recoil = 4;
     },
   },
 
+  // Pesado de verdad: entra despacio, aguanta, y cuando dispara abre en
+  // abanico para cerrar el hueco por el que ibas a salir.
   tanque: {
-    r: 27, hp: 12, puntos: 120, vel: 0.5, forma: "acorazado",
+    r: 27, hp: 14, puntos: 120, vel: 0.46, forma: "acorazado",
     color: t => t.enemigoC, embiste: true, grande: true, premio: 6,
+    muerte: "pesada", sonidoTiro: "ene_pesado",
     mover: caer,
-    recarga: () => rand(0.7, 1.1),
+    recarga: () => rand(1.4, 2.0),
+    avisa: 0.5,
+    telegrafo(e) {
+      const a = haciaJugador(e);
+      telegrafo("cono", { x: e.x, y: e.y, a1: a - 0.42, a2: a + 0.42, r: 620, life: 0.5, sigue: e });
+    },
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 3, 0.24);
-      beep(220, 0.09, "sawtooth", 0.03);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 255, 5, 0.2, 6);
+      sfx("ene_pesado");
+      e.recoil = 9;
     },
   },
 
-  // ── El quinto tipo: la prueba de que los cimientos aguantan ──
-  // Va a por el jugador, pero con giro limitado, así que SIEMPRE
-  // se puede esquivar. Nunca daño inevitable.
+  // ── KAMIKAZE ──────────────────────────────────────────
+  //  Cuatro fases y las cuatro se VEN: entra, se coloca, se enciende y
+  //  se lanza. Nunca aparece encima del jugador y nunca gira durante la
+  //  embestida — una vez lanzado, el vector está fijado y esquivarlo es
+  //  cosa del jugador, no una tirada de dados.
   kamikaze: {
-    r: 15, hp: 2, puntos: 35, vel: 1.2, forma: "punta",
-    color: t => t.enemigoB,
-    init(e) { e.vx = 0; },
+    r: 15, hp: 2, puntos: 45, vel: 1.15, forma: "punta",
+    color: t => t.enemigoB, muerte: "kamikaze", premio: 1.4, rota: true,
+    init(e) { e.est = 0; e.vx = 0; e.carga = 0; e.paraY = rand(H * 0.16, H * 0.3); },
     mover(e, dt) {
-      caer(e, dt);
-      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * dt, -230, 230);
-      e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
-      e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
-    },
-  },
-
-  // ── BOMBARDERO: ráfaga triple hacia abajo ──────────────
-  bombardero: {
-    r: 24, hp: 8, puntos: 80, vel: 0.55, forma: "acorazado",
-    color: t => t.enemigoA, grande: true, premio: 4,
-    mover: caer,
-    recarga: () => rand(1.8, 2.6),
-    atacar(e) {
-      for (let i = -1; i <= 1; i++) {
-        const ang = Math.PI / 2 + i * 0.28;
-        eBullets.push({ x: e.x + i * 14, y: e.y + 10, vx: Math.cos(ang) * 215, vy: Math.sin(ang) * 215, r: 7 });
+      if (e.est === 0) {
+        caer(e, dt);
+        e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 260 * dt, -170, 170);
+        e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
+        if (e.y >= e.paraY) {
+          e.est = 1; e.carga = 0;
+          sfx("kamikaze");
+          telegrafo("anillo", { x: e.x, y: e.y, r: 74, life: 0.85, sigue: e });
+        }
+      } else if (e.est === 1) {
+        // Se coloca y se enciende. El sonido sube con la carga.
+        e.carga += dt / 0.85;
+        e.x += clamp(player.x - e.x, -110 * dt, 110 * dt);
+        e.y += 14 * dt;
+        if (Q.estela) part(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r),
+          rand(-40, 40), rand(-70, -20), 0.3, "#ff8a1f", rand(1, 2.6));
+        if (e.carga >= 1) {
+          e.est = 2;
+          const a = Math.atan2(player.y - e.y, player.x - e.x);
+          e.dvx = Math.cos(a) * 620; e.dvy = Math.sin(a) * 620;
+          telegrafo("mira", { x: e.x, y: e.y, ang: a, life: 0.22, col: "#ff8a1f" });
+          sfx("ene_pesado", { tono: 1.4 });
+        }
+      } else {
+        e.x += e.dvx * dt; e.y += e.dvy * dt;
+        e.giro = Math.atan2(e.dvx, Math.max(e.dvy, 1)) * 0.8;
+        if (Q.estela) part(e.x, e.y, rand(-30, 30), rand(-40, 40), 0.34, "#ffcf5c", rand(1.4, 3.2));
       }
-      beep(180, 0.14, "sawtooth", 0.04);
-    },
-  },
-
-  // ── FRANCOTIRADOR: se detiene, avisa y dispara preciso ─
-  francotirador: {
-    r: 14, hp: 3, puntos: 55, vel: 0.7, forma: "rombo",
-    color: t => t.enemigoB,
-    init(e) { e.detenido = false; e.aviso = 0; },
-    mover(e, dt) {
-      if (e.detenido) { e.aviso = Math.max(0, e.aviso - dt); return; }
-      caer(e, dt);
-      if (e.y > H * 0.18) { e.detenido = true; e.aviso = 0.85; e.cd = 0.85; }
-    },
-    recarga: () => rand(1.8, 2.5),
-    atacar(e) {
-      if (!e.detenido || e.aviso > 0) return;
-      const ang = haciaJugador(e);
-      eBullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 600, vy: Math.sin(ang) * 600, r: 4 });
-      beep(620, 0.1, "square", 0.05, 200);
     },
     dibujarExtra(e) {
-      if (e.aviso <= 0) return;
-      const a = 0.45 * (e.aviso / 0.85) * (0.5 + 0.5 * Math.sin(performance.now() / 70));
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = TIRO_SUYO; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(player.x - e.x, player.y - e.y); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      if (e.est !== 1) return;
+      const p = 0.4 + 0.6 * Math.abs(Math.sin(performance.now() / 60));
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = e.carga * p * 0.85;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, e.r * 3);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "#ff6a1f");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, e.r * 3, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
     },
   },
 
-  // ── PORTAESCUDOS: resistente, círculo lento ────────────
-  portaescudos: {
-    r: 26, hp: 18, puntos: 95, vel: 0.42, forma: "hexagono",
-    color: t => t.enemigoC, embiste: true, grande: true, premio: 5,
-    mover: caer,
-    recarga: () => rand(2.2, 3.0),
+  // ── BOMBARDERO ────────────────────────────────────────
+  //  Lento, grave y con retroceso. Sus bombas caen despacio y explotan
+  //  con radio: no basta con no estar debajo, hay que no estar cerca.
+  bombardero: {
+    r: 24, hp: 9, puntos: 90, vel: 0.5, forma: "acorazado",
+    color: t => t.enemigoA, grande: true, premio: 4, muerte: "pesada",
+    mover(e, dt) { e.y += e.vy * (e.y < 60 ? 0.55 : 1) * dt; },
+    recarga: () => rand(2.0, 2.8),
+    avisa: 0.55,
+    telegrafo(e) {
+      // La banda marca la altura EXACTA a la que van a estallar las
+      // bombas. Con eso, estar fuera de ella es una decisión del jugador.
+      e.bombaY = clamp(e.y + 170, 0, H - 40);
+      telegrafo("banda", { y: e.bombaY, h: 58, life: 0.55, col: "#ff8a1f" });
+    },
     atacar(e) {
-      PATRONES.circulo(e.x, e.y, 195, 8, e.fase, 5);
-      beep(150, 0.15, "sawtooth", 0.04);
+      const yb = e.bombaY || clamp(e.y + 170, 0, H - 40);
+      for (let i = -1; i <= 1; i++) {
+        const ang = Math.PI / 2 + i * 0.3;
+        eBala(e.x + i * 15, e.y + 12, Math.cos(ang) * 200, Math.sin(ang) * 200, 8,
+          { bomba: 58, explotaY: yb });
+      }
+      sfx("ene_pesado", { tono: 0.8 });
+      e.recoil = 11;
+      sacudir("tiny");
+    },
+  },
+
+  // ── FRANCOTIRADOR ─────────────────────────────────────
+  //  Entra · se coloca · adquiere · telegrafía · fija · DISPARA ·
+  //  reposiciona. Cada paso tiene su sonido y su dibujo, y el disparo
+  //  sale por donde decía la línea, no por donde estás en ese momento:
+  //  moverse durante el bloqueo funciona SIEMPRE.
+  francotirador: {
+    r: 15, hp: 3, puntos: 70, vel: 0.8, forma: "rombo",
+    color: t => t.enemigoB, premio: 2, muerte: "basica",
+    init(e) { e.est = 0; e.tt = 0; e.paraY = rand(H * 0.12, H * 0.26); e.tiros = 0; },
+    mover(e, dt) {
+      e.tt += dt;
+      if (e.est === 0) {                                  // entrada
+        caer(e, dt);
+        if (e.y >= e.paraY) { e.est = 1; e.tt = 0; sfx("sniper_lock"); }
+      } else if (e.est === 1) {                           // adquisición
+        e.y += Math.sin(e.tt * 2) * 8 * dt;
+        if (e.tt > 0.55) {
+          e.est = 2; e.tt = 0;
+          e.mira = telegrafo("mira", { x: e.x, y: e.y, ang: haciaJugador(e), life: 1.35, sigue: e });
+        }
+      } else if (e.est === 2) {                           // seguimiento
+        if (e.mira) {
+          const obj = Math.atan2(player.y - e.y, player.x - e.x);
+          let d = ((obj - e.mira.ang + Math.PI * 3) % TAU) - Math.PI;
+          e.mira.ang += clamp(d, -2.4 * dt, 2.4 * dt);
+        }
+        if (e.tt > 0.9) { e.est = 3; e.tt = 0; sfx("sniper_aviso"); }
+      } else if (e.est === 3) {                           // BLOQUEO: ángulo fijo
+        if (e.mira) { e.mira.bx = e.x + Math.cos(e.mira.ang) * 400; e.mira.by = e.y + Math.sin(e.mira.ang) * 400; }
+        if (e.tt > 0.42) {
+          const a = e.mira ? e.mira.ang : haciaJugador(e);
+          eBala(e.x, e.y, Math.cos(a) * 760, Math.sin(a) * 760, 5, { lanza: true, halo: false });
+          vfx("chispa", e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, 54, 0.2);
+          sfx("sniper_tiro");
+          e.recoil = 8;
+          if (e.mira) { telegrafos.splice(telegrafos.indexOf(e.mira), 1); e.mira = null; }
+          e.est = 4; e.tt = 0; e.tiros++;
+          e.destino = clamp(e.x + rand(-W * 0.4, W * 0.4), 40, W - 40);
+        }
+      } else {                                            // reposición
+        e.x += clamp(e.destino - e.x, -230 * dt, 230 * dt);
+        e.y += Math.sin(e.tt * 3) * 12 * dt;
+        // Tras dos disparos se retira: un francotirador que no se va nunca
+        // deja de ser un acontecimiento y pasa a ser un impuesto.
+        if (e.tiros >= 3) { e.y += 190 * dt; return; }
+        if (e.tt > 1.1 && Math.abs(e.destino - e.x) < 24) { e.est = 1; e.tt = 0; sfx("sniper_lock"); }
+      }
+    },
+    dibujarExtra(e) {
+      if (e.est !== 3) return;
+      const p = Math.abs(Math.sin(performance.now() / 55));
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.5 + p * 0.5;
+      ctx.fillStyle = TIRO_SUYO;
+      ctx.beginPath(); ctx.arc(0, 0, e.r * 1.5, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    },
+  },
+
+  // ── PORTAESCUDOS ──────────────────────────────────────
+  //  El escudo se ve, se ondula cuando le pegas y se rompe con
+  //  estruendo. Y NO es invulnerabilidad: los disparos pasan al casco
+  //  reducidos, así que pegarle mientras aguanta sigue sirviendo.
+  portaescudos: {
+    r: 26, hp: 14, puntos: 130, vel: 0.42, forma: "hexagono",
+    color: t => t.enemigoC, embiste: true, grande: true, premio: 5,
+    muerte: "pesada", escMax: 16,
+    init(e) { e.esc = 16; e.escFlash = 0; e.onda = 0; },
+    mover: caer,
+    alGolpe(e, b, dmg) {
+      if (e.esc <= 0) return dmg;
+      e.esc -= dmg;
+      e.escFlash = 0.14; e.onda = 1;
+      impacto(b.x, b.y, "escudo", "#5ce1ff");
+      if (e.esc <= 0) {
+        e.esc = 0;
+        impacto(e.x, e.y, "rotura", "#5ce1ff");
+        onda(e.x, e.y, "#5ce1ff", e.r * 5, 0.5);
+        texto(e.x, e.y - e.r - 14, "ESCUDO ROTO", "#5ce1ff", 13);
+        sacudir("tiny");
+      } else sfx("escudo_zumb");
+      return dmg * 0.35;      // pasa reducido, no anulado
+    },
+    recarga: () => rand(2.4, 3.2),
+    avisa: 0.45,
+    telegrafo(e) { telegrafo("anillo", { x: e.x, y: e.y, r: e.r * 3, life: 0.45, sigue: e }); },
+    atacar(e) {
+      PATRONES.circulo(e.x, e.y, 205, e.esc > 0 ? 8 : 12, e.fase, 5);
+      sfx("escudo_zumb", { tono: 0.7 });
+    },
+    dibujarExtra(e) {
+      if (e.esc <= 0) return;
+      const k = e.esc / 16;
+      const p = 0.5 + 0.5 * Math.sin(performance.now() / 260);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = (0.2 + k * 0.28 + (e.escFlash > 0 ? 0.5 : 0)) * (0.7 + p * 0.3);
+      const rr = e.r * (1.55 + (e.onda > 0 ? e.onda * 0.25 : 0));
+      const g = ctx.createRadialGradient(0, 0, rr * 0.55, 0, 0, rr);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "#5ce1ff");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.4 + k * 0.45;
+      ctx.strokeStyle = e.escFlash > 0 ? "#ffffff" : "#9beeff";
+      ctx.lineWidth = 1.5 + k * 1.5;
+      ctx.beginPath();
+      // Hexágono, no círculo: se lee como tecnología y no se confunde
+      // con el halo de un premio.
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + e.fase * 0.3;
+        ctx[i ? "lineTo" : "moveTo"](Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha = 1;
+    },
+  },
+
+  // ── ÉLITE ─────────────────────────────────────────────
+  //  Escolta pesada. Se queda arriba y teje espirales: no se esquiva
+  //  reaccionando, se esquiva leyendo por dónde se abre el brazo.
+  elite: {
+    r: 30, hp: 26, puntos: 240, vel: 0.4, forma: "acorazado",
+    color: t => t.enemigoC, embiste: true, grande: true, premio: 7,
+    muerte: "pesada",
+    init(e) { e.paraY = rand(H * 0.14, H * 0.24); e.lado = Math.random() < 0.5 ? -1 : 1; },
+    mover(e, dt) {
+      if (e.y < e.paraY) { caer(e, dt); return; }
+      e.fase += dt * 0.7;
+      e.x = clamp(e.x + Math.cos(e.fase) * 90 * e.lado * dt, e.r + 8, W - e.r - 8);
+    },
+    recarga: () => rand(1.6, 2.2),
+    avisa: 0.4,
+    telegrafo(e) { telegrafo("anillo", { x: e.x, y: e.y, r: e.r * 3.4, life: 0.4, sigue: e }); },
+    atacar(e) {
+      PATRONES.espiral(e.x, e.y, 215, 10, e.fase * 2.4, 5, 1);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 300, 3, 0.2, 5);
+      sfx("ene_pesado");
+      e.recoil = 6;
     },
   },
 };
@@ -1650,8 +2051,8 @@ cargarSprite("df_canon",       buscar("defensas", "canon_fijo.png"));
 ["lanza","misil","mina"].forEach(n => cargarImagen("pe_" + n, buscar("proyEne", n + ".png")));
 
 // Los power-ups y los jefes SÍ son objetos sólidos: alfa recortada.
-["arma","escudo","bomba","vida","rapido","plasma","fuego","cryo","electrico",
- "misil","void","laser","x2","iman"]
+["arma","escudo","bomba","vida","turbo","plasma","fuego","cryo","electrico",
+ "misil","void","laser","railgun","rapid","x2","iman"]
   .forEach(n => cargarSprite("pu_" + n, buscar("powerups", n + ".png")));
 
 ["guardian","titan"].forEach(n => cargarSprite("bs_" + n, buscar("bosses", n + ".png")));
@@ -1763,7 +2164,8 @@ function reset() {
   maxCombo = 0; bulletsFiredo = 0; bulletsHit = 0; enemiesKilled = 0;
   paused = false; warningT = 0; dragging = false;
   efectos.length = 0; fogonazos.length = 0; hitStop = 0;
-  sinDanio = true; comboHito = 0;
+  telegrafos.length = 0; estallidos.length = 0; rayos.length = 0;
+  sinDanio = true; comboHito = 0; bombaT = 0;
 }
 
 // ── Campaña ──────────────────────────────────────────────
@@ -1810,7 +2212,7 @@ function procesarEvento(ev) {
   } else if (ev.fn === "reward") {
     soltarPremio(W / 2 + rand(-80, 80), -30, elegirPremioAleatorio());
   } else if (ev.fn === "miniboss") {
-    spawnMiniboss(ev.tipo);
+    spawnMiniboss(ev.tipo, ev.mult);
   } else if (ev.fn === "hazardOn") {
     hazardEnabled = true;
     if (ev.subtipo) hazardTipo = ev.subtipo;
@@ -1825,142 +2227,304 @@ function procesarEvento(ev) {
   }
 }
 
-function spawnMiniboss(tipo) {
-  const d = MINIBOSSES[tipo];
-  miniboss = { tipo, r: d.r, hp: d.hpMax, hpMax: d.hpMax,
-    x: W / 2, y: -d.r - 30, fase: 1, faseT: 0, flash: 0,
-    cd1: 2.5, cd2: Infinity, targetY: H * 0.22 };
-  if (d.init) d.init(miniboss);
-  texto(W / 2, H * 0.4, d.nombre, "#ff2f6e");
-  beep(80, 0.9, "sawtooth", 0.1, 160); shake(16, 0.7); flash = 0.4;
+// ── Puesta en escena ──────────────────────────────────────
+//  El jefe existe desde el AVISO, no desde que se le puede disparar.
+//  Ese par de segundos de pausa dramática es lo que separa "aparece un
+//  enemigo grande" de "llega alguien".
+function spawnMiniboss(tipo, mult) {
+  const d = JEFES[tipo];
+  if (!d) return;
+  // El mismo jefe cuatro misiones seguidas se agota. Escalarlo por misión
+  // no lo arregla del todo — eso lo arreglan M6-M10 con jefes propios —
+  // pero al menos el Guardián de la M4 no cae igual que el de la M1.
+  const hpm = Math.round(d.hpMax * (mult || 1));
+  miniboss = {
+    tipo, r: d.r, hp: hpm, hpMax: hpm,
+    x: W / 2, y: -d.r - 60, baseY: H * 0.2 + d.r * 0.35,
+    est: "aviso", estT: 0, fase: 0, faseT: 0, flash: 0, recoil: 0,
+    cds: [], muerteT: 0, invul: true, sacudida: 0,
+  };
+  warningT = 2.6;
+  eBullets.length = 0;
+  sfx("boss_llega");
+  sacudir("medium");
+  musica("jefe");
+}
+
+function cambiarFase(mb, n) {
+  const d = JEFES[mb.tipo];
+  const f = d.fases[n];
+  if (!f) return;
+  mb.fase = n; mb.faseT = 0;
+  mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6);
+  if (n > 0) {
+    // TRANSICIÓN. Un pulso que barre los proyectiles, cambia el color de
+    // los ojos y da al jugador un respiro de medio segundo. Sin ella, la
+    // fase 2 solo se nota en que te matan más rápido.
+    mb.invul = true; mb.estT = 0; mb.est = "transicion";
+    eBullets.length = 0;
+    telegrafos.length = 0;
+    vfx("emp", mb.x, mb.y, Math.max(W, H) * 1.1, 0.7, { crece: 1.6, desde: 0.15 });
+    vfx("fase", mb.x, mb.y, mb.r * 6, 0.6);
+    onda(mb.x, mb.y, f.ojo, Math.max(W, H), 0.7);
+    flash = Math.max(flash, 0.4);
+    sacudir("heavy"); hitstop(0.08);
+    sfx("fase");
+    texto(W / 2, H * 0.36, f.final ? "FASE FINAL" : "FASE " + (n + 1), f.ojo, 26);
+  }
 }
 
 function actualizarMiniboss(dt) {
   if (!miniboss) return;
-  const d = MINIBOSSES[miniboss.tipo];
-  if (miniboss.flash > 0) miniboss.flash -= dt;
-  d.mover(miniboss, dt);
+  const mb = miniboss, d = JEFES[mb.tipo];
+  if (mb.flash > 0) mb.flash -= dt;
+  if (mb.recoil > 0) mb.recoil = Math.max(0, mb.recoil - dt * 45);
+  mb.estT += dt;
 
-  // Transición de fases usando umbrales del boss data
-  const u2 = d.umbralFase2 || 0.5;
-  const u3 = d.umbralFase3 || 0;
-  const ratio = miniboss.hp / miniboss.hpMax;
-
-  if (miniboss.fase === 1 && ratio < u2) {
-    miniboss.fase = 2;
-    miniboss.cd1 = d.cd1Fase2 || 1.5;
-    miniboss.cd2 = d.cd2Fase2 || 3.5;
-    shake(14, 0.6); texto(miniboss.x, miniboss.y - 70, "¡FASE 2!", "#ff2f6e");
-    beep(90, 0.6, "sawtooth", 0.09, 180);
-  }
-  if (miniboss.fase === 2 && u3 > 0 && ratio < u3) {
-    miniboss.fase = 3;
-    miniboss.cd1 = d.cd1Fase3 || 1.2;
-    miniboss.cd2 = d.cd2Fase3 || 2.0;
-    miniboss.cd3 = d.cd3Fase3 || 3.5;
-    shake(20, 0.9); texto(miniboss.x, miniboss.y - 70, "¡FASE 3!", "#ff0000");
-    beep(70, 0.9, "sawtooth", 0.12, 140); flash = 0.5;
+  // ── AVISO: el jefe todavía no está, pero ya se le siente ──
+  if (mb.est === "aviso") {
+    if (mb.estT > 2.6) { mb.est = "entrada"; mb.estT = 0; }
+    return;
   }
 
-  miniboss.cd1 -= dt;
-  if (miniboss.cd1 <= 0) {
-    d.ataque1(miniboss);
-    const base = miniboss.fase === 3 ? (d.cd1Fase3 || 1.2) : miniboss.fase === 2 ? (d.cd1Fase2 || 1.5) : 2.6;
-    miniboss.cd1 = base * (0.85 + Math.random() * 0.3);
-  }
-  if (miniboss.fase >= 2 && isFinite(miniboss.cd2)) {
-    miniboss.cd2 -= dt;
-    if (miniboss.cd2 <= 0) {
-      d.ataque2(miniboss);
-      const base = miniboss.fase === 3 ? (d.cd2Fase3 || 2.0) : (d.cd2Fase2 || 3.5);
-      miniboss.cd2 = base * (0.85 + Math.random() * 0.3);
+  // ── ENTRADA: baja frenando, con los motores encendidos ──
+  if (mb.est === "entrada") {
+    const k = Math.min(1, mb.estT / 1.9);
+    mb.y = (-d.r - 60) + (mb.baseY + d.r - (-d.r - 60)) * (1 - Math.pow(1 - k, 3));
+    for (let i = 0; i < Q.part * 3; i++) {
+      part(mb.x + rand(-mb.r, mb.r), mb.y + mb.r * 0.7, rand(-60, 60), rand(120, 300),
+        rand(0.2, 0.45), i % 3 ? d.color(T) : "#ffffff", rand(1.5, 3.6));
     }
+    if (k >= 1) {
+      mb.est = "combate"; mb.estT = 0; mb.invul = false;
+      mb.baseY = mb.y;
+      cambiarFase(mb, 0);
+      sacudir("heavy");
+      onda(mb.x, mb.y, d.color(T), mb.r * 7, 0.6);
+      vfx("anillo", mb.x, mb.y, mb.r * 6, 0.5);
+    }
+    return;
   }
-  if (miniboss.fase === 3 && d.ataque3 && isFinite(miniboss.cd3)) {
-    miniboss.cd3 -= dt;
-    if (miniboss.cd3 <= 0) {
-      d.ataque3(miniboss);
-      miniboss.cd3 = (d.cd3Fase3 || 3.5) * (0.85 + Math.random() * 0.3);
+
+  // ── TRANSICIÓN entre fases ──
+  if (mb.est === "transicion") {
+    mb.faseT += dt;
+    d.fases[mb.fase].mover(mb, dt);
+    if (mb.estT > 1.1) { mb.est = "combate"; mb.estT = 0; mb.invul = false; }
+    return;
+  }
+
+  // ── MUERTE CINEMÁTICA ──
+  if (mb.est === "muriendo") {
+    mb.muerteT += dt;
+    mb.x += Math.sin(mb.muerteT * 22) * 90 * dt;
+    mb.y += 16 * dt;
+    // 1 · Fallos internos en cadena
+    if (mb.muerteT < 1.9) {
+      if (Math.random() < 0.55) {
+        const a = rand(0, TAU), rr = rand(0, mb.r * 0.85);
+        const ex = mb.x + Math.cos(a) * rr, ey = mb.y + Math.sin(a) * rr;
+        vfx("exp_basica", ex, ey, rand(60, 130), 0.35);
+        boom(ex, ey, "#ffcf5c", 8, 1);
+        sfx("exp_peq", { vol: 0.6 });
+        sacudir("tiny");
+      }
+      if (mb.muerteT > 1.5) flash = Math.max(flash, (mb.muerteT - 1.5) / 0.4 * 0.5);
+    }
+    // 2 · Detonación principal
+    else if (!mb.detonado) {
+      mb.detonado = true;
+      flash = 0.9;
+      hitstop(0.16);
+      sacudir("boss");
+      sfx("exp_boss");
+      vfx("exp_boss", mb.x, mb.y, mb.r * 11, 1.4, { crece: 1.6, desde: 0.3 });
+      vfx("ultimate", mb.x, mb.y, mb.r * 7, 1.0);
+      onda(mb.x, mb.y, "#ffffff", Math.max(W, H) * 1.2, 0.9);
+      onda(mb.x, mb.y, d.color(T), mb.r * 14, 1.1);
+      boom(mb.x, mb.y, d.color(T), 110, 3);
+      restos(mb.x, mb.y, "#ffcf5c", 70, 2.4);
+      eBullets.length = 0; telegrafos.length = 0;
+    }
+    // 3 · Silencio breve y VICTORIA
+    else if (mb.muerteT > 3.1) {
+      score += d.puntos;
+      texto(W / 2, H * 0.42, "+" + d.puntos.toLocaleString("es"), "#ffd700", 30);
+      texto(W / 2, H * 0.48, d.nombre + " DESTRUIDO", "#ffffff", 18);
+      sfx("victoria");
+      for (const tipo of d.drops) soltarPremio(W / 2 + rand(-W * 0.3, W * 0.3), H * 0.3 + rand(-40, 40), tipo);
+      miniboss = null;
+      musica("combate");
+    }
+    return;
+  }
+
+  // ── COMBATE ──
+  mb.faseT += dt;
+  const f = d.fases[mb.fase];
+  f.mover(mb, dt);
+
+  // Cambio de fase por umbral de vida
+  const ratio = mb.hp / mb.hpMax;
+  if (mb.fase + 1 < d.fases.length && ratio <= d.fases[mb.fase + 1].umbral) {
+    cambiarFase(mb, mb.fase + 1);
+    return;
+  }
+
+  for (let i = 0; i < f.ataques.length; i++) {
+    const a = f.ataques[i];
+    mb.cds[i] -= dt;
+    if (a.avisa && !mb.avisados) mb.avisados = {};
+    if (a.avisa && mb.cds[i] <= a.avisa && !mb.avisados[i]) { mb.avisados[i] = 1; a.telegrafo(mb); }
+    if (mb.cds[i] <= 0) {
+      a.fn(mb);
+      mb.cds[i] = rand(a.cd[0], a.cd[1]);
+      if (mb.avisados) mb.avisados[i] = 0;
     }
   }
 
   // Impactos de balas del jugador
-  for (let j = bullets.length - 1; j >= 0; j--) {
-    const b = bullets[j];
-    if (b.cd > 0) continue;
-    const dx = b.x - miniboss.x, dy = b.y - miniboss.y;
-    if (dx * dx + dy * dy >= (b.r + miniboss.r * 0.86) ** 2) continue;
-    miniboss.hp -= b.dmg; miniboss.flash = 0.07; bulletsHit++;
-    const gastada = golpearCon(b, b.x, b.y, null);
-    if (gastada) soltarBala(j);
-    if (miniboss.hp <= 0) { matarMiniboss(); return; }
-    if (gastada) break;
-  }
-
-  // Colisión con el jugador
-  if (miniboss) {
-    const dx = player.x - miniboss.x, dy = player.y - miniboss.y;
-    if (dx * dx + dy * dy < (hitR() + miniboss.r * 0.8) ** 2) golpe();
+  if (!mb.invul) {
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const dx = b.x - mb.x, dy = b.y - mb.y;
+      if (dx * dx + dy * dy >= (b.r + mb.r * 0.84) ** 2) continue;
+      mb.hp -= b.dmg; mb.flash = 0.07; bulletsHit++;
+      const gastada = golpearCon(b, b.x, b.y, null);
+      if (gastada) soltarBala(j);
+      if (mb.hp <= 0) { matarMiniboss(); return; }
+      if (gastada) break;
+    }
+    const dx = player.x - mb.x, dy = player.y - mb.y;
+    if (dx * dx + dy * dy < (hitR() + mb.r * 0.78) ** 2) golpe();
   }
 }
 
 function matarMiniboss() {
-  const d = MINIBOSSES[miniboss.tipo];
-  // Explosión en oleadas con retraso visual
-  boom(miniboss.x, miniboss.y, d.color(T), 90, 2.8);
-  boom(miniboss.x + rand(-30,30), miniboss.y + rand(-20,20), "#ffffff", 40, 1.8);
-  shake(22, 0.9); ruido(0.7, 0.15);
-  onda(miniboss.x, miniboss.y, d.color(T), miniboss.r * 14, 1.0);
-  onda(miniboss.x, miniboss.y, "#ffffff", miniboss.r * 8, 0.6);
-  flash = 0.7;
-  score += d.puntos; maxCombo = Math.max(maxCombo, combo); combo = 0; comboT = 0;
-  texto(miniboss.x, miniboss.y - 50, "+" + d.puntos + " BOSS!", T.bala);
-  beep(80, 0.9, "sawtooth", 0.12, 160);
-  for (const tipo of d.drops) soltarPremio(miniboss.x + rand(-40, 40), miniboss.y + rand(-20, 20), tipo);
-  // Limpiar proyectiles del boss al morir
-  eBullets.length = 0;
-  miniboss = null;
+  const mb = miniboss;
+  mb.hp = 0; mb.est = "muriendo"; mb.estT = 0; mb.muerteT = 0;
+  mb.invul = true; mb.detonado = false;
+  maxCombo = Math.max(maxCombo, combo);
+  telegrafos.length = 0;
+  hitstop(0.1);
+  sacudir("heavy");
+  sfx("exp_grande");
 }
 
+// ── Dibujo del jefe ───────────────────────────────────────
 function dibujarMiniboss() {
   if (!miniboss) return;
-  const d = MINIBOSSES[miniboss.tipo];
+  const mb = miniboss, d = JEFES[mb.tipo];
   const col = d.color(T);
-  ctx.save(); ctx.translate(miniboss.x, miniboss.y);
-  ctx.beginPath();
-  FORMAS.acorazado({ r: miniboss.r, giro: miniboss.faseT * 0.04 });
-  const lw = Math.max(3, miniboss.r * 0.12);
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = mezcla(col, "#ffffff", 0.55); ctx.lineWidth = lw + 8; ctx.stroke();
-  ctx.strokeStyle = TINTA; ctx.lineWidth = lw + 3; ctx.stroke();
-  const g = ctx.createLinearGradient(0, -miniboss.r, 0, miniboss.r);
-  g.addColorStop(0, mezcla(col, "#fff", 0.42));
-  g.addColorStop(0.5, col);
-  g.addColorStop(1, mezcla(col, TINTA, 0.5));
-  ctx.fillStyle = miniboss.flash > 0 ? "#ffffff" : g; ctx.fill();
-  if (miniboss.fase >= 2) {
-    const glow = 0.4 + 0.3 * Math.sin(performance.now() / 150);
-    ctx.globalAlpha = glow;
-    ctx.fillStyle = miniboss.fase === 3 ? "#ff0000" : "#ff2f6e";
-    ctx.beginPath(); ctx.arc(0, 0, miniboss.r * (miniboss.fase === 3 ? 0.44 : 0.3), 0, TAU); ctx.fill();
-    if (miniboss.fase === 3) {
-      ctx.globalAlpha = glow * 0.5; ctx.fillStyle = "#ffaa00";
-      ctx.beginPath(); ctx.arc(0, 0, miniboss.r * 0.22, 0, TAU); ctx.fill();
+  const f = d.fases[mb.fase] || d.fases[0];
+  if (mb.est === "aviso") return;
+
+  const sp = SPRITES[d.sp];
+  ctx.save();
+  ctx.translate(mb.x, mb.y - mb.recoil * 0.6);
+  if (mb.est === "muriendo") ctx.rotate(Math.sin(mb.muerteT * 9) * 0.06);
+
+  // Aura de fase. Es la señal grande de que algo ha cambiado, visible
+  // desde el otro lado de la pantalla.
+  if (mb.est !== "entrada") {
+    const p = 0.5 + 0.5 * Math.sin(performance.now() / (f.furia ? 130 : 260));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = (f.furia ? 0.3 : 0.16) + p * 0.16;
+    const g = ctx.createRadialGradient(0, 0, mb.r * 0.5, 0, 0, mb.r * 2);
+    g.addColorStop(0, f.ojo); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, mb.r * 2, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+  }
+
+  if (sp) {
+    if (Q.sombras) { ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 18; }
+    pintarSprite(sp, mb.r * 2.5);
+    ctx.shadowBlur = 0;
+    const enc = mb.flash > 0 ? Math.min(1, mb.flash * 10)
+      : mb.est === "transicion" ? 0.35 + 0.25 * Math.sin(performance.now() / 70) : 0;
+    if (enc > 0) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = enc;
+      pintarSprite(sp, mb.r * 2.5);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
     }
+  } else {
+    ctx.beginPath();
+    FORMAS.acorazado({ r: mb.r, giro: mb.faseT * 0.04 });
+    const lw = Math.max(3, mb.r * 0.12);
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = mezcla(col, "#ffffff", 0.55); ctx.lineWidth = lw + 8; ctx.stroke();
+    ctx.strokeStyle = TINTA; ctx.lineWidth = lw + 3; ctx.stroke();
+    const g = ctx.createLinearGradient(0, -mb.r, 0, mb.r);
+    g.addColorStop(0, mezcla(col, "#fff", 0.42));
+    g.addColorStop(0.5, col);
+    g.addColorStop(1, mezcla(col, TINTA, 0.5));
+    ctx.fillStyle = mb.flash > 0 ? "#ffffff" : g; ctx.fill();
+  }
+
+  // Ojo/núcleo: cambia de color con la fase. Es el indicador más barato
+  // y más legible de "esto ya no es lo de antes".
+  if (mb.est !== "entrada") {
+    const p = 0.55 + 0.45 * Math.sin(performance.now() / (f.furia ? 110 : 230));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = p * 0.9;
+    const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, mb.r * 0.5);
+    g2.addColorStop(0, "#ffffff"); g2.addColorStop(0.35, f.ojo);
+    g2.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.arc(0, 0, mb.r * 0.5, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+}
 
-  // Barra de HP del jefe en la parte inferior
-  const bW = W * 0.65, bH = 10, bX = (W - bW) / 2, bY = H - 34;
-  ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(bX - 4, bY - 20, bW + 8, bH + 28);
-  ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(bX, bY, bW, bH);
-  const fill = Math.max(0, miniboss.hp / miniboss.hpMax);
-  ctx.fillStyle = fill > 0.5 ? "#ff2f6e" : fill > 0.25 ? "#ff8a1f" : "#ffffff";
+// La barra va aparte del jefe: es HUD, no mundo, y no debe temblar con
+// la sacudida de cámara ni quedar tapada por una explosión.
+function barraJefe() {
+  if (!miniboss || miniboss.est === "aviso") return;
+  const mb = miniboss, d = JEFES[mb.tipo];
+  const f = d.fases[mb.fase] || d.fases[0];
+  // Debajo del bloque de marcador, no encima: el nombre del jefe pisando
+  // los puntos hace ilegibles las dos cosas.
+  const bW = Math.min(W - 40, 460), bH = 9;
+  const bX = (W - bW) / 2, bY = SAFE_TOP + 128;
+  const ent = mb.est === "entrada" ? Math.min(1, mb.estT / 0.6) : 1;
+  ctx.save();
+  ctx.globalAlpha = ent;
+  ctx.textBaseline = "middle";
+
+  ctx.textAlign = "center";
+  ctx.font = "800 " + Math.round(clamp(W * 0.05, 16, 22)) + "px " + F;
+  ctx.fillStyle = "#fff";
+  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 6;
+  letras(d.nombre, W / 2, bY - 26, 3, "center");
+  ctx.font = "700 9px " + F; ctx.fillStyle = f.ojo; ctx.globalAlpha = ent * 0.8;
+  letras(d.titulo, W / 2, bY - 10, 1.8, "center");
+  ctx.globalAlpha = ent;
+
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(bX - 2, bY - 2, bW + 4, bH + 4);
+  ctx.fillStyle = "rgba(255,255,255,0.1)";
+  ctx.fillRect(bX, bY, bW, bH);
+  const fill = Math.max(0, mb.hp / mb.hpMax);
+  const g = ctx.createLinearGradient(bX, 0, bX + bW, 0);
+  g.addColorStop(0, mezcla(f.ojo, "#ffffff", 0.4));
+  g.addColorStop(1, f.ojo);
+  ctx.fillStyle = mb.flash > 0 ? "#ffffff" : g;
   ctx.fillRect(bX, bY, bW * fill, bH);
-  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.85;
-  ctx.font = "700 10px " + F; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(d.nombre + "  —  FASE " + miniboss.fase, W / 2, bY - 9);
+  // Marcas de umbral: se ve cuánto falta para el siguiente cambio.
+  for (let i = 1; i < d.fases.length; i++) {
+    const u = d.fases[i].umbral;
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(bX + bW * u - 1, bY - 2, 2, bH + 4);
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
   ctx.globalAlpha = 1;
 }
 
@@ -2251,6 +2815,7 @@ function spawnEnemy(tipo, x) {
     vy: CONFIG.velocidadEnemigo * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
     cd: d.recarga ? d.recarga() : 0, flash: 0,
+    recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
   };
   if (d.init) d.init(e);
   enemies.push(e);
@@ -2284,6 +2849,17 @@ function danioArea(x, y, r, dmg, excluir) {
   }
 }
 let rayos = [];
+// Estallido de bomba: hace daño durante los primeros 160 ms y luego solo
+// es humo. La ventana corta es lo que permite salir del radio a tiempo.
+let estallidos = [];
+function estallido(x, y, r) {
+  estallidos.push({ x, y, r, t: 0, life: 0.45, hecho: 0 });
+  vfx("exp_media", x, y, r * 3.2, 0.42);
+  boom(x, y, "#ff8a1f", 22, 1.2);
+  onda(x, y, "#ff8a1f", r * 2.2, 0.4);
+  sacudir("small");
+  sfx("exp_med");
+}
 function cadenaElectrica(b, x, y, victima) {
   const o = enemigoMasCerca(x, y, 150, victima);
   if (!o) return;
@@ -2336,7 +2912,7 @@ function hitoCombo() {
 }
 
 function cogerPremio(p) {
-  const d = PREMIOS[p.tipo];
+  const d = premio(p.tipo);
   sfx("pickup");
   vfx("chispa", p.x, p.y, 96, 0.34);
   boom(p.x, p.y, d.color, 18, 0.9);
@@ -2594,9 +3170,22 @@ function update(dt) {
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.y > H + 24 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
+    if (b.bomba && b.y >= b.explotaY) { estallido(b.x, b.y, b.bomba); eBullets.splice(i, 1); continue; }
+    if (b.y > H + 24 || b.y < -140 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
     const dx = b.x - player.x, dy = b.y - player.y;
-    if (dx * dx + dy * dy < (b.r + hitR()) ** 2) { eBullets.splice(i, 1); golpe(); }
+    if (dx * dx + dy * dy < (b.r + hitR()) ** 2) {
+      if (b.bomba) estallido(b.x, b.y, b.bomba);
+      eBullets.splice(i, 1); golpe();
+    }
+  }
+  for (let i = estallidos.length - 1; i >= 0; i--) {
+    const x = estallidos[i];
+    x.t += dt;
+    if (x.t < 0.16 && !x.hecho) {
+      const dx = player.x - x.x, dy = player.y - x.y;
+      if (dx * dx + dy * dy < (x.r + hitR()) ** 2) { x.hecho = 1; golpe(); }
+    }
+    if (x.t >= x.life) estallidos.splice(i, 1);
   }
 
   // Spawn: campaña vs supervivencia
@@ -2612,15 +3201,6 @@ function update(dt) {
     }
     // Procesar eventos de la misión
     const mision = MISIONES[misionIdx];
-    // Aviso de boss 5 segundos antes
-    if (!miniboss && eventoIdx < mision.eventos.length) {
-      const siguiente = mision.eventos[eventoIdx];
-      if (siguiente.fn === "miniboss" && elapsed >= siguiente.t - 3 && warningT <= 0) {
-        warningT = 3;
-        texto(W / 2, H * 0.3, "¡JEFE ENTRANTE!", "#ff4444");
-        beep(180, 0.5, "sawtooth", 0.07, 360);
-      }
-    }
     while (eventoIdx < mision.eventos.length) {
       const ev = mision.eventos[eventoIdx];
       if (elapsed < ev.t) break;
@@ -2651,6 +3231,7 @@ function update(dt) {
   }
 
   // Sistemas de misión
+  actualizarTelegrafos(dt);
   actualizarHazards(dt);
   actualizarDefensas(dt);
   actualizarZonas(dt);
@@ -2670,9 +3251,19 @@ function update(dt) {
     d.mover(e, edt);
     if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
 
+    if (e.recoil > 0) e.recoil = Math.max(0, e.recoil - dt * 48);
+    if (e.escFlash > 0) e.escFlash -= dt;
+    if (e.onda > 0) e.onda = Math.max(0, e.onda - dt * 4);
+    if (d.estela && Q.estela && Math.random() < 0.7) {
+      part(e.x, e.y, rand(-20, 20), rand(-70, -20), 0.26, d.color(T), rand(1, 2.4));
+    }
+
     if (d.atacar) {
       e.cd -= edt;
-      if (e.cd <= 0 && e.y > 30) { e.cd = d.recarga(); d.atacar(e); }
+      // El aviso sale ANTES del ataque, no con él. Esa fracción de
+      // segundo es toda la diferencia entre esquivar y adivinar.
+      if (d.avisa && !e.avisado && e.cd <= d.avisa && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
+      if (e.cd <= 0 && e.y > 30) { e.cd = d.recarga(); e.avisado = 0; d.atacar(e); }
     }
 
     let muerto = false;
@@ -2681,7 +3272,8 @@ function update(dt) {
       if (b.cd > 0) continue;
       const bx = b.x - e.x, by = b.y - e.y;
       if (bx * bx + by * by >= (b.r + e.r) ** 2) continue;
-      e.hp -= b.dmg; e.flash = 0.09; bulletsHit++;
+      e.hp -= d.alGolpe ? d.alGolpe(e, b, b.dmg) : b.dmg;
+      e.flash = 0.09; bulletsHit++;
       const gastada = golpearCon(b, b.x, b.y, e);
       if (gastada) soltarBala(j);
       if (e.hp <= 0) { matar(e, i); muerto = true; break; }
@@ -2706,7 +3298,7 @@ function update(dt) {
     else p.y += p.vy * dt;
     if (Q.estela && Math.random() < 0.35) {
       part(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), rand(-12, 12), rand(-30, -8),
-        rand(0.3, 0.6), PREMIOS[p.tipo].color, rand(0.8, 1.8));
+        rand(0.3, 0.6), premio(p.tipo).color, rand(0.8, 1.8));
     }
     if (p.y > H + 30) { premios.splice(i, 1); continue; }
     // Recogida generosa: perder una mejora por dos píxeles no enseña nada.
@@ -2939,20 +3531,43 @@ function dibujarNave(x, y, r, ang) {
 function dibujarEnemigo(e) {
   const d = ENEMIGOS[e.tipo];
   ctx.save();
-  ctx.translate(e.x, e.y);
+  // El retroceso empuja el dibujo hacia ATRÁS al disparar. Son cuatro
+  // píxeles y medio fotograma, pero es lo que hace que el cañón parezca
+  // tener masa en vez de escupir balas.
+  ctx.translate(e.x, e.y - (e.recoil || 0));
 
   const sp = SPRITES["e_" + e.tipo];
   if (sp) {
     // Sombra propia: despega el dibujo del fondo sin teñirlo
-    ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = 9;
+    if (Q.sombras) { ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = 9; }
+    ctx.save();
+    if (d.rota && e.giro) ctx.rotate(e.giro);
     pintarSprite(sp, e.r * 2.4);
-    ctx.shadowBlur = 0;
-    if (e.flash > 0) {   // fogonazo blanco recortado por el propio dibujo
-      ctx.globalCompositeOperation = "source-atop";
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.fillRect(-e.r * 2, -e.r * 2, e.r * 4, e.r * 4);
+    // Fogonazo al recibir un impacto: se REPINTA el sprite en aditivo.
+    // La tentación es un rectángulo blanco con source-atop, pero el
+    // destino aquí es el lienzo entero —que es opaco—, así que eso pinta
+    // un cuadrado gris alrededor del enemigo en vez de encenderlo.
+    if (e.flash > 0) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = Math.min(1, e.flash * 9);
+      pintarSprite(sp, e.r * 2.4);
+      pintarSprite(sp, e.r * 2.4);
       ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
     }
+    ctx.restore();
+    ctx.shadowBlur = 0;
+    if (e.lentoT > 0) {   // escarcha: el congelado tiene que verse
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.3 + 0.12 * Math.sin(performance.now() / 180);
+      const gf = ctx.createRadialGradient(0, 0, e.r * 0.3, 0, 0, e.r * 1.5);
+      gf.addColorStop(0, "#bfe9ff"); gf.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gf;
+      ctx.beginPath(); ctx.arc(0, 0, e.r * 1.5, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
+    if (d.dibujarExtra) d.dibujarExtra(e);
   } else {
     const col = d.color(T);
     ctx.beginPath();
@@ -3007,7 +3622,7 @@ function dibujarEnemigo(e) {
 //  propio brillo. Lo que hace tiene nombre — pero el nombre aparece al
 //  cogerlo, no impreso encima.
 function dibujarPremio(p) {
-  const d = PREMIOS[p.tipo];
+  const d = premio(p.tipo);
   const pulso = 0.5 + 0.5 * Math.sin(p.f);
   const bob = Math.sin(p.t * 2.4) * 3.5;
   const s = 1 + pulso * 0.07;
@@ -3152,7 +3767,9 @@ function hud() {
   //  Solo aparece cuando hay algo que decir, y el arco enseña cuánto
   //  queda antes de perderlo. Un número suelto no avisa de nada.
   if (combo >= 3) {
-    const cy = top + 84, cx = W / 2;
+    // Con jefe en pantalla el centro lo ocupa su barra: el combo se
+    // aparta al lado en vez de superponerse.
+    const cy = top + 84, cx = miniboss ? W - 40 : W / 2;
     const k = clamp(comboT / CONFIG.comboTiempo, 0, 1);
     ctx.globalAlpha = Math.min(1, comboT * 2.5);
     ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 3;
@@ -3569,6 +4186,25 @@ function render() {
     // SUS disparos: redondos y rosas, SIEMPRE. Es la única cosa del juego
     // que no cambia nunca de aspecto, porque es la que te mata.
     for (const b of eBullets) {
+      // La lanza del francotirador es la única bala enemiga que rompe la
+      // regla del círculo rosa, y lo hace a propósito: es el disparo que
+      // hay que reconocer al instante y por el que se muere.
+      if (b.lanza) {
+        const sp = SPRITES["pe_lanza"];
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+        if (sp) {
+          const alto = 92, ancho = alto * sp.width / sp.height;
+          ctx.drawImage(sp, -ancho / 2, -alto / 2, ancho, alto);
+        } else {
+          ctx.fillStyle = TIRO_SUYO;
+          ctx.fillRect(-b.r * 0.5, -34, b.r, 68);
+        }
+        ctx.restore();
+        ctx.globalCompositeOperation = "source-over";
+        continue;
+      }
       if (b.halo !== false) {
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = 0.5;
@@ -3588,6 +4224,19 @@ function render() {
     }
 
     dibujarZonas();
+    dibujarTelegrafos();
+    for (const x of estallidos) {
+      const k = x.t / x.life;
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = (1 - k) * 0.5;
+      const g = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, x.r * (0.6 + k * 0.9));
+      g.addColorStop(0, "#fff3c4"); g.addColorStop(0.5, "#ff8a1f");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x.x, x.y, x.r * (0.6 + k * 0.9), 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
     dibujarDefensas();
     dibujarHazards();
     for (const e of enemies) dibujarEnemigo(e);
@@ -3615,7 +4264,7 @@ function render() {
   if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
 
   if (state === "menu") menu();
-  else hud();
+  else { hud(); barraJefe(); }
 
   // Pantalla de resultados (game over)
   if (state === "over") {
@@ -3684,16 +4333,52 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // Banner WARNING de boss
+  // ── AVISO DE JEFE ──
+  //  Franjas diagonales que barren, el nombre entrando desde los lados y
+  //  el título debajo. Dura lo que dura la pausa dramática, y en ese
+  //  tiempo no hay nada que esquivar: es el momento de mirar.
   if (state === "play" && warningT > 0) {
-    const pulse = Math.sin(performance.now() / 80) * 0.5 + 0.5;
-    const fade = Math.min(1, warningT * 2);
+    const jefe = miniboss && JEFES[miniboss.tipo];
+    const pulse = Math.sin(performance.now() / 90) * 0.5 + 0.5;
+    const fade = Math.min(1, warningT * 2.2, (2.6 - warningT) * 4);
+    const y0 = H * 0.34, alto = 108;
+    ctx.save();
     ctx.globalAlpha = fade;
-    ctx.fillStyle = "rgba(220,20,20," + (0.75 + pulse * 0.25) + ")";
-    ctx.fillRect(0, H * 0.17, W, 42);
-    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "800 17px " + F;
-    ctx.fillText("!! JEFE ENTRANTE !!", W / 2, H * 0.17 + 21);
+    ctx.fillStyle = "rgba(4,5,12,0.82)";
+    ctx.fillRect(0, y0, W, alto);
+    // Cebra diagonal en los bordes de la franja
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y0, W, 14); ctx.rect(0, y0 + alto - 14, W, 14); ctx.clip();
+    ctx.fillStyle = "#ff2f6e";
+    const off = (performance.now() / 26) % 44;
+    for (let x = -60; x < W + 60; x += 44) {
+      ctx.beginPath();
+      ctx.moveTo(x + off, y0); ctx.lineTo(x + off + 20, y0);
+      ctx.lineTo(x + off - 8, y0 + alto); ctx.lineTo(x + off - 28, y0 + alto);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle = "#ff2f6e"; ctx.globalAlpha = fade * (0.6 + pulse * 0.4);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y0 + 14); ctx.lineTo(W, y0 + 14);
+    ctx.moveTo(0, y0 + alto - 14); ctx.lineTo(W, y0 + alto - 14);
+    ctx.stroke();
+
+    ctx.globalAlpha = fade;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ff2f6e";
+    ctx.font = "800 12px " + F;
+    letras("A L E R T A", W / 2, y0 + 34, 4, "center");
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 " + Math.round(clamp(W * 0.075, 22, 34)) + "px " + F;
+    letras(jefe ? jefe.nombre : "JEFE ENTRANTE", W / 2, y0 + 60, 4, "center");
+    if (jefe) {
+      ctx.globalAlpha = fade * 0.65;
+      ctx.fillStyle = "#ffffff"; ctx.font = "700 9px " + F;
+      letras(jefe.titulo, W / 2, y0 + 82, 1.8, "center");
+    }
+    ctx.restore();
     ctx.globalAlpha = 1;
   }
 
@@ -3755,9 +4440,18 @@ function loop(now) {
   let dt = real;
   if (hitStop > 0) { hitStop -= real; dt = real * 0.06; }
 
-  update(dt); render();
+  // Una excepción dentro de update() o render() rompía la cadena de
+  // requestAnimationFrame y dejaba el juego CONGELADO para siempre: un
+  // fallo de un fotograma se convertía en una partida perdida. Ahora se
+  // registra una vez y se sigue jugando.
+  try { update(dt); render(); }
+  catch (err) {
+    if (!fallos[err.message]) { fallos[err.message] = 1; console.error("fallo en el bucle:", err); }
+    fallos[err.message]++;
+  }
   requestAnimationFrame(loop);
 }
+const fallos = {};
 requestAnimationFrame(loop);
 </script>
 </body>
