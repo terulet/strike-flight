@@ -1210,6 +1210,8 @@ const PREMIOS = {
   void:      { sp:"pu_void",      color:"#b45cff", nombre:"VACÍO",      familia:"void"      },
   railgun:   { sp:"pu_railgun",   color:"#ffffff", nombre:"RAÍL",       familia:"railgun"   },
   rapid:     { sp:"pu_rapid",     color:"#8affd1", nombre:"REPETIDOR",  familia:"rapid"     },
+  x2:        { sp:"pu_x2",        color:"#ffd700", nombre:"PUNTOS ×2" },
+  iman:      { sp:"pu_iman",      color:"#ff5c8a", nombre:"IMÁN" },
 };
 // Un premio sin ficha no puede tumbar el juego: cae al premio de arma.
 const premio = t => PREMIOS[t] || PREMIOS.arma;
@@ -1895,7 +1897,10 @@ function spawnHazard() {
   if (lado === 1) { x = -d.r - 5; y = rand(H * 0.08, H * 0.65); vx = rand(70, 120); vy = rand(80, 140); }
   else if (lado === 2) { x = W + d.r + 5; y = rand(H * 0.08, H * 0.65); vx = rand(-120, -70); vy = rand(80, 140); }
   else { x = rand(d.r + 30, W - d.r - 30); y = -(d.r + 20); }
-  hazards.push({ tipo: hazardTipo, x, y, r: d.r, vx, vy,
+  hazards.push({ tipo: hazardTipo, x, y, r: d.r * rand(0.8, 1.25), vx, vy,
+    // Dos dibujos de asteroide alternados: una lluvia de veinte piedras
+    // idénticas se lee como un patrón, no como escombro.
+    alt: hazardTipo === "asteroide" && Math.random() < 0.5,
     giro: rand(0, TAU), giroV: rand(0.8, 2.4) * (Math.random() > 0.5 ? 1 : -1),
     hp: d.hp, warnT: lado === 0 ? 1.0 : 0 });
 }
@@ -1942,7 +1947,7 @@ function actualizarHazards(dt) {
 function dibujarHazards() {
   for (const h of hazards) {
     const esC = h.tipo === "cristal";
-    const sp = SPRITES["hz_" + h.tipo];
+    const sp = SPRITES[h.alt ? "hz_asteroide2" : "hz_" + h.tipo];
     if (h.warnT > 0) {
       const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 90);
       ctx.save(); ctx.globalAlpha = pulse;
@@ -2154,6 +2159,7 @@ let player, bullets, eBullets, enemies, premios, particles, bg, flotantes, ondas
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0;
+let dobleT = 0, imanT = 0;   // puntos ×2 e imán de premios, por tiempo
 let targetX, targetY, dragging = false, bank = 0;
 let naveRects = [], masRect = null;
 
@@ -2252,7 +2258,7 @@ function reset() {
   paused = false; warningT = 0; dragging = false;
   efectos.length = 0; fogonazos.length = 0; hitStop = 0;
   telegrafos.length = 0; estallidos.length = 0; rayos.length = 0;
-  sinDanio = true; comboHito = 0; bombaT = 0;
+  sinDanio = true; comboHito = 0; bombaT = 0; dobleT = 0; imanT = 0;
 }
 
 // ── Campaña ──────────────────────────────────────────────
@@ -2289,7 +2295,9 @@ function elegirPremioAleatorio() {
   if (r > 0.945) return "vida";
   if (r > 0.855) return "bomba";
   if (r > 0.715) return "escudo";
-  if (r > 0.595) return "rapido";
+  if (r > 0.635) return "rapido";
+  if (r > 0.615) return "x2";
+  if (r > 0.595) return "iman";
   if (r > 0.435) {
     const fam = armasDeMision();
     return fam[(Math.random() * fam.length) | 0];
@@ -2994,7 +3002,7 @@ function cerrarMision() {
 }
 
 const HITOS = [5, 10, 25, 50, 100];
-const multCombo = () => 1 + Math.floor(combo / 8);
+const multCombo = () => (1 + Math.floor(combo / 8)) * (dobleT > 0 ? 2 : 1);
 function hitoCombo() {
   for (const h of HITOS) {
     if (combo === h && comboHito < h) {
@@ -3025,6 +3033,8 @@ function cogerPremio(p) {
   else if (p.tipo === "escudo") { escudo = 1; sfx("escudo_on"); }
   else if (p.tipo === "vida") { lives = Math.min(lives + 1, 6); sfx("mejora"); }
   else if (p.tipo === "rapido") turbo = 8;
+  else if (p.tipo === "x2") dobleT = 14;
+  else if (p.tipo === "iman") imanT = 14;
   else if (p.tipo === "bomba") bombas = Math.min(bombas + 1, 5);
 }
 
@@ -3191,6 +3201,8 @@ function update(dt) {
   elapsed += dt;
   if (invulnT > 0) invulnT -= dt;
   if (turbo > 0) turbo -= dt;
+  if (dobleT > 0) dobleT -= dt;
+  if (imanT > 0) imanT -= dt;
   if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
 
   // Teclado: aplica desplazamiento al destino para fusionarse con el táctil
@@ -3398,7 +3410,8 @@ function update(dt) {
     p.f += dt * 4; p.t += dt; p.giro += dt * 1.1;
     const dx = player.x - p.x, dy = player.y - p.y;
     const d = Math.hypot(dx, dy);
-    if (d < 165) { p.x += (dx / d) * 260 * dt; p.y += (dy / d) * 260 * dt; }
+    const alcance = imanT > 0 ? 520 : 165;
+    if (d < alcance) { p.x += (dx / d) * (imanT > 0 ? 460 : 260) * dt; p.y += (dy / d) * (imanT > 0 ? 460 : 260) * dt; }
     else p.y += p.vy * dt;
     if (Q.estela && Math.random() < 0.35) {
       part(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), rand(-12, 12), rand(-30, -8),
@@ -3928,11 +3941,22 @@ function hud() {
     ctx.fillStyle = i < arma ? aData.col : "rgba(255,255,255,0.14)";
     ctx.fillRect(W / 2 - pipTot / 2 + i * pipW, by + 22, pipW - 3, 4);
   }
-  if (turbo > 0) {
-    ctx.fillStyle = "#8affd1"; ctx.font = "800 9px " + F;
-    ctx.globalAlpha = 0.85;
-    letras("TURBO " + turbo.toFixed(1), W / 2, by + 36, 1.2, "center");
-    ctx.globalAlpha = 1;
+  // Estados temporales, en una sola línea y solo mientras duran.
+  const activos = [];
+  if (turbo > 0) activos.push(["TURBO " + turbo.toFixed(0), "#8affd1"]);
+  if (dobleT > 0) activos.push(["×2 " + dobleT.toFixed(0), "#ffd700"]);
+  if (imanT > 0) activos.push(["IMÁN " + imanT.toFixed(0), "#ff5c8a"]);
+  if (activos.length) {
+    ctx.font = "800 9px " + F; ctx.globalAlpha = 0.9;
+    let anchoTot = 0;
+    for (const [t] of activos) anchoTot += ctx.measureText(t).width + 14;
+    let ax = W / 2 - anchoTot / 2;
+    for (const [t, col] of activos) {
+      ctx.fillStyle = col; ctx.textAlign = "left";
+      ctx.fillText(t, ax, by + 36);
+      ax += ctx.measureText(t).width + 14;
+    }
+    ctx.globalAlpha = 1; ctx.textAlign = "center";
   }
 
   // Bomba: botón de verdad, en la esquina del pulgar.
