@@ -1,0 +1,5 @@
+# Misión 1 de principio a fin
+
+ipad: CONSOLE fallo en el bucle: TypeError: Cannot read properties of undefined (reading 'x')
+    at update (http://127.0.0.1:53357/:3171:5)
+    at loop (http://127.0.0.1:53357/:4764:9)

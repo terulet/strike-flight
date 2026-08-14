@@ -329,8 +329,6 @@ const JEFES = {
     ],
   },
 };
-// Compatibilidad: el guion de las misiones sigue nombrando "miniboss".
-const MINIBOSSES = JEFES;
 
 // ════════════════════════════════════════════════════════════
 //  MISIONES — guión de la campaña (5 misiones)
@@ -1829,7 +1827,9 @@ function actualizarHazards(dt) {
     const dx = player.x - h.x, dy = player.y - h.y;
     if (dx * dx + dy * dy < (hitR() + h.r * 0.72) ** 2) {
       muerte(h.x, h.y, esCristal(h) ? "#88ddff" : "#ff6600", "media");
-      hazards.splice(i, 1); golpe(); continue;
+      hazards.splice(i, 1); golpe();
+      if (state !== "play") return;
+      continue;
     }
     for (let j = bullets.length - 1; j >= 0; j--) {
       const b = bullets[j];
@@ -1977,7 +1977,7 @@ function actualizarZonas(dt) {
     if (z.fase !== 1 || state !== "play" || paused) continue;
     const dx = player.x - z.x, dy = player.y - z.y;
     if (dx * dx + dy * dy < (hitR() * 0.85 + z.r * 0.82) ** 2) {
-      if (z.damageCd <= 0) { golpe(); z.damageCd = 1.4; }
+      if (z.damageCd <= 0) { golpe(); z.damageCd = 1.4; if (state !== "play") return; }
     }
     if (z.damageCd > 0) z.damageCd -= dt;
   }
@@ -2065,7 +2065,7 @@ let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0;
 let targetX, targetY, dragging = false, bank = 0;
-let menuRects = [], naveRects = [], masRect = null;
+let naveRects = [], masRect = null;
 
 // Estado de campaña
 let modo = "campana";           // "campana" | "supervivencia"
@@ -2074,9 +2074,6 @@ let eventoIdx = 0;
 let spawnQueue = [];            // { tipo, x, y, at } — spawns con retraso de formación
 let miniboss = null;
 let misionCompletaT = 0;       // cuenta regresiva de pantalla de misión completa
-let menuModo = "selector";     // "selector" | "misiones" | "mundos" — sub-estado del menú
-let modoRects = [];            // botones de modo
-let misionRects = [];          // botones de misión en campaña
 
 // Estado de stats, pausa y debug
 let maxCombo = 0;
@@ -2397,7 +2394,7 @@ function actualizarMiniboss(dt) {
       if (gastada) break;
     }
     const dx = player.x - mb.x, dy = player.y - mb.y;
-    if (dx * dx + dy * dy < (hitR() + mb.r * 0.78) ** 2) golpe();
+    if (dx * dx + dy * dy < (hitR() + mb.r * 0.78) ** 2) { golpe(); if (state !== "play") return; }
   }
 }
 
@@ -3166,6 +3163,10 @@ function update(dt) {
     }
     if ((b.vida && b.t > b.vida) || b.y < -40 || b.y > H + 40 || b.x < -40 || b.x > W + 40) soltarBala(i);
   }
+  // OJO con golpe(): al morir vacía eBullets, enemies, premios y compañía.
+  // Si eso pasa a mitad de un bucle que recorre el array hacia atrás, la
+  // siguiente vuelta lee un hueco. De ahí el corte en seco al perder el
+  // estado de juego, en éste y en todos los bucles que puedan golpear.
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt;
@@ -3175,6 +3176,7 @@ function update(dt) {
     if (dx * dx + dy * dy < (b.r + hitR()) ** 2) {
       if (b.bomba) estallido(b.x, b.y, b.bomba);
       eBullets.splice(i, 1); golpe();
+      if (state !== "play") return;
     }
   }
   for (let i = estallidos.length - 1; i >= 0; i--) {
@@ -3182,7 +3184,10 @@ function update(dt) {
     x.t += dt;
     if (x.t < 0.16 && !x.hecho) {
       const dx = player.x - x.x, dy = player.y - x.y;
-      if (dx * dx + dy * dy < (x.r + hitR()) ** 2) { x.hecho = 1; golpe(); }
+      if (dx * dx + dy * dy < (x.r + hitR()) ** 2) {
+        x.hecho = 1; golpe();
+        if (state !== "play") return;
+      }
     }
     if (x.t >= x.life) estallidos.splice(i, 1);
   }
@@ -3283,6 +3288,7 @@ function update(dt) {
       boom(e.x, e.y, d.color(T), 16);
       if (!d.embiste) { muerte(e.x, e.y, d.color(T), d.muerte || "basica"); enemies.splice(i, 1); }
       golpe();
+      if (state !== "play") return;
     }
   }
 
@@ -3670,16 +3676,6 @@ function dibujarPremio(p) {
     ctx.strokeStyle = mezcla(d.color, "#ffffff", 0.85); ctx.lineWidth = 1.6; ctx.stroke();
   }
   ctx.restore();
-}
-
-function corazon(x, y, s, color) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s / 16, s / 16);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(0, 5);
-  ctx.bezierCurveTo(-9, -3, -5, -10, 0, -5);
-  ctx.bezierCurveTo(5, -10, 9, -3, 0, 5);
-  ctx.fill(); ctx.restore();
 }
 
 const F = "-apple-system, system-ui, Segoe UI, Roboto, sans-serif";
@@ -4133,7 +4129,6 @@ function pantallaNaves() {
 // ── Campaña ───────────────────────────────────────────────
 function pantallaCampana() {
   cabecera("CAMPAÑA");
-  misionRects = [];
   const wCard = Math.min(W - 32, 420);
   const disp = H - SAFE_TOP - SAFE_BOTTOM - 96;
   const alto = clamp((disp - 4 * 10) / 5, 52, 78);
@@ -4145,7 +4140,6 @@ function pantallaCampana() {
     const x = (W - wCard) / 2;
     const bloq = i > misionIdx;
     const act = i === misionIdx;
-    misionRects.push({ x, y, w: wCard, h: alto, idx: i });
     boton(x, y, wCard, alto, { sel: act, apagado: bloq, color: tm.nave, r: 14,
       fn: () => {
         if (bloq) { sfx("ui_no"); aviso = "Completa la misión anterior"; avisoT = 2; return; }
@@ -4191,13 +4185,11 @@ function pantallaCampana() {
 // ── Supervivencia ─────────────────────────────────────────
 function pantallaMundos() {
   cabecera("SUPERVIVENCIA");
-  menuRects = [];
   const wCard = Math.min(W - 32, 420);
   const alto = clamp((H - SAFE_TOP - SAFE_BOTTOM - 140) / 4 - 12, 60, 96);
   let y = SAFE_TOP + 84;
   for (const t of TEMAS) {
     const x = (W - wCard) / 2;
-    menuRects.push({ x, y, w: wCard, h: alto, tema: t });
     boton(x, y, wCard, alto, { sel: t.id === T.id, color: t.nave, r: 16,
       fn: () => { T = t; guardarSave({ temaId: T.id }); modo = "supervivencia"; reset(); musica("combate"); } });
     const g = ctx.createLinearGradient(x, y, x + wCard, y + alto);
@@ -4719,7 +4711,7 @@ function render() {
 }
 
 let last = performance.now();
-let calAcc = 0, calBajos = 0;
+let calAcc = 0, calBajos = 0, calAltos = 0;
 function loop(now) {
   const real = Math.min((now - last) / 1000, 0.05);
   last = now;
@@ -4734,9 +4726,18 @@ function loop(now) {
   if (OPCIONES.calidad === "auto" && state === "play" && !paused) {
     calAcc += real;
     if (fps < 46) calBajos += real; else calBajos = Math.max(0, calBajos - real * 0.5);
+    if (fps > 56) calAltos += real; else calAltos = 0;
     if (calAcc > 3) {
       if (calBajos > 1.5 && calidadAuto !== "baja") {
         calidadAuto = calidadAuto === "alta" ? "media" : "baja";
+        calAltos = 0;
+      // Y también hacia arriba: si el bajón era una tormenta puntual, el
+      // juego tiene que recuperar su aspecto en cuanto pase. Subir cuesta
+      // 12 s de fluidez limpia y bajar 1,5 s, a propósito: no queremos
+      // que oscile entre dos calidades cada tres segundos.
+      } else if (calAltos > 12 && calidadAuto !== "alta") {
+        calidadAuto = calidadAuto === "baja" ? "media" : "alta";
+        calAltos = 0;
       }
       calAcc = 0; calBajos = 0;
       Q = CALIDADES[calidadAuto];
