@@ -208,9 +208,9 @@ const FORMACIONES = {
 //    ataques   [{ cd:[min,max], avisa, telegrafo, fn }]
 const JEFES = {
   guardian: {
-    r: 62, hpMax: 800, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
+    r: 62, hpMax: 1100, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
     sp: "bs_guardian", color: t => t.enemigoC,
-    puntos: 2500, drops: ["arma", "escudo", "vida", "bomba"],
+    puntos: 3500, drops: ["arma", "escudo", "vida", "bomba"],
     fases: [
       { umbral: 1, ojo: "#c77dff",
         mover(mb, dt) {
@@ -254,9 +254,9 @@ const JEFES = {
   },
 
   titan: {
-    r: 82, hpMax: 2000, nombre: "TITÁN", titulo: "PLATAFORMA DE ASEDIO CLASE FISURA",
+    r: 82, hpMax: 2600, nombre: "TITÁN", titulo: "PLATAFORMA DE ASEDIO CLASE FISURA",
     sp: "bs_titan", color: t => mezcla(t.enemigoC, "#66ccff", 0.45),
-    puntos: 8000, drops: ["arma", "arma", "escudo", "escudo", "vida", "bomba", "bomba"],
+    puntos: 12000, drops: ["arma", "arma", "escudo", "escudo", "vida", "bomba", "bomba"],
     fases: [
       { umbral: 1, ojo: "#88ddff",
         mover(mb, dt) {
@@ -373,109 +373,199 @@ const MISIONES = [
     ],
   },
   {
-    // M2: identidad = movimiento y esquiva. Asteroides + enemigos rápidos.
+    // M2: identidad = MOVIMIENTO. La lluvia de asteroides va y viene por
+    // tramos: cuatro minutos seguidos de hazard dejan de ser tensión y
+    // pasan a ser ruido de fondo. Cada pausa es un respiro medido.
     nombre: "CINTURÓN DE ASTEROIDES", temaId: "volcan", armas: ["misil", "fuego"],
     desc: "Asteroides en lluvia. Muévete o muere.",
     eventos: [
-      { t:  0, fn:"hazardOn"  },                                     // Lluvia de asteroides
-      { t:  3, fn:"ola", tipo:"veloz",      n:5, patron:"zigzag" },
-      { t:  9, fn:"ola", tipo:"kamikaze",   n:5, patron:"pinza"  },
-      { t: 16, fn:"reward" },
-      { t: 20, fn:"ola", tipo:"veloz",      n:6, patron:"V"      },
-      { t: 27, fn:"ola", tipo:"kamikaze",   n:7, patron:"ola"    },
-      { t: 34, fn:"ola", tipo:"normal",     n:5, patron:"linea"  },
-      { t: 41, fn:"reward" },
-      { t: 46, fn:"ola", tipo:"tanque",     n:2, patron:"linea"  },
-      { t: 53, fn:"ola", tipo:"veloz",      n:8, patron:"zigzag" },
-      { t: 60, fn:"ola", tipo:"kamikaze",   n:8, patron:"pinza"  },
-      { t: 68, fn:"reward" },
-      { t: 73, fn:"ola", tipo:"bombardero", n:3, patron:"V"      },
-      { t: 80, fn:"ola", tipo:"veloz",      n:9, patron:"ola"    },
-      { t: 87, fn:"ola", tipo:"kamikaze",   n:8, patron:"zigzag" },
-      { t: 94, fn:"reward" },
-      { t: 99, fn:"ola", tipo:"tanque",     n:3, patron:"linea"  },
-      { t:106, fn:"ola", tipo:"veloz",      n:7, patron:"V"      },
-      { t:112, fn:"hazardOff" },                                      // Silencio antes del boss
-      { t:118, fn:"miniboss", tipo:"guardian", mult:1.25 },
+      // FASE 1 — El cinturón (0-60s): aprender a leer la lluvia
+      { t:  0, fn:"hazardOn"  },
+      { t:  4, fn:"ola", tipo:"veloz",         n:5, patron:"zigzag" },
+      { t: 11, fn:"ola", tipo:"kamikaze",      n:4, patron:"pinza"  },
+      { t: 18, fn:"reward" },
+      { t: 22, fn:"ola", tipo:"veloz",         n:6, patron:"V"      },
+      { t: 30, fn:"ola", tipo:"normal",        n:5, patron:"linea"  },
+      { t: 38, fn:"ola", tipo:"kamikaze",      n:6, patron:"ola"    },
+      { t: 46, fn:"reward" },
+      { t: 50, fn:"hazardOff" },
+      { t: 52, fn:"ola", tipo:"tanque",        n:2, patron:"linea"  },
+      // FASE 2 — Escoltas (60-125s): el hazard vuelve con compañía pesada
+      { t: 62, fn:"hazardOn" },
+      { t: 64, fn:"ola", tipo:"veloz",         n:8, patron:"zigzag" },
+      { t: 72, fn:"ola", tipo:"bombardero",    n:3, patron:"V"      },
+      { t: 80, fn:"reward" },
+      { t: 84, fn:"ola", tipo:"kamikaze",      n:8, patron:"pinza"  },
+      { t: 92, fn:"ola", tipo:"veloz",         n:9, patron:"ola"    },
+      { t:100, fn:"ola", tipo:"torreta",       n:4, patron:"linea"  },
+      { t:108, fn:"reward" },
+      { t:112, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
+      { t:120, fn:"hazardOff" },
+      // FASE 3 — Presión (125-190s): la lluvia no para y llegan escudos
+      { t:126, fn:"hazardOn" },
+      { t:128, fn:"ola", tipo:"kamikaze",      n:9, patron:"zigzag" },
+      { t:136, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
+      { t:145, fn:"reward" },
+      { t:149, fn:"ola", tipo:"veloz",         n:10,patron:"pinza"  },
+      { t:157, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
+      { t:166, fn:"ola", tipo:"kamikaze",      n:10,patron:"V"      },
+      { t:174, fn:"reward" },
+      { t:178, fn:"ola", tipo:"tanque",        n:3, patron:"pinza"  },
+      { t:186, fn:"ola", tipo:"veloz",         n:11,patron:"zigzag" },
+      // FASE 4 — Clímax (190-240s): todo a la vez
+      { t:196, fn:"ola", tipo:"bombardero",    n:5, patron:"linea"  },
+      { t:204, fn:"ola", tipo:"kamikaze",      n:11,patron:"ola"    },
+      { t:212, fn:"reward" },
+      { t:216, fn:"ola", tipo:"portaescudos",  n:3, patron:"pinza"  },
+      { t:224, fn:"ola", tipo:"veloz",         n:12,patron:"V"      },
+      { t:232, fn:"hazardOff" },                    // silencio antes del jefe
+      { t:236, fn:"reward" },
+      { t:242, fn:"miniboss", tipo:"guardian", mult:1.15 },
     ],
   },
   {
-    // M3: identidad = priorizar objetivos. Defensas estacionarias + escolta.
+    // M3: identidad = PRIORIZAR. Las defensas no se mueven y suman fuego:
+    // dejarlas vivas se paga con intereses. La escolta existe para que
+    // ignorarlas tampoco sea gratis.
     nombre: "RED DE DEFENSA", temaId: "neon", armas: ["railgun", "laser"],
     desc: "Destruye las defensas para reducir el fuego.",
     eventos: [
-      { t:  2, fn:"defensa", tipo:"torreta", n:3 },                   // Primera línea de torretas
-      { t:  4, fn:"ola", tipo:"normal",        n:4, patron:"V"      },
-      { t: 10, fn:"ola", tipo:"francotirador", n:3, patron:"linea"  },
-      { t: 18, fn:"reward" },
-      { t: 22, fn:"defensa", tipo:"canon", n:2 },
-      { t: 24, fn:"ola", tipo:"veloz",         n:5, patron:"pinza"  },
-      { t: 31, fn:"ola", tipo:"torreta",       n:4, patron:"ola"    },
-      { t: 39, fn:"defensa", tipo:"torreta", n:4 },
-      { t: 40, fn:"reward" },
-      { t: 44, fn:"ola", tipo:"bombardero",    n:3, patron:"linea"  },
-      { t: 51, fn:"ola", tipo:"francotirador", n:4, patron:"pinza"  },
-      { t: 58, fn:"defensa", tipo:"canon", n:3 },
-      { t: 60, fn:"reward" },
-      { t: 65, fn:"ola", tipo:"tanque",        n:2, patron:"V"      },
-      { t: 72, fn:"ola", tipo:"kamikaze",      n:6, patron:"zigzag" },
-      { t: 79, fn:"defensa", tipo:"torreta", n:5 },
-      { t: 81, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
-      { t: 88, fn:"reward" },
-      { t: 93, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
-      { t:100, fn:"ola", tipo:"francotirador", n:5, patron:"linea"  },
-      { t:108, fn:"miniboss", tipo:"guardian", mult:1.5 },
+      // FASE 1 — Primera línea (0-60s)
+      { t:  2, fn:"defensa", tipo:"torreta", n:3 },
+      { t:  5, fn:"ola", tipo:"normal",        n:4, patron:"V"      },
+      { t: 12, fn:"ola", tipo:"francotirador", n:2, patron:"linea"  },
+      { t: 20, fn:"reward" },
+      { t: 24, fn:"defensa", tipo:"canon", n:2 },
+      { t: 26, fn:"ola", tipo:"veloz",         n:5, patron:"pinza"  },
+      { t: 34, fn:"ola", tipo:"torreta",       n:4, patron:"ola"    },
+      { t: 44, fn:"reward" },
+      { t: 48, fn:"defensa", tipo:"torreta", n:4 },
+      { t: 50, fn:"ola", tipo:"bombardero",    n:3, patron:"linea"  },
+      // FASE 2 — Baterías cruzadas (60-130s)
+      { t: 60, fn:"ola", tipo:"francotirador", n:3, patron:"pinza"  },
+      { t: 70, fn:"defensa", tipo:"canon", n:3 },
+      { t: 72, fn:"reward" },
+      { t: 76, fn:"ola", tipo:"tanque",        n:2, patron:"V"      },
+      { t: 85, fn:"ola", tipo:"kamikaze",      n:6, patron:"zigzag" },
+      { t: 94, fn:"defensa", tipo:"torreta", n:5 },
+      { t: 96, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
+      { t:106, fn:"reward" },
+      { t:110, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
+      { t:120, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
+      // FASE 3 — La red completa (130-195s)
+      { t:132, fn:"defensa", tipo:"canon", n:4 },
+      { t:134, fn:"ola", tipo:"veloz",         n:8, patron:"pinza"  },
+      { t:143, fn:"reward" },
+      { t:147, fn:"ola", tipo:"torreta",       n:6, patron:"ola"    },
+      { t:156, fn:"defensa", tipo:"torreta", n:5 },
+      { t:158, fn:"ola", tipo:"tanque",        n:3, patron:"linea"  },
+      { t:168, fn:"ola", tipo:"francotirador", n:5, patron:"pinza"  },
+      { t:178, fn:"reward" },
+      { t:182, fn:"ola", tipo:"portaescudos",  n:3, patron:"V"      },
+      { t:192, fn:"ola", tipo:"bombardero",    n:5, patron:"linea"  },
+      // FASE 4 — Núcleo defendido (195-240s): élite de escolta
+      { t:200, fn:"defensa", tipo:"canon", n:4 },
+      { t:202, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },
+      { t:212, fn:"ola", tipo:"kamikaze",      n:9, patron:"zigzag" },
+      { t:222, fn:"reward" },
+      { t:226, fn:"ola", tipo:"francotirador", n:5, patron:"linea"  },
+      { t:236, fn:"reward" },
+      { t:242, fn:"miniboss", tipo:"guardian", mult:1.3 },
     ],
   },
   {
-    // M4: identidad = control espacial. Zonas tóxicas + enemigos acorazados.
+    // M4: identidad = CONTROL DEL ESPACIO. Las zonas te quitan sitio, y
+    // los acorazados te obligan a quedarte quieto para matarlos. La
+    // tensión es la contradicción entre las dos cosas.
     nombre: "SECTOR TÓXICO", temaId: "oceano", armas: ["void", "plasma"],
     desc: "Zonas contaminadas: espera el telegráfico.",
     eventos: [
-      { t:  0, fn:"zonaOn"  },                                        // Zonas tóxicas periódicas
-      { t:  3, fn:"ola", tipo:"bombardero",    n:3, patron:"V"      },
-      { t:  9, fn:"ola", tipo:"normal",        n:7, patron:"ola"    },
-      { t: 16, fn:"reward" },
-      { t: 21, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
-      { t: 28, fn:"ola", tipo:"veloz",         n:7, patron:"zigzag" },
-      { t: 35, fn:"ola", tipo:"kamikaze",      n:8, patron:"pinza"  },
-      { t: 43, fn:"reward" },
+      // FASE 1 — Contaminación (0-60s)
+      { t:  0, fn:"zonaOn"  },
+      { t:  4, fn:"ola", tipo:"bombardero",    n:3, patron:"V"      },
+      { t: 12, fn:"ola", tipo:"normal",        n:7, patron:"ola"    },
+      { t: 20, fn:"reward" },
+      { t: 24, fn:"ola", tipo:"portaescudos",  n:2, patron:"linea"  },
+      { t: 34, fn:"ola", tipo:"veloz",         n:7, patron:"zigzag" },
+      { t: 44, fn:"reward" },
       { t: 48, fn:"ola", tipo:"tanque",        n:2, patron:"V"      },
-      { t: 55, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
-      { t: 62, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
-      { t: 70, fn:"reward" },
-      { t: 75, fn:"ola", tipo:"portaescudos",  n:3, patron:"linea"  },
-      { t: 82, fn:"ola", tipo:"kamikaze",      n:9, patron:"zigzag" },
-      { t: 89, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
-      { t: 96, fn:"reward" },
-      { t:101, fn:"ola", tipo:"bombardero",    n:5, patron:"pinza"  },
-      { t:105, fn:"zonaOff" },                                        // Silencio antes del boss
-      { t:110, fn:"miniboss", tipo:"guardian", mult:1.8 },
+      { t: 56, fn:"zonaOff" },
+      // FASE 2 — Aire limpio y emboscada (60-125s)
+      { t: 62, fn:"ola", tipo:"kamikaze",      n:8, patron:"pinza"  },
+      { t: 70, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
+      { t: 80, fn:"reward" },
+      { t: 84, fn:"zonaOn" },
+      { t: 86, fn:"ola", tipo:"bombardero",    n:4, patron:"ola"    },
+      { t: 96, fn:"ola", tipo:"portaescudos",  n:3, patron:"linea"  },
+      { t:106, fn:"reward" },
+      { t:110, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
+      { t:120, fn:"ola", tipo:"veloz",         n:9, patron:"zigzag" },
+      // FASE 3 — Sector saturado (130-195s)
+      { t:130, fn:"ola", tipo:"kamikaze",      n:9, patron:"ola"    },
+      { t:140, fn:"reward" },
+      { t:144, fn:"ola", tipo:"francotirador", n:5, patron:"pinza"  },
+      { t:154, fn:"ola", tipo:"portaescudos",  n:4, patron:"linea"  },
+      { t:164, fn:"ola", tipo:"bombardero",    n:5, patron:"V"      },
+      { t:174, fn:"reward" },
+      { t:178, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },
+      { t:188, fn:"ola", tipo:"tanque",        n:4, patron:"pinza"  },
+      // FASE 4 — Purga (195-245s)
+      { t:198, fn:"ola", tipo:"kamikaze",      n:11,patron:"zigzag" },
+      { t:208, fn:"reward" },
+      { t:212, fn:"ola", tipo:"portaescudos",  n:4, patron:"ola"    },
+      { t:222, fn:"ola", tipo:"bombardero",    n:6, patron:"linea"  },
+      { t:232, fn:"zonaOff" },
+      { t:236, fn:"reward" },
+      { t:242, fn:"miniboss", tipo:"guardian", mult:1.45 },
     ],
   },
   {
-    // M5: identidad = dominio total. Élites + hazards + Titán 3 fases.
+    // M5: identidad = DOMINIO. Todo lo aprendido, a la vez, con élites de
+    // por medio y el Titán al final. Es la misión que comprueba si las
+    // cuatro anteriores han enseñado algo.
     nombre: "FISURA HELADA", temaId: "espacio", armas: ["cryo", "electrico"],
     desc: "Élites y cristales de hielo. El Titán cierra todo.",
     eventos: [
-      { t:  0, fn:"hazardOn", subtipo:"cristal" },                    // Cristales de hielo
-      { t:  3, fn:"ola", tipo:"bombardero",    n:4, patron:"V"      },
-      { t:  8, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
-      { t: 14, fn:"ola", tipo:"veloz",         n:7, patron:"zigzag" },
-      { t: 20, fn:"reward" },
-      { t: 25, fn:"ola", tipo:"portaescudos",  n:3, patron:"pinza"  },
-      { t: 32, fn:"ola", tipo:"tanque",        n:3, patron:"linea"  },
-      { t: 40, fn:"ola", tipo:"kamikaze",      n:8, patron:"ola"    },
+      // FASE 1 — La fisura (0-65s)
+      { t:  0, fn:"hazardOn", subtipo:"cristal" },
+      { t:  4, fn:"ola", tipo:"bombardero",    n:4, patron:"V"      },
+      { t: 12, fn:"ola", tipo:"francotirador", n:3, patron:"linea"  },
+      { t: 22, fn:"reward" },
+      { t: 26, fn:"ola", tipo:"veloz",         n:7, patron:"zigzag" },
+      { t: 36, fn:"ola", tipo:"portaescudos",  n:3, patron:"pinza"  },
       { t: 48, fn:"reward" },
-      { t: 53, fn:"ola", tipo:"bombardero",    n:5, patron:"V"      },
-      { t: 60, fn:"ola", tipo:"francotirador", n:5, patron:"zigzag" },
-      { t: 68, fn:"ola", tipo:"portaescudos",  n:4, patron:"linea"  },
-      { t: 76, fn:"reward" },
-      { t: 81, fn:"ola", tipo:"tanque",        n:4, patron:"V"      },
-      { t: 88, fn:"ola", tipo:"kamikaze",      n:10,patron:"pinza"  },
-      { t: 94, fn:"hazardOff" },                                      // Cristales paran — Titán entra
-      { t: 96, fn:"reward" },
-      { t:102, fn:"miniboss", tipo:"titan" },
+      { t: 52, fn:"ola", tipo:"tanque",        n:3, patron:"linea"  },
+      { t: 62, fn:"hazardOff" },
+      // FASE 2 — Primera élite (65-135s)
+      { t: 68, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },
+      { t: 74, fn:"ola", tipo:"kamikaze",      n:8, patron:"ola"    },
+      { t: 86, fn:"reward" },
+      { t: 90, fn:"hazardOn", subtipo:"cristal" },
+      { t: 92, fn:"ola", tipo:"bombardero",    n:5, patron:"V"      },
+      { t:102, fn:"ola", tipo:"francotirador", n:5, patron:"zigzag" },
+      { t:114, fn:"reward" },
+      { t:118, fn:"ola", tipo:"portaescudos",  n:4, patron:"linea"  },
+      { t:128, fn:"ola", tipo:"veloz",         n:10,patron:"pinza"  },
+      // FASE 3 — Dos élites (135-200s)
+      { t:138, fn:"hazardOff" },
+      { t:140, fn:"ola", tipo:"elite",         n:2, patron:"pinza"  },
+      { t:150, fn:"ola", tipo:"kamikaze",      n:10,patron:"zigzag" },
+      { t:160, fn:"reward" },
+      { t:164, fn:"ola", tipo:"tanque",        n:4, patron:"V"      },
+      { t:174, fn:"hazardOn", subtipo:"cristal" },
+      { t:176, fn:"ola", tipo:"bombardero",    n:6, patron:"ola"    },
+      { t:188, fn:"reward" },
+      { t:192, fn:"ola", tipo:"francotirador", n:6, patron:"linea"  },
+      // FASE 4 — Antes del Titán (200-255s)
+      { t:202, fn:"ola", tipo:"portaescudos",  n:5, patron:"pinza"  },
+      { t:212, fn:"ola", tipo:"elite",         n:2, patron:"linea"  },
+      { t:222, fn:"reward" },
+      { t:226, fn:"ola", tipo:"kamikaze",      n:12,patron:"ola"    },
+      { t:236, fn:"ola", tipo:"veloz",         n:12,patron:"zigzag" },
+      { t:244, fn:"hazardOff" },                    // los cristales paran
+      { t:248, fn:"reward" },
+      { t:250, fn:"reward" },
+      { t:256, fn:"miniboss", tipo:"titan" },
     ],
   },
 ];
@@ -3716,11 +3806,22 @@ function filo(x, y, w, h, r, col, alpha) {
 // Texto con espaciado. En una interfaz sci-fi el interletraje hace más
 // por el tono que cualquier adorno, y el canvas no tiene letter-spacing
 // en los navegadores viejos, así que se hace a mano.
+// measureText por carácter y por fotograma son ~150 llamadas de más en
+// cada HUD. Los anchos no cambian nunca para una fuente dada, así que se
+// miden una vez y se guardan.
+const anchoCar = {};
+function ancho(ch) {
+  const k = ctx.font + "|" + ch;
+  let w = anchoCar[k];
+  if (w === undefined) { w = ctx.measureText(ch).width; anchoCar[k] = w; }
+  return w;
+}
 function letras(txt, x, y, esp, alinear) {
-  const w = ctx.measureText(txt).width + esp * (txt.length - 1);
+  let w = esp * (txt.length - 1);
+  for (const ch of txt) w += ancho(ch);
   let cx = alinear === "center" ? x - w / 2 : alinear === "right" ? x - w : x;
   const ta = ctx.textAlign; ctx.textAlign = "left";
-  for (const ch of txt) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + esp; }
+  for (const ch of txt) { ctx.fillText(ch, cx, y); cx += ancho(ch) + esp; }
   ctx.textAlign = ta;
   return w;
 }
