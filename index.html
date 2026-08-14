@@ -2166,12 +2166,16 @@ function reset() {
 }
 
 // ── Campaña ──────────────────────────────────────────────
+let misionIniT = 0;
 function iniciarMision(idx) {
   misionIdx = idx; eventoIdx = 0;
   const m = MISIONES[idx];
   T = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
   guardarSave({ temaId: T.id });
   reset();
+  // Rótulo de entrada. Dos segundos y medio de "dónde estoy y qué toca":
+  // sin esto, cinco misiones seguidas se sienten como una sola larga.
+  misionIniT = 2.6;
 }
 
 function spawnFormacion(tipo, n, patron) {
@@ -2569,11 +2573,17 @@ c.addEventListener("pointerdown", (e) => {
     }
     return;
   }
-  if (state === "over") {
-    if (performance.now() - overAt > 700) { state = "menu"; musica("menu"); }
+  // Fin de partida y pausa comparten los botones del menú: se recogen en
+  // botones[] al dibujarlos y se resuelven aquí igual que en la portada.
+  if (state === "over" || paused) {
+    const p = pos(e);
+    for (let i = botones.length - 1; i >= 0; i--) {
+      const b = botones[i];
+      if (!dentro(p, b) || !b.fn) continue;
+      sfx("ui_ok"); b.fn(); return;
+    }
     return;
   }
-  if (paused) { paused = false; unlockAudio(); sfx("ui_ok"); return; }
   if (state === "play") {
     const p = pos(e);
     if (dentro(p, hudRects.pausa)) { paused = true; sfx("ui_sel"); return; }
@@ -3084,6 +3094,7 @@ function update(dt) {
     if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
     if (avisoT > 0) avisoT -= dt;
     if (warningT > 0) warningT -= dt;
+    if (misionIniT > 0) misionIniT -= dt;
   }
   if (state !== "play" || paused) return;
 
@@ -4012,8 +4023,17 @@ function pantallaInicio() {
   }
 }
 
+// Cuando se entra a los ajustes DESDE la pausa, la flecha de volver tiene
+// que devolver a la partida, no al menú. El estado de juego sigue intacto
+// —"menu" solo cambia lo que se dibuja y se actualiza—, así que volver es
+// literalmente seguir donde estaba.
+let vueltaJuego = false;
 function cabecera(txt) {
-  botones.push({ x: 8, y: SAFE_TOP + 8, w: 56, h: 44, fn: () => { pantalla = "inicio"; sfx("ui_atras"); } });
+  botones.push({ x: 8, y: SAFE_TOP + 8, w: 56, h: 44, fn: () => {
+    sfx("ui_atras");
+    if (vueltaJuego) { vueltaJuego = false; state = "play"; paused = true; }
+    else pantalla = "inicio";
+  } });
   ctx.save();
   ctx.strokeStyle = T.nave; ctx.lineWidth = 2.4; ctx.lineCap = "round";
   ctx.beginPath();
@@ -4528,54 +4548,62 @@ function render() {
   if (state === "menu") menu();
   else { hud(); barraJefe(); }
 
-  // Pantalla de resultados (game over)
+  // ── Fin de partida ──
   if (state === "over") {
-    ctx.fillStyle = "rgba(5,6,15,0.88)"; ctx.fillRect(0, 0, W, H);
+    botones = [];
+    ctx.fillStyle = "rgba(3,5,14,0.9)"; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const cx = W / 2, cy = H / 2;
-    const isRecord = score >= best && score > 0;
+    const cx = W / 2, cy = H * 0.34;
+    const record = score >= best && score > 0;
 
-    ctx.font = "800 " + Math.min(28, W * 0.07) + "px " + F;
-    ctx.fillStyle = "#ff4444"; ctx.globalAlpha = 0.9;
-    ctx.fillText("GAME OVER", cx, cy - 160);
-
-    ctx.font = "800 " + Math.min(64, W * 0.16) + "px " + F;
-    ctx.fillStyle = isRecord ? "#ffd700" : "#ffffff";
-    ctx.globalAlpha = 1;
-    ctx.fillText(String(score), cx, cy - 90);
-
-    if (isRecord) {
-      ctx.font = "700 13px " + F; ctx.fillStyle = "#ffd700"; ctx.globalAlpha = 0.9;
-      ctx.fillText("★ NUEVO RÉCORD ★", cx, cy - 44);
+    ctx.font = "800 11px " + F; ctx.fillStyle = "#ff3b5c";
+    letras("NAVE PERDIDA", cx, cy - 54, 5, "center");
+    ctx.font = "800 " + Math.round(clamp(W * 0.14, 44, 72)) + "px " + F;
+    ctx.fillStyle = record ? "#ffd700" : "#ffffff";
+    ctx.fillText(score.toLocaleString("es"), cx, cy);
+    ctx.font = "700 10px " + F;
+    if (record) {
+      ctx.fillStyle = "#ffd700";
+      letras("NUEVO RÉCORD", cx, cy + 34, 4, "center");
     } else {
-      ctx.font = "700 13px " + F; ctx.fillStyle = "#aaa"; ctx.globalAlpha = 0.7;
-      ctx.fillText("RÉCORD  " + best, cx, cy - 44);
+      ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.5;
+      letras("RÉCORD  " + best.toLocaleString("es"), cx, cy + 34, 3, "center");
+      ctx.globalAlpha = 1;
     }
 
-    // Stats grid
+    const anchoP = Math.min(W - 56, 320), x0 = (W - anchoP) / 2;
     const stats = [
-      ["ENEMIGOS DERRIBADOS", enemiesKilled],
-      ["COMBO MÁX.", maxCombo],
+      ["DERRIBADOS", enemiesKilled],
+      ["COMBO MÁXIMO", "×" + maxCombo],
       ["PRECISIÓN", bulletsFiredo > 0 ? Math.round(bulletsHit / bulletsFiredo * 100) + "%" : "—"],
       ["TIEMPO", Math.floor(elapsed / 60) + ":" + String(Math.floor(elapsed % 60)).padStart(2, "0")],
     ];
-    ctx.font = "600 12px " + F; ctx.globalAlpha = 0.85;
-    stats.forEach(([label, val], i) => {
-      const row = cy - 10 + i * 28;
-      ctx.fillStyle = "#888"; ctx.textAlign = "left";
-      ctx.fillText(label, cx - 120, row);
-      ctx.fillStyle = "#fff"; ctx.textAlign = "right";
-      ctx.fillText(String(val), cx + 120, row);
-    });
-    ctx.textAlign = "center";
-
-    if (modo === "campana") {
-      ctx.font = "700 11px " + F; ctx.fillStyle = "#aaa"; ctx.globalAlpha = 0.6;
-      ctx.fillText("MISIÓN " + (misionIdx + 1) + " — " + MISIONES[misionIdx].nombre, cx, cy + 110);
+    let y = cy + 76;
+    for (const [et, v] of stats) {
+      ctx.textAlign = "left"; ctx.font = "700 10px " + F;
+      ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.45;
+      letras(et, x0, y, 1.6);
+      ctx.globalAlpha = 1; ctx.textAlign = "right"; ctx.font = "800 12px " + F;
+      ctx.fillText(String(v), x0 + anchoP, y);
+      y += 26;
     }
-    ctx.globalAlpha = 0.9; ctx.font = "700 14px " + F; ctx.fillStyle = "#fff";
-    ctx.fillText("Toca para volver", cx, cy + 140);
-    ctx.globalAlpha = 1;
+    ctx.textAlign = "center";
+    if (modo === "campana") {
+      ctx.font = "700 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.6;
+      letras("MISIÓN " + (misionIdx + 1) + " · " + MISIONES[misionIdx].nombre, cx, y + 14, 2, "center");
+      ctx.globalAlpha = 1;
+    }
+
+    // Reintentar sin pasar por el menú: si te matan en el segundo 200 de
+    // una misión de cinco minutos, volver a la lista es un castigo.
+    if (performance.now() - overAt > 600) {
+      const bw = Math.min(W - 56, 300), bx = (W - bw) / 2;
+      let by = H - SAFE_BOTTOM - 150;
+      boton(bx, by, bw, 54, { label: "REINTENTAR", tam: 16, solido: true,
+        fn: () => { if (modo === "campana") iniciarMision(misionIdx); else reset(); } });
+      boton(bx, by + 66, bw, 46, { label: "MENÚ", tam: 13,
+        fn: () => { state = "menu"; pantalla = modo === "campana" ? "campana" : "mundos"; musica("menu"); } });
+    }
   }
 
   // ── Resultados de misión ──
@@ -4682,15 +4710,51 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // Overlay de pausa
-  if (state === "play" && paused) {
-    ctx.fillStyle = "rgba(5,6,15,0.75)"; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "800 " + Math.min(40, W * 0.1) + "px " + F;
-    ctx.fillText("PAUSA", W / 2, H / 2 - 20);
-    ctx.font = "700 13px " + F; ctx.globalAlpha = 0.6;
-    ctx.fillText("Esc o toca para continuar", W / 2, H / 2 + 24);
+  // ── Entrada de misión ──
+  if (state === "play" && misionIniT > 0 && modo === "campana") {
+    const k = misionIniT / 2.6;
+    const a = Math.min(1, misionIniT * 2.5, (1 - k) * 5);
+    const m = MISIONES[misionIdx];
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "rgba(3,5,14,0.75)";
+    ctx.fillRect(0, H * 0.36, W, 130);
+    ctx.fillStyle = T.nave; ctx.globalAlpha = a * 0.8;
+    ctx.fillRect(0, H * 0.36, W, 2);
+    ctx.fillRect(0, H * 0.36 + 128, W, 2);
+    ctx.globalAlpha = a;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "800 11px " + F; ctx.fillStyle = T.nave;
+    letras("MISIÓN " + (misionIdx + 1), W / 2, H * 0.36 + 32, 5, "center");
+    ctx.font = "800 " + Math.round(clamp(W * 0.075, 22, 32)) + "px " + F;
+    ctx.fillStyle = "#fff";
+    letras(m.nombre, W / 2, H * 0.36 + 68, 2.5, "center");
+    ctx.font = "600 11px " + F; ctx.globalAlpha = a * 0.6;
+    ctx.fillText(m.desc, W / 2, H * 0.36 + 100);
+    ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  // ── Pausa ──
+  if (state === "play" && paused) {
+    botones = [];
+    ctx.fillStyle = "rgba(3,5,14,0.86)"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "800 " + Math.round(clamp(W * 0.09, 28, 42)) + "px " + F;
+    letras("PAUSA", W / 2, H * 0.34, 6, "center");
+    ctx.font = "700 10px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.7;
+    letras(modo === "campana" ? "MISIÓN " + (misionIdx + 1) + " · " + MISIONES[misionIdx].nombre
+                              : "SUPERVIVENCIA · NIVEL " + level, W / 2, H * 0.34 + 32, 2.4, "center");
+    ctx.globalAlpha = 1;
+
+    const bw = Math.min(W - 56, 300), bx = (W - bw) / 2;
+    let by = H * 0.5;
+    boton(bx, by, bw, 54, { label: "CONTINUAR", tam: 16, solido: true,
+      fn: () => { paused = false; unlockAudio(); } });
+    boton(bx, by + 66, bw, 46, { label: "AJUSTES", tam: 13,
+      fn: () => { paused = false; state = "menu"; pantalla = "ajustes"; vueltaJuego = true; } });
+    boton(bx, by + 122, bw, 46, { label: "ABANDONAR", tam: 13, color: "#ff3b5c",
+      fn: () => { paused = false; state = "menu"; pantalla = modo === "campana" ? "campana" : "mundos"; musica("menu"); } });
   }
 
   // Debug overlay
