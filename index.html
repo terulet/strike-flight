@@ -658,7 +658,94 @@ const JEFES = {
     ],
   },
 
-
+  // ══════════════════════════════════════════════════════════
+  //  VENOM CORE — jefe de M4, SECTOR TÓXICO
+  //  Identidad: control espacial, toxicidad. Su firma reutiliza el
+  //  propio sistema de zonas de la misión (TELEGRAPH → ACTIVE →
+  //  DISSIPATE) acotado por columnas, así que SIEMPRE queda una
+  //  franja vertical limpia — nunca puede cerrar el paso entero.
+  // ══════════════════════════════════════════════════════════
+  venom_core: {
+    r: 60, hpMax: 460, nombre: "VENOM CORE", titulo: "NÚCLEO DE CONTAMINACIÓN",
+    sp: "bs_venom_core", color: () => "#8aff4d",
+    puntos: 3200, drops: ["arma", "arma", "escudo", "vida"],
+    onSpawn(mb) { mb._colAlt = -1; },
+    onEntrada(mb) {
+      if (Math.random() < 0.5) {
+        part(mb.x + rand(-mb.r, mb.r), mb.y + rand(-mb.r * 0.6, mb.r * 0.6),
+          rand(-15, 15), rand(-40, -10), rand(0.5, 0.9), "#8aff4d", rand(2, 4));
+      }
+    },
+    onDetonar(mb) {
+      vfx("toxico", mb.x, mb.y, mb.r * 8, 0.9);
+      boom(mb.x, mb.y, "#8aff4d", 30, 1.6);
+    },
+    onMuerte(mb) { zonas.length = 0; },   // las zonas dejan de hacer daño AL INSTANTE
+    fases: [
+      // F1 — proyectiles lentos + una zona ocasional, siempre con aviso
+      { umbral: 1, ojo: "#8aff4d",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.35) * W * 0.24, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.5) * 14;
+        },
+        ataques: [
+          { cd: [2.4, 3.0], avisa: 0.5,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.4, a2: a + 0.4, r: 800, life: 0.5, sigue: mb, col: "#8aff4d" });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 190, 4, 0.22, 7); sfx("venom_pulso"); } },
+          { cd: [5.0, 6.2],
+            fn(mb) { venomZona((Math.random() * 3) | 0); } },
+        ] },
+      // F2 (~60%) — 2 de 3 columnas contaminadas a la vez: la tercera
+      // queda siempre limpia, garantizado por construcción.
+      { umbral: 0.6, ojo: "#c04dff", furia: true,
+        alEntrar(mb) { zonas.length = 0; },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.55) * W * 0.3, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.9) * 20;
+        },
+        ataques: [
+          { cd: [2.0, 2.6], avisa: 0.4,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 850, life: 0.4, sigue: mb, col: "#c04dff" });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 220, 5, 0.19, 7); sfx("venom_pulso", { tono: 0.85 }); } },
+          { cd: [6.5, 7.5],
+            fn(mb) {
+              const cols = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, 2);
+              for (const c of cols) venomZona(c);
+              texto(mb.x, mb.y - mb.r - 26, "SECTORES CONTAMINADOS", "#c04dff", 13);
+            } },
+        ] },
+      // F3 (~25%) — pulso tóxico radial + zonas alternando de columna
+      { umbral: 0.25, ojo: "#ff2fbf", furia: true, final: true,
+        alEntrar(mb) { zonas.length = 0; },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.8) * W * 0.26, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.5) * 24;
+        },
+        ataques: [
+          { cd: [2.0, 2.4], avisa: 0.5,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 2.6, life: 0.5, sigue: mb, col: "#ff2fbf" }); },
+            fn(mb) {
+              texto(mb.x, mb.y - mb.r - 26, "PULSO TÓXICO", "#ff2fbf", 14);
+              PATRONES.circulo(mb.x, mb.y, 215, 16, mb.faseT, 6);
+              sfx("venom_pulso", { tono: 0.6 }); sacudir("tiny");
+            } },
+          { cd: [1.8, 2.2], avisa: 0.35,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 850, life: 0.35, sigue: mb, col: "#ff2fbf" });
+            },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 260, 5, 0.18, 7); sfx("venom_pulso", { tono: 1.0 }); mb.recoil = 7; } },
+          { cd: [4.4, 5.2],
+            fn(mb) { mb._colAlt = (mb._colAlt + 1) % 3; venomZona(mb._colAlt); } },
+        ] },
+    ],
+  },
 };
 
 // ════════════════════════════════════════════════════════════
@@ -847,7 +934,7 @@ const MISIONES = [
       { t:222, fn:"ola", tipo:"bombardero",    n:6, patron:"linea"  },
       { t:232, fn:"zonaOff" },
       { t:236, fn:"reward" },
-      { t:242, fn:"miniboss", tipo:"guardian", mult:1.45 },
+      { t:242, fn:"miniboss", tipo:"venom_core" },
     ],
   },
   {
