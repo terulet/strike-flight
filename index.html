@@ -206,6 +206,80 @@ const FORMACIONES = {
 //    umbral    fracción de vida a la que empieza
 //    mover     su patrón de movimiento
 //    ataques   [{ cd:[min,max], avisa, telegrafo, fn }]
+//
+//  Hooks opcionales por jefe (todos viven en JEFES[tipo], no en el motor):
+//    onSpawn(mb)         una vez, al aparecer — estado propio (nodos...)
+//    onEntrada(mb,dt,k)  cada fotograma durante la bajada, k = 0..1
+//    reduccionDano(mb)   multiplicador de daño recibido (escudo parcial)
+//    onDetonar(mb)       flavor extra en el instante de la explosión grande
+//    onMuerte(mb)        limpieza INMEDIATA al morir (antes de la cinemática)
+//    dibujarExtra(mb,f)  dibujo en espacio de mundo (nodos, orbitadores)
+//  Y por fase: alEntrar(mb), llamado una vez al entrar en esa fase.
+
+// ── Orbitadores de RIFT REAPER (M2) ──────────────────────
+//  Ángulo + velocidad angular, nada de física: la posición de cada uno
+//  sale de mb.x/mb.y + coseno/seno del ángulo. Barato y determinista.
+function crearOrbitadores(mb, n) {
+  mb.orbitadores = Array.from({ length: n }, (_, i) => ({
+    ang: (i / n) * TAU, velAng: rand(0.9, 1.5) * (Math.random() < 0.5 ? 1 : -1),
+    radio: mb.r * 1.75, r: 11,
+  }));
+}
+
+// ── Nodos de AEGIS PRIME (M3) ─────────────────────────────
+//  Torretas de escolta, pegadas a posiciones fijas relativas al jefe.
+//  Mientras queda alguna con vida, el jefe encaja menos daño: la pelea
+//  premia explícitamente ir a por ellas primero.
+function actualizarNodosAegis(mb, dt) {
+  if (!mb.nodos || state !== "play" || paused) return;
+  for (let i = mb.nodos.length - 1; i >= 0; i--) {
+    const n = mb.nodos[i];
+    if (n.flash > 0) n.flash -= dt;
+    const nx = mb.x + n.ox, ny = mb.y + n.oy;
+    n.cd -= dt;
+    if (n.cd <= 0) {
+      n.cd = rand(1.7, 2.5);
+      const a = Math.atan2(player.y - ny, player.x - nx);
+      eBala(nx, ny, Math.cos(a) * 220, Math.sin(a) * 220, 5);
+      sfx("aegis_lock");
+    }
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const dx = b.x - nx, dy = b.y - ny;
+      if (dx * dx + dy * dy >= (b.r + 14) ** 2) continue;
+      n.hp -= b.dmg; n.flash = 0.1; bulletsHit++;
+      const gastada = golpearCon(b, b.x, b.y, null);
+      if (gastada) soltarBala(j);
+      if (n.hp <= 0) {
+        muerte(nx, ny, "#ffcf5c", "defensa");
+        sfx("aegis_nodo");
+        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        maxCombo = Math.max(maxCombo, combo);
+        const pts = Math.round(220 * multCombo());
+        score += pts; texto(nx, ny - 20, "+" + pts, T.bala, 13);
+        hitoCombo();
+        mb.nodos.splice(i, 1);
+      }
+      break;
+    }
+  }
+}
+
+// ── Zonas de VENOM CORE (M4) ──────────────────────────────
+//  Reutiliza el estado TELEGRAPH → ACTIVE → DISSIPATE de zonas[] (el
+//  mismo sistema de M4 ambiente), acotado a un tercio de pantalla para
+//  poder garantizar que siempre queda una columna libre.
+function venomZona(col) {
+  if (zonas.length > 8) return;
+  const anchoCol = W / 3;
+  zonas.push({
+    x: anchoCol * col + rand(anchoCol * 0.22, anchoCol * 0.78),
+    y: rand(H * 0.22, H * 0.6), r: rand(50, 78), t: 0, fase: 0, damageCd: 0,
+  });
+  sfx("venom_zona");
+}
+
 const JEFES = {
   guardian: {
     r: 62, hpMax: 560, nombre: "GUARDIÁN", titulo: "UNIDAD DE CONTENCIÓN ORBITAL",
@@ -328,6 +402,150 @@ const JEFES = {
         ] },
     ],
   },
+
+  // ══════════════════════════════════════════════════════════
+  //  RIFT REAPER — jefe de M2, CINTURÓN DE ASTEROIDES
+  //  Identidad: movimiento + inercia + asteroides. Su firma es el
+  //  ASTEROID BREAK — las rocas grandes que lanza se parten en dos al
+  //  morir — y en fase 2 un anillo de escombros orbitando que obliga a
+  //  cambiar de posición, no solo a esquivar disparos.
+  // ══════════════════════════════════════════════════════════
+  rift_reaper: {
+    r: 58, hpMax: 210, nombre: "RIFT REAPER", titulo: "SEGADOR DEL CINTURÓN",
+    sp: "bs_rift_reaper", color: () => "#ff5c1a",
+    puntos: 2600, drops: ["arma", "escudo", "vida"],
+    onSpawn(mb) { mb.orbitadores = null; mb.dash = null; mb.dashPrep = null; },
+    onEntrada(mb, dt) {
+      if (Math.random() < 0.5) {
+        part(mb.x + rand(-mb.r * 1.4, mb.r * 1.4), mb.y + rand(-30, 90),
+          rand(-30, 30), rand(40, 120), rand(0.4, 0.8), "#ff8a3f", rand(2, 4));
+      }
+    },
+    reduccionDano(mb) { return mb.orbitadores && mb.orbitadores.length ? 0.55 : 1; },
+    onDetonar(mb) {
+      for (let i = 0; i < 14; i++) {
+        const a = rand(0, TAU);
+        part(mb.x, mb.y, Math.cos(a) * rand(120, 320), Math.sin(a) * rand(120, 320),
+          rand(0.4, 0.9), "#ff5c1a", rand(2, 4));
+      }
+    },
+    onMuerte(mb) {
+      if (mb.orbitadores) {
+        for (const o of mb.orbitadores) {
+          const ox = mb.x + Math.cos(o.ang) * o.radio, oy = mb.y + Math.sin(o.ang) * o.radio;
+          vfx("chispa", ox, oy, 60, 0.3);
+          boom(ox, oy, "#ff8a3f", 8, 0.8);
+        }
+        mb.orbitadores = [];
+      }
+      rocas.length = 0;
+    },
+    dibujarExtra(mb) {
+      if (!mb.orbitadores) return;
+      const sp = SPRITES["hz_asteroide"];
+      for (const o of mb.orbitadores) {
+        const ox = mb.x + Math.cos(o.ang) * o.radio, oy = mb.y + Math.sin(o.ang) * o.radio;
+        ctx.save(); ctx.translate(ox, oy); ctx.rotate(o.ang * 2.4);
+        if (sp) { ctx.shadowColor = "#ff5c1a"; ctx.shadowBlur = 8; pintarSprite(sp, o.r * 2.4); ctx.shadowBlur = 0; }
+        else { ctx.beginPath(); ctx.arc(0, 0, o.r, 0, TAU); ctx.fillStyle = "#a04010"; ctx.fill(); }
+        ctx.restore();
+      }
+    },
+    fases: [
+      // F1 — barrido lateral amplio + ráfagas dirigidas + rocas sueltas
+      { umbral: 1, ojo: "#ff8a3f",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.5) * W * 0.34, mb.r * 0.6, W - mb.r * 0.6);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.8) * 16;
+        },
+        ataques: [
+          { cd: [2.0, 2.6], avisa: 0.4,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 900, life: 0.4, sigue: mb, col: "#ff8a3f" });
+            },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 330, 4, 0.14, 7); sfx("ene_pesado"); mb.recoil = 8; } },
+          { cd: [3.2, 4.0], avisa: 0.6,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 2.4, life: 0.6, sigue: mb, col: "#ff8a3f" }); },
+            fn(mb) {
+              const a = haciaJugador(mb);
+              lanzarRoca(mb.x - 24, mb.y + 10, Math.cos(a - 0.18) * 250, Math.sin(a - 0.18) * 250 + 40, 22, 3, 1);
+              lanzarRoca(mb.x + 24, mb.y + 10, Math.cos(a + 0.18) * 250, Math.sin(a + 0.18) * 250 + 40, 22, 3, 1);
+              sfx("roca_impacto", { tono: 0.6 }); sacudir("tiny");
+            } },
+        ] },
+      // F2 (~65%) — orbitadores como escudo parcial, obligan a moverse
+      { umbral: 0.65, ojo: "#ff3b1a", furia: true,
+        alEntrar(mb) { crearOrbitadores(mb, 5); },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.7) * W * 0.3, mb.r * 0.6, W - mb.r * 0.6);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.3) * 22;
+          if (mb.orbitadores && state === "play" && !paused) {
+            for (const o of mb.orbitadores) {
+              o.ang += o.velAng * dt;
+              const ox = mb.x + Math.cos(o.ang) * o.radio, oy = mb.y + Math.sin(o.ang) * o.radio;
+              const dx = player.x - ox, dy = player.y - oy;
+              if (dx * dx + dy * dy < (hitR() + o.r) ** 2) golpe();
+            }
+          }
+        },
+        ataques: [
+          { cd: [1.8, 2.3], avisa: 0.35,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.55, a2: a + 0.55, r: 900, life: 0.35, sigue: mb, col: "#ff5c1a" });
+            },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 350, 5, 0.13, 7); sfx("ene_pesado"); mb.recoil = 9; } },
+          { cd: [3.0, 3.6], avisa: 0.5,
+            telegrafo(mb) { telegrafo("banda", { y: H * 0.4, h: 60, life: 0.5, col: "#ff5c1a" }); },
+            fn(mb) { PATRONES.barrido(mb.x, mb.y, 0.3, Math.PI - 0.3, 260, 8, 6); sfx("ene_pesado", { tono: 0.7 }); } },
+          { cd: [5.0, 6.0], avisa: 0.55,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 2.6, life: 0.55, sigue: mb, col: "#ff8a3f" }); },
+            fn(mb) {
+              const a = haciaJugador(mb);
+              lanzarRoca(mb.x, mb.y + 16, Math.cos(a) * 230, Math.sin(a) * 230 + 30, 24, 3, 1);
+              sfx("roca_impacto");
+            } },
+        ] },
+      // F3 (~30%) — embestida telegrafiada: carril anunciado, siempre esquivable
+      { umbral: 0.3, ojo: "#ffffff", furia: true, final: true,
+        alEntrar(mb) { mb.orbitadores = null; },
+        mover(mb, dt) {
+          if (mb.dash && mb.dash.t < mb.dash.dur) {
+            mb.dash.t += dt;
+            const k = clamp(mb.dash.t / mb.dash.dur, 0, 1);
+            mb.x = mb.dash.x0 + (mb.dash.x1 - mb.dash.x0) * k;
+            mb.y = mb.dash.y;
+            if (Math.random() < 0.6) lanzarRoca(mb.x, mb.y + mb.r * 0.6, rand(-40, 40), rand(160, 260), 12, 1, 0);
+          } else {
+            mb.x = clamp(W / 2 + Math.sin(mb.faseT * 1.0) * W * 0.28, mb.r * 0.6, W - mb.r * 0.6);
+            mb.y = mb.baseY + Math.sin(mb.faseT * 1.8) * 26;
+          }
+        },
+        ataques: [
+          { cd: [1.6, 2.0], avisa: 0.3,
+            telegrafo(mb) {
+              const a = haciaJugador(mb);
+              telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.6, a2: a + 0.6, r: 900, life: 0.3, sigue: mb, col: "#ffffff" });
+            },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 380, 5, 0.12, 7); sfx("ene_pesado"); mb.recoil = 10; } },
+          { cd: [4.2, 5.0], avisa: 0.9,
+            telegrafo(mb) {
+              const dir = mb.x < W / 2 ? 1 : -1;
+              telegrafo("banda", { y: mb.y, h: 90, life: 0.9, col: "#ffffff" });
+              mb.dashPrep = { dir, y: mb.y };
+            },
+            fn(mb) {
+              const p = mb.dashPrep || { dir: 1, y: mb.y };
+              mb.dash = { t: 0, dur: 0.5, x0: mb.x, x1: p.dir > 0 ? W - mb.r * 0.6 : mb.r * 0.6, y: p.y };
+              sfx("reaper_carga"); sacudir("medium"); hitstop(0.03);
+              texto(mb.x, mb.y - mb.r - 30, "EMBESTIDA", "#ffffff", 15);
+            } },
+        ] },
+    ],
+  },
+
+
 };
 
 // ════════════════════════════════════════════════════════════
@@ -420,7 +638,7 @@ const MISIONES = [
       { t:224, fn:"ola", tipo:"veloz",         n:12,patron:"V"      },
       { t:232, fn:"hazardOff" },                    // silencio antes del jefe
       { t:236, fn:"reward" },
-      { t:242, fn:"miniboss", tipo:"guardian", mult:1.15 },
+      { t:242, fn:"miniboss", tipo:"rift_reaper" },
     ],
   },
   {
@@ -1125,6 +1343,36 @@ const SONIDOS = {
       vozOsc(d,t+i*0.11,{f:f/2,dur:0.45,tipo:"sine",vol:0.03}); }); } },
   derrota:   { bus:"ui", prio:10,voces:1, espera:800, tono:0, hacer:(d,t)=>{
     [440,392,330,247].forEach((f,i)=>vozOsc(d,t+i*0.17,{f,f2:f*0.94,dur:0.5,tipo:"sawtooth",vol:0.05,lp:1400})); } },
+
+  // IDENTIDAD DE JEFES — M2/M3/M4. Cada uno tiene que sonar a lo que es,
+  // no a una variación de tono del mismo golpe.
+  roca_impacto:{ bus:"sfx", prio:3, voces:5, espera:45, tono:0.5, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.16,vol:0.06,lp:1300*p,lp2:300,rate:0.7});
+    vozOsc(d,t,{f:110*p,f2:55*p,dur:0.12,tipo:"square",vol:0.03,lp:600}); } },
+  roca_break:{ bus:"sfx", prio:4, voces:4, espera:55, tono:0.6, hacer:(d,t,p)=>{
+    vozRuido(d,t,{dur:0.28,vol:0.08,lp:2200*p,lp2:250,rate:0.85});
+    vozOsc(d,t,{f:180*p,f2:70*p,dur:0.2,tipo:"sawtooth",vol:0.04,lp:900}); } },
+  reaper_carga:{ bus:"sfx", prio:6, voces:1, espera:600, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:90,f2:340,dur:0.55,tipo:"sawtooth",vol:0.07,lp:1400,lp2:3200,at:0.3});
+    vozRuido(d,t,{dur:0.5,vol:0.05,hp:600,rate:1.3,at:0.3}); } },
+  aegis_lock:{ bus:"sfx", prio:5, voces:3, espera:90, tono:0.3, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:1500*p,dur:0.05,tipo:"square",vol:0.035});
+    vozOsc(d,t+0.07,{f:1900*p,dur:0.06,tipo:"square",vol:0.035}); } },
+  aegis_nodo:{ bus:"sfx", prio:6, voces:3, espera:80, tono:0.4, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:2600*p,f2:400*p,dur:0.16,tipo:"square",vol:0.045,lp:5000});
+    vozRuido(d,t,{dur:0.1,vol:0.04,hp:2200}); } },
+  aegis_overload:{ bus:"sfx", prio:9, voces:1, espera:900, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:200,f2:2600,dur:0.9,tipo:"sawtooth",vol:0.08,lp:1200,lp2:6000,at:0.6});
+    vozOsc(d,t,{f:100,f2:1300,dur:0.9,tipo:"square",vol:0.04,lp:4000,at:0.6}); } },
+  venom_pulso:{ bus:"sfx", prio:4, voces:3, espera:70, tono:0.6, hacer:(d,t,p)=>{
+    vozOsc(d,t,{f:260*p,f2:90*p,dur:0.3,tipo:"sine",vol:0.045});
+    vozOsc(d,t+0.03,{f:390*p,f2:130*p,dur:0.26,tipo:"triangle",vol:0.025}); } },
+  venom_zona:{ bus:"sfx", prio:5, voces:2, espera:200, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:180,f2:340,dur:0.4,tipo:"sine",vol:0.04,at:0.15});
+    vozRuido(d,t,{dur:0.35,vol:0.03,lp:900,at:0.1}); } },
+  venom_collapse:{ bus:"sfx", prio:9, voces:1, espera:900, tono:0, hacer:(d,t)=>{
+    vozOsc(d,t,{f:220,f2:40,dur:1.1,tipo:"sine",vol:0.08,at:0.05});
+    vozRuido(d,t+0.1,{dur:0.8,vol:0.06,lp:1200,lp2:150}); } },
 };
 
 // ── Reproducir ────────────────────────────────────────────
@@ -1980,6 +2228,78 @@ function dibujarHazards() {
 }
 
 // ════════════════════════════════════════════════════════════
+//  ROCAS — mecánica firma del jefe de M2 (ASTEROID BREAK)
+// ════════════════════════════════════════════════════════════
+//  Un asteroide lanzado por el jefe no muere en un golpe: al reventar,
+//  si tenía suficiente masa, se parte en dos fragmentos más pequeños que
+//  salen despedidos. Determinista y con pooling por límite — nada de
+//  física real, solo velocidad + giro, que es lo que hace falta.
+let rocas = [];
+const ROCAS_MAX = 26;
+function lanzarRoca(x, y, vx, vy, r, hp, frag) {
+  if (rocas.length >= ROCAS_MAX) return null;
+  const h = { x, y, vx, vy, r, hp, frag: frag || 0,
+    giro: rand(0, TAU), giroV: rand(-3.2, 3.2), alt: Math.random() < 0.5 };
+  rocas.push(h);
+  return h;
+}
+function actualizarRocas(dt) {
+  for (let i = rocas.length - 1; i >= 0; i--) {
+    const h = rocas[i];
+    h.x += h.vx * dt; h.y += h.vy * dt; h.giro += h.giroV * dt;
+    if (h.y - h.r > H + 40 || h.y < -220 || h.x < -100 || h.x > W + 100) { rocas.splice(i, 1); continue; }
+    if (state !== "play" || paused) continue;
+    const dx = player.x - h.x, dy = player.y - h.y;
+    if (dx * dx + dy * dy < (hitR() + h.r * 0.7) ** 2) {
+      muerte(h.x, h.y, "#ff6a2f", "media");
+      rocas.splice(i, 1); golpe();
+      if (state !== "play") return;
+      continue;
+    }
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      const b = bullets[j];
+      if (b.cd > 0) continue;
+      const bx = b.x - h.x, by = b.y - h.y;
+      if (bx * bx + by * by >= (b.r + h.r) ** 2) continue;
+      h.hp -= b.dmg;
+      const gastada = golpearCon(b, b.x, b.y, null);
+      if (gastada) soltarBala(j);
+      if (h.hp <= 0) {
+        if (h.frag > 0) {
+          const n = 2;
+          for (let k = 0; k < n; k++) {
+            const a = rand(0, TAU);
+            lanzarRoca(h.x, h.y, Math.cos(a) * 130 + h.vx * 0.3, Math.sin(a) * 130 + Math.abs(h.vy) * 0.5,
+              h.r * 0.52, 1, 0);
+          }
+          sfx("roca_break");
+          vfx("chispa", h.x, h.y, h.r * 2.4, 0.3);
+        } else {
+          muerte(h.x, h.y, "#ff8a3f", "basica");
+        }
+        rocas.splice(i, 1);
+      } else sfx("roca_impacto", { vol: 0.6 });
+      break;
+    }
+  }
+}
+function dibujarRocas() {
+  for (const h of rocas) {
+    const sp = SPRITES[h.alt ? "hz_asteroide2" : "hz_asteroide"];
+    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.giro);
+    if (sp) {
+      ctx.shadowColor = "#ff5c1a"; ctx.shadowBlur = 12;
+      pintarSprite(sp, h.r * 2.3); ctx.shadowBlur = 0;
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0, h.r, 0, TAU);
+      ctx.fillStyle = "#a04010"; ctx.fill();
+      ctx.strokeStyle = "#ff8800"; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 //  DEFENSAS FIJAS — torretas estacionarias (M3)
 // ════════════════════════════════════════════════════════════
 const DEFENSA_TIPOS = {
@@ -2159,7 +2479,7 @@ cargarSprite("df_canon",       buscar("defensas", "canon_fijo.png"));
  "misil","void","laser","railgun","rapid","x2","iman"]
   .forEach(n => cargarSprite("pu_" + n, buscar("powerups", n + ".png")));
 
-["guardian","titan"].forEach(n => cargarSprite("bs_" + n, buscar("bosses", n + ".png")));
+["guardian","titan","rift_reaper","aegis_prime","venom_core"].forEach(n => cargarSprite("bs_" + n, buscar("bosses", n + ".png")));
 
 // ── Estado ────────────────────────────────────────────────
 let T, naveSel = 0, fondoY = 0;
@@ -2357,6 +2677,9 @@ function spawnMiniboss(tipo, mult) {
   sfx("boss_llega");
   sacudir("medium");
   musica("jefe");
+  // Estado propio del jefe (nodos, orbitadores...). Vive en el propio mb,
+  // así que desaparece solo con él: nada que limpiar aparte.
+  if (d.onSpawn) d.onSpawn(miniboss);
 }
 
 function cambiarFase(mb, n) {
@@ -2365,6 +2688,8 @@ function cambiarFase(mb, n) {
   if (!f) return;
   mb.fase = n; mb.faseT = 0;
   mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6);
+  mb.avisados = null;
+  if (f.alEntrar) f.alEntrar(mb);
   if (n > 0) {
     // TRANSICIÓN. Un pulso que barre los proyectiles, cambia el color de
     // los ojos y da al jugador un respiro de medio segundo. Sin ella, la
@@ -2403,6 +2728,7 @@ function actualizarMiniboss(dt) {
       part(mb.x + rand(-mb.r, mb.r), mb.y + mb.r * 0.7, rand(-60, 60), rand(120, 300),
         rand(0.2, 0.45), i % 3 ? d.color(T) : "#ffffff", rand(1.5, 3.6));
     }
+    if (d.onEntrada) d.onEntrada(mb, dt, k);
     if (k >= 1) {
       mb.est = "combate"; mb.estT = 0; mb.invul = false;
       mb.baseY = mb.y;
@@ -2453,6 +2779,7 @@ function actualizarMiniboss(dt) {
       boom(mb.x, mb.y, d.color(T), 110, 3);
       restos(mb.x, mb.y, "#ffcf5c", 70, 2.4);
       eBullets.length = 0; telegrafos.length = 0;
+      if (d.onDetonar) d.onDetonar(mb);
     }
     // 3 · Silencio breve y VICTORIA
     else if (mb.muerteT > 3.1) {
@@ -2498,7 +2825,8 @@ function actualizarMiniboss(dt) {
       if (b.cd > 0) continue;
       const dx = b.x - mb.x, dy = b.y - mb.y;
       if (dx * dx + dy * dy >= (b.r + mb.r * 0.84) ** 2) continue;
-      mb.hp -= b.dmg; mb.flash = 0.07; bulletsHit++;
+      mb.hp -= b.dmg * (d.reduccionDano ? d.reduccionDano(mb) : 1);
+      mb.flash = 0.07; bulletsHit++;
       const gastada = golpearCon(b, b.x, b.y, null);
       if (gastada) soltarBala(j);
       if (mb.hp <= 0) { matarMiniboss(); return; }
@@ -2510,7 +2838,7 @@ function actualizarMiniboss(dt) {
 }
 
 function matarMiniboss() {
-  const mb = miniboss;
+  const mb = miniboss, d = JEFES[mb.tipo];
   mb.hp = 0; mb.est = "muriendo"; mb.estT = 0; mb.muerteT = 0;
   mb.invul = true; mb.detonado = false;
   maxCombo = Math.max(maxCombo, combo);
@@ -2518,6 +2846,11 @@ function matarMiniboss() {
   hitstop(0.1);
   sacudir("heavy");
   sfx("exp_grande");
+  // Limpieza INMEDIATA de lo que sea propio del jefe: nodos, orbitadores,
+  // zonas tóxicas activas. "Detiene ataques" ya lo hace la máquina de
+  // estados sola (deja de llamar a f.ataques); esto es lo que no se
+  // limpiaría solo.
+  if (d.onMuerte) d.onMuerte(mb);
 }
 
 // ── Dibujo del jefe ───────────────────────────────────────
@@ -2589,6 +2922,10 @@ function dibujarMiniboss() {
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+
+  // Extras en espacio de mundo (nodos, orbitadores): fuera del save/rotate
+  // del casco, porque no tienen que rotar con la muerte cinemática.
+  if (d.dibujarExtra) d.dibujarExtra(mb, f);
 }
 
 // La barra va aparte del jefe: es HUD, no mundo, y no debe temblar con
@@ -3357,6 +3694,7 @@ function update(dt) {
   // Sistemas de misión
   actualizarTelegrafos(dt);
   actualizarHazards(dt);
+  actualizarRocas(dt);
   actualizarDefensas(dt);
   actualizarZonas(dt);
 
@@ -4655,6 +4993,7 @@ function render() {
     }
     dibujarDefensas();
     dibujarHazards();
+    dibujarRocas();
     for (const e of enemies) dibujarEnemigo(e);
     dibujarMiniboss();
     for (const p of premios) dibujarPremio(p);
