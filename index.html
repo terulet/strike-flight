@@ -1103,6 +1103,134 @@ const JEFES = {
   //  la vez — las tres firmas de la segunda mitad: gravedad, calor,
   //  tóxico.
   // ══════════════════════════════════════════════════════════
+  omega_sovereign: {
+    r: 92, hpMax: 1400, nombre: "OMEGA SOVEREIGN", titulo: "SOBERANO DEL VACÍO",
+    sp: "bs_omega_sovereign", color: () => "#d8dcff",
+    puntos: 25000, drops: ["arma", "arma", "escudo", "escudo", "vida", "vida", "bomba", "bomba"],
+    epico: true,
+    onSpawn(mb) {
+      const r = mb.r;
+      mb.subs = [
+        { id: "arma_izq",  ox: -r * 1.5, oy: r * 0.2, hp: 22, hpMax: 22, vivo: true, nombre: "ARMA LATERAL", col: "#ff8a1f" },
+        { id: "escudo_gen",ox: 0,        oy: -r * 0.9, hp: 26, hpMax: 26, vivo: true, nombre: "GENERADOR DE ESCUDO", col: "#5cc8ff" },
+        { id: "arma_der",  ox: r * 1.5,  oy: r * 0.2, hp: 22, hpMax: 22, vivo: true, nombre: "ARMA LATERAL", col: "#ff8a1f" },
+      ];
+      mb.vacioIdx = -1;
+    },
+    onEntrada(mb) {
+      if (Math.random() < 0.5) part(mb.x + rand(-mb.r * 1.4, mb.r * 1.4), mb.y + rand(-30, 90), rand(-20, 20), rand(40, 130), 0.5, "#c8ceff", rand(2, 4));
+    },
+    reduccionDano(mb) {
+      const vivos = mb.subs.filter(s => s.vivo).length;
+      return 1 - vivos * 0.12;   // cada subsistema vivo protege un poco
+    },
+    dibujarExtra(mb) {
+      for (const s of mb.subs) {
+        if (!s.vivo) continue;
+        const sx = mb.x + s.ox, sy = mb.y + s.oy;
+        const p = 0.5 + 0.5 * Math.sin(performance.now() / 150);
+        ctx.save(); ctx.translate(sx, sy);
+        ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35 + p * 0.2;
+        ctx.fillStyle = s.col; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+        ctx.strokeStyle = s.col; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.stroke();
+        ctx.restore();
+        const bw = 26, bh = 3, bx = sx - bw / 2, by = sy - 20;
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+        ctx.fillStyle = s.col; ctx.fillRect(bx, by, bw * (s.hp / s.hpMax), bh);
+      }
+    },
+    onMuerte(mb) {
+      for (const s of mb.subs) if (s.vivo) { s.vivo = false; boom(mb.x + s.ox, mb.y + s.oy, s.col, 14, 1); }
+      pozos.length = 0; carriles.length = 0; zonas.length = 0;
+    },
+    onDetonar(mb) {
+      for (let i = 0; i < 16; i++) { const a = rand(0, TAU); part(mb.x, mb.y, Math.cos(a) * rand(140, 380), Math.sin(a) * rand(140, 380), rand(0.5, 1.0), "#d8dcff", rand(2, 4)); }
+      onda(mb.x, mb.y, "#8a3fd6", mb.r * 18, 1.4);
+    },
+    fases: [
+      // F1 (100%) — DOMINANCE: ataques claros y potentes, nada de caos aún
+      { umbral: 1, ojo: "#d8dcff",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.4) * W * 0.22, mb.r * 0.65, W - mb.r * 0.65);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.6) * 10;
+        },
+        ataques: [
+          { cd: [2.4, 3.0], avisa: 0.48,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.4, a2: a + 0.4, r: 1000, life: 0.48, sigue: mb }); },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 320, 6, 0.13, 7); sfx("ene_pesado"); mb.recoil = 9; } },
+          { cd: [3.6, 4.2], avisa: 0.55,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 2.6, life: 0.55, sigue: mb }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 260, 7, 0.16, 6); sfx("ene_pesado", { tono: 0.8 }); } },
+          { cd: [6.0, 7.0],
+            fn(mb) { spawnFormacion("dron_ataque", 3, "pinza"); sfx("ene_pesado", { tono: 1.1 }); } },
+        ] },
+      // F2 (~70%) — SYSTEM BREAK: subsistemas al descubierto
+      { umbral: 0.7, ojo: "#ff8a1f", furia: true,
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.55) * W * 0.28, mb.r * 0.65, W - mb.r * 0.65);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.0) * 16;
+          actualizarSubsOmega(mb, dt);
+        },
+        ataques: [
+          { cd: [3.0, 3.6], avisa: 0.4,
+            telegrafo(mb) { if (mb.subs[0].vivo) telegrafo("cono", { x: mb.x + mb.subs[0].ox, y: mb.y + mb.subs[0].oy, a1: Math.PI / 2 - 0.4, a2: Math.PI / 2 + 0.4, r: 800, life: 0.4, col: "#ff8a1f" }); },
+            fn(mb) { if (mb.subs[0].vivo) { PATRONES.abanico(mb.x + mb.subs[0].ox, mb.y + mb.subs[0].oy, Math.PI / 2, 250, 4, 0.2, 6); sfx("ene_pesado"); } } },
+          { cd: [3.0, 3.6], avisa: 0.4,
+            telegrafo(mb) { if (mb.subs[2].vivo) telegrafo("cono", { x: mb.x + mb.subs[2].ox, y: mb.y + mb.subs[2].oy, a1: Math.PI / 2 - 0.4, a2: Math.PI / 2 + 0.4, r: 800, life: 0.4, col: "#ff8a1f" }); },
+            fn(mb) { if (mb.subs[2].vivo) { PATRONES.abanico(mb.x + mb.subs[2].ox, mb.y + mb.subs[2].oy, Math.PI / 2, 250, 4, 0.2, 6); sfx("ene_pesado", { tono: 0.9 }); } } },
+          { cd: [2.2, 2.7], avisa: 0.35,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 1000, life: 0.35, sigue: mb, col: "#ff8a1f" }); },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 350, 6, 0.12, 7); sfx("ene_pesado"); mb.recoil = 9; } },
+        ] },
+      // F3 (~40%) — VOID MODE: gravedad/tóxico/calor simplificados,
+      // uno detrás de otro, nunca los tres a la vez.
+      { umbral: 0.4, ojo: "#8a3fd6", furia: true,
+        alEntrar(mb) {
+          texto(W / 2, H * 0.3, "MODO VACÍO", "#8a3fd6", 20);
+          flash = Math.max(flash, 0.5); sfx("emp");
+        },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.7) * W * 0.3, mb.r * 0.65, W - mb.r * 0.65);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.3) * 22;
+          actualizarSubsOmega(mb, dt);
+        },
+        ataques: [
+          { cd: [2.2, 2.6], avisa: 0.4,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 1000, life: 0.4, sigue: mb, col: "#8a3fd6" }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 340, 7, 0.15, 7); sfx("ene_pesado", { tono: 0.7 }); mb.recoil = 9; } },
+          { cd: [4.5, 5.2],
+            fn(mb) {
+              mb.vacioIdx = (mb.vacioIdx + 1) % 3;
+              if (mb.vacioIdx === 0) { spawnPozo(clamp(player.x, 100, W - 100), H * 0.5, 130, 110, 2.2); sfx("gravedad_forma"); }
+              else if (mb.vacioIdx === 1) { spawnCarril(rand(H * 0.3, H * 0.65), 70, 1.8); sfx("fuego_ignicion"); }
+              else { venomZona((Math.random() * 3) | 0); }
+            } },
+        ] },
+      // F4 (~15%) — FINAL STRIKE: muy agresivo, y le da al jugador su
+      // última bomba justo al entrar — la oportunidad tiene que ser real.
+      { umbral: 0.15, ojo: "#ff2f6e", furia: true, final: true,
+        alEntrar(mb) {
+          texto(W / 2, H * 0.3, "GOLPE FINAL", "#ff2f6e", 22);
+          soltarPremio(mb.x, mb.y + 40, "bomba");
+          sacudir("heavy");
+        },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 1.1) * W * 0.34, mb.r * 0.65, W - mb.r * 0.65);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 2.0) * 28;
+          actualizarSubsOmega(mb, dt);
+        },
+        ataques: [
+          { cd: [1.3, 1.6], avisa: 0.28,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.62, a2: a + 0.62, r: 1000, life: 0.28, sigue: mb, col: "#ff2f6e" }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 410, 9, 0.15, 7); sfx("ene_pesado"); mb.recoil = 12; } },
+          { cd: [3.2, 3.8], avisa: 0.6,
+            telegrafo(mb) { telegrafo("anillo", { x: mb.x, y: mb.y, r: mb.r * 3, life: 0.6, sigue: mb, col: "#ff2f6e" }); },
+            fn(mb) { PATRONES.espiral(mb.x, mb.y, 300, 22, mb.faseT * 3, 5, 3); sfx("ultimate", { tono: 0.5 }); } },
+        ] },
+    ],
+  },
 };
 
 // ════════════════════════════════════════════════════════════
@@ -1535,6 +1663,71 @@ const MISIONES = [
       { t:238, fn:"ola", tipo:"portaescudos",  n:4, patron:"V"      },
       { t:250, fn:"reward" },
       { t:256, fn:"miniboss", tipo:"core_architect" },
+    ],
+  },
+  {
+    // M10: FINAL DE CAMPAÑA. Tres actos.
+    //   Acto 1 — FINAL APPROACH: todo lo aprendido, secuenciado, nunca
+    //            simultáneo: cada mecánica de M1-M9 tiene su momento.
+    //   Acto 2 — GAUNTLET: cinco secciones cortas sin pausa.
+    //   Acto 3 — PRE-BOSS: un elite emblemático como guardián final,
+    //            silencio, y el aviso definitivo.
+    // Jefe final: OMEGA SOVEREIGN, 4 fases, muerte épica.
+    nombre: "FINAL STRIKE", temaId: "espacio", armas: ["ultimate", "railgun", "void", "laser"],
+    desc: "El final de la campaña. Todo lo aprendido, a la vez.",
+    eventos: [
+      // ── ACTO 1: FINAL APPROACH (0-150s) ──
+      { t:  3, fn:"ola", tipo:"normal",        n:6, patron:"V"      },   // M1
+      { t: 10, fn:"ola", tipo:"veloz",         n:7, patron:"zigzag" },
+      { t: 18, fn:"reward" },
+      { t: 22, fn:"hazardOn" },                                          // M2
+      { t: 26, fn:"ola", tipo:"kamikaze",      n:7, patron:"pinza"  },
+      { t: 34, fn:"hazardOff" },
+      { t: 40, fn:"defensa", tipo:"torreta", n:4 },                      // M3
+      { t: 44, fn:"ola", tipo:"francotirador", n:4, patron:"linea"  },
+      { t: 52, fn:"reward" },
+      { t: 58, fn:"zonaOn" },                                            // M4
+      { t: 62, fn:"ola", tipo:"portaescudos",  n:3, patron:"V"      },
+      { t: 70, fn:"zonaOff" },
+      { t: 76, fn:"ola", tipo:"tanque",        n:4, patron:"linea"  },   // M5
+      { t: 84, fn:"reward" },
+      { t: 90, fn:"ola", tipo:"comando",       n:1, patron:"linea"  },   // M6
+      { t: 94, fn:"ola", tipo:"crucero",       n:2, patron:"pinza"  },
+      { t:102, fn:"ola", tipo:"dron_ataque",   n:6, patron:"ola"    },
+      { t:110, fn:"reward" },
+      { t:116, fn:"pozo", y:0.46, r:160, fuerza:120, vida:2.8 },          // M7
+      { t:122, fn:"ola", tipo:"elite",         n:1, patron:"pinza"  },
+      { t:132, fn:"carril", y:0.5, h:80, vida:2.0 },                     // M8
+      { t:138, fn:"ola", tipo:"kamikaze",      n:10,patron:"zigzag" },
+      { t:146, fn:"reward" },
+      // ── ACTO 2: GAUNTLET (150-290s) — cinco tramos, sin respiro ──
+      { t:150, fn:"ola", tipo:"crucero",       n:2, patron:"linea" },    // 1. Flota
+      { t:156, fn:"ola", tipo:"dron_ataque",   n:6, patron:"pinza" },
+      { t:164, fn:"ola", tipo:"comando",       n:1, patron:"V"     },
+      { t:172, fn:"reward" },
+      { t:176, fn:"pozo", y:0.44, r:150, fuerza:130, vida:2.4 },         // 2. Gravity
+      { t:180, fn:"ola", tipo:"veloz",         n:10,patron:"zigzag" },
+      { t:190, fn:"ola", tipo:"kamikaze",      n:9, patron:"ola"    },
+      { t:198, fn:"reward" },
+      { t:202, fn:"defensa", tipo:"canon", n:3 },                        // 3. Defense
+      { t:206, fn:"ola", tipo:"francotirador", n:5, patron:"linea" },
+      { t:216, fn:"ola", tipo:"portaescudos",  n:3, patron:"pinza" },
+      { t:224, fn:"reward" },
+      { t:228, fn:"carril", y:0.52, h:84, vida:1.9 },                    // 4. Inferno
+      { t:232, fn:"ola", tipo:"kamikaze",      n:12,patron:"zigzag" },
+      { t:242, fn:"ola", tipo:"tanque",        n:4, patron:"V"      },
+      { t:250, fn:"reward" },
+      { t:254, fn:"sistemas" },                                          // 5. Core
+      { t:258, fn:"ola", tipo:"elite",         n:2, patron:"pinza"  },
+      { t:268, fn:"ola", tipo:"veloz",         n:12,patron:"ola"    },
+      { t:278, fn:"reward" },
+      { t:286, fn:"ola", tipo:"tanque",        n:5, patron:"linea"  },
+      // ── ACTO 3: PRE-BOSS (290-340s) ──
+      { t:294, fn:"reward" },
+      { t:300, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },   // guardián final
+      { t:312, fn:"reward" },
+      // Silencio deliberado antes del aviso — nada entre 312 y 340.
+      { t:340, fn:"miniboss", tipo:"omega_sovereign" },
     ],
   },
 ];
@@ -3557,7 +3750,6 @@ let miniboss = null;
 let misionCompletaT = 0;       // cuenta regresiva de pantalla de misión completa
 let comandosVivos = 0;         // M6: naves "comando" vivas — recargan la flota más rápido
 let sistemaAlpha = true, sistemaBeta = true, sistemaGamma = true;   // M9: ALPHA/BETA/GAMMA
-let campaignCompleted = false, campaignStats = null;
 
 // Estado de stats, pausa y debug
 let maxCombo = 0;
@@ -3610,8 +3802,6 @@ function leerMisionIdx(s) {
     }
   }
   if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
-  campaignCompleted = s.campaignCompleted === true;
-  if (s.campaignStats && typeof s.campaignStats === "object") campaignStats = s.campaignStats;
 }
 function guardarOpciones() {
   guardarSave({ opciones: OPCIONES });
@@ -4768,23 +4958,9 @@ function update(dt) {
     if (misionCompletaT > 0) {
       misionCompletaT -= dt;
       if (misionCompletaT <= 0) {
-        const esUltima = misionIdx >= MISIONES.length - 1;
-        if (esUltima) {
-          campaignCompleted = true;
-          campaignStats = {
-            score, best: Math.max(best, score), enemiesKilled, maxCombo,
-            precision: bulletsFiredo > 0 ? Math.round(bulletsHit / bulletsFiredo * 100) : 0,
-            tiempo: elapsed, nave: NAVES[naveSel].nombre,
-          };
-          if (score > best) best = score;
-          guardarSave({ campaignCompleted: true, campaignStats, record: best });
-          state = "menu"; pantalla = "campana-completa"; musica("victoria");
-          sfx("campana_victoria");
-        } else {
-          misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
-          guardarSave({ misionIdx: misionIdx });
-          state = "menu"; pantalla = "campana"; musica("menu");
-        }
+        misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
+        guardarSave({ misionIdx: misionIdx });
+        state = "menu"; pantalla = "campana"; musica("menu");
       }
     }
   } else {
@@ -5898,56 +6074,6 @@ function pantallaAjustes() {
   ctx.globalAlpha = 1;
 }
 
-// ── Campaña completada ────────────────────────────────────
-//  La pantalla que cierra el juego, literalmente: aparece una vez, la
-//  primera vez que se destruye a OMEGA SOVEREIGN, y desde entonces vive
-//  en el save. Estadísticas de la carrera que la ganó, no de la sesión
-//  actual — es un trofeo, no un marcador que se pisa solo.
-function pantallaCampanaCompleta() {
-  const st = campaignStats || {};
-  titulo();
-  const cy = SAFE_TOP + 128;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "800 " + Math.round(clamp(W * 0.08, 22, 30)) + "px " + F;
-  ctx.fillStyle = "#ffd700";
-  letras("CAMPAÑA COMPLETADA", W / 2, cy, 2.4, "center");
-  ctx.font = "700 10px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
-  letras("10 MISIONES · OMEGA SOVEREIGN DERROTADO", W / 2, cy + 26, 1.4, "center");
-  ctx.globalAlpha = 1;
-
-  const anchoP = Math.min(W - 56, 340), x0 = (W - anchoP) / 2;
-  let y = cy + 58;
-  panel(x0, y, anchoP, 190, 16, 0.55);
-  filo(x0, y, anchoP, 190, 16, "#ffd700", 0.25);
-  const filas = [
-    ["PUNTUACIÓN FINAL", (st.score || 0).toLocaleString("es")],
-    ["MEJOR PUNTUACIÓN", (st.best || best || 0).toLocaleString("es")],
-    ["ENEMIGOS DESTRUIDOS", st.enemiesKilled || 0],
-    ["COMBO MÁXIMO", "×" + (st.maxCombo || 0)],
-    ["PRECISIÓN", (st.precision || 0) + "%"],
-    ["TIEMPO — MISIÓN FINAL", st.tiempo != null ? (Math.floor(st.tiempo / 60) + ":" + String(Math.floor(st.tiempo % 60)).padStart(2, "0")) : "—"],
-    ["NAVE", st.nave || "—"],
-  ];
-  let fy = y + 22;
-  for (const [et, v] of filas) {
-    ctx.textAlign = "left"; ctx.font = "700 10px " + F;
-    ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.5;
-    letras(et, x0 + 18, fy, 1.2);
-    ctx.globalAlpha = 1; ctx.textAlign = "right"; ctx.font = "800 12px " + F; ctx.fillStyle = "#ffd700";
-    ctx.fillText(String(v), x0 + anchoP - 18, fy);
-    fy += 23;
-  }
-
-  const bw = Math.min(W - 56, 300), bx = (W - bw) / 2;
-  let by = y + 210;
-  boton(bx, by, bw, 52, { label: "JUGAR DE NUEVO", tam: 15, solido: true, color: "#ffd700",
-    fn: () => { misionIdx = 0; iniciarMision(0); } });
-  by += 62;
-  boton(bx, by, bw, 44, { label: "SELECCIÓN DE MISIÓN", tam: 12, fn: () => { pantalla = "campana"; } });
-  by += 54;
-  boton(bx, by, bw, 44, { label: "SUPERVIVENCIA", tam: 12, fn: () => { pantalla = "mundos"; modo = "supervivencia"; } });
-}
-
 function menu() {
   botones = [];
   menuT += 1 / 60;
@@ -5956,7 +6082,6 @@ function menu() {
   else if (pantalla === "campana") pantallaCampana();
   else if (pantalla === "mundos") pantallaMundos();
   else if (pantalla === "ajustes") pantallaAjustes();
-  else if (pantalla === "campana-completa") pantallaCampanaCompleta();
 
   if (avisoT > 0) {
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
