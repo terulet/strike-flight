@@ -318,6 +318,27 @@ el juego ya la pide en los momentos correctos; lo que falta son pistas
 con licencia comercial verificable. Los motivos y las reglas, en
 [`THIRD_PARTY_AUDIO_LICENSES.md`](THIRD_PARTY_AUDIO_LICENSES.md).
 
+## Probarlo en el iPad o el iPhone
+
+Lo más rápido, y sin publicar nada:
+
+```
+node herramientas/servir.mjs
+```
+
+Escribe las direcciones que hay que abrir en el iPad. El PC y el iPad
+tienen que estar en la **misma WiFi**, y la primera vez Windows preguntará
+si deja pasar Node por el cortafuegos: hay que decir que sí a *redes
+privadas*.
+
+No vale copiar la carpeta al iPad y abrir el archivo: con `file://` el
+navegador no deja leer los píxeles de una imagen de disco y el recorte de
+fondo no funciona. Hace falta HTTP, que es justo lo que hace esto.
+
+Añadiendo `?debug` a la dirección sale el panel de diagnóstico —estado
+del audio, FPS, conteos— que es lo que hay que mirar si algo va raro en
+el aparato.
+
 ## Ponerlo en la tablet
 
 Con Pages activado, abrir el enlace en Safari y **Compartir → Añadir a
