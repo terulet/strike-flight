@@ -2066,23 +2066,98 @@ let voces = 0;
 const VOCES_MAX = 24;
 const sonUltimo = {}, sonVivos = {};
 
-function unlockAudio() {
-  if (audio || !CONFIG.sonido) return;
+// ── Ciclo de vida en iOS ──────────────────────────────────
+//  Safari en iPhone/iPad no deja sonar un AudioContext que no haya
+//  arrancado DENTRO de un gesto real del usuario, y además tiene un
+//  estado propio, "interrupted", que aparece al cambiar de app, bloquear
+//  la pantalla o recibir una llamada.
+//
+//  La versión anterior fallaba por tres sitios a la vez:
+//    · `if (audio) return` — creado el contexto, no se reintentaba nunca
+//      el resume(). Si el primer intento no cuajaba, el juego se quedaba
+//      mudo para siempre.
+//    · resume() se llamaba el último y sin mirar la promesa, así que un
+//      fallo pasaba inadvertido.
+//    · "interrupted" no se contemplaba: volver de otra app dejaba el
+//      contexto parado sin que nada lo levantase.
+//
+//  Ahora hay un único contexto (nunca se crean más) y CUALQUIER gesto
+//  posterior vuelve a intentar levantarlo mientras no esté corriendo.
+const audioDbg = { intentos: 0, ok: 0, fallos: 0, ultimo: "—", motivo: "" };
+let audioListo = false;
+
+function crearContexto() {
+  if (audio) return true;
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  audio = new AC();
-  const comp = audio.createDynamicsCompressor();
-  comp.threshold.value = -18; comp.knee.value = 24;
-  comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.22;
-  BUS.master = audio.createGain();
-  BUS.master.connect(comp).connect(audio.destination);
-  for (const k of ["sfx", "musica", "ui"]) {
-    BUS[k] = audio.createGain();
-    BUS[k].connect(BUS.master);
+  if (!AC) { audioDbg.motivo = "sin WebAudio"; return false; }
+  try {
+    audio = new AC();
+    const comp = audio.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 24;
+    comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.22;
+    BUS.master = audio.createGain();
+    BUS.master.connect(comp).connect(audio.destination);
+    for (const k of ["sfx", "musica", "ui"]) {
+      BUS[k] = audio.createGain();
+      BUS[k].connect(BUS.master);
+    }
+    aplicarVolumenes();
+    return true;
+  } catch (e) {
+    audio = null;
+    audioDbg.motivo = "creación: " + e.message;
+    return false;
   }
-  aplicarVolumenes();
-  if (audio.state === "suspended") audio.resume();
 }
+
+// Un búfer de un frame a volumen cero. En iOS, resume() a secas no
+// siempre basta: hace falta que algo EMPIECE a sonar dentro del gesto
+// para que el sistema dé por buena la sesión de audio.
+function golpeSilencioso() {
+  if (!audio) return;
+  try {
+    const b = audio.createBuffer(1, 1, audio.sampleRate);
+    const s = audio.createBufferSource();
+    s.buffer = b;
+    s.connect(audio.destination);
+    s.start(0);
+  } catch (_) {}
+}
+
+// Se llama desde cualquier gesto del usuario. Barata cuando ya está
+// todo en marcha: sale por la primera línea.
+function unlockAudio() {
+  if (!CONFIG.sonido) return;
+  if (audio && audio.state === "running") { audioListo = true; return; }
+  if (!crearContexto()) return;
+
+  audioDbg.intentos++;
+  golpeSilencioso();
+
+  // "interrupted" es de iOS y no está en la especificación: se trata
+  // igual que "suspended", que es lo que quiere decir en la práctica.
+  if (audio.state !== "running") {
+    let p;
+    try { p = audio.resume(); } catch (e) { audioDbg.fallos++; audioDbg.motivo = "resume: " + e.message; return; }
+    if (p && p.then) {
+      p.then(() => {
+        if (audio && audio.state === "running") { audioListo = true; audioDbg.ok++; audioDbg.motivo = ""; }
+        else { audioDbg.fallos++; audioDbg.motivo = "resume no dejó running (" + (audio && audio.state) + ")"; }
+      }).catch(e => { audioDbg.fallos++; audioDbg.motivo = "resume rechazado: " + e.message; });
+    } else if (audio.state === "running") { audioListo = true; audioDbg.ok++; }
+  } else { audioListo = true; audioDbg.ok++; }
+}
+
+// Volver de segundo plano deja el contexto parado en iOS. No se hace un
+// bucle de resume() —Safari lo penaliza— sino un intento puntual, y el
+// resto queda para el siguiente gesto, que siempre acaba llegando.
+function reanudarAudio() {
+  if (!audio || !CONFIG.sonido) return;
+  if (audio.state === "running") return;
+  audioListo = false;
+  unlockAudio();
+}
+
 function aplicarVolumenes() {
   if (!BUS.master) return;
   const m = OPCIONES.silencio ? 0 : OPCIONES.volMaster;
@@ -2090,6 +2165,15 @@ function aplicarVolumenes() {
   BUS.sfx.gain.value = OPCIONES.volSfx;
   BUS.ui.gain.value = Math.min(1, OPCIONES.volSfx + 0.1);
   BUS.musica.gain.value = OPCIONES.volMusica;
+}
+
+// Prueba de sonido de los ajustes. Pasa por el motor real —mismo bus,
+// mismo límite de voces, misma variación de tono— para que si suena
+// aquí, suene en el juego.
+function probarAudio() {
+  unlockAudio();
+  sfx("mejora");
+  setTimeout(() => sfx("exp_med"), 260);
 }
 
 // Ruido blanco reutilizado: generar el buffer en cada explosión son 20 000
@@ -2349,10 +2433,23 @@ const SONIDOS = {
 };
 
 // ── Reproducir ────────────────────────────────────────────
+//  Una llamada con el contexto parado no es un error: se descarta y ya.
+//  El juego pide sonidos desde el primer fotograma —mucho antes de que
+//  el jugador toque nada— y eso tiene que ser inofensivo.
+let ultimoIntentoResume = 0;
 function sfx(id, opts) {
-  if (!audio || audio.state !== "running" || OPCIONES.silencio) return;
+  if (!audio || OPCIONES.silencio) return;
+  if (audio.state !== "running") {
+    // Reintento perezoso y con freno: como mucho uno por segundo. Sin el
+    // freno, un juego que pide 30 sonidos por segundo llamaría a
+    // resume() 30 veces por segundo, y Safari eso lo castiga.
+    const t = performance.now();
+    if (t - ultimoIntentoResume > 1000) { ultimoIntentoResume = t; reanudarAudio(); }
+    return;
+  }
   const s = SONIDOS[id];
   if (!s) return;
+  audioDbg.ultimo = id;
   const o = opts || {};
   const ahora = performance.now();
   if (ahora - (sonUltimo[id] || -1e9) < (s.espera || 0)) return;
@@ -3802,6 +3899,16 @@ function leerMisionIdx(s) {
       }
     }
   }
+  // Un guardado corrupto o de una versión vieja no puede dejar el juego
+  // mudo sin que se note: los volúmenes se acotan a [0,1] y, si el
+  // general o el de efectos llegan a cero, se levantan al valor de
+  // fábrica. Bajarlos a mano desde AJUSTES sí funciona — eso es una
+  // decisión del jugador, y se guarda después de esta comprobación.
+  OPCIONES.volMaster = clamp(Number(OPCIONES.volMaster) || 0, 0, 1);
+  OPCIONES.volSfx    = clamp(Number(OPCIONES.volSfx)    || 0, 0, 1);
+  OPCIONES.volMusica = clamp(Number(OPCIONES.volMusica) || 0, 0, 1);
+  if (OPCIONES.volMaster <= 0) OPCIONES.volMaster = 0.9;
+  if (OPCIONES.volSfx <= 0) OPCIONES.volSfx = 0.9;
   if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
   campaignCompleted = s.campaignCompleted === true;
   if (s.campaignStats && typeof s.campaignStats === "object") campaignStats = s.campaignStats;
@@ -4313,6 +4420,26 @@ c.addEventListener("pointerdown", (e) => {
 c.addEventListener("pointermove", (e) => { if (dragging && state === "play") aim(e); });
 window.addEventListener("pointerup", () => { dragging = false; });
 window.addEventListener("pointercancel", () => { dragging = false; });
+
+// ── Desbloqueo de audio ───────────────────────────────────
+//  En fase de CAPTURA y sobre window, no sobre el canvas: así corre
+//  antes que la lógica del juego y también si el toque cae en cualquier
+//  otro sitio. Se escuchan tres eventos porque iOS no siempre entrega
+//  los mismos: pointerdown es el normal, touchend es el que Safari
+//  cuenta como gesto en las versiones viejas, y click es la red.
+//  unlockAudio() sale por la primera línea cuando ya está corriendo,
+//  así que dejarlos puestos para siempre no cuesta nada.
+for (const ev of ["pointerdown", "touchend", "click", "keydown"]) {
+  window.addEventListener(ev, unlockAudio, { capture: true, passive: true });
+}
+
+// Cambiar de app, bloquear la pantalla o volver a la pestaña deja el
+// contexto en "suspended" o en "interrupted" (este último solo iOS).
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) reanudarAudio();
+});
+window.addEventListener("pageshow", reanudarAudio);
+window.addEventListener("focus", reanudarAudio);
 
 // Teclado: WASD/flechas para mover, Escape para pausar, Ctrl+Shift+D para debug
 const keys = {};
@@ -6084,10 +6211,27 @@ function pantallaAjustes() {
   filaOpcion(y, "IMPACTO", [["NO", 0], ["SÍ", 1]], "hitstop"); y += sep;
   filaOpcion(y, "NÚCLEO", [["NO", false], ["SÍ", true]], "nucleo"); y += sep + 16;
 
-  ctx.font = "700 9px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.35;
-  ctx.textAlign = "center";
-  ctx.fillText("El núcleo marca la zona exacta que recibe impactos.", W / 2, y - 14);
-  ctx.fillText("Calidad AUTO baja los efectos si el aparato no da 60 fps.", W / 2, y);
+  // Prueba de sonido: pasa por el motor real, así que si suena aquí,
+  // suena en el juego. Y el propio toque sirve de gesto de desbloqueo.
+  const bwT = Math.min(anchoP, 200), bxT = (W - bwT) / 2;
+  boton(bxT, y - 8, bwT, 40, { label: "PROBAR SONIDO", tam: 12,
+    color: audioListo ? T.nave : "#ff8a1f", fn: probarAudio });
+  y += 48;
+
+  ctx.font = "700 9px " + F; ctx.textAlign = "center";
+  if (!audioListo) {
+    // Si el audio no ha arrancado, eso es más importante que cualquier
+    // consejo: se dice, y se dice en naranja.
+    ctx.fillStyle = "#ff8a1f"; ctx.globalAlpha = 0.9;
+    ctx.fillText("Audio en espera — toca PROBAR SONIDO" +
+      (audio ? "  (" + audio.state + ")" : ""), W / 2, y);
+    ctx.globalAlpha = 0.35; ctx.fillStyle = "#fff";
+    ctx.fillText("En iPhone/iPad, el interruptor de silencio también apaga el juego.", W / 2, y + 15);
+    y += 38;
+  }
+  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.35;
+  ctx.fillText("El núcleo marca la zona exacta que recibe impactos.", W / 2, y);
+  ctx.fillText("Calidad AUTO baja los efectos si el aparato no da 60 fps.", W / 2, y + 15);
   ctx.globalAlpha = 1;
 }
 
@@ -6598,19 +6742,40 @@ function render() {
   }
 
   // Debug overlay
-  if (showDebug && state === "play") {
-    const dy = 134;
-    ctx.fillStyle = "rgba(0,0,0,0.65)"; ctx.fillRect(0, dy, 172, 90);
-    ctx.fillStyle = "#0f0"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+  // El bloque de audio va SIEMPRE que esté ?debug, también en el menú:
+  // es donde se comprueba el desbloqueo antes de empezar a jugar.
+  if (showDebug) {
+    const dy = state === "play" ? 134 : SAFE_TOP + 60;
+    const lines = [];
+    if (state === "play") {
+      lines.push(
+        "FPS " + fps.toFixed(1) + "  t:" + elapsed.toFixed(1) + "s ev:" + eventoIdx,
+        "ENE:" + enemies.length + " EBUL:" + eBullets.length + " BULS:" + bullets.length,
+        "PART:" + particles.length + " premios:" + premios.length,
+        "score:" + score + " combo:" + combo + " boss:" + (miniboss ? "Y" : "N"),
+        "spawns:" + spawnQueue.length + (paused ? " [PAUSE]" : ""),
+        "");
+    }
+    lines.push(
+      "AUDIO",
+      " ctx:" + (audio ? audio.state : "sin crear") + "  listo:" + (audioListo ? "SI" : "NO"),
+      " master:" + OPCIONES.volMaster.toFixed(2) + " sfx:" + OPCIONES.volSfx.toFixed(2) +
+        " mus:" + OPCIONES.volMusica.toFixed(2),
+      " gain:" + (BUS.master ? BUS.master.gain.value.toFixed(2) : "—") +
+        "/" + (BUS.sfx ? BUS.sfx.gain.value.toFixed(2) : "—") +
+        "  mute:" + (OPCIONES.silencio ? "SI" : "NO"),
+      " voces:" + voces + "/" + VOCES_MAX + "  ult:" + audioDbg.ultimo,
+      " resume:" + audioDbg.intentos + " int / " + audioDbg.ok + " ok / " + audioDbg.fallos + " fallo");
+    if (audioDbg.motivo) lines.push(" " + audioDbg.motivo.slice(0, 30));
+
+    const anchoCaja = 232, altoCaja = lines.length * 16 + 8;
+    ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, dy, anchoCaja, altoCaja);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.font = "11px monospace";
-    const lines = [
-      "FPS " + fps.toFixed(1) + "  t:" + elapsed.toFixed(1) + "s ev:" + eventoIdx,
-      "ENE:" + enemies.length + " EBUL:" + eBullets.length + " BULS:" + bullets.length,
-      "PART:" + particles.length + " premios:" + premios.length,
-      "score:" + score + " combo:" + combo + " boss:" + (miniboss ? "Y" : "N"),
-      "spawns:" + spawnQueue.length + (paused ? " [PAUSE]" : ""),
-    ];
-    lines.forEach((l, i) => ctx.fillText(l, 4, dy + 4 + i * 16));
+    lines.forEach((l, i) => {
+      ctx.fillStyle = l === "AUDIO" ? "#ff0" : (audioListo || !l.startsWith(" ctx")) ? "#0f0" : "#f80";
+      ctx.fillText(l, 4, dy + 4 + i * 16);
+    });
   }
 }
 
