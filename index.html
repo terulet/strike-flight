@@ -1766,6 +1766,15 @@ const NAVES = [
     lema:"VANGUARDIA", desc:"Sale con escudo y arma de energía.",
     arma:"electrico", vel:1.08, cad:0.96, dmg:1, hitbox:0.84, escudo:1,
     motor:"#c77dff", stats:{ ATAQUE:3, VELOCIDAD:4, CONTROL:5 } },
+
+  // ELOI no repite el hueco de KALI. KALI pega fuerte y gira mal; ELOI
+  // dispara más rápido que nadie y tiene la zona de impacto más grande
+  // del juego. Sale con el lanzallamas, que es de corto alcance: la nave
+  // entera está montada para obligar a acercarse.
+  { id:"eloi", nombre:"ELOI", src:buscar("naves","eloi.png"), fija:true,
+    lema:"DEVASTADOR", desc:"Dispara más rápido que nadie. Y es la más fácil de acertar.",
+    arma:"fuego", vel:1.10, cad:0.82, dmg:1.20, hitbox:1.25, escudo:0,
+    motor:"#ff3d1a", stats:{ ATAQUE:5, VELOCIDAD:4, CONTROL:2 } },
 ];
 const NAVE_BASE = { arma:"cannon", vel:1, cad:1, dmg:1, hitbox:1, escudo:0, motor:null,
   lema:"PERSONAL", desc:"Tu nave.", stats:{ ATAQUE:3, VELOCIDAD:3, CONTROL:3 } };
@@ -5955,6 +5964,14 @@ function cabecera(txt) {
 }
 
 // ── Selección de nave ─────────────────────────────────────
+//  Cuántas casillas por fila. Hasta cuatro, todas en una; a partir de
+//  ahí se reparte en dos filas iguales. Con cinco naves + CARGAR, poner
+//  cinco arriba y una suelta abajo queda descolgado: mejor 3 y 3.
+function navesPorFila(total) {
+  if (total <= 4) return total;
+  return Math.min(5, Math.ceil(total / 2));
+}
+
 function pantallaNaves() {
   cabecera("ELIGE NAVE");
   const n = naveActual();
@@ -5962,8 +5979,9 @@ function pantallaNaves() {
   // El bloque de arriba se centra en el hueco que deja la rejilla, que va
   // pegada abajo porque es lo que se toca. En un iPhone alto, si no, la
   // ficha se queda arriba del todo y sobran 700 px de vacío.
-  const filasG = Math.ceil((NAVES.length + 1) / Math.min(5, NAVES.length + 1));
-  const slotG = Math.min(78, (W - 32 - 10 * (Math.min(5, NAVES.length + 1) - 1)) / Math.min(5, NAVES.length + 1));
+  const porFilaG = navesPorFila(NAVES.length + 1);
+  const filasG = Math.ceil((NAVES.length + 1) / porFilaG);
+  const slotG = Math.min(78, (W - 32 - 10 * (porFilaG - 1)) / porFilaG);
   const libre = (H - SAFE_BOTTOM - 24 - filasG * (slotG + 10)) - (SAFE_TOP + 60);
   const offY = Math.max(0, (libre - (tam * 0.66 + 210)) * 0.4);
   ctx.save();
@@ -6002,7 +6020,7 @@ function pantallaNaves() {
 
   // Rejilla de naves
   const total = NAVES.length + 1;
-  const porFila = Math.min(5, total);
+  const porFila = navesPorFila(total);
   const hueco = 10;
   const slot = Math.min(78, (W - 32 - hueco * (porFila - 1)) / porFila);
   const filas = Math.ceil(total / porFila);

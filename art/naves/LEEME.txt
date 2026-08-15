@@ -8,6 +8,7 @@ en minusculas:
   kali.png
   yoli.png
   silvia.png
+  eloi.png
 
 Aparecen solas en el menu, en la fila "TU NAVE".
 Si falta alguna, su casilla pone "falta el PNG"

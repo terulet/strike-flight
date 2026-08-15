@@ -93,7 +93,14 @@ acotados a ±35 % para que elegir sea una preferencia y no una trampa.
 | **KALI** | ASALTO | ×0.86 | ×1.38 | ×1.14 | ×1.10 | Cañón |
 | **YOLI** | INTERCEPTOR | ×1.32 | ×0.82 | ×0.88 | ×0.78 | Repetidor |
 | **SILVIA** | VANGUARDIA | ×1.08 | ×1.00 | ×0.96 | ×0.84 | Eléctrico + escudo |
+| **ELOI** | DEVASTADOR | ×1.10 | ×1.20 | ×0.82 | ×1.25 | Lanzallamas |
 | CLÁSICA | POLIVALENTE | ×1 | ×1 | ×1 | ×1 | Cañón |
+
+En cadencia, **menos es más rápido**. ELOI no repite el hueco de KALI:
+KALI pega fuerte y gira mal; ELOI dispara más rápido que nadie y tiene
+la zona de impacto más grande del juego. Que salga con el lanzallamas
+—corto alcance— es parte de lo mismo: está montada para obligar a
+acercarse.
 
 ## Las armas
 
@@ -125,7 +132,7 @@ Las imágenes que trae el juego de serie. Cada subcarpeta tiene su
 `LEEME.txt` con los nombres exactos.
 
 ```
-art/naves/        kali · yoli · silvia
+art/naves/        kali · yoli · silvia · eloi
 art/enemigos/     normal · veloz · torreta · tanque · kamikaze ·
                   bombardero · francotirador · portaescudos · elite ·
                   crucero · comando · dron_ataque · dron_escudo · dron_misil
