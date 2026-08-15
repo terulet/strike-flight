@@ -3750,6 +3750,7 @@ let miniboss = null;
 let misionCompletaT = 0;       // cuenta regresiva de pantalla de misión completa
 let comandosVivos = 0;         // M6: naves "comando" vivas — recargan la flota más rápido
 let sistemaAlpha = true, sistemaBeta = true, sistemaGamma = true;   // M9: ALPHA/BETA/GAMMA
+let campaignCompleted = false, campaignStats = null;
 
 // Estado de stats, pausa y debug
 let maxCombo = 0;
@@ -3802,6 +3803,8 @@ function leerMisionIdx(s) {
     }
   }
   if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
+  campaignCompleted = s.campaignCompleted === true;
+  if (s.campaignStats && typeof s.campaignStats === "object") campaignStats = s.campaignStats;
 }
 function guardarOpciones() {
   guardarSave({ opciones: OPCIONES });
@@ -4958,9 +4961,23 @@ function update(dt) {
     if (misionCompletaT > 0) {
       misionCompletaT -= dt;
       if (misionCompletaT <= 0) {
-        misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
-        guardarSave({ misionIdx: misionIdx });
-        state = "menu"; pantalla = "campana"; musica("menu");
+        const esUltima = misionIdx >= MISIONES.length - 1;
+        if (esUltima) {
+          campaignCompleted = true;
+          campaignStats = {
+            score, best: Math.max(best, score), enemiesKilled, maxCombo,
+            precision: bulletsFiredo > 0 ? Math.round(bulletsHit / bulletsFiredo * 100) : 0,
+            tiempo: elapsed, nave: NAVES[naveSel].nombre,
+          };
+          if (score > best) best = score;
+          guardarSave({ campaignCompleted: true, campaignStats, record: best });
+          state = "menu"; pantalla = "campana-completa"; musica("victoria");
+          sfx("campana_victoria");
+        } else {
+          misionIdx = Math.min(misionIdx + 1, MISIONES.length - 1);
+          guardarSave({ misionIdx: misionIdx });
+          state = "menu"; pantalla = "campana"; musica("menu");
+        }
       }
     }
   } else {
@@ -6074,6 +6091,56 @@ function pantallaAjustes() {
   ctx.globalAlpha = 1;
 }
 
+// ── Campaña completada ────────────────────────────────────
+//  La pantalla que cierra el juego, literalmente: aparece una vez, la
+//  primera vez que se destruye a OMEGA SOVEREIGN, y desde entonces vive
+//  en el save. Estadísticas de la carrera que la ganó, no de la sesión
+//  actual — es un trofeo, no un marcador que se pisa solo.
+function pantallaCampanaCompleta() {
+  const st = campaignStats || {};
+  titulo();
+  const cy = SAFE_TOP + 128;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.08, 22, 30)) + "px " + F;
+  ctx.fillStyle = "#ffd700";
+  letras("CAMPAÑA COMPLETADA", W / 2, cy, 2.4, "center");
+  ctx.font = "700 10px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("10 MISIONES · OMEGA SOVEREIGN DERROTADO", W / 2, cy + 26, 1.4, "center");
+  ctx.globalAlpha = 1;
+
+  const anchoP = Math.min(W - 56, 340), x0 = (W - anchoP) / 2;
+  let y = cy + 58;
+  panel(x0, y, anchoP, 190, 16, 0.55);
+  filo(x0, y, anchoP, 190, 16, "#ffd700", 0.25);
+  const filas = [
+    ["PUNTUACIÓN FINAL", (st.score || 0).toLocaleString("es")],
+    ["MEJOR PUNTUACIÓN", (st.best || best || 0).toLocaleString("es")],
+    ["ENEMIGOS DESTRUIDOS", st.enemiesKilled || 0],
+    ["COMBO MÁXIMO", "×" + (st.maxCombo || 0)],
+    ["PRECISIÓN", (st.precision || 0) + "%"],
+    ["TIEMPO — MISIÓN FINAL", st.tiempo != null ? (Math.floor(st.tiempo / 60) + ":" + String(Math.floor(st.tiempo % 60)).padStart(2, "0")) : "—"],
+    ["NAVE", st.nave || "—"],
+  ];
+  let fy = y + 22;
+  for (const [et, v] of filas) {
+    ctx.textAlign = "left"; ctx.font = "700 10px " + F;
+    ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.5;
+    letras(et, x0 + 18, fy, 1.2);
+    ctx.globalAlpha = 1; ctx.textAlign = "right"; ctx.font = "800 12px " + F; ctx.fillStyle = "#ffd700";
+    ctx.fillText(String(v), x0 + anchoP - 18, fy);
+    fy += 23;
+  }
+
+  const bw = Math.min(W - 56, 300), bx = (W - bw) / 2;
+  let by = y + 210;
+  boton(bx, by, bw, 52, { label: "JUGAR DE NUEVO", tam: 15, solido: true, color: "#ffd700",
+    fn: () => { misionIdx = 0; iniciarMision(0); } });
+  by += 62;
+  boton(bx, by, bw, 44, { label: "SELECCIÓN DE MISIÓN", tam: 12, fn: () => { pantalla = "campana"; } });
+  by += 54;
+  boton(bx, by, bw, 44, { label: "SUPERVIVENCIA", tam: 12, fn: () => { pantalla = "mundos"; modo = "supervivencia"; } });
+}
+
 function menu() {
   botones = [];
   menuT += 1 / 60;
@@ -6082,6 +6149,7 @@ function menu() {
   else if (pantalla === "campana") pantallaCampana();
   else if (pantalla === "mundos") pantallaMundos();
   else if (pantalla === "ajustes") pantallaAjustes();
+  else if (pantalla === "campana-completa") pantallaCampanaCompleta();
 
   if (avisoT > 0) {
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
