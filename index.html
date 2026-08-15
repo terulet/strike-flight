@@ -866,6 +866,89 @@ const JEFES = {
   //  ACTIVE → COLLAPSE → CLEAR — para tirar del jugador con fuerza
   //  acotada, nunca para quitarle el control.
   // ══════════════════════════════════════════════════════════
+  singularity_warden: {
+    r: 66, hpMax: 860, nombre: "SINGULARITY WARDEN", titulo: "CENTINELA DE LA SINGULARIDAD",
+    sp: "bs_singularity_warden", color: () => "#b45cff",
+    puntos: 6200, drops: ["arma", "escudo", "escudo", "vida", "bomba"],
+    onSpawn(mb) { mb.orbitadores = null; },
+    onEntrada(mb) {
+      if (Math.random() < 0.4) part(mb.x + rand(-mb.r, mb.r), mb.y + rand(-20, 60), rand(-15, 15), rand(30, 90), 0.5, "#d9a5ff", rand(2, 4));
+    },
+    reduccionDano(mb) { return mb.orbitadores && mb.orbitadores.length ? 0.6 : 1; },
+    onMuerte(mb) { pozos.length = 0; mb.orbitadores = []; },
+    onDetonar(mb) { onda(mb.x, mb.y, "#b45cff", mb.r * 16, 1.2); },
+    fases: [
+      // F1 — orbes gravitatorios telegrafiados
+      { umbral: 1, ojo: "#b45cff",
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.45) * W * 0.26, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.7) * 14;
+        },
+        ataques: [
+          { cd: [3.4, 4.0],
+            fn(mb) { spawnPozo(clamp(player.x + rand(-90, 90), 90, W - 90), H * 0.48, 150, 130, 3.0); sfx("gravedad_forma"); } },
+          { cd: [2.2, 2.7], avisa: 0.4,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.4, a2: a + 0.4, r: 900, life: 0.4, sigue: mb, col: "#b45cff" }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 250, 5, 0.19, 6); sfx("ene_pesado", { tono: 0.8 }); } },
+        ] },
+      // F2 (~60%) — orbitadores propios + proyectiles con guiado suave
+      { umbral: 0.6, ojo: "#8a3fd6", furia: true,
+        alEntrar(mb) { crearOrbitadores(mb, 4); },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.6) * W * 0.28, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.1) * 18;
+          if (mb.orbitadores) for (const o of mb.orbitadores) o.ang += o.velAng * dt;
+        },
+        dibujarExtra(mb) {
+          if (!mb.orbitadores) return;
+          const sp = SPRITES["hz_cristal"];
+          for (const o of mb.orbitadores) {
+            const ox = mb.x + Math.cos(o.ang) * o.radio, oy = mb.y + Math.sin(o.ang) * o.radio;
+            ctx.save(); ctx.translate(ox, oy); ctx.rotate(o.ang * 2);
+            if (sp) { ctx.shadowColor = "#b45cff"; ctx.shadowBlur = 8; pintarSprite(sp, o.r * 2.4); ctx.shadowBlur = 0; }
+            ctx.restore();
+          }
+        },
+        ataques: [
+          { cd: [2.6, 3.2],
+            fn(mb) { spawnPozo(clamp(mb.x + rand(-200, 200), 90, W - 90), H * 0.5, 130, 110, 2.6); } },
+          { cd: [2.0, 2.5], avisa: 0.35,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 900, life: 0.35, sigue: mb, col: "#8a3fd6" }); },
+            fn(mb) {
+              const a = haciaJugador(mb);
+              for (let i = -1; i <= 1; i++) eBala(mb.x, mb.y, Math.cos(a + i * 0.3) * 250, Math.sin(a + i * 0.3) * 250, 6, { guiaEne: 1.4 });
+              sfx("ene_pesado", { tono: 0.7 });
+            } },
+        ] },
+      // F3 (~30%) — BLACK HOLE COLLAPSE: espectacular, siempre esquivable
+      { umbral: 0.3, ojo: "#ffffff", furia: true, final: true,
+        alEntrar(mb) { mb.orbitadores = null; },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.5) * W * 0.2, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY;
+        },
+        ataques: [
+          { cd: [2.0, 2.4], avisa: 0.4,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 900, life: 0.4, sigue: mb, col: "#ffffff" }); },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 370, 6, 0.12, 6); sfx("ene_pesado"); mb.recoil = 9; } },
+          { cd: [5.2, 6.2], avisa: 1.1,
+            telegrafo(mb) { telegrafo("anillo", { x: W / 2, y: H * 0.46, r: 260, life: 1.1, col: "#ffffff" }); },
+            fn(mb) {
+              texto(W / 2, H * 0.3, "COLAPSO GRAVITATORIO", "#ffffff", 15);
+              spawnPozo(W / 2, H * 0.46, 240, 190, 2.6);
+              PATRONES.circulo(mb.x, mb.y, 220, 14, mb.faseT, 6);
+              sfx("gravedad_colapso"); sacudir("medium"); hitstop(0.04);
+            } },
+        ] },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════
+  //  PYRE LORD — jefe de M8, INFERNO
+  //  Identidad: velocidad, calor, agresividad. Su firma es OVERHEAT: un
+  //  núcleo que se abre a intervalos y encaja 40% más de daño mientras
+  //  dura — riesgo/recompensa explícito, no un simple cronómetro.
+  // ══════════════════════════════════════════════════════════
 };
 
 // ════════════════════════════════════════════════════════════
@@ -1162,6 +1245,51 @@ const MISIONES = [
       { t:292, fn:"ola", tipo:"comando",     n:2, patron:"linea" },
       { t:300, fn:"reward" },
       { t:306, fn:"miniboss", tipo:"warlord_vesper" },
+    ],
+  },
+  {
+    // M7: identidad = ESPACIO DISTORSIONADO. GRAVITY WELL: TELEGRAPH →
+    // FORMATION → ACTIVE → COLLAPSE → CLEAR. La fuerza se suma al
+    // objetivo del dedo — nunca sustituye el control del jugador.
+    nombre: "GRAVITY COLLAPSE", temaId: "espacio", armas: ["laser", "plasma"],
+    desc: "Pozos gravitatorios. La fuerza es suave — nunca pierdes el control.",
+    eventos: [
+      // FASE 1 — Primeros pozos (0-65s)
+      { t:  4, fn:"ola", tipo:"normal",        n:5, patron:"V"      },
+      { t: 12, fn:"pozo", y:0.42, r:130, fuerza:95, vida:2.6 },
+      { t: 20, fn:"ola", tipo:"veloz",         n:6, patron:"zigzag" },
+      { t: 28, fn:"reward" },
+      { t: 33, fn:"pozo", y:0.5, r:140, fuerza:105, vida:2.8 },
+      { t: 40, fn:"ola", tipo:"francotirador", n:3, patron:"linea"  },
+      { t: 50, fn:"ola", tipo:"kamikaze",      n:6, patron:"pinza"  },
+      { t: 58, fn:"reward" },
+      // FASE 2 — Presión creciente (65-135s)
+      { t: 66, fn:"pozo", y:0.44, r:150, fuerza:115, vida:3.0 },
+      { t: 72, fn:"ola", tipo:"dron_ataque",   n:5, patron:"ola"    },
+      { t: 80, fn:"ola", tipo:"tanque",        n:2, patron:"linea"  },
+      { t: 90, fn:"reward" },
+      { t: 95, fn:"pozo", y:0.5, r:150, fuerza:120, vida:3.0 },
+      { t:102, fn:"ola", tipo:"veloz",         n:9, patron:"pinza"  },
+      { t:110, fn:"ola", tipo:"portaescudos",  n:2, patron:"V"      },
+      { t:120, fn:"reward" },
+      { t:126, fn:"ola", tipo:"kamikaze",      n:9, patron:"zigzag" },
+      // FASE 3 — Distorsión intensa (135-200s)
+      { t:136, fn:"pozo", y:0.4, r:160, fuerza:130, vida:3.2 },
+      { t:144, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },
+      { t:154, fn:"reward" },
+      { t:160, fn:"pozo", y:0.52, r:160, fuerza:130, vida:3.2 },
+      { t:166, fn:"ola", tipo:"francotirador", n:5, patron:"pinza"  },
+      { t:176, fn:"ola", tipo:"tanque",        n:3, patron:"V"      },
+      { t:186, fn:"reward" },
+      { t:192, fn:"ola", tipo:"kamikaze",      n:10,patron:"ola"    },
+      // FASE 4 — Antes del Centinela (200-255s)
+      { t:202, fn:"pozo", y:0.46, r:170, fuerza:140, vida:3.0 },
+      { t:210, fn:"ola", tipo:"elite",         n:2, patron:"pinza"  },
+      { t:222, fn:"reward" },
+      { t:228, fn:"ola", tipo:"veloz",         n:11,patron:"zigzag" },
+      { t:238, fn:"ola", tipo:"portaescudos",  n:3, patron:"linea"  },
+      { t:248, fn:"reward" },
+      { t:254, fn:"miniboss", tipo:"singularity_warden" },
     ],
   },
 ];
