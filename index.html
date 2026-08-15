@@ -949,6 +949,84 @@ const JEFES = {
   //  núcleo que se abre a intervalos y encaja 40% más de daño mientras
   //  dura — riesgo/recompensa explícito, no un simple cronómetro.
   // ══════════════════════════════════════════════════════════
+  pyre_lord: {
+    r: 70, hpMax: 780, nombre: "PYRE LORD", titulo: "SEÑOR DE LA PIRA",
+    sp: "bs_pyre_lord", color: () => "#ff3d1a",
+    puntos: 7000, drops: ["arma", "arma", "escudo", "vida", "bomba"],
+    onSpawn(mb) { mb.overheat = 0; },
+    onEntrada(mb) {
+      if (Math.random() < 0.5) part(mb.x + rand(-mb.r, mb.r), mb.y + rand(-20, 70), rand(-25, 25), rand(60, 150), 0.4, "#ff6a1f", rand(2, 4));
+    },
+    reduccionDano(mb) { return mb.overheat > 0 ? 1.4 : 0.8; },
+    onMuerte(mb) { carriles.length = 0; mb.overheat = 0; },
+    onDetonar(mb) { for (let i = 0; i < 10; i++) part(mb.x, mb.y, rand(-260, 260), rand(-260, 260), rand(0.4, 0.8), "#ff8a1f", rand(2, 4)); },
+    dibujarExtra(mb) {
+      if (mb.overheat <= 0) return;
+      const p = 0.6 + 0.4 * Math.sin(performance.now() / 60);
+      ctx.save(); ctx.translate(mb.x, mb.y);
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6 * p;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, mb.r * 0.7);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "#ffcf5c"); g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, mb.r * 0.7, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+      ctx.restore();
+    },
+    fases: [
+      // F1 — armamento pesado
+      { umbral: 1, ojo: "#ff3d1a",
+        mover(mb, dt) {
+          if (mb.overheat > 0) mb.overheat -= dt;
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.5) * W * 0.24, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 0.8) * 14;
+        },
+        ataques: [
+          { cd: [2.0, 2.5], avisa: 0.4,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.42, a2: a + 0.42, r: 900, life: 0.4, sigue: mb, col: "#ff6a1f" }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 260, 5, 0.19, 6); sfx("ene_pesado"); mb.recoil = 8; } },
+          { cd: [4.6, 5.4], avisa: 0.9,
+            telegrafo(mb) { texto(mb.x, mb.y - mb.r - 26, "OVERHEAT", "#ffcf5c", 14); },
+            fn(mb) { mb.overheat = 2.6; sfx("core_offline", { tono: 1.4 }); sacudir("tiny"); } },
+        ] },
+      // F2 (~65%) — lanes de fuego
+      { umbral: 0.65, ojo: "#ff8a1f", furia: true,
+        mover(mb, dt) {
+          if (mb.overheat > 0) mb.overheat -= dt;
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 0.7) * W * 0.3, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.2) * 20;
+        },
+        ataques: [
+          { cd: [3.4, 4.0],
+            fn(mb) { spawnCarril(rand(H * 0.3, H * 0.68), 76, 2.0); sfx("fuego_ignicion"); } },
+          { cd: [1.9, 2.4], avisa: 0.32,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.5, a2: a + 0.5, r: 900, life: 0.32, sigue: mb, col: "#ff8a1f" }); },
+            fn(mb) { PATRONES.rafaga(mb.x, mb.y, haciaJugador(mb), 350, 6, 0.12, 6); sfx("ene_pesado", { tono: 0.85 }); mb.recoil = 9; } },
+          { cd: [5.2, 6.0], avisa: 0.9,
+            telegrafo(mb) { texto(mb.x, mb.y - mb.r - 26, "OVERHEAT", "#ffcf5c", 14); },
+            fn(mb) { mb.overheat = 2.8; sfx("core_offline", { tono: 1.4 }); sacudir("tiny"); } },
+        ] },
+      // F3 (~30%) — núcleo sobrecalentado permanente: máxima agresividad
+      { umbral: 0.3, ojo: "#ffffff", furia: true, final: true,
+        alEntrar(mb) { mb.overheat = 999; texto(W / 2, H * 0.32, "NÚCLEO ABIERTO", "#ffffff", 16); },
+        mover(mb, dt) {
+          mb.x = clamp(W / 2 + Math.sin(mb.faseT * 1.0) * W * 0.3, mb.r * 0.7, W - mb.r * 0.7);
+          mb.y = mb.baseY + Math.sin(mb.faseT * 1.8) * 24;
+        },
+        ataques: [
+          { cd: [1.5, 1.9], avisa: 0.3,
+            telegrafo(mb) { const a = haciaJugador(mb); telegrafo("cono", { x: mb.x, y: mb.y, a1: a - 0.58, a2: a + 0.58, r: 900, life: 0.3, sigue: mb, col: "#ffffff" }); },
+            fn(mb) { PATRONES.abanico(mb.x, mb.y, haciaJugador(mb), 400, 7, 0.16, 6); sfx("ene_pesado"); mb.recoil = 10; } },
+          { cd: [3.0, 3.6],
+            fn(mb) { spawnCarril(rand(H * 0.28, H * 0.7), 90, 1.8); sfx("fuego_ignicion", { tono: 1.2 }); } },
+        ] },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════
+  //  CORE ARCHITECT — jefe de M9, ENEMY CORE
+  //  Identidad: inteligente, artificial. Se teletransporta y orienta su
+  //  barrido hacia donde el jugador tiene MÁS sitio — parece adaptarse,
+  //  nunca dispara con puntería perfecta.
+  // ══════════════════════════════════════════════════════════
 };
 
 // ════════════════════════════════════════════════════════════
@@ -1290,6 +1368,52 @@ const MISIONES = [
       { t:238, fn:"ola", tipo:"portaescudos",  n:3, patron:"linea"  },
       { t:248, fn:"reward" },
       { t:254, fn:"miniboss", tipo:"singularity_warden" },
+    ],
+  },
+  {
+    // M8: identidad = VELOCIDAD + CALOR + AGRESIVIDAD. HEAT LANES:
+    // TELEGRAPH → IGNITION → ACTIVE → COOLING. Más rápida que M7, nunca
+    // menos justa: el aviso sigue siendo el mismo lenguaje de siempre.
+    nombre: "INFERNO", temaId: "volcan", armas: ["fuego", "rapid"],
+    desc: "Carriles de fuego. Rápida y agresiva — pero siempre avisa.",
+    eventos: [
+      // FASE 1 — Ignición (0-60s)
+      { t:  3, fn:"ola", tipo:"bombardero",  n:3, patron:"V"      },
+      { t: 10, fn:"carril", y:0.55, h:70, vida:1.8 },
+      { t: 16, fn:"ola", tipo:"normal",      n:6, patron:"ola"    },
+      { t: 24, fn:"reward" },
+      { t: 30, fn:"carril", y:0.35, h:70, vida:1.8 },
+      { t: 36, fn:"ola", tipo:"veloz",       n:7, patron:"zigzag" },
+      { t: 46, fn:"ola", tipo:"kamikaze",    n:6, patron:"pinza"  },
+      { t: 54, fn:"reward" },
+      // FASE 2 — Oleadas rápidas (60-130s)
+      { t: 62, fn:"carril", y:0.48, h:76, vida:2.0 },
+      { t: 68, fn:"ola", tipo:"veloz",       n:9, patron:"V"      },
+      { t: 76, fn:"ola", tipo:"kamikaze",    n:9, patron:"zigzag" },
+      { t: 86, fn:"reward" },
+      { t: 92, fn:"carril", y:0.3, h:76, vida:2.0 },
+      { t: 98, fn:"ola", tipo:"bombardero",  n:4, patron:"linea"  },
+      { t:106, fn:"ola", tipo:"veloz",       n:10,patron:"pinza"  },
+      { t:116, fn:"reward" },
+      { t:122, fn:"ola", tipo:"kamikaze",    n:10,patron:"ola"    },
+      // FASE 3 — Presión de calor (130-195s)
+      { t:132, fn:"carril", y:0.42, h:80, vida:2.1 },
+      { t:138, fn:"ola", tipo:"tanque",      n:3, patron:"linea"  },
+      { t:148, fn:"reward" },
+      { t:154, fn:"carril", y:0.58, h:80, vida:2.1 },
+      { t:160, fn:"ola", tipo:"portaescudos",n:3, patron:"pinza"  },
+      { t:170, fn:"ola", tipo:"veloz",       n:12,patron:"zigzag" },
+      { t:180, fn:"reward" },
+      { t:186, fn:"ola", tipo:"kamikaze",    n:11,patron:"V"      },
+      // FASE 4 — Antes del Señor de la Pira (195-250s)
+      { t:196, fn:"carril", y:0.36, h:84, vida:1.9 },
+      { t:202, fn:"ola", tipo:"elite",       n:2, patron:"linea"  },
+      { t:214, fn:"reward" },
+      { t:220, fn:"carril", y:0.52, h:84, vida:1.9 },
+      { t:226, fn:"ola", tipo:"bombardero",  n:5, patron:"ola"    },
+      { t:236, fn:"ola", tipo:"kamikaze",    n:12,patron:"pinza"  },
+      { t:246, fn:"reward" },
+      { t:252, fn:"miniboss", tipo:"pyre_lord" },
     ],
   },
 ];
