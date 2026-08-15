@@ -37,7 +37,7 @@ await paso("08-victoria", 2.0);
 
 // TITÁN — M5, fase final
 await p.evaluate(() => {
-  iniciarMision(4); arma = 6; armaId = "cryo"; elapsed = 100;
+  iniciarMision(4); arma = 6; armaId = "cryo"; elapsed = 250;   // el Titán entra en t=256
   golpe = () => {};
   setTimeout(() => { enemies.length = 0; spawnQueue.length = 0; }, 900);
 });

@@ -1,3 +1,3 @@
-# Duración de los combates de jefe
+# Jefes — arquitectura de acontecimiento
 
 Sin errores de consola ni 404.
