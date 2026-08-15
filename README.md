@@ -29,23 +29,59 @@ habría sitio. En iPad vertical no sobra nada y el marco no aparece.
 
 ## Modos
 
-**CAMPAÑA** — cinco misiones con guion de eventos, identidad propia y
-jefe al final.
+**CAMPAÑA** — diez misiones con guion de eventos, identidad propia,
+mecánica firma y jefe propio. Ninguna es una versión con más vida de la
+anterior: cada una introduce algo que las demás no tienen.
 
-| | Misión | Identidad |
-|---|---|---|
-| M1 | PRIMER CONTACTO | Introducción al combate |
-| M2 | CINTURÓN DE ASTEROIDES | Movimiento y esquiva |
-| M3 | RED DE DEFENSA | Prioridad de objetivos |
-| M4 | SECTOR TÓXICO | Control del espacio |
-| M5 | FISURA HELADA | Élites, hielo y el TITÁN |
+| | Misión | Identidad | Mecánica firma | Jefe |
+|---|---|---|---|---|
+| M1 | PRIMER CONTACTO | Introducción al combate | — | GUARDIÁN |
+| M2 | CINTURÓN DE ASTEROIDES | Movimiento y esquiva | Asteroid break | RIFT REAPER |
+| M3 | RED DE DEFENSA | Prioridad de objetivos | Target priority | AEGIS PRIME |
+| M4 | SECTOR TÓXICO | Control del espacio | Toxic zones | VENOM CORE |
+| M5 | FISURA HELADA | Primera gran prueba | Élites + hielo | TITÁN |
+| M6 | WAR FLEET | Guerra a gran escala | Command ships | WARLORD VESPER |
+| M7 | GRAVITY COLLAPSE | Espacio distorsionado | Gravity wells | SINGULARITY WARDEN |
+| M8 | INFERNO | Velocidad y calor | Heat lanes | PYRE LORD |
+| M9 | ENEMY CORE | Asalto al núcleo | Core access | CORE ARCHITECT |
+| M10 | FINAL STRIKE | Final de campaña | Los tres actos | OMEGA SOVEREIGN |
+
+Duración medida, con un piloto competente: **M1** 4:39 · **M2-M4** ~5:00 ·
+**M5** 6:09 · **M6** 6:22 · **M7** 5:17 · **M8** 5:29 · **M9** 5:27 ·
+**M10** 7:59.
 
 Cada misión suelta **familias de arma distintas**, así que salir de la M2
-con misiles y de la M5 con crio no es casualidad: es lo que hace que la
-campaña no sepa toda igual.
+con misiles, de la M5 con crio y de la M9 con raíl no es casualidad: es
+lo que hace que la campaña no sepa toda igual.
+
+Al terminar la M10 se guarda `campaignCompleted` y aparece la pantalla
+**CAMPAÑA COMPLETADA** con las estadísticas de la carrera que la ganó.
 
 **SUPERVIVENCIA** — el modo original, intacto. Cuatro mundos, oleadas sin
 fin, dificultad por tiempo.
+
+## Mecánicas de la segunda mitad
+
+Las cuatro son sistemas propios con estado explícito, límite duro y
+limpieza al morir el jefe. Ninguna toca el control del jugador.
+
+**COMMAND SHIPS** (M6) — mientras viva una nave `comando`, toda la flota
+recarga un 30 % más rápido. Matar una se nota al instante en el ritmo de
+fuego de la pantalla entera.
+
+**GRAVITY WELL** (M7) — `TELEGRAPH → FORMATION → ACTIVE → COLLAPSE →
+CLEAR`. La fuerza se **suma** al objetivo del dedo, nunca lo sustituye, y
+el colapso final tiene techo. Por fuerte que tire, sigues pilotando.
+
+**HEAT LANES** (M8) — `TELEGRAPH → IGNITION → ACTIVE → COOLING`. Bandas
+horizontales, no círculos: obligan a elegir **altura**, que es lo que
+pide una misión de reacción rápida.
+
+**CORE ACCESS** (M9) — tres sistemas que cambian el nivel de verdad al
+caer. `ALPHA` apaga las torretas de escenario, `BETA` es un escudo de
+flota (los enemigos encajan solo el 55 % del daño mientras vive), `GAMMA`
+manda refuerzos cada 4 s. Ignorarlos aprieta la misión; destruirlos la
+desarma.
 
 ## Las naves
 
@@ -91,8 +127,11 @@ Las imágenes que trae el juego de serie. Cada subcarpeta tiene su
 ```
 art/naves/        kali · yoli · silvia
 art/enemigos/     normal · veloz · torreta · tanque · kamikaze ·
-                  bombardero · francotirador · portaescudos · elite
-art/bosses/       guardian · titan
+                  bombardero · francotirador · portaescudos · elite ·
+                  crucero · comando · dron_ataque · dron_escudo · dron_misil
+art/bosses/       guardian · titan · rift_reaper · aegis_prime ·
+                  venom_core · warlord_vesper · singularity_warden ·
+                  pyre_lord · core_architect · omega_sovereign
 art/powerups/     16 mejoras
 art/proyectiles/  13 familias de disparo
 art/vfx/          15 efectos
@@ -147,12 +186,29 @@ simulados, lo juegan y recogen todo lo que dice la consola. Un 404 o una
 excepción salen en el informe, no en silencio.
 
 ```
-node herramientas/pruebas/nucleo.mjs   artifacts/screenshots/x
-node herramientas/pruebas/frontal.mjs  artifacts/screenshots/x
-node herramientas/pruebas/jefes.mjs    artifacts/screenshots/x
-node herramientas/pruebas/aguante.mjs  artifacts/screenshots/x
-node herramientas/pruebas/mision-completa.mjs artifacts/screenshots/x [1-5]
+node herramientas/pruebas/nucleo.mjs        artifacts/screenshots/x
+node herramientas/pruebas/frontal.mjs       artifacts/screenshots/x
+node herramientas/pruebas/pantallas.mjs     artifacts/screenshots/x
+node herramientas/pruebas/aguante.mjs       artifacts/screenshots/x
+node herramientas/pruebas/misiones.mjs      artifacts/screenshots/x
+
+# jefes, por tandas
+node herramientas/pruebas/jefes.mjs         artifacts/screenshots/x   # M1 · M5
+node herramientas/pruebas/bosses-m2-m4.mjs  artifacts/screenshots/x
+node herramientas/pruebas/campana-final.mjs artifacts/screenshots/x   # M6-M10
+
+# duraciones reales, con un piloto que APUNTA al jefe
+node herramientas/pruebas/duracion-m2-m4.mjs
+node herramientas/pruebas/duracion-m6-m10.mjs
+
+# una misión entera en tiempo real (--inmune para medir su duración)
+node herramientas/pruebas/mision-completa.mjs artifacts/screenshots/x [1-10] [--inmune]
 ```
+
+> Ojo con el piloto automático: `mision-completa.mjs` busca la columna
+> más despejada, que durante un combate de jefe significa **lejos del
+> jefe**. Mide bien el tránsito de una misión y fatal el combate. Para
+> medir un jefe hay que usar `duracion-*.mjs`, que se coloca debajo.
 
 > **Los FPS que salen ahí no valen.** Chromium sin ventana compone el
 > canvas por software, sin GPU: son un suelo pesimista, no una medida de
@@ -168,9 +224,16 @@ node herramientas/pruebas/mision-completa.mjs artifacts/screenshots/x [1-5]
 - Tope de 340 proyectiles enemigos. No es una optimización: por encima
   de eso la pantalla deja de tener huecos.
 - Tope de 24 voces de audio con prioridades.
+- Tope en cada sistema ambiental de la segunda mitad: 26 rocas, 6 pozos
+  gravitatorios, 5 carriles de calor, 8 zonas tóxicas.
 - Calidad **automática** en tres niveles. Recorta partículas, estelas y
   brillo decorativo — nunca lógica de juego. Baja tras 1,5 s por debajo
   de 46 fps y sube tras 12 s por encima de 56, para que no oscile.
+
+Al morir un jefe, `matarMiniboss()` vacía pozos, carriles y sistemas de
+forma **genérica**: ningún jefe nuevo tiene que acordarse de limpiar lo
+ambiental. Lo suyo propio (nodos, orbitadores, subsistemas) va por su
+`onMuerte`.
 
 ## Ajustes
 
@@ -214,13 +277,34 @@ obliga a tocar cómo dispara.
 
 **Un jefe** es una entrada en `JEFES` con sus fases y sus ataques. La
 puesta en escena —aviso, entrada, transición, muerte cinemática,
-victoria— viene de serie y es la misma para todos.
+victoria— viene de serie y es la misma para los diez. Si necesita algo
+propio, hay siete enganches opcionales y ninguno es obligatorio:
+
+| | |
+|---|---|
+| `onSpawn(mb)` | estado propio al aparecer (nodos, pods, subsistemas) |
+| `onEntrada(mb, dt, k)` | cada fotograma de la bajada, `k` = 0..1 |
+| `reduccionDano(mb)` | multiplicador de daño recibido |
+| `onDetonar(mb)` | extra en el instante de la explosión grande |
+| `onMuerte(mb)` | limpieza inmediata, antes de la cinemática |
+| `dibujarExtra(mb, f)` | dibujo en espacio de mundo |
+| `epico: true` | alarga la muerte cinemática (solo el jefe final) |
+
+Y por fase, `alEntrar(mb)`. El motor no sabe qué es un asteroide ni un
+pozo gravitatorio: solo llama al enganche si existe.
+
+**Una misión** es una entrada en `MISIONES` con su lista de eventos
+`{ t, fn, ... }`. Los verbos disponibles son `ola`, `reward`, `miniboss`,
+`hazardOn/Off`, `defensa`, `zonaOn/Off`, `zonaCol`, `pozo`, `carril` y
+`sistemas`.
 
 ## Audio
 
-Cuarenta sonidos, cero archivos: todo síntesis en el navegador. Cuatro
-buses con compresor a la salida, límite de voces, prioridades y
-variación de afinación.
+Cincuenta y ocho sonidos, cero archivos: todo síntesis en el navegador.
+Cuatro buses con compresor a la salida, límite de voces, prioridades y
+variación de afinación. La segunda mitad de la campaña añade su propia
+capa: gravedad, ignición, núcleo, alarma de flota, final y victoria de
+campaña.
 
 La música está **pendiente a propósito**. La arquitectura está puesta y
 el juego ya la pide en los momentos correctos; lo que falta son pistas

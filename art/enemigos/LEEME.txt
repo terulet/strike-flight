@@ -4,13 +4,22 @@
 
 Un archivo por tipo. Los nombres salen de la
 tabla ENEMIGOS de index.html, asi que ahora
-mismo son estos cinco:
+mismo son estos catorce:
 
-  normal.png      el basico, cae recto
-  veloz.png       pequeno y en zigzag
-  torreta.png     apunta y dispara
-  tanque.png      grande, con barra de vida
-  kamikaze.png    va a por la nave
+  normal.png         el basico, cae recto
+  veloz.png          pequeno y en zigzag
+  torreta.png        apunta y dispara
+  tanque.png         grande, con barra de vida
+  kamikaze.png       va a por la nave
+  bombardero.png     bombas con altura marcada
+  francotirador.png  se para, apunta y dispara
+  portaescudos.png   escudo hexagonal visible
+  elite.png          escolta pesada, espirales
+  crucero.png        M6: dos baterias laterales
+  comando.png        M6: acelera a toda la flota
+  dron_ataque.png    escolta rapida y fragil
+  dron_escudo.png    escolta de apoyo
+  dron_misil.png     escolta con misil guiado
 
 El que falte se dibuja por codigo con su forma
 de siempre. No se rompe nada, y en la consola
