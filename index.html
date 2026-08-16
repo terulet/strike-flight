@@ -42,6 +42,8 @@ const CONFIG = {
   tamanoNave:         4.8,   // cómo de grande se dibuja la nave cargada
   llamasMotor:        true,  // ponlo en false si tu nave YA lleva las llamas dibujadas
   sonido:             true,
+  maxHorasPorDia:     2,     // horas máximas de juego por día (0 = ilimitado)
+  advertenciaPorcentaje: 80, // mostrar advertencia cuando se alcance este % del límite
 };
 
 // ════════════════════════════════════════════════════════════
@@ -478,6 +480,7 @@ let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let targetX, targetY, dragging = false, bank = 0;
 let menuRects = [], naveRects = [], masRect = null;
+let sessionStartTime = Date.now(), totalPlayTime = 0, limitExceeded = false, showLimitWarning = false;
 
 best = Number(localStorage.getItem("sf_record") || 0);
 T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
@@ -485,6 +488,45 @@ T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
   const g = localStorage.getItem("sf_nave");
   const i = NAVES.findIndex(n => n.id === g);
   naveSel = i >= 0 ? i : 0;
+}
+
+// ── Límite de uso diario ──────────────────────────────────
+function obtenerTiempoJuegoHoy() {
+  const ahora = new Date();
+  const hoy = ahora.toISOString().split("T")[0];
+  const clave = `sf_tiempoJuego_${hoy}`;
+  return Number(localStorage.getItem(clave) || 0);
+}
+
+function guardarTiempoJuegoHoy(ms) {
+  const ahora = new Date();
+  const hoy = ahora.toISOString().split("T")[0];
+  const clave = `sf_tiempoJuego_${hoy}`;
+  localStorage.setItem(clave, String(ms));
+}
+
+function formatearTiempo(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const seg = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${seg}s`;
+  return `${seg}s`;
+}
+
+function verificarLimiteUso() {
+  if (CONFIG.maxHorasPorDia <= 0) return false; // sin límite
+  const tiempoHoy = obtenerTiempoJuegoHoy() + totalPlayTime;
+  const maxMs = CONFIG.maxHorasPorDia * 3600 * 1000;
+  return tiempoHoy >= maxMs;
+}
+
+function calcularTiempoRestante() {
+  if (CONFIG.maxHorasPorDia <= 0) return -1; // sin límite
+  const tiempoHoy = obtenerTiempoJuegoHoy() + totalPlayTime;
+  const maxMs = CONFIG.maxHorasPorDia * 3600 * 1000;
+  return Math.max(0, maxMs - tiempoHoy);
 }
 
 function crearFondo() {
@@ -496,6 +538,11 @@ function crearFondo() {
 }
 
 function reset() {
+  if (verificarLimiteUso()) {
+    limitExceeded = true;
+    state = "menu";
+    return;
+  }
   state = "play";
   player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
   targetX = player.x; targetY = player.y;
@@ -505,6 +552,9 @@ function reset() {
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
   arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
   shakeT = 0; shakeMag = 0; flash = 0; bank = 0;
+  sessionStartTime = Date.now();
+  totalPlayTime = 0;
+  showLimitWarning = false;
 }
 
 // El menú también anima, así que todo esto tiene que existir ya
@@ -556,7 +606,7 @@ c.addEventListener("pointerdown", (e) => {
     return;
   }
   if (state === "over") {
-    if (performance.now() - overAt > 700) state = "menu";
+    if (performance.now() - overAt > 700) { state = "menu"; limitExceeded = false; }
     return;
   }
   dragging = true; aim(e);
@@ -665,6 +715,7 @@ function golpe() {
   boom(player.x, player.y, T.nave, 34, 1.4);
   beep(150, 0.35, "sawtooth", 0.08); ruido(0.25, 0.1); shake(14, 0.4);
   if (lives <= 0) {
+    guardarTiempoJuegoHoy(obtenerTiempoJuegoHoy() + totalPlayTime);
     state = "over"; overAt = performance.now();
     boom(player.x, player.y, T.motor, 60, 2); shake(20, 0.7);
     if (score > best) { best = score; localStorage.setItem("sf_record", String(best)); }
@@ -704,6 +755,19 @@ function update(dt) {
   if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
   if (avisoT > 0) avisoT -= dt;
   if (state !== "play") return;
+
+  totalPlayTime += dt * 1000;
+  const tiempoRestante = calcularTiempoRestante();
+  if (tiempoRestante >= 0 && tiempoRestante < CONFIG.maxHorasPorDia * 3600 * 1000 * (100 - CONFIG.advertenciaPorcentaje) / 100) {
+    showLimitWarning = true;
+  }
+  if (tiempoRestante === 0 && CONFIG.maxHorasPorDia > 0) {
+    guardarTiempoJuegoHoy(obtenerTiempoJuegoHoy() + totalPlayTime);
+    state = "over";
+    overAt = performance.now();
+    texto(W / 2, H * 0.35, "LÍMITE DE JUEGO ALCANZADO", T.enemigoA);
+    return;
+  }
 
   elapsed += dt;
   const nl = 1 + Math.floor(elapsed / CONFIG.subeDificultadCada);
@@ -998,6 +1062,15 @@ function hud() {
     ctx.fillText("TURBO " + turbo.toFixed(1), W - 16, top + 88);
     ctx.globalAlpha = 1;
   }
+  if (CONFIG.maxHorasPorDia > 0) {
+    const tiempoRestante = calcularTiempoRestante();
+    const porcentaje = Math.max(0, (tiempoRestante / (CONFIG.maxHorasPorDia * 3600 * 1000)) * 100);
+    ctx.textAlign = "left"; ctx.fillStyle = showLimitWarning ? "#ff4d6d" : "#fff";
+    ctx.globalAlpha = showLimitWarning ? 0.95 : 0.6;
+    ctx.font = "700 11px " + F;
+    ctx.fillText("TIEMPO: " + formatearTiempo(tiempoRestante), 16, top + 56);
+    ctx.globalAlpha = 1;
+  }
   if (combo >= 8) {
     ctx.textAlign = "center"; ctx.fillStyle = T.bala;
     ctx.globalAlpha = clamp(comboT, 0, 1);
@@ -1158,6 +1231,28 @@ function menu() {
     ctx.restore();
 
     y += alto + 10;
+  }
+
+  if (CONFIG.maxHorasPorDia > 0 || limitExceeded) {
+    const tiempoHoy = obtenerTiempoJuegoHoy();
+    const maxMs = CONFIG.maxHorasPorDia * 3600 * 1000;
+    const porcentaje = Math.min(100, (tiempoHoy / maxMs) * 100);
+
+    ctx.globalAlpha = 0.6; ctx.fillStyle = "#fff";
+    ctx.font = "700 12px " + F;
+    ctx.textAlign = "center";
+    ctx.fillText("JUEGO HOY: " + formatearTiempo(tiempoHoy), W / 2, H - 50);
+
+    if (limitExceeded) {
+      ctx.globalAlpha = 0.9; ctx.fillStyle = "#ff4d6d";
+      ctx.font = "800 14px " + F;
+      ctx.fillText("LÍMITE ALCANZADO PARA HOY", W / 2, H - 28);
+    } else if (CONFIG.maxHorasPorDia > 0) {
+      ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff";
+      ctx.font = "700 11px " + F;
+      ctx.fillText("Máximo: " + CONFIG.maxHorasPorDia + " h/día", W / 2, H - 28);
+    }
+    ctx.globalAlpha = 1;
   }
 
   if (avisoT > 0) {
