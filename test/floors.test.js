@@ -193,6 +193,43 @@ test('the doors always offer exactly one way out and it is stable', () => {
   }
 });
 
+/**
+ * Checking t=0 is not enough: a saw that sweeps over the pad, or a beam that
+ * fires across it, makes the last step of a floor a gamble. The way out has
+ * to be a safe place to stand at every point of every cycle.
+ */
+test('nothing lethal ever crosses the way out', () => {
+  for (let n = 1; n <= CHECK_UP_TO; n++) {
+    const room = fm.build(n);
+    const ctx = { time: 0, player: null, sfx: () => {} };
+    let zone;
+    if (room.exitIsDoors) {
+      const slot = room.exitEntity.exitSlot;
+      zone = { x: slot.x + 6, y: slot.y + 4, w: slot.w - 12, h: slot.h - 4 };
+    } else {
+      const e = room.exitEntity;
+      zone = { x: e.x, y: e.y - 22, w: e.w, h: e.h + 22 };
+    }
+    // 12 seconds is several cycles of everything in the game.
+    for (let step = 0; step < 12 * 60; step++) {
+      room.update(1 / 60, ctx);
+      for (const hz of room.hazards) {
+        let overlap;
+        if (hz.kind === 'circle') {
+          const dx = Math.max(zone.x - hz.x, 0, hz.x - (zone.x + zone.w));
+          const dy = Math.max(zone.y - hz.y, 0, hz.y - (zone.y + zone.h));
+          overlap = Math.hypot(dx, dy) < hz.r;
+        } else {
+          overlap = zone.x < hz.x + hz.w && zone.x + zone.w > hz.x &&
+                    zone.y < hz.y + hz.h && zone.y + zone.h > hz.y;
+        }
+        assert.equal(overlap, false,
+          `floor ${n}: a ${hz.cause} crosses the way out ${(step / 60).toFixed(1)}s in`);
+      }
+    }
+  }
+});
+
 test('the hatch above the exit is always inside the room', () => {
   for (let n = 1; n <= CHECK_UP_TO; n++) {
     const room = fm.build(n);
