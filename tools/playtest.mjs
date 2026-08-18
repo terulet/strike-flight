@@ -6,6 +6,7 @@
  *   node tools/playtest.mjs [pulse|drift|snap] [repeticiones]
  */
 import { chromium } from 'playwright';
+import { playMemory } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const only = process.argv[2];
@@ -25,6 +26,16 @@ const page = await context.newPage();
 page.on('pageerror', (e) => console.log('  PAGEERROR', e.message));
 
 await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
+
+/** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
+async function enterSolo(page) {
+  if ((await page.locator('.onboarding').count()) > 0) {
+    await page.getByText('PROBAR SOLO').click();
+    await page.waitForSelector('.card', { timeout: 10000 });
+  }
+}
+
+await enterSolo(page);
 await page.waitForSelector('.card');
 
 async function launch(gameId) {
@@ -85,7 +96,7 @@ async function playDrift() {
   await page.mouse.up();
 }
 
-const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap };
+const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap, memory: () => playMemory(page) };
 const results = {};
 
 for (const gameId of Object.keys(BOTS)) {

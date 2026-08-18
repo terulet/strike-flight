@@ -28,6 +28,24 @@ const shot = async (name) => {
 };
 
 await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
+
+/** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
+async function enterSolo(page) {
+  if ((await page.locator('.onboarding').count()) > 0) {
+    await page.getByText('PROBAR SOLO').click();
+    await page.waitForSelector('.card', { timeout: 10000 });
+  }
+}
+
+/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+async function leaveResult(page) {
+  await page.getByText('CONTINUAR', { exact: true }).click();
+  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
+  await page.waitForSelector('.card');
+}
+
+
+await enterSolo(page);
 await page.waitForSelector('.card');
 
 // 1. Portada tal cual la ve alguien que abre la app por primera vez.
@@ -48,8 +66,7 @@ await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
 await page.waitForSelector('.result');
 await page.waitForTimeout(700);
 await shot('04-resultado');
-await page.locator('.result .btn--ghost').click();
-await page.waitForSelector('.card');
+await leaveResult(page);
 
 // 4. Los otros dos juegos.
 for (const [game, bot, name, ms] of [
@@ -65,8 +82,7 @@ for (const [game, bot, name, ms] of [
   await shot(name);
   await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
   await page.waitForSelector('.result');
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
 }
 
 // 5. Resultado de pique: adelantar a alguien.
@@ -96,8 +112,7 @@ await playCurrent(page, 60000);
 await page.waitForSelector('.result', { timeout: 60000 });
 await page.waitForTimeout(800);
 await shot('08-resultado-adelantamiento');
-await page.locator('.result .btn--ghost').click();
-await page.waitForSelector('.card');
+await leaveResult(page);
 await shot('09-portada-lider');
 
 // 6. Reto secreto abierto y evento CHAOS.
@@ -127,8 +142,7 @@ await playCurrent(page, 4500);
 await shot('11-chaos');
 await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
 await page.waitForSelector('.result');
-await page.locator('.result .btn--ghost').click();
-await page.waitForSelector('.card');
+await leaveResult(page);
 
 // 7. Marcas personales y panel de debug.
 await page.locator('.scroller').evaluate((node) => node.scrollTo({ top: node.scrollHeight }));

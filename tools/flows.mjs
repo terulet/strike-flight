@@ -38,6 +38,24 @@ const shot = async (name) => page.screenshot({ path: `${OUT}${name}.png` });
 const homeText = () => page.locator('.screen').innerText();
 
 await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
+
+/** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
+async function enterSolo(page) {
+  if ((await page.locator('.onboarding').count()) > 0) {
+    await page.getByText('PROBAR SOLO').click();
+    await page.waitForSelector('.card', { timeout: 10000 });
+  }
+}
+
+/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+async function leaveResult(page) {
+  await page.getByText('CONTINUAR', { exact: true }).click();
+  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
+  await page.waitForSelector('.card');
+}
+
+
+await enterSolo(page);
 await page.waitForSelector('.card');
 
 /* ---------- 1. Portada ---------- */
@@ -69,11 +87,21 @@ await page.waitForSelector('.card');
   await page.waitForTimeout(600);
   const resultText = await page.locator('.result__inner').innerText();
   check('resultado: aparece la puntuacion', /\d/.test(resultText), before);
-  check('resultado: hay REVANCHA', resultText.includes('REVANCHA'));
+  // Al ganar, el boton principal pasa a ser CONTINUAR y la revancha queda
+  // como "OTRO INTENTO": las dos formas valen.
+  check(
+    'resultado: ofrece volver a jugar',
+    resultText.includes('REVANCHA') || resultText.includes('OTRO INTENTO'),
+  );
   check('resultado: quedan 2 intentos', resultText.includes('● ● ○'));
   check(
     'resultado: mensaje de pique',
-    resultText.includes('SUPERAR A') || resultText.includes('HAS SUPERADO') || resultText.includes('MANDAS'),
+    resultText.includes('SUPERAR A') ||
+      resultText.includes('HAS SUPERADO') ||
+      resultText.includes('MANDAS') ||
+      resultText.includes('MEJOR INTENTO') ||
+      resultText.includes('TU MEJOR DE HOY'),
+    resultText.split('\n').slice(2, 5).join(' | '),
   );
   await shot('04-result');
 
@@ -98,8 +126,7 @@ await page.waitForSelector('.card');
   check('revancha: el juego ocupa la pantalla sin menu intermedio', covered);
   await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
   await page.waitForSelector('.result');
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
 }
 
 /* ---------- 3. Adelantar a un rival ---------- */
@@ -142,10 +169,13 @@ await page.waitForSelector('.card');
   check('pique: avisa del adelantamiento', text.includes('HAS SUPERADO A'), `${spec}: ${text.split('\n')[3] ?? ''}`);
   check('pique: dice en que puesto quedas', /AHORA ERES #\d/.test(text));
   await shot('05-result-overtake');
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
   const home = await homeText();
-  check('portada: el ranking refleja el adelantamiento', home.includes('VAS #1') || home.includes('VAS PRIMERO'));
+  check(
+    'portada: el ranking refleja el adelantamiento',
+    home.includes('VAS #1') || home.includes('VAS PRIMERO'),
+    home.split('\n').slice(0, 6).join(' | '),
+  );
   await shot('06-home-lider');
 }
 
@@ -168,8 +198,7 @@ await page.waitForSelector('.card');
   const text = await page.locator('.result__inner').innerText();
   check('fantasma: se celebra al superarlo', text.includes('MARCA DEL RIVAL') || text.includes('👻'), text.split('\n')[4] ?? '');
   await shot('08-drift-result');
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
 }
 
 /* ---------- 5. Mutadores ---------- */
@@ -189,7 +218,7 @@ await page.waitForSelector('.card');
   check('mutador PUNTOS X2: multiplica', doubled === 2, String(doubled));
   await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
   await page.waitForSelector('.result');
-  await page.locator('.result .btn--ghost').click();
+  await leaveResult(page);
 
   // SPRINT recorta la duracion sin tocar el juego.
   const durations = await page.evaluate(() => {
@@ -203,8 +232,7 @@ await page.waitForSelector('.card');
   });
   check('mutador SPRINT: recorta el tiempo', durations.dur === Math.round(durations.base * 0.7), JSON.stringify(durations));
   await page.waitForSelector('.result');
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
   await page.evaluate(() => {
     window.__PZ.app.mutatorOverride = null;
   });
@@ -281,8 +309,7 @@ await page.waitForSelector('.card');
   await page.waitForSelector('.result');
   const rtext = await page.locator('.result__inner').innerText();
   check('chaos: puntua aparte del ranking', rtext.includes('aparte'));
-  await page.locator('.result .btn--ghost').click();
-  await page.waitForSelector('.card');
+  await leaveResult(page);
 }
 
 /* ---------- 9. Dia virtual ---------- */

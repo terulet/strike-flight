@@ -19,6 +19,8 @@ export interface GameCatalogEntry {
   name: string;
   skill: SkillKind;
   defaultDurationMs: number;
+  /** Mutadores que el juego declara soportar (undefined = todos). */
+  supportedMutators?: string[];
 }
 
 export interface ChallengeSpec {
@@ -66,7 +68,15 @@ export function catalogFromRegistry(): GameCatalogEntry[] {
     name: def.meta.name,
     skill: def.meta.skill,
     defaultDurationMs: def.meta.defaultDurationMs,
+    supportedMutators: def.meta.supportedMutators,
   }));
+}
+
+/** Filtra los mutadores que ese juego no entiende. Nada de combinaciones absurdas. */
+export function supportedFor(game: GameCatalogEntry, mutatorIds: string[]): string[] {
+  if (!game.supportedMutators) return mutatorIds;
+  const allowed = new Set(game.supportedMutators);
+  return mutatorIds.filter((id) => allowed.has(id));
 }
 
 function makeChallenge(
@@ -77,10 +87,11 @@ function makeChallenge(
   kind: ChallengeKind,
   game: GameCatalogEntry,
   difficulty: number,
-  mutatorIds: string[],
+  requestedMutators: string[],
   attempts: number,
   countsForRanking: boolean,
 ): ChallengeSpec {
+  const mutatorIds = supportedFor(game, requestedMutators);
   const mutators = resolveMutators(mutatorIds);
   return {
     id,

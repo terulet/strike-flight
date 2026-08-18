@@ -77,7 +77,36 @@ export async function playDrift(page, ms = 60000, quality = 1) {
   await page.mouse.up();
 }
 
-export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap };
+/** MEMORY: memoriza durante el destello y toca las casillas al apagarse. */
+export async function playMemory(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  let remembered = [];
+  let round = -1;
+  let tick = 0;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.cells) break;
+    if (state.round !== round) {
+      round = state.round;
+      remembered = [];
+    }
+    if (state.phase === 'flash') {
+      remembered = state.pattern.slice();
+    } else if (state.phase === 'input' && remembered.length > 0) {
+      const found = new Set(state.found);
+      for (const index of remembered) {
+        if (found.has(index)) continue;
+        // Con menos calidad, de vez en cuando "se le olvida" una casilla.
+        if (quality < 1 && tick++ % Math.max(2, Math.round(1 / (1 - quality))) === 0) continue;
+        const cell = state.cells[index];
+        if (cell) await page.mouse.click(cell.x, cell.y);
+      }
+    }
+    await page.waitForTimeout(40);
+  }
+}
+
+export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap, memory: playMemory };
 
 /** Juega el reto que este en marcha, sea cual sea el juego. */
 export async function playCurrent(page, ms, quality = 1) {
