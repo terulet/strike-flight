@@ -1,0 +1,421 @@
+/**
+ * DRIFT - supervivencia.
+ *
+ * Regla unica: aguanta. Arrastra el dedo (o usa las flechas) para colar la
+ * nave por los huecos. Cada muro superado suma, y rozarlo suma mas.
+ *
+ * Aqui vive el sistema de fantasma: un riel a la derecha marca hasta donde
+ * llego el rival del dia. Pasar esa marca es un momento, no una linea de log.
+ */
+import { BaseMiniGame } from '../../game/base';
+import type { GameConfig, GameDefinition, GameMeta, GameServices } from '../../game/contract';
+import { backdropGrid, hexToRgba, label, roundRect } from '../../game/draw';
+
+const ACCENT = '#a78bfa';
+const DANGER = '#ff2d55';
+
+interface Wall {
+  y: number;
+  gapX: number;
+  gapW: number;
+  passed: boolean;
+  grazed: boolean;
+  height: number;
+}
+
+interface Block {
+  x: number;
+  y: number;
+  vx: number;
+  size: number;
+}
+
+export const META: GameMeta = {
+  id: 'drift',
+  name: 'DRIFT',
+  tagline: 'Aguanta. Roza los muros para puntuar mas.',
+  skill: 'supervivencia',
+  defaultDurationMs: 40_000,
+  instructions: [
+    'Arrastra el dedo para mover la nave. Tambien vale con las flechas.',
+    'Pasa por los huecos. Un choque y se acaba.',
+    'Rozar el muro sin chocar da bonus. Sobrevivir da puntos cada segundo.',
+  ],
+  icon: '△',
+  accent: ACCENT,
+  supportsGhost: true,
+  scoreLabel: 'PTS',
+};
+
+class DriftGame extends BaseMiniGame {
+  readonly meta = META;
+
+  private playerX = 0;
+  private playerVX = 0;
+  private targetX = 0;
+  private walls: Wall[] = [];
+  private blocks: Block[] = [];
+  private spawnTimer = 0;
+  private scroll = 0;
+  private survivalCarry = 0;
+  private wallsPassed = 0;
+  private grazes = 0;
+  private hasPointer = false;
+
+  constructor(services: GameServices, config: GameConfig) {
+    super(services, config);
+    this.playerX = this.width / 2;
+    this.targetX = this.width / 2;
+  }
+
+  private get playerY(): number {
+    return this.height * 0.79;
+  }
+
+  private get playerRadius(): number {
+    return Math.max(9, Math.min(this.width, this.height) * 0.032);
+  }
+
+  private get scrollSpeed(): number {
+    // Sube con el tiempo: los ultimos segundos tienen que doler.
+    const ramp = 1 + this.progress * 0.85 + this.config.difficulty * 0.3;
+    return this.height * 0.42 * ramp * this.mut.speed;
+  }
+
+  protected setup(): void {
+    this.playerX = this.width / 2;
+    this.targetX = this.width / 2;
+    this.playerVX = 0;
+    this.walls = [];
+    this.blocks = [];
+    this.spawnTimer = 0.6;
+    this.scroll = 0;
+    this.survivalCarry = 0;
+    this.wallsPassed = 0;
+    this.grazes = 0;
+    this.hasPointer = false;
+    this.tracksAccuracy = false;
+    this.setLives(1);
+
+    for (let i = 0; i < this.mut.extraHazards; i++) this.spawnBlock(this.height * (0.2 + i * 0.18));
+  }
+
+  protected tick(dt: number): void {
+    this.scroll += this.scrollSpeed * dt;
+
+    this.updatePlayer(dt);
+    this.updateWalls(dt);
+    this.updateBlocks(dt);
+
+    // Puntos por segundo vivo (acumulados para no marear con flotantes).
+    this.survivalCarry += dt * 70;
+    if (this.survivalCarry >= 70) {
+      const chunk = Math.floor(this.survivalCarry);
+      this.survivalCarry -= chunk;
+      this.addScore(chunk, this.playerX, this.playerY - 40, { silent: true });
+    }
+
+    this.checkGhost();
+  }
+
+  private updatePlayer(dt: number): void {
+    const input = this.services.input;
+    if (input.down) this.hasPointer = true;
+    if (this.hasPointer && input.down) {
+      this.targetX = this.pointerX();
+    }
+    const axis = this.axisX();
+    if (axis !== 0) {
+      this.hasPointer = false;
+      this.targetX += axis * this.width * 1.35 * dt;
+    }
+    this.targetX = Math.max(this.playerRadius, Math.min(this.width - this.playerRadius, this.targetX));
+
+    // GRAVEDAD X2 = el doble de inercia: cuesta mas frenar.
+    const responsiveness = 15 / this.mut.gravity;
+    const damping = 1 - Math.min(0.9, 7 * dt) / this.mut.gravity;
+    this.playerVX += (this.targetX - this.playerX) * responsiveness * dt;
+    this.playerVX *= damping;
+    this.playerX += this.playerVX * dt * 60 * 0.06 + (this.targetX - this.playerX) * Math.min(1, dt * 8);
+    this.playerX = Math.max(this.playerRadius, Math.min(this.width - this.playerRadius, this.playerX));
+  }
+
+  private updateWalls(dt: number): void {
+    this.spawnTimer -= dt;
+    if (this.spawnTimer <= 0) {
+      const interval = Math.max(0.42, (1.15 - this.progress * 0.45) / Math.max(0.5, this.mut.spawnRate));
+      this.spawnTimer = interval;
+      this.spawnWall();
+    }
+
+    const speed = this.scrollSpeed;
+    const radius = this.playerRadius;
+    for (let i = this.walls.length - 1; i >= 0; i--) {
+      const wall = this.walls[i] as Wall;
+      wall.y += speed * dt;
+      if (wall.y > this.height + wall.height) {
+        this.walls.splice(i, 1);
+        continue;
+      }
+
+      const overlapY = this.playerY + radius > wall.y && this.playerY - radius < wall.y + wall.height;
+      const insideGap =
+        this.playerX - radius > wall.gapX && this.playerX + radius < wall.gapX + wall.gapW;
+
+      if (overlapY && !insideGap) {
+        this.crash(wall);
+        return;
+      }
+
+      // Roce: pasar pegado al borde del hueco.
+      if (overlapY && insideGap && !wall.grazed) {
+        const margin = Math.min(this.playerX - radius - wall.gapX, wall.gapX + wall.gapW - this.playerX - radius);
+        if (margin < radius * 0.75) {
+          wall.grazed = true;
+          this.grazes++;
+          const combo = this.bumpCombo();
+          this.addScore(60 + Math.min(10, combo) * 12, this.playerX, this.playerY - 30);
+          this.services.fx.ring(this.playerX, this.playerY, radius * 3.2, ACCENT, 2.5);
+        }
+      }
+
+      if (!wall.passed && wall.y > this.playerY + radius) {
+        wall.passed = true;
+        this.wallsPassed++;
+        this.addScore(120, this.playerX, this.playerY - 54);
+        this.services.haptics.fire('tick');
+      }
+    }
+  }
+
+  private updateBlocks(dt: number): void {
+    const radius = this.playerRadius;
+    for (let i = this.blocks.length - 1; i >= 0; i--) {
+      const block = this.blocks[i] as Block;
+      block.y += this.scrollSpeed * 0.85 * dt;
+      block.x += block.vx * dt;
+      if (block.x < block.size / 2 || block.x > this.width - block.size / 2) block.vx *= -1;
+      if (block.y > this.height + block.size) {
+        this.blocks.splice(i, 1);
+        continue;
+      }
+      const dx = Math.abs(block.x - this.playerX);
+      const dy = Math.abs(block.y - this.playerY);
+      if (dx < block.size / 2 + radius * 0.8 && dy < block.size / 2 + radius * 0.8) {
+        this.crashAt(block.x, block.y);
+        return;
+      }
+    }
+  }
+
+  private spawnWall(): void {
+    const minGap = this.width * 0.24;
+    const maxGap = this.width * 0.42;
+    const tighten = 1 - this.progress * 0.3 - this.config.difficulty * 0.12;
+    const gapW = Math.max(
+      this.playerRadius * 3.2,
+      this.rng.range(minGap, maxGap) * tighten * this.mut.sizeMultiplier,
+    );
+    const gapX = this.rng.range(this.width * 0.04, this.width * 0.96 - gapW);
+    this.walls.push({
+      y: -this.height * 0.06,
+      gapX,
+      gapW,
+      passed: false,
+      grazed: false,
+      height: Math.max(16, this.height * 0.028),
+    });
+    if (this.mut.extraHazards > 0 && this.rng.chance(0.35)) this.spawnBlock(-this.height * 0.1);
+  }
+
+  private spawnBlock(y: number): void {
+    const size = Math.max(14, this.width * 0.075 * this.mut.sizeMultiplier);
+    this.blocks.push({
+      x: this.rng.range(size, this.width - size),
+      y,
+      vx: this.rng.range(-this.width * 0.22, this.width * 0.22) * this.mut.speed,
+      size,
+    });
+  }
+
+  private crash(wall: Wall): void {
+    const x = this.playerX < wall.gapX ? wall.gapX : wall.gapX + wall.gapW;
+    this.crashAt(x, wall.y + wall.height / 2);
+  }
+
+  private crashAt(x: number, y: number): void {
+    this.services.fx.burst(this.playerX, this.playerY, { count: 30, color: DANGER, speed: 340, size: 5 });
+    this.services.fx.burst(x, y, { count: 14, color: '#ffffff', speed: 240, size: 3 });
+    this.services.fx.shake(1.1);
+    this.services.fx.flash(DANGER, 0.45);
+    this.services.audio.play('hit');
+    this.services.haptics.fire('heavy');
+    this.registerMistake(0); // vidas = 1 -> termina la partida
+  }
+
+  private checkGhost(): void {
+    const ghost = this.config.ghost;
+    if (!ghost || ghost.kind !== 'time') return;
+    if (this.elapsedMs >= ghost.value) {
+      this.passGhost(`${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)} s`);
+    }
+  }
+
+  protected draw(): void {
+    const ctx = this.ctx;
+    backdropGrid(ctx, this.width, this.height, ACCENT, -this.scroll, 44);
+
+    // Muros
+    for (const wall of this.walls) {
+      const color = wall.passed ? hexToRgba(ACCENT, 0.35) : ACCENT;
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      roundRect(ctx, 0, wall.y, wall.gapX, wall.height, 4);
+      ctx.fill();
+      roundRect(ctx, wall.gapX + wall.gapW, wall.y, this.width - (wall.gapX + wall.gapW), wall.height, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // Marcas del hueco: ayudan a leer el paso de un vistazo.
+      ctx.save();
+      ctx.strokeStyle = hexToRgba('#ffffff', wall.passed ? 0.12 : 0.35);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(wall.gapX + 2, wall.y + wall.height + 8);
+      ctx.lineTo(wall.gapX + 2, wall.y - 8);
+      ctx.moveTo(wall.gapX + wall.gapW - 2, wall.y + wall.height + 8);
+      ctx.lineTo(wall.gapX + wall.gapW - 2, wall.y - 8);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Bloques
+    for (const block of this.blocks) {
+      ctx.save();
+      ctx.fillStyle = DANGER;
+      ctx.shadowColor = DANGER;
+      ctx.shadowBlur = 14;
+      ctx.translate(block.x, block.y);
+      ctx.rotate((this.elapsedSeconds * 2 + block.x) % (Math.PI * 2));
+      roundRect(ctx, -block.size / 2, -block.size / 2, block.size, block.size, 4);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    this.drawGhostRail();
+    this.drawPlayer();
+  }
+
+  private drawPlayer(): void {
+    const ctx = this.ctx;
+    const r = this.playerRadius;
+    const tilt = Math.max(-0.5, Math.min(0.5, (this.targetX - this.playerX) / 90));
+    ctx.save();
+    ctx.translate(this.playerX, this.playerY);
+    ctx.rotate(tilt);
+
+    // Estela
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = ACCENT;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, r * 0.5);
+    ctx.lineTo(r * 0.5, r * 0.5);
+    ctx.lineTo(0, r * 2.2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = ACCENT;
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.25);
+    ctx.lineTo(r, r * 0.85);
+    ctx.lineTo(0, r * 0.45);
+    ctx.lineTo(-r, r * 0.85);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Riel de progreso con la marca del rival. */
+  private drawGhostRail(): void {
+    const ghost = this.config.ghost;
+    const ctx = this.ctx;
+    const x = this.width - 16;
+    const top = this.height * 0.12;
+    const bottom = this.height * 0.88;
+    const span = bottom - top;
+    const total = Math.max(1, this.config.durationMs);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+
+    const mine = Math.min(1, this.elapsedMs / total);
+    ctx.strokeStyle = ACCENT;
+    ctx.shadowColor = ACCENT;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(x, bottom);
+    ctx.lineTo(x, bottom - span * mine);
+    ctx.stroke();
+    ctx.restore();
+
+    if (!ghost || ghost.kind !== 'time') return;
+    const gy = bottom - span * Math.min(1, ghost.value / total);
+    const passed = this.elapsedMs >= ghost.value;
+    ctx.save();
+    ctx.globalAlpha = passed ? 0.45 : 1;
+    ctx.strokeStyle = passed ? 'rgba(124,243,192,0.9)' : '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 12, gy);
+    ctx.lineTo(x + 6, gy);
+    ctx.stroke();
+    label(ctx, `${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)}s`, x - 16, gy - 10, {
+      size: 12,
+      align: 'right',
+      color: passed ? 'rgba(124,243,192,0.9)' : 'rgba(226,232,240,0.9)',
+      weight: 700,
+    });
+    ctx.restore();
+
+    // Fantasma: silueta tenue del rival flotando a la altura de su marca.
+    if (!passed) {
+      const dist = Math.abs(gy - (bottom - span * mine));
+      const near = Math.max(0, 1 - dist / (span * 0.35));
+      if (near > 0.02) {
+        ctx.save();
+        ctx.globalAlpha = 0.1 + near * 0.35;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '700 26px ui-sans-serif, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👻', this.width * 0.5, this.height * 0.2);
+        ctx.font = '800 13px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(
+          `${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)} s`,
+          this.width * 0.5,
+          this.height * 0.2 + 24,
+        );
+        ctx.restore();
+      }
+    }
+  }
+
+  protected override metrics(): Record<string, number> {
+    return { wallsPassed: this.wallsPassed, grazes: this.grazes };
+  }
+}
+
+export const definition: GameDefinition = {
+  meta: META,
+  create: (services, config) => new DriftGame(services, config),
+};
