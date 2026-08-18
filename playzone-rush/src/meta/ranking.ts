@@ -18,6 +18,21 @@ export interface Standing {
   perChallenge: Record<string, number>;
   /** Ha completado los tres retos de hoy. */
   played: boolean;
+  /** Solo en grupo real: conectado ahora / ha abierto la app hoy. */
+  online?: boolean;
+  activeToday?: boolean;
+}
+
+/**
+ * Con quien compito y con que marcas mias.
+ *
+ * Por defecto, rivales simulados y mis marcas locales: es exactamente el
+ * comportamiento del modo "PROBAR SOLO". En grupo, la app pasa aqui los
+ * jugadores reales y mis marcas ya combinadas con las del servidor.
+ */
+export interface RankingContext {
+  others?: Standing[];
+  myBest?: (challengeId: string) => number;
 }
 
 export interface Leaderboard {
@@ -63,6 +78,7 @@ export function myTotals(
   plan: DailyPlan,
   save: SaveManager,
   secretUnlocked: boolean,
+  myBest?: (challengeId: string) => number,
 ): { total: number; perChallenge: Record<string, number>; played: boolean } {
   const day = save.get().days[plan.dayKey];
   const perChallenge: Record<string, number> = {};
@@ -70,21 +86,22 @@ export function myTotals(
   let playedAll = true;
   for (const spec of rankedChallenges(plan, secretUnlocked)) {
     const progress = day?.challenges[spec.id];
-    const best = progress?.bestScore ?? 0;
+    const best = myBest ? myBest(spec.id) : (progress?.bestScore ?? 0);
     perChallenge[spec.id] = best;
     total += best;
-    if (!progress || progress.plays === 0) playedAll = false;
+    if (best <= 0 && (!progress || progress.plays === 0)) playedAll = false;
   }
   return { total, perChallenge, played: playedAll };
 }
 
-export function buildLeaderboard(plan: DailyPlan, save: SaveManager, secretUnlocked: boolean): Leaderboard {
+export function buildLeaderboard(
+  plan: DailyPlan,
+  save: SaveManager,
+  secretUnlocked: boolean,
+  context: RankingContext = {},
+): Leaderboard {
   const data = save.get();
-  const day = data.days[plan.dayKey];
-  const boosts = day?.rivalBoosts ?? {};
-  const rivalsPlayed = new Set(day?.rivalsPlayed ?? []);
-
-  const mine = myTotals(plan, save, secretUnlocked);
+  const mine = myTotals(plan, save, secretUnlocked, context.myBest);
   const me: Standing = {
     id: 'me',
     name: data.profile.name,
@@ -95,19 +112,8 @@ export function buildLeaderboard(plan: DailyPlan, save: SaveManager, secretUnloc
     played: mine.played,
   };
 
-  const standings: Standing[] = [me];
-  for (const rival of RIVALS) {
-    const totals = rivalTotals(plan, rival, secretUnlocked, boosts[rival.id] ?? 0);
-    standings.push({
-      id: rival.id,
-      name: rival.name,
-      color: rival.color,
-      isMe: false,
-      total: totals.total,
-      perChallenge: totals.perChallenge,
-      played: rivalsPlayed.has(rival.id),
-    });
-  }
+  const others = context.others ?? botStandings(plan, save, secretUnlocked);
+  const standings: Standing[] = [me, ...others];
 
   // Empate: primero quien ya ha jugado, luego alfabetico (estable).
   standings.sort((a, b) => b.total - a.total || Number(b.played) - Number(a.played) || a.name.localeCompare(b.name));
@@ -121,11 +127,13 @@ export function challengeStandings(
   plan: DailyPlan,
   save: SaveManager,
   spec: ChallengeSpec,
+  context: RankingContext = {},
 ): Standing[] {
   const data = save.get();
   const day = data.days[plan.dayKey];
-  const boosts = day?.rivalBoosts ?? {};
-  const myBest = day?.challenges[spec.id]?.bestScore ?? 0;
+  const myBest = context.myBest
+    ? context.myBest(spec.id)
+    : (day?.challenges[spec.id]?.bestScore ?? 0);
 
   const list: Standing[] = [
     {
@@ -135,33 +143,40 @@ export function challengeStandings(
       isMe: true,
       total: myBest,
       perChallenge: { [spec.id]: myBest },
-      played: (day?.challenges[spec.id]?.plays ?? 0) > 0,
+      played: (day?.challenges[spec.id]?.plays ?? 0) > 0 || myBest > 0,
     },
   ];
 
-  for (const rival of RIVALS) {
-    const score =
-      rivalScore(rival, {
-        dayKey: plan.dayKey,
-        challengeId: spec.id,
-        gameId: spec.gameId,
-        skill: spec.skill,
-        difficulty: spec.difficulty,
-        scoreMultiplier: spec.scoreMultiplier,
-      }) + (boosts[rival.id] ?? 0);
-    list.push({
-      id: rival.id,
-      name: rival.name,
-      color: rival.color,
-      isMe: false,
-      total: Math.max(0, score),
-      perChallenge: { [spec.id]: Math.max(0, score) },
-      played: (day?.rivalsPlayed ?? []).includes(rival.id),
-    });
+  const others = context.others ?? botStandings(plan, save, true);
+  for (const other of others) {
+    const score = other.perChallenge[spec.id] ?? 0;
+    list.push({ ...other, total: score, perChallenge: { [spec.id]: score } });
   }
 
   list.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   return list;
+}
+
+/**
+ * Rivales simulados. Vive aqui (y no en contenders.ts) para que ranking.ts no
+ * dependa de la capa de red: contenders.ts importa de ranking, no al reves.
+ */
+export function botStandings(plan: DailyPlan, save: SaveManager, secretUnlocked: boolean): Standing[] {
+  const day = save.get().days[plan.dayKey];
+  const boosts = day?.rivalBoosts ?? {};
+  const played = new Set(day?.rivalsPlayed ?? []);
+  return RIVALS.map((rival) => {
+    const totals = rivalTotals(plan, rival, secretUnlocked, boosts[rival.id] ?? 0);
+    return {
+      id: rival.id,
+      name: rival.name,
+      color: rival.color,
+      isMe: false,
+      total: totals.total,
+      perChallenge: totals.perChallenge,
+      played: played.has(rival.id),
+    };
+  });
 }
 
 export interface Gap {
