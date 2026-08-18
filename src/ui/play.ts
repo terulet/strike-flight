@@ -7,6 +7,7 @@
 import type { GameConfig, GameResult, HudInfo } from '../game/contract';
 import { GameHost } from '../game/host';
 import { requireGame } from '../game/registry';
+import { GHOST_SAMPLE_MS, decodeTrace, encodeTrace } from '../net/ghost';
 import type { ChallengeSpec } from '../meta/daily';
 import { formatScore } from '../meta/ranking';
 import type { ScoreOutcome } from '../meta/scoring';
@@ -21,6 +22,8 @@ interface Hud {
   lives: HTMLElement;
   combo: HTMLElement;
   ghost: HTMLElement;
+  /** Marca a batir del rival y cuanto falta. */
+  target: HTMLElement;
 }
 
 export class PlayScreen {
@@ -37,6 +40,7 @@ export class PlayScreen {
   private insetObserver: ResizeObserver | null = null;
 
   private ghostPassed = false;
+  private targetPassed = false;
   private timers: ReturnType<typeof setTimeout>[] = [];
   private lastScore = 0;
   private finished = false;
@@ -55,6 +59,7 @@ export class PlayScreen {
       lives: el('div', { class: 'hud__lives' }),
       combo: el('div', { class: 'hud__combo', text: '' }),
       ghost: el('div', { class: 'hud__ghost' }),
+      target: el('div', { class: 'hud__target' }),
     };
 
     const hudNode = el('div', { class: 'hud' }, [
@@ -71,7 +76,13 @@ export class PlayScreen {
     ]);
 
     this.hudNode = hudNode;
-    this.root = el('div', { class: 'play' }, [this.stage, hudNode, this.hud.combo, this.hud.ghost]);
+    this.root = el('div', { class: 'play' }, [
+      this.stage,
+      hudNode,
+      this.hud.combo,
+      this.hud.target,
+      this.hud.ghost,
+    ]);
 
     this.host = new GameHost({
       container: this.stage,
@@ -123,6 +134,7 @@ export class PlayScreen {
     this.clearOverlay();
     this.finished = false;
     this.ghostPassed = false;
+    this.targetPassed = false;
     this.lastScore = 0;
 
     const definition = requireGame(this.spec.gameId);
@@ -136,7 +148,20 @@ export class PlayScreen {
         ? `🎯 ${this.config.targetName} · ${formatScore(this.config.targetScore ?? 0)}`
         : '';
     this.hud.ghost.style.display = this.hud.ghost.textContent ? '' : 'none';
+
+    if (this.config.targetName && this.config.targetScore) {
+      this.hud.target.textContent = `🎯 ${this.config.targetName} · ${formatScore(this.config.targetScore)}`;
+      this.hud.target.style.display = '';
+      this.hud.target.classList.remove('is-passed');
+    } else {
+      this.hud.target.style.display = 'none';
+    }
+
     this.measureInsets();
+    // La traza del rival se descarga mientras corre la cuenta atras: cuando
+    // empieza la partida ya esta, y si no llega se juega con la marca de
+    // siempre. Nunca se espera por la red.
+    void this.loadRemoteGhost();
 
     this.runCountdown(options.quick ?? false);
   }
@@ -188,6 +213,39 @@ export class PlayScreen {
     this.timers.push(setTimeout(advance, stepMs));
   }
 
+  /** Baja la traza real del rival, si existe, y la mete en la config. */
+  private async loadRemoteGhost(): Promise<void> {
+    const ghost = this.config.ghost;
+    if (!ghost || !this.app.isGroup) return;
+    const remote = await this.app.sync.fetchGhost(ghost.rivalId, this.spec.gameId, this.app.dayKey);
+    if (!remote || !remote.trace) return;
+    const samples = decodeTrace(remote.trace);
+    if (samples.length < 3) return;
+    this.config.ghost = {
+      ...ghost,
+      rivalName: remote.playerName || ghost.rivalName,
+      value: remote.durationMs,
+      score: remote.score,
+      samples,
+      sampleMs: GHOST_SAMPLE_MS,
+    };
+    this.hud.ghost.textContent = `👻 ${this.config.ghost.rivalName} · ${(
+      remote.durationMs / 1000
+    ).toFixed(1)} s`;
+    this.hud.ghost.style.display = '';
+  }
+
+  /** Traza de la partida recien jugada, lista para subir. */
+  takeGhostTrace(): { trace: string; durationMs: number } | null {
+    const game = this.host.game;
+    const recording = game?.recording?.();
+    if (!recording || recording.samples.length < 3) return null;
+    return {
+      trace: encodeTrace(recording.samples),
+      durationMs: Math.round(recording.samples.length * recording.sampleMs),
+    };
+  }
+
   private paintHud(info: HudInfo): void {
     const score = Math.round(info.score);
     if (score !== this.lastScore) {
@@ -223,6 +281,23 @@ export class PlayScreen {
       this.hud.combo.classList.remove('is-on');
     }
 
+    const target = this.config.targetScore;
+    if (target && target > 0) {
+      if (score >= target && !this.targetPassed) {
+        this.targetPassed = true;
+        this.hud.target.classList.add('is-passed');
+        this.hud.target.textContent = `🔥 ${this.config.targetName} SUPERADO`;
+        this.host.fx.flash('#7cf3c0', 0.28);
+        this.host.fx.shake(0.4);
+        this.app.audio.play('overtake');
+        this.app.haptics.fire('success');
+      } else if (!this.targetPassed) {
+        this.hud.target.textContent = `🎯 ${this.config.targetName} · TE FALTAN ${formatScore(
+          target - score,
+        )}`;
+      }
+    }
+
     if (info.ghostProgress !== null && this.config.ghost && !this.ghostPassed) {
       const pct = Math.round(Math.min(1, info.ghostProgress) * 100);
       this.hud.ghost.textContent = `👻 ${this.config.ghost.rivalName} · ${(
@@ -241,16 +316,30 @@ export class PlayScreen {
 
   private showResult(outcome: ScoreOutcome, result: GameResult): void {
     this.clearOverlay();
-    const node = renderResult(this.spec, outcome, result, {
-      onRematch: () => {
-        this.app.audio.play('select');
-        this.app.rematch(this.spec);
+    const gap = outcome.challengeTarget && !outcome.challengeTarget.entry.isMe
+      ? outcome.challengeTarget.gap
+      : 0;
+    const rival = outcome.challengeTarget?.entry.name ?? null;
+    if (outcome.attemptsLeft > 0 && gap > 0) {
+      this.app.offerRevenge(`result:${this.spec.id}:${outcome.score}`, gap, rival, this.spec.gameId);
+    }
+
+    const node = renderResult(
+      this.spec,
+      outcome,
+      result,
+      {
+        onRematch: () => {
+          this.app.audio.play('select');
+          this.app.rematch(this.spec, { gap, rival: rival ?? undefined });
+        },
+        onContinue: () => {
+          this.app.audio.play('back');
+          this.app.exitToHome();
+        },
       },
-      onContinue: () => {
-        this.app.audio.play('back');
-        this.app.exitToHome();
-      },
-    });
+      { group: this.app.isGroup, myName: this.app.save.get().profile.name },
+    );
     this.overlay = node;
     this.root.appendChild(node);
   }

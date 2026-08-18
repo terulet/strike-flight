@@ -10,6 +10,7 @@
 import { BaseMiniGame } from '../../game/base';
 import type { GameConfig, GameDefinition, GameMeta, GameServices } from '../../game/contract';
 import { backdropGrid, hexToRgba, label, roundRect } from '../../game/draw';
+import { GHOST_SAMPLE_MS, sampleAt } from '../../net/ghost';
 
 const ACCENT = '#a78bfa';
 const DANGER = '#ff2d55';
@@ -45,6 +46,7 @@ export const META: GameMeta = {
   accent: ACCENT,
   supportsGhost: true,
   scoreLabel: 'PTS',
+  supportedMutators: ['rush', 'heavy', 'blackout', 'mirror', 'swarm', 'sprint', 'double', 'tiny', 'chaos'],
 };
 
 class DriftGame extends BaseMiniGame {
@@ -61,6 +63,11 @@ class DriftGame extends BaseMiniGame {
   private wallsPassed = 0;
   private grazes = 0;
   private hasPointer = false;
+  /** Traza propia para el fantasma: una muestra cada 100 ms. */
+  private trace: number[] = [];
+  private traceTimer = 0;
+  private ghostX: number | null = null;
+  private ghostAlive = false;
 
   constructor(services: GameServices, config: GameConfig) {
     super(services, config);
@@ -94,6 +101,10 @@ class DriftGame extends BaseMiniGame {
     this.wallsPassed = 0;
     this.grazes = 0;
     this.hasPointer = false;
+    this.trace = [];
+    this.traceTimer = 0;
+    this.ghostX = null;
+    this.ghostAlive = Boolean(this.config.ghost?.samples?.length);
     this.tracksAccuracy = false;
     this.setLives(1);
 
@@ -104,6 +115,8 @@ class DriftGame extends BaseMiniGame {
   protected tick(dt: number): void {
     this.scroll += this.scrollSpeed * dt;
 
+    this.recordTrace(dt);
+    this.updateGhost();
     this.updatePlayer(dt);
     this.updateWalls(dt);
     this.updateBlocks(dt);
@@ -117,6 +130,39 @@ class DriftGame extends BaseMiniGame {
     }
 
     this.checkGhost();
+  }
+
+  /** Guarda donde estaba la nave, normalizado, para que otro pueda revivirlo. */
+  private recordTrace(dt: number): void {
+    this.traceTimer -= dt * 1000;
+    if (this.traceTimer > 0) return;
+    this.traceTimer += GHOST_SAMPLE_MS;
+    if (this.trace.length < 1800) this.trace.push(this.playerX / Math.max(1, this.width));
+  }
+
+  /** Posicion del rival en este instante, si trae traza real. */
+  private updateGhost(): void {
+    const ghost = this.config.ghost;
+    if (!ghost?.samples?.length) {
+      this.ghostX = null;
+      return;
+    }
+    const value = sampleAt(ghost.samples, this.elapsedMs, ghost.sampleMs ?? GHOST_SAMPLE_MS);
+    if (value === null) {
+      // Se ha acabado su intento: a partir de aqui corres solo.
+      if (this.ghostAlive && this.ghostX !== null) {
+        this.services.fx.burst(this.ghostX * this.width, this.playerY, {
+          count: 14,
+          color: 'rgba(226,232,240,0.9)',
+          speed: 200,
+          size: 3,
+        });
+      }
+      this.ghostAlive = false;
+      this.ghostX = null;
+      return;
+    }
+    this.ghostX = value;
   }
 
   private updatePlayer(dt: number): void {
@@ -306,7 +352,41 @@ class DriftGame extends BaseMiniGame {
     }
 
     this.drawGhostRail();
+    this.drawGhostShip();
     this.drawPlayer();
+  }
+
+  /** Nave del rival: se ve, pero no estorba. */
+  private drawGhostShip(): void {
+    if (this.ghostX === null) return;
+    const ctx = this.ctx;
+    const r = this.playerRadius;
+    const x = this.ghostX * this.width;
+    const y = this.playerY;
+
+    ctx.save();
+    ctx.globalAlpha = 0.42;
+    ctx.translate(x, y);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.shadowColor = 'rgba(226,232,240,0.8)';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.15);
+    ctx.lineTo(r * 0.9, r * 0.8);
+    ctx.lineTo(0, r * 0.4);
+    ctx.lineTo(-r * 0.9, r * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    label(ctx, this.config.ghost?.rivalName ?? 'RIVAL', x, y + r * 2.1, {
+      size: 10,
+      color: '#e2e8f0',
+      weight: 800,
+    });
+    ctx.restore();
   }
 
   private drawPlayer(): void {
@@ -397,8 +477,9 @@ class DriftGame extends BaseMiniGame {
     });
     ctx.restore();
 
-    // Fantasma: silueta tenue del rival flotando a la altura de su marca.
-    if (!passed) {
+    // Silueta a media pantalla: solo cuando NO hay traza real, para no
+    // duplicar informacion (con traza ya se ve la nave del rival).
+    if (!passed && !this.config.ghost?.samples?.length) {
       const dist = Math.abs(gy - (bottom - span * mine));
       const near = Math.max(0, 1 - dist / (span * 0.35));
       if (near > 0.02) {
@@ -420,9 +501,17 @@ class DriftGame extends BaseMiniGame {
     return { wallsPassed: this.wallsPassed, grazes: this.grazes };
   }
 
+  /** Traza de esta partida, para subirla si ha sido la mejor del dia. */
+  recording(): { sampleMs: number; samples: number[] } | null {
+    if (this.trace.length < 3) return null;
+    return { sampleMs: GHOST_SAMPLE_MS, samples: this.trace.slice() };
+  }
+
   debugInfo(): Record<string, unknown> {
     return {
       game: 'drift',
+      ghostX: this.ghostX,
+      traceLength: this.trace.length,
       player: { x: this.playerX, y: this.playerY, r: this.playerRadius },
       walls: this.walls.map((w) => ({ y: w.y, gapX: w.gapX, gapW: w.gapW, h: w.height })),
       blocks: this.blocks.map((b) => ({ x: b.x, y: b.y, size: b.size })),

@@ -27,8 +27,22 @@ export interface StreakInfo {
   days: number;
 }
 
+export interface WinnerOptions {
+  /**
+   * true  (modo solo): si yo no jugue ese dia, gana el mejor bot simulado.
+   * false (grupo real): si no tenemos datos de ese dia, no hay ganador. No
+   *       vamos a inventarnos que gano alguien de carne y hueso.
+   */
+  simulate?: boolean;
+}
+
 /** Ganador de un dia cualquiera (jugado o no). No escribe en el save. */
-export function winnerOfDay(save: SaveManager, dayKey: string, plan?: DailyPlan): DayWinner {
+export function winnerOfDay(
+  save: SaveManager,
+  dayKey: string,
+  plan?: DailyPlan,
+  options: WinnerOptions = {},
+): DayWinner {
   const data = save.get();
   const day = data.days[dayKey];
   const dayPlan = plan ?? buildDailyPlan(dayKey);
@@ -43,7 +57,12 @@ export function winnerOfDay(save: SaveManager, dayKey: string, plan?: DailyPlan)
     return { dayKey, id: leader.isMe ? 'me' : leader.id, name: leader.name, total: leader.total, iPlayed };
   }
 
-  // Sin mi: gana el mejor de los rivales.
+  if (options.simulate === false) {
+    // Sin datos reales de ese dia: no hay ganador que contar.
+    return { dayKey, id: '', name: '', total: 0, iPlayed: false };
+  }
+
+  // Sin mi: gana el mejor de los rivales simulados.
   let best = { id: '', name: '', total: -1 };
   for (const rival of RIVALS) {
     const totals = rivalTotals(dayPlan, rival, secretUnlocked, day?.rivalBoosts[rival.id] ?? 0);
@@ -67,15 +86,20 @@ export function resolveDay(save: SaveManager, dayKey: string): DayWinner {
  * Racha actual: cuantos dias seguidos ha ganado el ultimo ganador,
  * mirando hacia atras desde ayer (hoy aun no ha terminado).
  */
-export function computeStreak(save: SaveManager, todayKey: string, lookback = 30): StreakInfo {
+export function computeStreak(
+  save: SaveManager,
+  todayKey: string,
+  lookback = 30,
+  options: WinnerOptions = {},
+): StreakInfo {
   let cursor = addDays(todayKey, -1);
-  const first = winnerOfDay(save, cursor);
+  const first = winnerOfDay(save, cursor, undefined, options);
   if (!first.id) return { holderId: null, holderName: null, days: 0 };
 
   let days = 1;
   for (let i = 1; i < lookback; i++) {
     cursor = addDays(cursor, -1);
-    const winner = winnerOfDay(save, cursor);
+    const winner = winnerOfDay(save, cursor, undefined, options);
     if (winner.id !== first.id) break;
     days++;
   }
