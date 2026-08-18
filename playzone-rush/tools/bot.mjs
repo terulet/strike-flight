@@ -108,9 +108,19 @@ export async function playMemory(page, ms = 60000, quality = 1) {
 
 export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap, memory: playMemory };
 
-/** Juega el reto que este en marcha, sea cual sea el juego. */
+/**
+ * Juega el reto que este en marcha, sea cual sea el juego.
+ *
+ * Espera a saber que juego es antes de elegir estrategia: si se lee demasiado
+ * pronto, el estado aun no existe y el bot acabaria jugando a otra cosa (y
+ * sacando cero, que fue justo lo que paso una vez).
+ */
 export async function playCurrent(page, ms, quality = 1) {
-  const state = await readState(page);
+  let state = null;
+  for (let i = 0; i < 30 && !state?.game; i++) {
+    state = await readState(page);
+    if (!state?.game) await page.waitForTimeout(100);
+  }
   const bot = BOTS[state?.game] ?? playPulse;
   await bot(page, ms, quality);
 }

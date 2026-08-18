@@ -129,6 +129,13 @@ check(
   marcSeesEloi.includes('Eloi'),
   `${eloiFirst} pts`,
 );
+// En un grupo real no puede colarse ningun bot por ninguna esquina.
+const bots = ['KALI', 'YOLI', 'SILVIA'].filter((name) => marcSeesEloi.includes(name));
+check('en grupo no aparece ningun rival simulado', bots.length === 0, bots.join(', '));
+check(
+  'la clasificacion tiene solo a los dos jugadores',
+  (await marc.page.locator('.board .row').count()) === 2,
+);
 await shot(marc.page, 'd05-ranking-real');
 
 /* ------------------------------------------------------------------ */
@@ -156,6 +163,7 @@ await eloi.page.waitForSelector('.countdown', { state: 'detached', timeout: 1500
 check('revancha: entra directo al juego', Date.now() - t0 < 6000, `${Date.now() - t0} ms`);
 await eloi.page.waitForTimeout(1200);
 await shot(eloi.page, 'd08-revancha');
+
 
 await playCurrent(eloi.page, 60000, 1);
 await eloi.page.waitForSelector('.result', { timeout: 60000 });
