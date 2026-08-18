@@ -1,0 +1,262 @@
+/* ---------- Partida ---------- */
+.play {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  z-index: 40;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.pz-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none;
+}
+
+.pz-canvas.is-chaos {
+  animation: chaos-hue 2.4s linear infinite;
+}
+
+@keyframes chaos-hue {
+  0% {
+    filter: hue-rotate(0deg) saturate(1.1);
+  }
+  100% {
+    filter: hue-rotate(360deg) saturate(1.3);
+  }
+}
+
+.hud {
+  position: relative;
+  z-index: 3;
+  padding: calc(var(--safe-top) + 10px) calc(var(--safe-right) + 14px) 10px
+    calc(var(--safe-left) + 14px);
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 7, 13, 0.92), rgba(7, 7, 13, 0));
+}
+
+.hud__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.hud__score {
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+  transition: transform 90ms var(--ease-out);
+}
+
+.hud__score.is-bump {
+  transform: scale(1.12);
+}
+
+.hud__label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+
+.hud__right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.hud__time {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.hud__time.is-low {
+  color: var(--bad);
+  animation: pulse-red 0.6s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.hud__lives {
+  display: flex;
+  gap: 4px;
+}
+
+.life {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 10px rgba(255, 77, 109, 0.6);
+}
+
+.life.is-gone {
+  background: var(--surface-3);
+  box-shadow: none;
+}
+
+.hud__bar {
+  margin-top: 9px;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.hud__bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--brand), var(--gold));
+  transform-origin: left center;
+  transition: transform 120ms linear;
+}
+
+.hud__combo {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + 74px);
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  opacity: 0;
+  transition: opacity 140ms var(--ease-out), transform 140ms var(--ease-out);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.hud__combo.is-on {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.08);
+}
+
+.hud__ghost {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 14px);
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(18, 18, 29, 0.8);
+  border: 1px solid var(--line-strong);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+.hud__ghost.is-passed {
+  color: var(--good);
+  border-color: rgba(124, 243, 192, 0.5);
+}
+
+.hud__exit {
+  pointer-events: auto;
+  margin-left: 8px;
+}
+
+/* ---------- Cuenta atras ---------- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(7, 7, 13, 0.86);
+  backdrop-filter: blur(3px);
+  padding: 24px;
+  text-align: center;
+}
+
+.countdown__rule {
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.countdown__game {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.countdown__line {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.countdown__num {
+  font-size: 88px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  animation: count-pop 420ms var(--ease-out);
+}
+
+@keyframes count-pop {
+  from {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.countdown__target {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+/* ---------- Pausa ---------- */
+.pause {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(7, 7, 13, 0.9);
+  padding: 24px;
+}
+
+.pause__title {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
