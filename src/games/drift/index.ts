@@ -69,17 +69,17 @@ class DriftGame extends BaseMiniGame {
   }
 
   private get playerY(): number {
-    return this.height * 0.79;
+    return this.areaTop + this.areaHeight * 0.82;
   }
 
   private get playerRadius(): number {
-    return Math.max(9, Math.min(this.width, this.height) * 0.032);
+    return Math.max(9, Math.min(this.width, this.areaHeight) * 0.034);
   }
 
   private get scrollSpeed(): number {
     // Sube con el tiempo: los ultimos segundos tienen que doler.
     const ramp = 1 + this.progress * 0.85 + this.config.difficulty * 0.3;
-    return this.height * 0.42 * ramp * this.mut.speed;
+    return this.areaHeight * 0.46 * ramp * this.mut.speed;
   }
 
   protected setup(): void {
@@ -97,7 +97,8 @@ class DriftGame extends BaseMiniGame {
     this.tracksAccuracy = false;
     this.setLives(1);
 
-    for (let i = 0; i < this.mut.extraHazards; i++) this.spawnBlock(this.height * (0.2 + i * 0.18));
+    for (let i = 0; i < this.mut.extraHazards; i++)
+      this.spawnBlock(this.areaTop + this.areaHeight * (0.2 + i * 0.18));
   }
 
   protected tick(dt: number): void {
@@ -218,14 +219,14 @@ class DriftGame extends BaseMiniGame {
     );
     const gapX = this.rng.range(this.width * 0.04, this.width * 0.96 - gapW);
     this.walls.push({
-      y: -this.height * 0.06,
+      y: this.areaTop - this.areaHeight * 0.06,
       gapX,
       gapW,
       passed: false,
       grazed: false,
-      height: Math.max(16, this.height * 0.028),
+      height: Math.max(16, this.areaHeight * 0.03),
     });
-    if (this.mut.extraHazards > 0 && this.rng.chance(0.35)) this.spawnBlock(-this.height * 0.1);
+    if (this.mut.extraHazards > 0 && this.rng.chance(0.35)) this.spawnBlock(this.areaTop - this.areaHeight * 0.1);
   }
 
   private spawnBlock(y: number): void {
@@ -345,8 +346,8 @@ class DriftGame extends BaseMiniGame {
     const ghost = this.config.ghost;
     const ctx = this.ctx;
     const x = this.width - 16;
-    const top = this.height * 0.12;
-    const bottom = this.height * 0.88;
+    const top = this.areaTop + this.areaHeight * 0.06;
+    const bottom = this.areaTop + this.areaHeight * 0.92;
     const span = bottom - top;
     const total = Math.max(1, this.config.durationMs);
 
@@ -380,10 +381,18 @@ class DriftGame extends BaseMiniGame {
     ctx.moveTo(x - 12, gy);
     ctx.lineTo(x + 6, gy);
     ctx.stroke();
-    label(ctx, `${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)}s`, x - 16, gy - 10, {
+    // Fondo oscuro detras del texto: la marca tiene que leerse aunque pase un
+    // muro justo por detras.
+    const text = `${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)}s`;
+    ctx.font = '700 12px ui-sans-serif, system-ui, sans-serif';
+    const textWidth = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(7,7,13,0.72)';
+    roundRect(ctx, x - 22 - textWidth, gy - 20, textWidth + 10, 17, 5);
+    ctx.fill();
+    label(ctx, text, x - 16, gy - 11, {
       size: 12,
       align: 'right',
-      color: passed ? 'rgba(124,243,192,0.9)' : 'rgba(226,232,240,0.9)',
+      color: passed ? 'rgba(124,243,192,0.95)' : 'rgba(226,232,240,0.95)',
       weight: 700,
     });
     ctx.restore();
@@ -398,13 +407,10 @@ class DriftGame extends BaseMiniGame {
         ctx.fillStyle = '#e2e8f0';
         ctx.font = '700 26px ui-sans-serif, system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('👻', this.width * 0.5, this.height * 0.2);
+        const ghostY = this.areaTop + this.areaHeight * 0.14;
+        ctx.fillText('👻', this.width * 0.5, ghostY);
         ctx.font = '800 13px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(
-          `${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)} s`,
-          this.width * 0.5,
-          this.height * 0.2 + 24,
-        );
+        ctx.fillText(`${ghost.rivalName} ${(ghost.value / 1000).toFixed(1)} s`, this.width * 0.5, ghostY + 24);
         ctx.restore();
       }
     }

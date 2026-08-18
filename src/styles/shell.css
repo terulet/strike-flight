@@ -4,6 +4,7 @@
   position: relative;
   width: 100%;
   max-width: var(--shell-max);
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -159,6 +160,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   animation: toast-in 220ms var(--ease-out);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -197,6 +199,7 @@
   place-items: center;
   background: rgba(4, 4, 9, 0.8);
   padding: 20px;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 

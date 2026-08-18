@@ -85,13 +85,14 @@ class PulseGame extends BaseMiniGame {
 
   private layoutCells(): void {
     const padX = this.width * 0.14;
-    const padY = this.height * 0.16;
+    const padY = this.areaHeight * 0.1;
+    const top = this.areaTop + padY;
     const w = this.width - padX * 2;
-    const h = this.height - padY * 2;
+    const h = this.areaHeight - padY * 2;
     this.cells = [];
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) {
-        this.cells.push({ x: padX + (w * (col + 0.5)) / 3, y: padY + (h * (row + 0.5)) / 3 });
+        this.cells.push({ x: padX + (w * (col + 0.5)) / 3, y: top + (h * (row + 0.5)) / 3 });
       }
     }
   }
@@ -102,7 +103,7 @@ class PulseGame extends BaseMiniGame {
   }
 
   private get baseRadius(): number {
-    return Math.min(this.width, this.height) * 0.085 * this.mut.sizeMultiplier;
+    return Math.min(this.width, this.areaHeight) * 0.09 * this.mut.sizeMultiplier;
   }
 
   protected tick(dt: number): void {
@@ -267,7 +268,7 @@ class PulseGame extends BaseMiniGame {
     }
 
     if (this.combo >= 3) {
-      label(ctx, `x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.height - 34, {
+      label(ctx, `x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.areaBottom - 16, {
         size: 20,
         color: hexToRgba('#ffd23f', 0.9),
       });

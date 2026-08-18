@@ -32,7 +32,9 @@ export class PlayScreen {
   private stage: HTMLElement;
   private hud: Hud;
   private overlay: HTMLElement | null = null;
+  private hudNode: HTMLElement;
   private host: GameHost;
+  private insetObserver: ResizeObserver | null = null;
 
   private ghostPassed = false;
   private timers: ReturnType<typeof setTimeout>[] = [];
@@ -68,6 +70,7 @@ export class PlayScreen {
       el('div', { class: 'hud__bar' }, [this.hud.bar]),
     ]);
 
+    this.hudNode = hudNode;
     this.root = el('div', { class: 'play' }, [this.stage, hudNode, this.hud.combo, this.hud.ghost]);
 
     this.host = new GameHost({
@@ -90,6 +93,22 @@ export class PlayScreen {
 
   mount(): void {
     document.body.appendChild(this.root);
+    this.measureInsets();
+    if (typeof ResizeObserver !== 'undefined') {
+      this.insetObserver = new ResizeObserver(() => this.measureInsets());
+      this.insetObserver.observe(this.hudNode);
+    }
+  }
+
+  /**
+   * El HUD es DOM y flota encima del canvas: los juegos tienen que saber que
+   * franja NO pueden usar. Se mide de verdad, no se estima.
+   */
+  private measureInsets(): void {
+    const top = Math.round(this.hudNode.getBoundingClientRect().height);
+    const ghostVisible = this.hud.ghost.style.display !== 'none' && this.hud.ghost.textContent !== '';
+    const bottom = ghostVisible ? Math.round(this.hud.ghost.getBoundingClientRect().height) + 26 : 16;
+    this.host.setInsets(top + 4, bottom);
   }
 
   /** Cambiar de reto sin desmontar (usado al encadenar partidas). */
@@ -117,6 +136,7 @@ export class PlayScreen {
         ? `🎯 ${this.config.targetName} · ${formatScore(this.config.targetScore ?? 0)}`
         : '';
     this.hud.ghost.style.display = this.hud.ghost.textContent ? '' : 'none';
+    this.measureInsets();
 
     this.runCountdown(options.quick ?? false);
   }
@@ -290,6 +310,7 @@ export class PlayScreen {
   destroy(): void {
     this.clearTimers();
     this.clearOverlay();
+    this.insetObserver?.disconnect();
     this.host.destroy();
     this.root.remove();
     document.body.classList.remove('is-playing');

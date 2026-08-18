@@ -70,6 +70,7 @@ function makeServices(): GameServices {
     ctx,
     width: 393,
     height: 700,
+    insets: { top: 90, bottom: 20 },
     input: new InputManager(),
     audio: new AudioBus(true),
     haptics: new Haptics(false),

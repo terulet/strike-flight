@@ -96,6 +96,14 @@ function buildStats(result: GameResult, isSurvival: boolean): [string, string][]
   return stats.slice(0, 3);
 }
 
+/** "MARC", "MARC Y KALI", "MARC, KALI Y 2 MAS". */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} Y ${names[1]}`;
+  if (names.length === 3) return `${names[0]}, ${names[1]} Y ${names[2]}`;
+  return `${names[0]}, ${names[1]} Y ${names.length - 2} MAS`;
+}
+
 function renderDelta(outcome: ScoreOutcome): HTMLElement {
   if (outcome.isChallengeBest && outcome.previousBest > 0) {
     return el('div', { class: 'result__delta', text: `🔥 +${formatScore(outcome.gainVsBest)}` });
@@ -114,7 +122,7 @@ function renderPique(outcome: ScoreOutcome): HTMLElement {
   const lines: (HTMLElement | null)[] = [];
 
   if (outcome.overtook.length > 0) {
-    const names = outcome.overtook.map((s) => s.name).join(' Y ');
+    const names = joinNames(outcome.overtook.map((s) => s.name));
     lines.push(el('div', { class: 'result__pique-title', text: `HAS SUPERADO A ${names}` }));
     lines.push(el('div', { class: 'result__rank', text: `AHORA ERES #${outcome.rankAfter}` }));
   } else if (outcome.challengeTarget && !outcome.challengeTarget.entry.isMe) {

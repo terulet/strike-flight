@@ -95,7 +95,6 @@ describe('ranking del dia', () => {
   });
 
   it('el ajuste de debug mueve a un rival', () => {
-    const save = freshSave();
     const plan = buildDailyPlan(DAY);
     const marc = RIVALS[0]!;
     const base = rivalTotals(plan, marc, false, 0).total;

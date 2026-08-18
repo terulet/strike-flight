@@ -1,0 +1,61 @@
+/** Bot compartido por playtest.mjs y flows.mjs: juega leyendo debugInfo(). */
+export const VIEW = { w: 393, h: 852 };
+
+export const readState = (page) => page.evaluate(() => window.__PZ.state());
+export const isOver = (page) => page.evaluate(() => !!document.querySelector('.result'));
+
+export async function launchGame(page, gameId) {
+  await page.evaluate((id) => window.__PZ.app.startDebugRun(id), gameId);
+  await page.waitForSelector('.countdown', { state: 'detached', timeout: 10000 });
+}
+
+export async function playPulse(page, ms = 60000) {
+  const t0 = Date.now();
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state) break;
+    const good = (state.nodes ?? []).filter((n) => !n.mine).sort((a, b) => a.life - b.life);
+    for (const node of good.slice(0, 2)) await page.mouse.click(node.x, node.y);
+    await page.waitForTimeout(45);
+  }
+}
+
+export async function playSnap(page, ms = 60000) {
+  const t0 = Date.now();
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.target) break;
+    await page.mouse.click(state.target.x, state.target.y);
+    await page.waitForTimeout(120);
+  }
+}
+
+export async function playDrift(page, ms = 60000) {
+  const t0 = Date.now();
+  await page.mouse.move(VIEW.w / 2, VIEW.h * 0.79);
+  await page.mouse.down();
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.player) break;
+    const player = state.player;
+    const wall = (state.walls ?? []).filter((w) => w.y < player.y + 20).sort((a, b) => b.y - a.y)[0];
+    let targetX = wall ? wall.gapX + wall.gapW / 2 : player.x;
+    for (const block of state.blocks ?? []) {
+      if (Math.abs(block.y - player.y) < 140 && Math.abs(block.x - targetX) < block.size) {
+        targetX += targetX < VIEW.w / 2 ? block.size * 1.6 : -block.size * 1.6;
+      }
+    }
+    await page.mouse.move(Math.max(12, Math.min(VIEW.w - 12, targetX)), VIEW.h * 0.79);
+    await page.waitForTimeout(28);
+  }
+  await page.mouse.up();
+}
+
+export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap };
+
+/** Juega el reto que este en marcha, sea cual sea el juego. */
+export async function playCurrent(page, ms) {
+  const state = await readState(page);
+  const bot = BOTS[state?.game] ?? playPulse;
+  await bot(page, ms);
+}

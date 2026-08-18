@@ -124,8 +124,11 @@
   display: grid;
   place-items: center;
   font-size: 17px;
+  /* Safari < 16.2 no entiende color-mix: se queda con estos dos. */
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   background: color-mix(in srgb, var(--accent, var(--brand)) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, var(--brand)) 40%, transparent);
+  border-color: color-mix(in srgb, var(--accent, var(--brand)) 40%, transparent);
   color: var(--accent, var(--brand));
 }
 
@@ -287,9 +290,11 @@
 }
 
 .btn--accent {
+  background: var(--accent, var(--brand));
   background: color-mix(in srgb, var(--accent, var(--brand)) 88%, black);
   color: #080810;
   border-color: transparent;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--accent, var(--brand)) 35%, transparent);
 }
 
@@ -421,4 +426,43 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+/* ---------- Marcas personales ---------- */
+.records {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.record {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 9px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.record__value {
+  font-size: 15px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.record__label {
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
