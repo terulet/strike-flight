@@ -8,6 +8,19 @@
  */
 import { pingPong } from '../core/math.js';
 
+/**
+ * Path Y coordinates are authored in room-local space like everything else in
+ * a definition; entities live in world space. This lifts a path into world
+ * space once, at construction.
+ */
+export function toWorldPath(path, originY) {
+  if (!path || path.type === 'none' || !originY) return path;
+  const p = { ...path };
+  if (p.to) p.to = { ...p.to, y: (p.to.y ?? 0) + originY };
+  if (typeof p.cy === 'number') p.cy += originY;
+  return p;
+}
+
 export function pathPosition(path, x0, y0, t, out = { x: 0, y: 0 }) {
   if (!path || path.type === 'none') {
     out.x = x0;
@@ -36,12 +49,17 @@ export function pathPosition(path, x0, y0, t, out = { x: 0, y: 0 }) {
   return out;
 }
 
-/** Mirrors a path definition horizontally around the room width. */
-export function mirrorPath(path, roomW) {
+/**
+ * Mirrors a path definition horizontally around the room width.
+ * `width` is the entity's own width: path coordinates are top-left anchored
+ * like the entity itself, so mirroring without it slides every moving
+ * platform sideways by its own width.
+ */
+export function mirrorPath(path, roomW, width = 0) {
   if (!path || path.type === 'none') return path;
   const p = { ...path };
-  if (p.to) p.to = { ...p.to, x: roomW - p.to.x };
-  if (typeof p.cx === 'number') p.cx = roomW - p.cx;
+  if (p.to) p.to = { ...p.to, x: roomW - p.to.x - width };
+  if (typeof p.cx === 'number') p.cx = roomW - p.cx - width;
   if (p.type === 'orbit') p.reverse = !p.reverse;
   return p;
 }

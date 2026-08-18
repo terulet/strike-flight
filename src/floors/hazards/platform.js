@@ -2,7 +2,7 @@
 import { COLORS } from '../../config.js';
 import { Entity, solid } from '../entity.js';
 import { registerEntity } from '../registry.js';
-import { pathPosition } from '../path.js';
+import { pathPosition, toWorldPath } from '../path.js';
 
 class MovingPlatform extends Entity {
   constructor(def, ctx) {
@@ -12,9 +12,11 @@ class MovingPlatform extends Entity {
     this.y0 = this.wy(def.y);
     this.w = def.w ?? 60;
     this.h = def.h ?? 12;
-    this.path = def.path;
+    this.path = toWorldPath(def.path, this.originY);
     this.t = def.t0 ?? 0;
     this.pos = { x: this.x0, y: this.y0 };
+    this.x = this.x0;
+    this.y = this.y0;
     this.solids.push(solid(this.x0, this.y0, this.w, this.h));
   }
 
@@ -32,6 +34,8 @@ class MovingPlatform extends Entity {
     s.y = this.pos.y;
     s.dx = s.x - px;
     s.dy = s.y - py;
+    this.x = s.x;
+    this.y = s.y;
   }
 
   draw(gfx) {

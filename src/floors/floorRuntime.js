@@ -9,7 +9,7 @@
 import { COLORS, ROOM } from '../config.js';
 import { aabb, circleAabb } from '../core/math.js';
 import { createEntity } from './registry.js';
-import { solid, _resetIds } from './entity.js';
+import { solid } from './entity.js';
 import { mirrorPath } from './path.js';
 import { roomTopY } from '../systems/camera.js';
 
@@ -27,8 +27,9 @@ function defWidth(def) {
 
 export function mirrorEntityDef(def, roomW = ROOM.W) {
   const m = { ...def };
-  m.x = roomW - def.x - defWidth(def);
-  if (def.path) m.path = mirrorPath(def.path, roomW);
+  const w = defWidth(def);
+  if (typeof def.x === 'number') m.x = roomW - def.x - w;
+  if (def.path) m.path = mirrorPath(def.path, roomW, w);
   if (def.slots) m.slots = def.slots.map((s) => ({ ...s, x: roomW - s.x - (s.w ?? def.w ?? 34) }));
   if (def.type === 'walker') {
     const left = def.left ?? def.x - 50;
@@ -60,7 +61,6 @@ export class Room {
    * @param {object} opts { rng, mirrored }
    */
   constructor(def, floorNumber, opts = {}) {
-    _resetIds();
     this.floorNumber = floorNumber;
     this.originY = roomTopY(floorNumber);
     this.def = opts.mirrored ? mirrorDefinition(def) : def;

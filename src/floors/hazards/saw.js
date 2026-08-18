@@ -2,7 +2,7 @@
 import { COLORS } from '../../config.js';
 import { Entity, circle } from '../entity.js';
 import { registerEntity } from '../registry.js';
-import { pathPosition } from '../path.js';
+import { pathPosition, toWorldPath } from '../path.js';
 
 class Saw extends Entity {
   constructor(def, ctx) {
@@ -11,7 +11,7 @@ class Saw extends Entity {
     this.x0 = def.x;
     this.y0 = this.wy(def.y);
     this.r = def.r ?? 18;
-    this.path = def.path;
+    this.path = toWorldPath(def.path, this.originY);
     this.t = def.t0 ?? 0;
     this.spin = 0;
     this.pos = { x: this.x0, y: this.y0 };
