@@ -24,9 +24,13 @@ if (!root) throw new Error('Falta #app en el documento');
 const app = new App(root);
 app.boot();
 
-// Enganche para herramientas de desarrollo y pruebas automatizadas. Solo en
-// modo dev: en la build de produccion esta rama desaparece.
-if (import.meta.env.DEV) {
+/**
+ * Enganche para herramientas de desarrollo y pruebas automatizadas.
+ * En desarrollo siempre; en una build de produccion solo si se pide debug
+ * explicitamente (?debug), igual que el panel. Nadie lo tiene activo sin
+ * querer, pero se puede auditar la build real.
+ */
+function exposeDevHook(): void {
   (globalThis as unknown as Record<string, unknown>).__PZ = {
     app,
     game: () => app.playScreen?.game ?? null,
@@ -34,14 +38,17 @@ if (import.meta.env.DEV) {
   };
 }
 
+if (import.meta.env.DEV) exposeDevHook();
+
 // Herramientas de desarrollo bajo demanda.
 let debugLoaded = false;
 async function enableDebug(): Promise<void> {
   if (debugLoaded) return;
   debugLoaded = true;
   const { mountDebug } = await import('./ui/debug');
+  exposeDevHook();
   mountDebug(app);
-  app.renderHome();
+  if (app.mode !== 'none') app.renderHome();
 }
 
 const params = new URLSearchParams(location.search);
@@ -77,6 +84,35 @@ document.addEventListener(
   },
   { passive: false },
 );
+
+// Service worker solo en la build de produccion: en desarrollo estorba mas
+// que ayuda (cachea codigo viejo). Sirve para que la app abra sin cobertura.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  globalThis.addEventListener('load', () => {
+    void navigator.serviceWorker
+      .register('./sw.js')
+      .then(async (registration) => {
+        await navigator.serviceWorker.ready;
+        const worker = registration.active ?? navigator.serviceWorker.controller;
+        if (!worker) return;
+        // Le decimos exactamente que ha cargado esta pagina para que lo guarde:
+        // en la primera visita esos ficheros no pasan por el service worker.
+        const send = () => {
+          const urls = performance
+            .getEntriesByType('resource')
+            .map((entry) => entry.name)
+            .filter((url) => url.startsWith(location.origin) && !url.includes('/api/'));
+          worker.postMessage({ type: 'precache', urls: [location.origin + location.pathname, ...urls] });
+        };
+        send();
+        // Y otra vez algo mas tarde, por los trozos que se cargan bajo demanda.
+        setTimeout(send, 4000);
+      })
+      .catch(() => {
+        /* si el navegador lo rechaza, la app funciona igual con conexion */
+      });
+  });
+}
 
 // Un aviso claro si algo revienta en produccion.
 globalThis.addEventListener('error', (ev) => {
