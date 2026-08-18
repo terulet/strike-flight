@@ -11,11 +11,13 @@ export const FIXED_DT = 1 / 120;
 const MAX_FRAME = 0.25; // Never simulate more than 250ms after a tab stall.
 
 export class GameLoop {
-  constructor({ update, render, raf = requestAnimationFrame, now = () => performance.now() }) {
+  constructor({ update, render, raf, now } = {}) {
     this.update = update;
     this.render = render;
-    this.raf = raf;
-    this.now = now;
+    // Bound explicitly: passing requestAnimationFrame around unbound throws
+    // "Illegal invocation" the moment it is called as a method.
+    this.raf = raf || ((cb) => globalThis.requestAnimationFrame(cb));
+    this.now = now || (() => globalThis.performance.now());
     this.running = false;
     this.accumulator = 0;
     this.lastTime = 0;
