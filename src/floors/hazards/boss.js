@@ -43,15 +43,21 @@ class Boss extends Entity {
     this.eyeY = 0;
     this.defeated = false;
     this.deathT = 0;
-    this.hoverTime = def.hoverTime ?? (this.hard ? 0.85 : 1.05);
-    this.telegraphTime = def.telegraph ?? (this.hard ? 0.42 : 0.55);
+    this.hoverTime = def.hoverTime ?? (this.hard ? 0.9 : 1.15);
+    // The wind-up has to be long enough to walk out of a body-width of danger:
+    // 0.72s at run speed covers ~95px against a 92px column, with margin.
+    this.telegraphTime = def.telegraph ?? (this.hard ? 0.56 : 0.72);
     this.slamTime = 0.16;
-    this.stuckTime = def.stuckTime ?? (this.hard ? 1.05 : 1.35);
+    // Long enough to cross the arena and climb on: the punish window is the
+    // reward for surviving the slam, so it must not need a perfect position.
+    this.stuckTime = def.stuckTime ?? (this.hard ? 1.3 : 1.7);
     this.riseTime = 0.62;
 
-    // Body is lethal; the top strip becomes a landing pad while stuck.
+    // Body is lethal; the crown becomes a landing pad while stuck. The pad is
+    // one-way so a jump passes up through it instead of banging your head on
+    // the very thing you are being told to land on.
     this.hazards.push(box(this.x + 4, this.y + 10, this.w - 8, this.h - 10, 'boss'));
-    this.topSolid = solid(this.x + 6, this.y, this.w - 12, 10);
+    this.topSolid = solid(this.x + 6, this.y, this.w - 12, 10, { oneWay: true });
     this.sweep = {
       active: false,
       charge: 0,
@@ -117,8 +123,10 @@ class Boss extends Entity {
 
     if (this.phase === HOVER) {
       // Drifts towards the player, slowly enough to be outrun on purpose.
-      if (player) this.targetX = clamp(player.cx - this.w / 2, 20, ROOM.W - this.w - 20);
-      this.x = damp(this.x, this.targetX, this.hard ? 3.4 : 2.4, dt);
+      // Never corner the player: the column it drops always leaves a lane on
+      // both sides wide enough to stand in.
+      if (player) this.targetX = clamp(player.cx - this.w / 2, 58, ROOM.W - this.w - 58);
+      this.x = damp(this.x, this.targetX, this.hard ? 2.8 : 1.9, dt);
       this.y = this.hoverY + Math.sin(this.t * 2.2) * 6;
       if (this.timer >= this.hoverTime) { this.phase = TELEGRAPH; this.timer = 0; }
     } else if (this.phase === TELEGRAPH) {
@@ -167,10 +175,15 @@ class Boss extends Entity {
 
     const body = this.hazards[0];
     body.x = this.x + 4;
-    body.y = this.y + (this.phase === STUCK ? 12 : 6);
+    // While stuck, the top third of it is safe: that is the approach lane to
+    // the crown, and clipping the shoulder of your own target is a bad death.
+    const topInset = this.phase === STUCK ? 22 : 6;
+    body.y = this.y + topInset;
     body.w = this.w - 8;
-    body.h = this.h - (this.phase === STUCK ? 12 : 6);
-    body.active = !this.defeated;
+    body.h = this.h - topInset;
+    // Harmless while it recoils: it just took a hit, and the player is
+    // standing exactly where it is about to be.
+    body.active = !this.defeated && this.phase !== RISE;
 
     // Sweep beam: charges visibly, then fires across the room low to the floor.
     if (this.sweep.active) {

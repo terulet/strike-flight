@@ -6,7 +6,7 @@
  * the player enters from the right, which is what makes the climb zig-zag
  * naturally without authoring two versions of anything.
  */
-import { COLORS, ROOM } from '../config.js';
+import { COLORS, PLAYER, ROOM } from '../config.js';
 import { aabb, circleAabb } from '../core/math.js';
 import { createEntity } from './registry.js';
 import { solid } from './entity.js';
@@ -223,6 +223,7 @@ export class Room {
       if (feetY >= b.y - 2 && feetY <= b.y + b.h + 4 &&
           player.x + player.w > b.x + 2 && player.x < b.x + b.w - 2) {
         wlk.stomp(ctx);
+        this._bounce(player, 0.78);
         return wlk;
       }
     }
@@ -233,9 +234,19 @@ export class Room {
   checkBossStomp(player, ctx) {
     if (!this.boss || !this.boss.vulnerable) return false;
     if (player.rideId === this.boss.topSolid.id && player.grounded) {
-      return this.boss.hit(ctx);
+      const hit = this.boss.hit(ctx);
+      if (hit) this._bounce(player, 0.95);
+      return hit;
     }
     return false;
+  }
+
+  /** Kicks the player back off whatever they just landed on. */
+  _bounce(player, strength) {
+    player.vy = PLAYER.JUMP_VEL * strength;
+    player.jumping = true;
+    player.grounded = false;
+    player.rideId = null;
   }
 
   get bottomY() {
