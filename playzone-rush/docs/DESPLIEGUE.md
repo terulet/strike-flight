@@ -6,7 +6,10 @@ Tailscale Funnel le pone HTTPS y una URL publica, y pm2 lo mantiene vivo.
 Sin dominio que comprar, sin factura mensual, sin cuenta en ningun sitio.
 
 - **URL publica**: `https://mac-mini-de-eloi.tail011c69.ts.net`
-- **Proceso**: `playzone` en pm2 (junto a `fichaje`, que ya estaba)
+- **Puerto**: **8788**. El 8787 (el que trae por defecto) ya lo ocupa
+  `factura-limpia` en esta maquina, y exponerlo por Funnel publicaria esa
+  aplicacion en internet. El puerto esta fijado en `ecosystem.config.cjs`.
+- **Proceso**: `playzone` en pm2, junto a `fichaje` y `factura-limpia`
 - **Datos**: `server/data/playzone.db` (SQLite, WAL)
 - **Copias**: `server/data/backups/` cada 6 h, se guardan las ultimas 28
 
@@ -34,7 +37,7 @@ git pull origin claude/playzone-rush-social-kg1l61
 cd playzone-rush
 npm install          # completo, NO --omit=dev: vite y typescript hacen falta para construir
 npm run build        # deja dist/ listo
-npm test             # 219 tests; si algo falla, parar aqui
+npm test             # 221 tests; si algo falla, parar aqui
 ```
 
 `npm install` completo es a proposito: el servidor en si no tiene ni una
@@ -43,16 +46,25 @@ necesita vite y typescript, que estan en devDependencies.
 
 ## 3. Arrancar con pm2
 
+Antes de nada, comprobar que el puerto esta libre. En esta maquina hay mas
+cosas escuchando, y publicar el puerto equivocado por Funnel seria sacar a
+internet una aplicacion que no toca:
+
+```bash
+lsof -nP -iTCP:8788 -sTCP:LISTEN    # tiene que estar vacio
+lsof -nP -iTCP:8787 -sTCP:LISTEN    # aqui vive factura-limpia: NO tocar
+```
+
 ```bash
 cd ~/Developer/strike-flight/playzone-rush
-pm2 start server/bin/start.mjs --name playzone
-pm2 logs playzone --lines 30    # comprobar que arranca y dice el build
+pm2 start ecosystem.config.cjs      # el puerto 8788 va dentro del fichero
+pm2 logs playzone --lines 30        # comprobar que arranca y dice el build
 ```
 
 En el arranque tiene que aparecer algo asi:
 
 ```
-PLAYZONE RUSH · escuchando en http://0.0.0.0:8787
+PLAYZONE RUSH · escuchando en http://0.0.0.0:8788
   build         : 08d59a9
   frontend      : /Users/eloi/Developer/strike-flight/playzone-rush/dist (servido desde aqui)
   base de datos : .../server/data/playzone.db
@@ -64,20 +76,20 @@ Si en `frontend` pone "no encontrado", es que falta `npm run build`.
 Comprobacion local antes de exponerlo a internet:
 
 ```bash
-curl -s http://127.0.0.1:8787/api/health
+curl -s http://127.0.0.1:8788/api/health
 # {"ok":true,"day":"2026-08-18","streams":0,"buildId":"08d59a9","lastBackup":null}
 ```
 
 ### Que sobreviva a un reinicio
 
-Ojo: en esta maquina pm2 ya gestiona `fichaje`. `pm2 save` guarda **la lista
-entera**, asi que hay que hacerlo con los dos procesos arriba, no solo con
-PLAYZONE.
+Ojo: en esta maquina pm2 ya gestiona otras aplicaciones. `pm2 save` guarda
+**la lista entera**, asi que hay que hacerlo con todo arriba, no solo con
+PLAYZONE, o al reiniciar se resucitaria una lista incompleta.
 
 ```bash
 pm2 startup           # imprime un comando con sudo; ejecutarlo tal cual
-pm2 save              # guarda playzone Y fichaje
-pm2 list              # los dos tienen que estar "online"
+pm2 save              # guarda playzone Y lo que ya hubiera
+pm2 list              # todos tienen que estar "online"
 ```
 
 ## 4. HTTPS y URL publica con Tailscale Funnel
@@ -87,9 +99,13 @@ vez hay que habilitarlo en la consola de administracion de Tailscale (te dara
 el enlace exacto si no lo esta).
 
 ```bash
-tailscale funnel --bg 8787
-tailscale funnel status
+tailscale funnel --bg 8788
+tailscale funnel status     # comprobar que apunta al 8788, no al 8787
 ```
+
+> **Comprobar el puerto antes de exponerlo.** Funnel publica en internet lo que
+> haya en ese puerto, sea lo que sea. Un digito de mas y en vez del juego se
+> publica la aplicacion de facturas.
 
 Y desde fuera de casa (datos moviles, no wifi):
 
@@ -189,7 +205,7 @@ si puede mover el dia y forzar partidas, es otro sitio distinto a proposito.
 | Sintoma | Que mirar |
 |---|---|
 | La URL no responde desde fuera | `tailscale funnel status` y `pm2 list` |
-| Carga pero sin datos | `curl http://127.0.0.1:8787/api/health` en el propio Mac |
+| Carga pero sin datos | `curl http://127.0.0.1:8788/api/health` en el propio Mac |
 | Se ve una version vieja | `pm2 logs playzone` y comprobar el `build` del arranque |
 | Un movil no sincroniza | Mirar el indicador de red en la portada (PENDIENTE = cola llena, sube sola) |
 | Algo revienta | `?dashboard`, seccion ERRORES; y `pm2 logs playzone --err` |

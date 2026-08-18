@@ -15,7 +15,9 @@
     "server": "node server/bin/start.mjs",
     "dev:all": "node tools/dev-all.mjs",
     "test:server": "vitest run server/test",
-    "test:client": "vitest run tests"
+    "test:client": "vitest run tests",
+    "test:alfa": "node tools/alfa.mjs",
+    "icons": "node tools/gen-icons.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
