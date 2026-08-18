@@ -60,7 +60,10 @@ class MemoryGame extends BaseMiniGame {
   private round = 0;
   private rounds = 0;
   private perfectRounds = 0;
+  private failedRounds = 0;
   private inputStart = 0;
+  private inputLimit = 0;
+  private revealing = false;
 
   constructor(services: GameServices, config: GameConfig) {
     super(services, config);
@@ -74,6 +77,8 @@ class MemoryGame extends BaseMiniGame {
     this.round = 0;
     this.rounds = 0;
     this.perfectRounds = 0;
+    this.failedRounds = 0;
+    this.revealing = false;
     this.tracksAccuracy = true;
     this.setLives(3);
     this.layout();
@@ -120,16 +125,39 @@ class MemoryGame extends BaseMiniGame {
     return Math.max(500, base) / Math.max(0.6, this.mut.speed);
   }
 
+  /**
+   * Cuanto tiempo hay para tocar las casillas. Sin este limite, quien no
+   * recuerda el patron se queda ahi parado y la partida se congela: el reloj
+   * corre pero no pasa nada. Con limite, fallar cuesta pero el juego sigue.
+   */
+  private get inputMs(): number {
+    return (1400 + this.pattern.size * 650) / Math.max(0.6, this.mut.speed);
+  }
+
   private nextRound(): void {
     this.round++;
     this.pattern = new Set();
     this.found = new Set();
     this.wrong.clear();
+    this.revealing = false;
     const size = this.patternSize;
     while (this.pattern.size < size) this.pattern.add(this.rng.int(0, CELLS - 1));
     this.phase = 'flash';
     this.phaseTimer = this.flashMs / 1000;
     this.services.audio.play('countdown');
+  }
+
+  /** Se acabo el tiempo de la ronda: se ensena lo que faltaba y a la siguiente. */
+  private failRound(): void {
+    this.failedRounds++;
+    this.misses += this.pattern.size - this.found.size;
+    this.breakCombo();
+    this.announce('SE ACABO EL TIEMPO', 'bad');
+    this.services.audio.play('miss');
+    this.services.fx.shake(0.4);
+    this.revealing = true;
+    this.phase = 'pause';
+    this.phaseTimer = 0.7;
   }
 
   protected tick(dt: number): void {
@@ -144,11 +172,18 @@ class MemoryGame extends BaseMiniGame {
       if (this.phaseTimer <= 0) {
         this.phase = 'input';
         this.inputStart = this.elapsedMs;
+        this.inputLimit = this.inputMs / 1000;
+        this.phaseTimer = this.inputLimit;
       }
       return;
     }
     if (this.phase === 'pause') {
       if (this.phaseTimer <= 0) this.nextRound();
+      return;
+    }
+
+    if (this.phaseTimer <= 0) {
+      this.failRound();
       return;
     }
 
@@ -205,6 +240,7 @@ class MemoryGame extends BaseMiniGame {
 
   private completeRound(): void {
     this.rounds++;
+    this.revealing = false;
     if (this.mistakes === 0 || this.wrong.size === 0) this.perfectRounds++;
     const bonus = 120 + 25 * this.pattern.size;
     const center = this.gridCenter();
@@ -216,6 +252,27 @@ class MemoryGame extends BaseMiniGame {
     // Medio segundo de respiro: da tiempo a ver el acierto y evita que la
     // partida se convierta en una metralleta para quien va sobrado.
     this.phaseTimer = 0.6;
+  }
+
+  /** Barra fina bajo la rejilla: cuanto queda para que se acabe la ronda. */
+  private drawInputTimer(): void {
+    const first = this.cells[0];
+    const last = this.cells[CELLS - 1];
+    if (!first || !last) return;
+    const ctx = this.ctx;
+    const left = first.x;
+    const width = last.x + last.size - first.x;
+    const y = last.y + last.size + 12;
+    const ratio = Math.max(0, Math.min(1, this.phaseTimer / Math.max(0.001, this.inputLimit)));
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, left, y, width, 4, 2);
+    ctx.fill();
+    ctx.fillStyle = ratio < 0.3 ? BAD : hexToRgba(ACCENT, 0.9);
+    roundRect(ctx, left, y, width * ratio, 4, 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   private gridCenter(): { x: number; y: number } {
@@ -248,7 +305,7 @@ class MemoryGame extends BaseMiniGame {
       const x = cell.x + offset;
       const y = cell.y + offset;
 
-      const lit = this.phase === 'flash' && this.pattern.has(i);
+      const lit = (this.phase === 'flash' || this.revealing) && this.pattern.has(i);
       const done = this.found.has(i);
       const failed = this.wrong.has(i);
 
@@ -286,6 +343,9 @@ class MemoryGame extends BaseMiniGame {
         size: 15,
         color: 'rgba(255,255,255,0.75)',
       });
+      this.drawInputTimer();
+    } else if (this.revealing) {
+      label(ctx, 'ERAN ESTAS', center.x, top, { size: 15, color: hexToRgba(BAD, 0.9) });
     }
 
     label(ctx, `RONDA ${this.round}`, center.x, this.areaBottom - 16, {
@@ -296,7 +356,7 @@ class MemoryGame extends BaseMiniGame {
   }
 
   protected override metrics(): Record<string, number> {
-    return { rounds: this.rounds, perfectRounds: this.perfectRounds };
+    return { rounds: this.rounds, perfectRounds: this.perfectRounds, failedRounds: this.failedRounds };
   }
 
   debugInfo(): Record<string, unknown> {
@@ -304,6 +364,7 @@ class MemoryGame extends BaseMiniGame {
       game: 'memory',
       phase: this.phase,
       round: this.round,
+      inputLeft: this.phase === 'input' ? Math.max(0, this.phaseTimer) : null,
       pattern: Array.from(this.pattern),
       found: Array.from(this.found),
       cells: this.cells.map((cell) => ({

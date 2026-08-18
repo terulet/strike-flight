@@ -297,7 +297,8 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
   const left = app.attemptsLeft(spec);
   const progress = app.save.get().days[app.dayKey]?.challenges[spec.id];
   const best = progress?.bestScore ?? 0;
-  const target = targetForChallenge(app.plan, spec, app.save);
+  // Con el contexto: en grupo el objetivo es una persona, no un bot.
+  const target = targetForChallenge(app.plan, spec, app.save, app.rankingContext);
 
   const playBtn = button(left > 0 ? 'JUGAR' : 'SIN INTENTOS', 'btn btn--accent', () => app.startChallenge(spec), {
     disabled: left === 0,
@@ -510,7 +511,7 @@ function renderPique(app: App, board: Leaderboard): HTMLElement | null {
 
   const candidates = app.plan.challenges.filter((spec) => app.canPlay(spec));
   const best = candidates
-    .map((spec) => ({ spec, target: targetForChallenge(app.plan, spec, app.save) }))
+    .map((spec) => ({ spec, target: targetForChallenge(app.plan, spec, app.save, app.rankingContext) }))
     .filter((entry) => entry.target && !entry.target.entry.isMe && entry.target.gap > 0)
     .sort((a, b) => (a.target?.gap ?? 0) - (b.target?.gap ?? 0))[0];
 

@@ -32,7 +32,8 @@ await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
 /** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
 async function enterSolo(page) {
   if ((await page.locator('.onboarding').count()) > 0) {
-    await page.getByText('PROBAR SOLO').click();
+    // Por clase, no por texto: el texto tambien aparece en la nota de abajo.
+    await page.locator('.onboarding__solo').click();
     await page.waitForSelector('.card', { timeout: 10000 });
   }
 }

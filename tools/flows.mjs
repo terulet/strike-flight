@@ -42,7 +42,8 @@ await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
 /** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
 async function enterSolo(page) {
   if ((await page.locator('.onboarding').count()) > 0) {
-    await page.getByText('PROBAR SOLO').click();
+    // Por clase, no por texto: el texto tambien aparece en la nota de abajo.
+    await page.locator('.onboarding__solo').click();
     await page.waitForSelector('.card', { timeout: 10000 });
   }
 }
@@ -106,7 +107,11 @@ await page.waitForSelector('.card');
   await shot('04-result');
 
   const t0 = Date.now();
-  await page.locator('.result .btn--play').click();
+  // Por texto: si has ganado, el boton de volver a jugar es "OTRO INTENTO".
+  await page
+    .locator('.result button', { hasText: /REVANCHA|OTRO INTENTO/ })
+    .first()
+    .click();
   await page.waitForSelector('.countdown', { timeout: 4000 });
   await page.waitForSelector('.countdown', { state: 'detached', timeout: 6000 });
   const elapsed = Date.now() - t0;
