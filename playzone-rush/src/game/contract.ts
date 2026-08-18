@@ -1,0 +1,165 @@
+/**
+ * CONTRATO DE MINIJUEGO DE PLAYZONE
+ * =================================
+ *
+ * El shell no sabe nada de ningun juego concreto. Solo sabe decir:
+ *
+ *     "carga el juego X con esta semilla, esta duracion y estos mutadores"
+ *
+ * y recoger al final un GameResult. Cualquier minijuego (incluidos los
+ * PLAYZONE 001..00N que viven en sus propios repositorios) puede entrar en
+ * RUSH implementando este contrato, sin tocar el shell.
+ *
+ * Un juego nuevo solo necesita exportar un GameDefinition:
+ *
+ *     export const definition: GameDefinition = {
+ *       meta: { ... },
+ *       create: (services, config) => new MiJuego(services, config),
+ *     };
+ *
+ * y registrarse en games/index.ts. Nada mas.
+ */
+import type { Emitter } from '../core/emitter';
+import type { AudioBus } from '../core/audio';
+import type { FxSystem } from '../core/fx';
+import type { Haptics } from '../core/haptics';
+import type { InputManager } from '../core/input';
+import type { MutatorState } from './mutators';
+
+export type GameState = 'idle' | 'ready' | 'playing' | 'paused' | 'finished' | 'destroyed';
+
+export type SkillKind = 'reflejos' | 'supervivencia' | 'precision';
+
+export type EndReason = 'time' | 'death' | 'aborted';
+
+/** Ficha del juego: lo que la UI necesita para presentarlo. */
+export interface GameMeta {
+  id: string;
+  name: string;
+  /** Descripcion corta, una linea. */
+  tagline: string;
+  skill: SkillKind;
+  /** Duracion por defecto en ms (el reto diario puede cambiarla). */
+  defaultDurationMs: number;
+  /** Instrucciones, una idea por linea. */
+  instructions: string[];
+  /** Icono provisional (glifo). Sustituible por SVG/sprite sin tocar el shell. */
+  icon: string;
+  /** Color de acento del juego. */
+  accent: string;
+  /** Si soporta marca fantasma de un rival. */
+  supportsGhost: boolean;
+  /** Etiqueta para su unidad de puntuacion. */
+  scoreLabel: string;
+}
+
+/** Marca del intento de un rival. De momento, un unico numero (no un replay). */
+export interface GhostData {
+  rivalId: string;
+  rivalName: string;
+  /** 'time' = sobrevivio X ms; 'score' = llego a X puntos. */
+  kind: 'time' | 'score';
+  value: number;
+  score: number;
+}
+
+/** Condiciones exactas de una partida. Mismo config = misma partida. */
+export interface GameConfig {
+  seed: string;
+  durationMs: number;
+  /** 0..1, la sube la rotacion diaria. */
+  difficulty: number;
+  mutators: MutatorState;
+  /** Ids de los mutadores activos (para mostrarlos y guardarlos). */
+  mutatorIds: string[];
+  ghost: GhostData | null;
+  /** Marca a batir, si la hay (se pinta en el HUD). */
+  targetScore: number | null;
+  targetName: string | null;
+}
+
+/** Lo que el host presta a cada minijuego. */
+export interface GameServices {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  /** Tamano logico en pixeles CSS (el host ya ha aplicado el DPR). */
+  width: number;
+  height: number;
+  input: InputManager;
+  audio: AudioBus;
+  haptics: Haptics;
+  fx: FxSystem;
+}
+
+export interface GameEvents extends Record<string, unknown> {
+  score: { score: number; delta: number; x: number; y: number; combo: number };
+  combo: { combo: number; best: number };
+  mistake: { mistakes: number; livesLeft: number };
+  ghost: { passed: boolean; label: string };
+  milestone: { text: string; tone: 'good' | 'bad' };
+  state: { state: GameState };
+  finish: { result: GameResult };
+}
+
+/** Lo que el shell recibe al terminar. */
+export interface GameResult {
+  gameId: string;
+  seed: string;
+  score: number;
+  /** Tiempo realmente jugado. */
+  durationMs: number;
+  /** 0..1, o null si el juego no tiene concepto de punteria. */
+  accuracy: number | null;
+  bestCombo: number;
+  mistakes: number;
+  mutatorIds: string[];
+  endedBy: EndReason;
+  /** Metricas propias del juego (ms sobrevividos, aciertos perfectos...). */
+  metrics: Record<string, number>;
+}
+
+/** Lo que el HUD del shell pinta encima del canvas. */
+export interface HudInfo {
+  score: number;
+  timeLeftMs: number;
+  totalMs: number;
+  combo: number;
+  lives: number | null;
+  maxLives: number | null;
+  /** 0..1 de progreso hacia la marca del fantasma, si aplica. */
+  ghostProgress: number | null;
+  ghostLabel: string | null;
+}
+
+export interface MiniGame {
+  readonly meta: GameMeta;
+  readonly config: GameConfig;
+  readonly state: GameState;
+  readonly score: number;
+  readonly events: Emitter<GameEvents>;
+
+  /** Ciclo de vida. */
+  start(): void;
+  pause(): void;
+  resume(): void;
+  restart(): void;
+  destroy(): void;
+
+  /** Lo llama el host cada frame. dt en segundos. */
+  update(dt: number): void;
+  render(): void;
+
+  /** Reajuste de tamano (rotacion de pantalla, teclado que aparece...). */
+  resize(width: number, height: number): void;
+
+  hud(): HudInfo;
+  /** null mientras no haya terminado. */
+  getResult(): GameResult | null;
+}
+
+export type MiniGameFactory = (services: GameServices, config: GameConfig) => MiniGame;
+
+export interface GameDefinition {
+  meta: GameMeta;
+  create: MiniGameFactory;
+}
