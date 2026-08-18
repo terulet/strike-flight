@@ -34,7 +34,7 @@ export const PLAYER = {
   FALL_GRAVITY_MULT: 1.35,
   JUMP_VEL: -470,
   /** Velocity the jump is clamped to when the finger is released early. */
-  JUMP_CUT_VEL: -190,
+  JUMP_CUT_VEL: -330,
   MAX_FALL: 780,
   DIVE_VEL: 900,
   COYOTE: 0.09,
