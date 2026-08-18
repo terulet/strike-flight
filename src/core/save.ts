@@ -14,7 +14,7 @@ import { createStore, type KeyValueStore } from './storage';
 
 export const SAVE_KEY = 'playzone.rush.save';
 export const SAVE_BACKUP_KEY = 'playzone.rush.save.broken';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface ChallengeProgress {
   attemptsUsed: number;
@@ -34,6 +34,56 @@ export interface DayRecord {
   resolvedWinner: string | null;
 }
 
+/** Como esta jugando este movil: aun sin decidir, en solitario o en grupo. */
+export type PlayMode = 'none' | 'solo' | 'group';
+
+export interface AccountState {
+  mode: PlayMode;
+  /** Identidad del dispositivo. No es una cuenta: no hay email ni contrasena. */
+  playerId: string | null;
+  secret: string | null;
+  groupCode: string | null;
+  joinedAt: number;
+}
+
+/** Resultado jugado que aun no ha llegado al servidor. */
+export interface PendingScore {
+  attemptId: string;
+  day: string;
+  challengeId: string;
+  gameId: string;
+  score: number;
+  durationMs: number;
+  attemptsUsed: number;
+  countsForRanking: boolean;
+  ghost: { trace: string; durationMs: number } | null;
+  queuedAt: number;
+  tries: number;
+}
+
+export interface SocialState {
+  /** dia -> jugador -> total que le vimos la ultima vez. */
+  lastTotals: Record<string, Record<string, number>>;
+  /** Adelantamientos ya avisados, para no repetir el aviso en cada recarga. */
+  seenOvertakes: string[];
+}
+
+export interface TelemetryEvent {
+  type: string;
+  ts: number;
+  day: string;
+  gameId?: string | null;
+  value?: number | null;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface TelemetryState {
+  events: TelemetryEvent[];
+  counters: Record<string, number>;
+  /** Cuantos eventos se han enviado ya al servidor. */
+  sent: number;
+}
+
 export interface SaveData {
   version: number;
   profile: { name: string; createdAt: number };
@@ -46,6 +96,13 @@ export interface SaveData {
   };
   streak: { holder: string | null; days: number; lastResolvedDay: string | null };
   debug: { dayOffset: number };
+  account: AccountState;
+  /** Cola de envios pendientes: sin red se juega igual y se sube despues. */
+  outbox: PendingScore[];
+  /** Ultima foto del grupo, para poder pintar el ranking sin conexion. */
+  snapshot: { day: string; data: unknown } | null;
+  social: SocialState;
+  telemetry: TelemetryState;
 }
 
 export function emptyChallengeProgress(): ChallengeProgress {
@@ -72,8 +129,16 @@ export function defaultSave(): SaveData {
     records: { bestByGame: {}, bestDailyTotal: 0, bestChaos: 0 },
     streak: { holder: null, days: 0, lastResolvedDay: null },
     debug: { dayOffset: 0 },
+    account: { mode: 'none', playerId: null, secret: null, groupCode: null, joinedAt: 0 },
+    outbox: [],
+    snapshot: null,
+    social: { lastTotals: {}, seenOvertakes: [] },
+    telemetry: { events: [], counters: {}, sent: 0 },
   };
 }
+
+/** Cuantos eventos de telemetria guardamos en local antes de tirar los viejos. */
+export const TELEMETRY_LIMIT = 600;
 
 /* ------------------------------------------------------------------ */
 /* Normalizacion                                                       */
@@ -144,6 +209,10 @@ export function normalizeSave(raw: unknown): SaveData {
     bestByGame[key] = Math.max(0, Math.round(num(value, 0)));
   }
 
+  const account = obj(r.account);
+  const social = obj(r.social);
+  const telemetry = obj(r.telemetry);
+
   return {
     version: SAVE_VERSION,
     profile: {
@@ -167,6 +236,107 @@ export function normalizeSave(raw: unknown): SaveData {
       lastResolvedDay: typeof streak.lastResolvedDay === 'string' ? streak.lastResolvedDay : null,
     },
     debug: { dayOffset: Math.round(num(debug.dayOffset, 0)) },
+    account: normalizeAccount(account),
+    outbox: Array.isArray(r.outbox)
+      ? r.outbox
+          .map(normalizePending)
+          .filter((entry): entry is PendingScore => entry !== null)
+          .slice(-40)
+      : [],
+    snapshot: normalizeSnapshot(r.snapshot),
+    social: {
+      lastTotals: normalizeTotals(social.lastTotals),
+      seenOvertakes: Array.isArray(social.seenOvertakes)
+        ? social.seenOvertakes.filter((v): v is string => typeof v === 'string').slice(-200)
+        : [],
+    },
+    telemetry: {
+      events: Array.isArray(telemetry.events)
+        ? telemetry.events
+            .map(normalizeEvent)
+            .filter((entry): entry is TelemetryEvent => entry !== null)
+            .slice(-TELEMETRY_LIMIT)
+        : [],
+      counters: normalizeCounters(telemetry.counters),
+      sent: Math.max(0, Math.round(num(telemetry.sent, 0))),
+    },
+  };
+}
+
+function normalizeAccount(raw: Record<string, unknown>): AccountState {
+  const mode = raw.mode;
+  return {
+    mode: mode === 'solo' || mode === 'group' ? mode : 'none',
+    playerId: typeof raw.playerId === 'string' ? raw.playerId.slice(0, 64) : null,
+    secret: typeof raw.secret === 'string' ? raw.secret.slice(0, 128) : null,
+    groupCode: typeof raw.groupCode === 'string' ? raw.groupCode.slice(0, 12).toUpperCase() : null,
+    joinedAt: Math.max(0, Math.round(num(raw.joinedAt, 0))),
+  };
+}
+
+function normalizePending(raw: unknown): PendingScore | null {
+  const r = obj(raw);
+  if (typeof r.attemptId !== 'string' || typeof r.gameId !== 'string') return null;
+  if (typeof r.challengeId !== 'string' || typeof r.day !== 'string') return null;
+  const ghost = obj(r.ghost);
+  return {
+    attemptId: r.attemptId.slice(0, 64),
+    day: r.day.slice(0, 10),
+    challengeId: r.challengeId.slice(0, 24),
+    gameId: r.gameId.slice(0, 24),
+    score: Math.max(0, Math.round(num(r.score, 0))),
+    durationMs: Math.max(0, Math.round(num(r.durationMs, 0))),
+    attemptsUsed: Math.max(0, Math.round(num(r.attemptsUsed, 0))),
+    countsForRanking: bool(r.countsForRanking, true),
+    ghost:
+      typeof ghost.trace === 'string'
+        ? {
+            trace: ghost.trace.slice(0, 8000),
+            durationMs: Math.max(0, Math.round(num(ghost.durationMs, 0))),
+          }
+        : null,
+    queuedAt: Math.max(0, Math.round(num(r.queuedAt, 0))),
+    tries: Math.max(0, Math.round(num(r.tries, 0))),
+  };
+}
+
+function normalizeSnapshot(raw: unknown): { day: string; data: unknown } | null {
+  const r = obj(raw);
+  if (typeof r.day !== 'string' || !r.data) return null;
+  return { day: r.day.slice(0, 10), data: r.data };
+}
+
+function normalizeTotals(raw: unknown): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const [day, value] of Object.entries(obj(raw))) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const totals: Record<string, number> = {};
+    for (const [playerId, total] of Object.entries(obj(value))) {
+      totals[playerId.slice(0, 64)] = Math.max(0, Math.round(num(total, 0)));
+    }
+    out[day] = totals;
+  }
+  return out;
+}
+
+function normalizeCounters(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(obj(raw))) {
+    out[key.slice(0, 40)] = Math.max(0, Math.round(num(value, 0)));
+  }
+  return out;
+}
+
+function normalizeEvent(raw: unknown): TelemetryEvent | null {
+  const r = obj(raw);
+  if (typeof r.type !== 'string' || r.type.length === 0) return null;
+  return {
+    type: r.type.slice(0, 40),
+    ts: Math.max(0, Math.round(num(r.ts, 0))),
+    day: typeof r.day === 'string' ? r.day.slice(0, 10) : '',
+    gameId: typeof r.gameId === 'string' ? r.gameId.slice(0, 24) : null,
+    value: typeof r.value === 'number' && Number.isFinite(r.value) ? Math.round(r.value) : null,
+    meta: r.meta && typeof r.meta === 'object' ? (r.meta as Record<string, unknown>) : null,
   };
 }
 
@@ -200,6 +370,11 @@ export const migrations: Record<number, Migration> = {
     out.version = 2;
     return out;
   },
+  // v2 -> v3: aparecen identidad de grupo, cola de envios, cache del snapshot,
+  // memoria social y telemetria. Los campos nuevos los rellena normalizeSave()
+  // con sus valores por defecto, asi que aqui solo se marca la version: nada
+  // de lo que ya habia jugado el jugador se toca.
+  2: (data) => ({ ...data, version: 3 }),
 };
 
 export interface LoadReport {
