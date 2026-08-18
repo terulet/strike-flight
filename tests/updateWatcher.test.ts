@@ -71,14 +71,7 @@ describe('watchForUpdate', () => {
   });
 
   it('avisa como mucho una vez aunque salten las dos senales', async () => {
-    const listeners: Record<string, (() => void)[]> = {};
-    vi.stubGlobal('navigator', {
-      serviceWorker: {
-        addEventListener: (type: string, fn: () => void) => {
-          (listeners[type] ??= []).push(fn);
-        },
-      },
-    });
+    const listeners = stubServiceWorker({ controller: {} });
     stubHealth('otro-build-999');
     const onAvailable = vi.fn();
     watchForUpdate(onAvailable);
@@ -89,7 +82,44 @@ describe('watchForUpdate', () => {
 
     expect(onAvailable).toHaveBeenCalledTimes(1);
   });
+
+  it('el service worker tomando el control por primera vez NO es una version nueva', async () => {
+    // Primera visita: no habia controlador. El SW se instala y reclama la
+    // pagina, y eso dispara controllerchange sin que haya nada que actualizar.
+    const listeners = stubServiceWorker({ controller: null });
+    stubHealth(__BUILD_ID__);
+    const onAvailable = vi.fn();
+    watchForUpdate(onAvailable);
+
+    for (const fn of listeners.controllerchange ?? []) fn();
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(onAvailable).not.toHaveBeenCalled();
+  });
+
+  it('pero con un controlador ya puesto, controllerchange si es una version nueva', async () => {
+    const listeners = stubServiceWorker({ controller: {} });
+    stubHealth(__BUILD_ID__); // el sondeo no detecta nada: avisa el SW
+    const onAvailable = vi.fn();
+    watchForUpdate(onAvailable);
+
+    for (const fn of listeners.controllerchange ?? []) fn();
+    expect(onAvailable).toHaveBeenCalledTimes(1);
+  });
 });
+
+function stubServiceWorker({ controller }: { controller: object | null }): Record<string, (() => void)[]> {
+  const listeners: Record<string, (() => void)[]> = {};
+  vi.stubGlobal('navigator', {
+    serviceWorker: {
+      controller,
+      addEventListener: (type: string, fn: () => void) => {
+        (listeners[type] ??= []).push(fn);
+      },
+    },
+  });
+  return listeners;
+}
 
 /** Un ciclo de sondeo completo: el primer chequeo (15s) + un intervalo entero. */
 const POLL_ROUND_TRIP = 15_000 + 4 * 60_000;

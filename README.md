@@ -3,13 +3,21 @@
 Reto diario de microjuegos para picarse con los amigos.
 Abres, juegas 30 segundos, ves que Marc te ha pasado por 153 puntos y vuelves a darle.
 
-Este es el **milestone 2**: el mismo bucle, pero con **personas reales**.
+Este es el **milestone 3**: el mismo bucle, pero **desplegado de verdad y
+midiéndose**.
 
 > abrir → jugar → puntuar → superar a alguien de verdad → esa persona lo ve →
 > revancha.
 
 Dos móviles distintos, un código de grupo de cuatro letras, y la marca de uno
 aparece en el otro sin recargar. Sin registro, sin email, sin login.
+
+Ahora, además: se instala en la pantalla de inicio, se autoaloja con HTTPS, se
+entera solo de que hay versión nueva, registra sus errores, y tiene un panel de
+métricas de solo lectura para responder a la única pregunta que importa esta
+semana — **¿vuelve la gente sola, y vuelve por lo que hace otro?**
+
+- [Cómo desplegarlo](docs/DESPLIEGUE.md) · [Protocolo de la alfa de 7 días](docs/ALFA-7-DIAS.md) · [Features congeladas](docs/CONGELADO.md)
 
 Es un proyecto **independiente**. No toca ni depende de los demás juegos de PLAYZONE
 (001, 002, 003…), que siguen viviendo en sus propios repositorios. La idea es que más
@@ -37,7 +45,7 @@ npm run dev          # solo frontend (el modo PROBAR SOLO funciona sin backend)
 npm run server       # solo backend
 npm run build        # comprueba tipos y genera dist/ (estático)
 npm run preview      # sirve la build de producción (con service worker)
-npm test             # 181 pruebas (cliente + backend)
+npm test             # 221 pruebas (cliente + backend)
 npm run test:server  # solo backend
 npm run typecheck
 ```
@@ -473,38 +481,99 @@ Servidor (runtime):
 ## Desplegar
 
 En la LAN de casa no hace falta desplegar nada: `npm run dev:all` y la IP del
-PC. Para tenerlo fuera de casa:
+PC. Para tenerlo fuera de casa, **el runbook completo está en
+[docs/DESPLIEGUE.md](docs/DESPLIEGUE.md)**.
+
+El resumen: en producción **un solo proceso Node sirve el juego y la API** en
+el mismo puerto. Ni segundo servidor, ni CORS, ni proxy que configurar.
 
 ```bash
-# En un servidor cualquiera con Node 22
-git clone <repo> && cd playzone-rush
-npm ci
-npm run build                       # genera dist/
-PLAYZONE_CORS=https://tu-dominio \
-PLAYZONE_DB=/var/lib/playzone/playzone.db \
-  node server/bin/start.mjs         # API en :8787
+npm install          # completo: vite y typescript hacen falta para construir
+npm run build        # genera dist/
+npm run server       # sirve dist/ Y /api en el mismo puerto
 ```
 
-Sirve `dist/` con cualquier servidor estático y haz que `/api` apunte al
-backend (proxy de Nginx/Caddy), o compila con `VITE_API_URL=https://api.tu-dominio`.
+Si existe `dist/`, el servidor lo detecta y lo sirve; si no, arranca en modo
+solo-API y el frontend lo sirve Vite. `index.html`, el manifest y `sw.js` van
+con `no-cache` para que una build nueva se recoja sola; los ficheros de
+`assets/` llevan hash y se cachean un año.
 
-Copia y pega para Caddy:
+Para HTTPS y una URL pública sin comprar dominio, el runbook usa **Tailscale
+Funnel**, y **pm2** para que sobreviva a los reinicios.
 
-```
-tu-dominio {
-  root * /ruta/a/playzone-rush/dist
-  file_server
-  handle /api/* {
-    reverse_proxy 127.0.0.1:8787
-  }
-}
-```
+> **Estado real**: el despliegue lo ejecuta una persona en su propia máquina
+> siguiendo el runbook. Desde este entorno no hay acceso a esa máquina, así que
+> aquí no se ha desplegado nada ni se va a fingir que sí. Lo que sí está
+> probado y verificado es todo lo que el runbook necesita: un solo proceso
+> sirviendo las dos cosas, cabeceras de caché, PWA instalable, copias de
+> seguridad y actualización limpia.
 
-**No se ha desplegado nada en la nube**: este entorno no tiene credenciales de
-ningún proveedor y no se van a inventar. Lo que falta para hacerlo es
-exactamente: una máquina o un servicio con Node 22, un dominio con HTTPS y
-decidir dónde vive el fichero SQLite (con copia de seguridad si os importa el
-histórico).
+### Copias de seguridad
+
+Cada 6 horas, `VACUUM INTO` sobre el SQLite (seguro con el servidor
+escribiendo, a diferencia de copiar el fichero). Se guardan las últimas 28: una
+semana entera. Cada copia es una base de datos válida por sí sola.
+
+Se configura con `PLAYZONE_BACKUP_DIR`, `PLAYZONE_BACKUP_INTERVAL_MS` y
+`PLAYZONE_BACKUP_KEEP`.
+
+## Instalar como app (PWA)
+
+Con Safari en iOS: compartir → **Añadir a pantalla de inicio**. Abre a pantalla
+completa, con su icono y el fondo oscuro de la marca. El manifest está en
+`public/manifest.webmanifest` y los iconos se generan desde la misma marca del
+favicon con `node tools/gen-icons.mjs`.
+
+## Versión nueva y actualización limpia
+
+Dos señales independientes, porque ninguna es fiable del todo sola:
+
+- `controllerchange` del service worker — rápido, pero Safari a veces tarda en
+  comprobar si hay actualización. Y solo cuenta **si ya había un controlador**:
+  en la primera visita el SW toma el control sin que haya nada que actualizar.
+- Sondeo de `/api/health` comparando el build del cliente (`__BUILD_ID__`,
+  fijado al compilar) con el que dice el servidor ahora mismo.
+
+Cuando hay versión nueva aparece **HAY UNA VERSIÓN NUEVA · ACTUALIZAR** en la
+portada. Nunca a mitad de partida: la pantalla de juego lo tapa por completo.
+
+## Registro de errores
+
+`window.onerror` y `unhandledrejection` van a `POST /api/errors`, por
+`sendBeacon` cuando existe (sobrevive a que se cierre la pestaña) y por `fetch`
+si no. Funciona **sin sesión**: un fallo en el onboarding también tiene que
+constar. Hay un límite de envíos por carga para que un bucle roto no sea una
+tormenta de peticiones.
+
+En el servidor, una excepción no capturada se registra **antes** de salir, y
+pm2 reinicia: la caída se puede investigar después.
+
+La tabla `errors` es independiente de `events` a propósito: una es operación y
+la otra es producto.
+
+## Dashboard de la alfa (solo lectura)
+
+Se abre con `?dashboard`. Es un **módulo aparte** del panel de debug, y esa
+separación es estructural, no cosmética: `server/src/dashboard.mjs` solo
+prepara sentencias `SELECT`, así que no tiene forma de tocar un resultado. Quien
+mira los datos no debe poder ensuciarlos sin darse cuenta.
+
+| Métrica | Qué mide |
+|---|---|
+| **Retención D1 / D3 / D7** | Volver al día siguiente exacto, por cohortes. Solo cuenta a quien ya ha tenido oportunidad de volver, y el denominador siempre está a la vista |
+| **Revenge Rate** ⭐ | De las revanchas ofrecidas, cuántas se pulsan. Además, repartido por cuánto se pierde |
+| **Intentos usados** | 1/3 frente a 3/3 |
+| **Reto diario completado** | De los que abren, cuántos terminan los tres |
+| **Organic Reopen Rate** ⭐ | Volver a abrir la app **después** de terminar la sesión del día, habiendo jugado un rival por en medio |
+
+El **Organic Reopen Rate** es el que separa un juego social de un solitario con
+marcador. El Revenge Rate dice si responden cuando ya están dentro; este dice
+si **vuelven desde fuera**. Mide correlación, no intención — nadie ha dicho por
+qué volvió —, pero distingue con precisión "volvió con el ranking movido" de
+"volvió sin que nadie hubiera tocado nada", que es justo lo que interesa.
+
+Cuando una métrica no tiene base suficiente devuelve `null` y su denominador,
+en vez de un cero que parezca un resultado.
 
 ## Panel de debug
 
@@ -529,8 +598,9 @@ Además muestra FPS del juego y de la UI en una esquina.
 ## Pruebas
 
 ```bash
-npm test                       # 181 pruebas (143 de cliente + 38 de backend)
-node tools/duel.mjs            # ⭐ dos navegadores compitiendo de verdad (16 checks)
+npm test                       # 221 pruebas (cliente + backend)
+node tools/alfa.mjs            # ⭐ la prueba de este milestone (42 checks)
+node tools/duel.mjs            # dos navegadores compitiendo de verdad (16 checks)
 node tools/resilience.mjs      # offline, cola, servidor caído, ghost (20 checks)
 node tools/ghost.mjs           # traza real de DRIFT y su fallback (6 checks)
 node tools/flows.mjs           # producto en modo solo (33 checks)
@@ -539,8 +609,20 @@ node tools/shots-social.mjs    # capturas del milestone social
 node tools/screenshots.mjs     # capturas del modo solo
 ```
 
-Todos menos `npm test` necesitan `npm run dev:all` levantado
-(`resilience.mjs` va contra `npm run preview`, que es donde vive el service worker).
+`alfa.mjs` va contra la build de producción servida por el propio servidor
+(`npm run build && npm run server`), que es exactamente lo que se despliega.
+Comprueba las seis cosas del milestone: un solo proceso, instalable, versión
+nueva, errores registrados, dashboard de solo lectura, y dos móviles en
+condiciones de red muy distintas.
+
+El resto necesita `npm run dev:all` levantado (`resilience.mjs` va contra
+`npm run preview`, que es donde vive el service worker).
+
+> **Sobre "dos redes distintas"**: `alfa.mjs` emula dos redes asimétricas (una
+> rápida y otra 3G con 400 ms de latencia) desde el mismo equipo, con CDP. Es
+> una buena aproximación, pero **no sustituye** la prueba con dos iPhones de
+> verdad, uno por Wi-Fi y otro por datos móviles con el Wi-Fi apagado. Esa está
+> en el paso 5 del runbook y hay que hacerla a mano.
 
 ---
 
@@ -548,5 +630,10 @@ Todos menos `npm test` necesitan `npm run dev:all` levantado
 
 Login, email, OAuth, perfiles, chat, amigos globales, matchmaking, torneos,
 notificaciones push reales, compras, anuncios, tienda, skins ni empaquetado
-para App Store. Sigue siendo deliberado: primero hay que medir si el pique
-entre personas reales existe.
+para App Store. Sigue siendo deliberado.
+
+Y algo nuevo, también deliberado: **durante la semana de alfa no se añade ni un
+minijuego, ni un mutador, ni una mecánica**. Está escrito y razonado en
+[docs/CONGELADO.md](docs/CONGELADO.md). Si a mitad de semana aparece contenido
+nuevo, la subida del día siguiente ya no dice nada: no se sabría si volvieron
+por el pique o por la novedad, que es justo lo único que hay que distinguir.

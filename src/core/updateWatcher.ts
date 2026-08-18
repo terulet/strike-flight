@@ -57,7 +57,14 @@ export function watchForUpdate(onAvailable: () => void): void {
   };
 
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('controllerchange', trigger);
+    // En la PRIMERA visita no hay controlador todavia: el service worker se
+    // instala y toma el control, y eso dispara un controllerchange que no es
+    // una actualizacion de nada. Sin esta comprobacion, a todo el que entra
+    // por primera vez le saldria "hay una version nueva" al instante.
+    const hadController = navigator.serviceWorker.controller !== null;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) trigger();
+    });
   }
 
   const checkHealth = async (): Promise<void> => {
