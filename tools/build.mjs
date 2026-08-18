@@ -21,6 +21,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ENTRY = resolve(ROOT, 'src/main.js');
 const OUT_DIR = resolve(ROOT, 'dist');
 const OUT = resolve(OUT_DIR, 'last-light.html');
+// Variante para incrustar: el mismo juego sin el envoltorio del documento,
+// para hosts que aportan su propio <html>/<head>/<body>.
+const OUT_EMBED = resolve(OUT_DIR, 'last-light-embed.html');
 
 const IMPORT_RE = /^\s*import\s+[\s\S]*?\s+from\s+['"](.+?)['"]\s*;?\s*$/gm;
 const EXPORT_RE = /^(\s*)export\s+(?=(?:default\s+)?(?:class|const|let|var|function|async))/gm;
@@ -80,5 +83,19 @@ if (out === html) throw new Error('No se encontró la etiqueta <script> de entra
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(OUT, out);
 
-const kb = (Buffer.byteLength(out) / 1024).toFixed(1);
-console.log(`✓ ${relative(ROOT, OUT)}  ${kb} kB  ·  ${order.length} módulos, ${declared.size} símbolos`);
+// Versión incrustable: se queda con <title>, <style> y el <body>, y tira el
+// esqueleto del documento y los <meta> (el host pone los suyos). El
+// filtrado es por etiquetas, no por líneas: los comentarios HTML ocupan
+// varias y recortarlos a trozos deja frases sueltas en mitad del <head>.
+const between = (str, open, close) => str.slice(str.indexOf(open) + open.length, str.indexOf(close));
+const head = between(out, '<head>', '</head>')
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/<meta\b[^>]*>/gi, '')
+  .replace(/\n{3,}/g, '\n')
+  .trim();
+const embed = `${head}\n${between(out, '<body>', '</body>').trim()}\n`;
+writeFileSync(OUT_EMBED, embed);
+
+const kb = (n) => (Buffer.byteLength(n) / 1024).toFixed(1);
+console.log(`✓ ${relative(ROOT, OUT)}  ${kb(out)} kB  ·  ${order.length} módulos, ${declared.size} símbolos`);
+console.log(`✓ ${relative(ROOT, OUT_EMBED)}  ${kb(embed)} kB  (incrustable)`);

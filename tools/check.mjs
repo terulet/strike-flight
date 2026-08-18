@@ -33,7 +33,15 @@ const server = spawn('node', [resolve(ROOT, 'tools/serve.mjs'), String(PORT)], {
 await sleep(600);
 
 const browser = await chromium.launch({ headless: !headed });
-const page = await browser.newPage({ viewport: { width: 960, height: 560 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({
+  viewport: { width: 960, height: 560 }, deviceScaleFactor: 2, hasTouch: true,
+});
+const cdp = await page.context().newCDPSession(page);
+/** Multitáctil real vía CDP: dos pulgares a la vez, como en un iPhone. */
+const touch = (type, points) => cdp.send('Input.dispatchTouchEvent', {
+  type,
+  touchPoints: points.map((p, i) => ({ x: p[0], y: p[1], id: i })),
+});
 
 const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -142,6 +150,56 @@ try {
   console.log('la regla   ', JSON.stringify(heard));
   if (heard.after === 'IDLE') fail.push('un disparo a 260px no alerta al enemigo: la regla central no funciona');
 
+  // ── CONTROL TÁCTIL: la plataforma objetivo, probada con dos dedos ───
+  // Es lo único que no se puede validar a ojo desde un escritorio, y es
+  // justamente donde se va a jugar. Así que se prueba con CDP de verdad.
+  await page.evaluate(() => {
+    const g = window.LAST_LIGHT;
+    g.reset();
+    g.input.moveX = 0; g.input.moveY = 0; g.input.firing = false;
+    g.config.touch.fireMode = 'auto';
+  });
+  await touch('touchStart', [[200, 400], [740, 300]]);
+  await sleep(60);
+  // Pulgar izquierdo a la derecha (mover), pulgar derecho arriba (apuntar+disparar).
+  await touch('touchMove', [[260, 400], [740, 220]]);
+  await sleep(220);
+
+  const tState = await page.evaluate(() => {
+    const g = window.LAST_LIGHT;
+    return {
+      touchActive: g.input.touchActive,
+      move: [+g.input.moveX.toFixed(2), +g.input.moveY.toFixed(2)],
+      aimMode: g.input.aimMode,
+      aim: [+g.input.aimDirX.toFixed(2), +g.input.aimDirY.toFixed(2)],
+      firing: g.input.firing,
+      shots: g.player.weapon.shotsFired,
+    };
+  });
+  console.log('táctil     ', JSON.stringify(tState));
+  await shot('05-tactil');
+  await touch('touchEnd', []);
+
+  if (!tState.touchActive) fail.push('el táctil no se detecta');
+  if (tState.move[0] < 0.5) fail.push(`el stick izquierdo no mueve: ${tState.move}`);
+  if (tState.aim[1] > -0.5) fail.push(`el stick derecho no apunta hacia arriba: ${tState.aim}`);
+  if (!tState.firing || tState.shots === 0) fail.push('el auto-fire táctil no dispara');
+
+  // Modo 'button': el stick derecho apunta pero NO debe disparar solo.
+  await page.evaluate(() => {
+    const g = window.LAST_LIGHT;
+    g.config.touch.fireMode = 'button';
+    g.input.firing = false;
+  });
+  await touch('touchStart', [[740, 300]]);
+  await sleep(60);
+  await touch('touchMove', [[740, 200]]);
+  await sleep(120);
+  const btnMode = await page.evaluate(() => window.LAST_LIGHT.input.firing);
+  await touch('touchEnd', []);
+  await page.evaluate(() => { window.LAST_LIGHT.config.touch.fireMode = 'auto'; });
+  if (btnMode) fail.push("en modo 'button' el stick de apuntado dispara solo");
+
   // ── Reinicio: el estado no debe arrastrar nada ─────────────────────
   await page.evaluate(() => {
     const g = window.LAST_LIGHT;
@@ -160,6 +218,28 @@ try {
   console.log('reinicio   ', JSON.stringify(reset));
   if (reset.alive !== boot.enemies) fail.push('el reinicio no repone a los enemigos');
   if (reset.projectiles !== 0) fail.push('quedan proyectiles vivos tras reiniciar');
+
+  // ── El BUNDLE: es lo que acaba en el móvil, así que se prueba él ────
+  // Que compile no significa que arranque: el empaquetador quita imports y
+  // exports a mano y una colisión de nombres solo se ve al ejecutarlo.
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('node', [resolve(ROOT, 'tools/build.mjs')], { stdio: 'ignore' });
+  const bundleErrors = [];
+  const bundlePage = await browser.newPage({ viewport: { width: 800, height: 480 } });
+  bundlePage.on('pageerror', (e) => bundleErrors.push(`bundle pageerror: ${e.message}`));
+  bundlePage.on('console', (m) => { if (m.type() === 'error') bundleErrors.push(`bundle console: ${m.text()}`); });
+  await bundlePage.goto(`http://localhost:${PORT}/dist/last-light.html`, { waitUntil: 'load' });
+  await bundlePage.waitForFunction(() => window.LAST_LIGHT, null, { timeout: 8000 }).catch(() => {});
+  await sleep(900);
+  const bundleState = await bundlePage.evaluate(() => {
+    const g = window.LAST_LIGHT;
+    return g ? { enemies: g.enemies.length, time: +g.time.toFixed(1), fps: +g.fps.toFixed(0) } : null;
+  });
+  console.log('bundle     ', JSON.stringify(bundleState));
+  await bundlePage.close();
+  if (!bundleState) fail.push('dist/last-light.html no arranca');
+  else if (bundleState.time < 0.3) fail.push('el bundle arranca pero el bucle no avanza');
+  fail.push(...bundleErrors.slice(0, 4));
 
   if (errors.length) fail.push(...errors.slice(0, 8));
 } catch (e) {
