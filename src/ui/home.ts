@@ -368,9 +368,11 @@ function renderPique(app: App, board: Leaderboard): HTMLElement | null {
     best
       ? el('div', {
           class: 'result__pique-sub',
-          text: `Tu mejor opcion: ${best.spec.title} · ${best.spec.gameName} (${
-            best.target ? `${formatScore(best.target.gap)} para pasar a ${best.target.entry.name}` : ''
-          })`,
+          text: best.target
+            ? `Donde mas cerca lo tienes: ${best.spec.title} · ${best.spec.gameName} — te faltan ${formatScore(
+                best.target.gap,
+              )} para pasar a ${best.target.entry.name}.`
+            : `Tu mejor opcion: ${best.spec.title} · ${best.spec.gameName}.`,
         })
       : el('div', { class: 'result__pique-sub', text: 'Sin intentos: vuelve manana o usa el debug.' }),
     best

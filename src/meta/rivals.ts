@@ -68,11 +68,12 @@ export function getRival(id: string): Rival | null {
  */
 export const GAME_BASELINES: Record<string, { low: number; high: number }> = {
   // Calibrados con el bot de tools/playtest.mjs: el techo de un jugador
-  // perfecto ronda los 5.500-7.000 en los tres, asi que un rival bueno debe
-  // moverse entre 4.000 y 5.500 para que el pique sea real pero ganable.
-  pulse: { low: 1800, high: 5200 },
-  drift: { low: 1500, high: 6000 },
-  snap: { low: 1400, high: 4600 },
+  // perfecto ronda los 5.000-7.000 en los tres. Los rivales se quedan un
+  // escalon por debajo (3.000-5.200) para que el primer dia se pueda ganar
+  // jugando bien, no solo despues de una semana de practica.
+  pulse: { low: 1600, high: 4600 },
+  drift: { low: 1400, high: 5200 },
+  snap: { low: 1300, high: 4100 },
 };
 
 const DEFAULT_BASELINE = { low: 1500, high: 4200 };

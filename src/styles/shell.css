@@ -4,8 +4,10 @@
   position: relative;
   width: 100%;
   max-width: var(--shell-max);
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* Altura fija, no minima: asi el que hace scroll es el listado y la barra
+     superior se queda quieta, como en una app. */
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: calc(var(--safe-top) + 10px) calc(var(--safe-right) + 16px)
@@ -129,6 +131,9 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding-bottom: 8px;
+  /* El contenido se desvanece al pasar por debajo de la barra superior. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
 }
 
 .scroller::-webkit-scrollbar {
