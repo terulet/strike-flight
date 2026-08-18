@@ -57,3 +57,13 @@ export function restoreAttempts(save: SaveManager, dayKey: string, challengeId?:
 export function attemptDots(used: number, total: number): string {
   return Array.from({ length: total }, (_, i) => (i < total - used ? '●' : '○')).join(' ');
 }
+
+/**
+ * Lo que se pinta en pantalla. Con pocos intentos, puntitos (se leen de un
+ * vistazo); con muchos -partidas lanzadas desde debug- un simple contador,
+ * que noventa y nueve puntos no son informacion, son ruido.
+ */
+export function attemptsDisplay(used: number, total: number): string {
+  if (total <= 5) return attemptDots(used, total);
+  return `${Math.max(0, total - used)}/${total}`;
+}

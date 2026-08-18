@@ -6,7 +6,7 @@
  */
 import type { GameResult } from '../game/contract';
 import { getGame } from '../game/registry';
-import { attemptDots } from '../meta/attempts';
+import { attemptsDisplay } from '../meta/attempts';
 import type { ChallengeSpec } from '../meta/daily';
 import { formatScore } from '../meta/ranking';
 import { headlineFor, type ScoreOutcome } from '../meta/scoring';
@@ -58,7 +58,7 @@ export function renderResult(
       el('span', { text: 'INTENTOS ' }),
       el('span', {
         class: 'dots',
-        text: attemptDots(spec.attempts - outcome.attemptsLeft, spec.attempts),
+        text: attemptsDisplay(spec.attempts - outcome.attemptsLeft, spec.attempts),
       }),
     ]),
   ]);

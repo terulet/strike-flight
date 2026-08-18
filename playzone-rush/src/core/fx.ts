@@ -100,14 +100,16 @@ export class FxSystem {
       x,
       y,
       vy: options.vy ?? -70,
-      life: options.life ?? 0.85,
-      maxLife: options.life ?? 0.85,
+      life: options.life ?? 0.7,
+      maxLife: options.life ?? 0.7,
       text,
       color: options.color ?? '#ffffff',
       size: options.size ?? 22,
       bold: options.bold ?? true,
     });
-    if (this.floaters.length > 24) this.floaters.shift();
+    // Tope bajo a proposito: mas de un punado de numeros a la vez deja de ser
+    // feedback y pasa a ser ruido encima del juego.
+    if (this.floaters.length > 8) this.floaters.shift();
   }
 
   ring(x: number, y: number, radius: number, color = '#ffffff', width = 3): void {
