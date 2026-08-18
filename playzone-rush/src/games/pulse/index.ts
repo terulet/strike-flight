@@ -206,8 +206,8 @@ class PulseGame extends BaseMiniGame {
       }
       const freshness = node.life / node.maxLife; // 1 = instantaneo
       const combo = this.bumpCombo();
-      const multiplier = 1 + Math.min(12, combo) * 0.08;
-      const base = 45 + freshness * 130;
+      const multiplier = 1 + Math.min(10, combo) * 0.05;
+      const base = 25 + freshness * 85;
       this.registerHit();
       if (freshness > 0.78) {
         this.perfect++;
@@ -267,7 +267,7 @@ class PulseGame extends BaseMiniGame {
     }
 
     if (this.combo >= 3) {
-      label(ctx, `x${(1 + Math.min(12, this.combo) * 0.08).toFixed(2)}`, this.width / 2, this.height - 34, {
+      label(ctx, `x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.height - 34, {
         size: 20,
         color: hexToRgba('#ffd23f', 0.9),
       });
@@ -276,6 +276,13 @@ class PulseGame extends BaseMiniGame {
 
   protected override metrics(): Record<string, number> {
     return { perfect: this.perfect, expired: this.expired, hits: this.hits };
+  }
+
+  debugInfo(): Record<string, unknown> {
+    return {
+      game: 'pulse',
+      nodes: this.nodes.map((n) => ({ x: n.x, y: n.y, r: n.radius, mine: n.mine, life: n.life })),
+    };
   }
 }
 

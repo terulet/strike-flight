@@ -146,3 +146,50 @@
   padding: 3px 7px;
   pointer-events: none;
 }
+
+.debug-panel__day {
+  margin-left: auto;
+  font-size: 10px;
+  color: #7f79a3;
+}
+
+.debug-panel__close {
+  margin-left: 6px;
+}
+
+.debug-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.debug-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.debug-tab {
+  flex: 1;
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #8e88b0;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.debug-tab.is-on {
+  border-color: rgba(167, 139, 250, 0.6);
+  background: rgba(167, 139, 250, 0.18);
+  color: #ded7ff;
+}
+
+.debug-panel__body {
+  max-height: 46dvh;
+  overflow-y: auto;
+}

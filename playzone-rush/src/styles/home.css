@@ -4,7 +4,7 @@
 }
 
 .hero__title {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 0.95;
@@ -17,7 +17,7 @@
 }
 
 .hero__sub {
-  margin-top: 6px;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 6px;

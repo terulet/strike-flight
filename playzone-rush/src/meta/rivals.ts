@@ -67,9 +67,12 @@ export function getRival(id: string): Rival | null {
  * meter un juego nuevo en la rotacion; si falta, se usa el rango por defecto.
  */
 export const GAME_BASELINES: Record<string, { low: number; high: number }> = {
-  pulse: { low: 1500, high: 4100 },
-  drift: { low: 1400, high: 5600 },
-  snap: { low: 1500, high: 4300 },
+  // Calibrados con el bot de tools/playtest.mjs: el techo de un jugador
+  // perfecto ronda los 5.500-7.000 en los tres, asi que un rival bueno debe
+  // moverse entre 4.000 y 5.500 para que el pique sea real pero ganable.
+  pulse: { low: 1800, high: 5200 },
+  drift: { low: 1500, high: 6000 },
+  snap: { low: 1400, high: 4600 },
 };
 
 const DEFAULT_BASELINE = { low: 1500, high: 4200 };

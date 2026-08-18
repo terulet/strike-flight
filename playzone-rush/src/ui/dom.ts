@@ -3,7 +3,8 @@ export interface ElOptions {
   class?: string;
   text?: string;
   html?: string;
-  style?: Partial<CSSStyleDeclaration>;
+  /** Acepta tambien variables CSS ("--accent"), que Object.assign no sabe poner. */
+  style?: Record<string, string>;
   attrs?: Record<string, string>;
   on?: Partial<Record<keyof HTMLElementEventMap, (ev: Event) => void>>;
 }
@@ -18,7 +19,12 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   if (options.text !== undefined) node.textContent = options.text;
   if (options.html !== undefined) node.innerHTML = options.html;
   if (options.attrs) for (const [key, value] of Object.entries(options.attrs)) node.setAttribute(key, value);
-  if (options.style) Object.assign(node.style, options.style);
+  if (options.style) {
+    for (const [key, value] of Object.entries(options.style)) {
+      if (key.startsWith('--')) node.style.setProperty(key, value);
+      else node.style.setProperty(camelToKebab(key), value);
+    }
+  }
   if (options.on) {
     for (const [type, fn] of Object.entries(options.on)) {
       if (fn) node.addEventListener(type, fn as EventListener);
@@ -29,6 +35,10 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
   }
   return node;
+}
+
+function camelToKebab(key: string): string {
+  return key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 }
 
 export function clear(node: HTMLElement): void {

@@ -27,12 +27,23 @@ export function mountDebug(app: App): void {
   panel.mount();
 }
 
+type TabId = 'dia' | 'intentos' | 'rivales' | 'juegos' | 'estado';
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'dia', label: 'DIA' },
+  { id: 'intentos', label: 'INTENTOS' },
+  { id: 'rivales', label: 'RIVALES' },
+  { id: 'juegos', label: 'JUEGOS' },
+  { id: 'estado', label: 'ESTADO' },
+];
+
 class DebugPanel {
   private app: App;
   private toggle: HTMLElement;
   private panel: HTMLElement | null = null;
   private fps: HTMLElement;
   private raf = 0;
+  private tab: TabId = 'dia';
 
   constructor(app: App) {
     this.app = app;
@@ -43,7 +54,13 @@ class DebugPanel {
   mount(): void {
     document.body.appendChild(this.toggle);
     document.body.appendChild(this.fps);
-    this.app.onChange(() => this.refresh());
+    // Ojo: el panel NO se repinta solo mientras hay una partida montada. Si lo
+    // hiciera, los botones se moverian bajo el dedo justo cuando el juego
+    // termina. Las acciones de debug ya llaman a refresh() ellas mismas.
+    this.app.onChange(() => {
+      if (this.app.playScreen) return;
+      this.refresh();
+    });
     this.loopFps();
   }
 
@@ -68,9 +85,13 @@ class DebugPanel {
     if (this.panel) {
       this.panel.remove();
       this.panel = null;
+      // El panel esta anclado abajo y tapaba su propio boton: solo se ve
+      // cuando esta cerrado.
+      this.toggle.style.display = '';
       return;
     }
     this.panel = el('div', { class: 'debug-panel' });
+    this.toggle.style.display = 'none';
     document.body.appendChild(this.panel);
     this.refresh();
   }
@@ -84,20 +105,43 @@ class DebugPanel {
     panel.appendChild(
       el('div', { class: 'debug-panel__head' }, [
         el('div', { class: 'debug-panel__title', text: 'PLAYZONE RUSH · DEBUG' }),
+        el('div', { class: 'debug-panel__day', text: app.dayKey }),
         button('✕', 'debug-panel__close', () => this.togglePanel()),
       ]),
     );
 
-    panel.appendChild(this.groupDay());
-    panel.appendChild(this.groupAttempts());
-    panel.appendChild(this.groupRivals());
-    panel.appendChild(this.groupUnlocks());
-    panel.appendChild(this.groupMutators());
-    panel.appendChild(this.groupLaunch());
-    panel.appendChild(this.groupScore());
-    panel.appendChild(this.groupState());
-    panel.appendChild(this.groupSave());
-    void app;
+    panel.appendChild(
+      el(
+        'div',
+        { class: 'debug-tabs' },
+        TABS.map((tab) =>
+          button(tab.label, `debug-tab${this.tab === tab.id ? ' is-on' : ''}`, () => {
+            this.tab = tab.id;
+            this.refresh();
+          }),
+        ),
+      ),
+    );
+
+    const body = el('div', { class: 'debug-panel__body' });
+    switch (this.tab) {
+      case 'dia':
+        body.append(this.groupDay(), this.groupUnlocks());
+        break;
+      case 'intentos':
+        body.append(this.groupAttempts(), this.groupScore());
+        break;
+      case 'rivales':
+        body.append(this.groupRivals());
+        break;
+      case 'juegos':
+        body.append(this.groupLaunch(), this.groupMutators());
+        break;
+      case 'estado':
+        body.append(this.groupState(), this.groupSave());
+        break;
+    }
+    panel.appendChild(body);
   }
 
   private group(title: string, children: (HTMLElement | null)[]): HTMLElement {

@@ -5,6 +5,7 @@
  * al lado -> REVANCHA. El boton de revancha es siempre el mas grande.
  */
 import type { GameResult } from '../game/contract';
+import { getGame } from '../game/registry';
 import { attemptDots } from '../meta/attempts';
 import type { ChallengeSpec } from '../meta/daily';
 import { formatScore } from '../meta/ranking';
@@ -26,14 +27,7 @@ export function renderResult(
   const headline = headlineFor(outcome);
   const canRematch = outcome.attemptsLeft > 0;
 
-  const stats: [string, string][] = [];
-  if (result.accuracy !== null) stats.push([`${Math.round(result.accuracy * 100)}%`, 'PUNTERIA']);
-  if (result.bestCombo > 0) stats.push([`x${result.bestCombo}`, 'COMBO']);
-  if (spec.gameId === 'drift' || result.endedBy === 'death') {
-    stats.push([`${(result.durationMs / 1000).toFixed(1)}s`, 'AGUANTE']);
-  } else {
-    stats.push([String(result.mistakes), 'FALLOS']);
-  }
+  const stats = buildStats(result, getGame(spec.gameId)?.meta.skill === 'supervivencia');
 
   const inner = el('div', { class: 'result__inner' }, [
     el('div', { class: 'result__kicker', text: `${spec.title} · ${spec.gameName}` }),
@@ -70,6 +64,36 @@ export function renderResult(
   ]);
 
   return el('div', { class: 'result' }, [inner]);
+}
+
+/**
+ * Estadisticas de la partida. Las genericas salen del contrato; las propias de
+ * cada juego salen de result.metrics, asi que un juego nuevo puede aportar las
+ * suyas sin tocar esta pantalla.
+ */
+const METRIC_LABELS: Record<string, string> = {
+  wallsPassed: 'MUROS',
+  grazes: 'ROCES',
+  perfect: 'PERFECTOS',
+  perfects: 'PERFECTOS',
+  expired: 'APAGADOS',
+  shots: 'DISPAROS',
+  meanAccuracy: 'MEDIA',
+};
+
+function buildStats(result: GameResult, isSurvival: boolean): [string, string][] {
+  const stats: [string, string][] = [];
+  if (result.accuracy !== null) stats.push([`${Math.round(result.accuracy * 100)}%`, 'PUNTERIA']);
+  if (result.bestCombo > 0) stats.push([`x${result.bestCombo}`, 'COMBO']);
+  stats.push([`${(result.durationMs / 1000).toFixed(1)}s`, isSurvival ? 'AGUANTE' : 'TIEMPO']);
+
+  for (const [key, label] of Object.entries(METRIC_LABELS)) {
+    if (stats.length >= 3) break;
+    const value = result.metrics[key];
+    if (typeof value !== 'number' || value <= 0 || key === 'survivedMs') continue;
+    stats.push([key === 'meanAccuracy' ? `${value}%` : String(value), label]);
+  }
+  return stats.slice(0, 3);
 }
 
 function renderDelta(outcome: ScoreOutcome): HTMLElement {

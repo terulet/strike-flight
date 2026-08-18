@@ -155,6 +155,13 @@ export interface MiniGame {
   hud(): HudInfo;
   /** null mientras no haya terminado. */
   getResult(): GameResult | null;
+
+  /**
+   * Estado interno para herramientas de desarrollo (panel de debug, pruebas
+   * automatizadas). Opcional: ningun juego esta obligado a exponerlo, y nada
+   * del producto depende de el.
+   */
+  debugInfo?(): Record<string, unknown>;
 }
 
 export type MiniGameFactory = (services: GameServices, config: GameConfig) => MiniGame;
