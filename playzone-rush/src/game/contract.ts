@@ -51,9 +51,21 @@ export interface GameMeta {
   supportsGhost: boolean;
   /** Etiqueta para su unidad de puntuacion. */
   scoreLabel: string;
+  /**
+   * Mutadores que este juego entiende. El shell no ofrecera los demas: no
+   * tiene sentido poner GRAVEDAD X2 en un juego sin inercia. Si se omite, se
+   * asume que valen todos (comportamiento de los juegos originales).
+   */
+  supportedMutators?: string[];
 }
 
-/** Marca del intento de un rival. De momento, un unico numero (no un replay). */
+/**
+ * Marca del intento de un rival.
+ *
+ * `value` siempre esta (hasta donde llego), y cuando el rival tiene traza
+ * grabada llegan ademas las muestras para poder dibujar su nave corriendo a
+ * tu lado. Si no hay traza, el juego cae al modo antiguo de marca a distancia.
+ */
 export interface GhostData {
   rivalId: string;
   rivalName: string;
@@ -61,6 +73,9 @@ export interface GhostData {
   kind: 'time' | 'score';
   value: number;
   score: number;
+  /** Posiciones normalizadas 0..1, una cada `sampleMs`. */
+  samples?: number[];
+  sampleMs?: number;
 }
 
 /** Condiciones exactas de una partida. Mismo config = misma partida. */
@@ -164,6 +179,12 @@ export interface MiniGame {
   hud(): HudInfo;
   /** null mientras no haya terminado. */
   getResult(): GameResult | null;
+
+  /**
+   * Traza de la partida para el fantasma. Opcional: solo la implementan los
+   * juegos donde tiene sentido ver al rival avanzando (de momento, DRIFT).
+   */
+  recording?(): { sampleMs: number; samples: number[] } | null;
 
   /**
    * Estado interno para herramientas de desarrollo (panel de debug, pruebas

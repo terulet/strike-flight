@@ -10,6 +10,7 @@ import './styles/shell.css';
 import './styles/home.css';
 import './styles/play.css';
 import './styles/result.css';
+import './styles/social.css';
 import './styles/debug.css';
 
 import { registerAllGames } from './games/index';

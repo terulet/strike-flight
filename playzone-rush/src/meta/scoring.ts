@@ -15,6 +15,7 @@ import {
   rankOf,
   rivalAhead,
   type Gap,
+  type RankingContext,
   type Standing,
 } from './ranking';
 
@@ -25,6 +26,8 @@ export interface CommitInput {
   result: GameResult;
   secretUnlocked: boolean;
   ghostPassed?: boolean;
+  /** Con quien compito: bots por defecto, personas reales en grupo. */
+  context?: RankingContext;
 }
 
 export interface ScoreOutcome {
@@ -58,7 +61,8 @@ export function commitResult(input: CommitInput): ScoreOutcome {
   const dayKey = plan.dayKey;
   const chaos = spec.kind === 'chaos';
 
-  const before = buildLeaderboard(plan, save, input.secretUnlocked);
+  const context = input.context ?? {};
+  const before = buildLeaderboard(plan, save, input.secretUnlocked, context);
   const idsAheadBefore = new Set(
     before.standings.slice(0, Math.max(0, before.myRank - 1)).map((s) => s.id),
   );
@@ -85,7 +89,7 @@ export function commitResult(input: CommitInput): ScoreOutcome {
     }
   });
 
-  const after = buildLeaderboard(plan, save, input.secretUnlocked);
+  const after = buildLeaderboard(plan, save, input.secretUnlocked, context);
   const overtook = after.standings
     .slice(after.myRank)
     .filter((s) => idsAheadBefore.has(s.id));
@@ -97,7 +101,7 @@ export function commitResult(input: CommitInput): ScoreOutcome {
     });
   }
 
-  const perChallenge = challengeStandings(plan, save, spec);
+  const perChallenge = challengeStandings(plan, save, spec, context);
 
   return {
     challengeId: spec.id,

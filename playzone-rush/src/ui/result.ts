@@ -18,14 +18,27 @@ export interface ResultHandlers {
   onContinue: () => void;
 }
 
+export interface ResultOptions {
+  /** Si el rival es una persona del grupo (cambia el tono de los mensajes). */
+  group: boolean;
+  myName: string;
+}
+
 export function renderResult(
   spec: ChallengeSpec,
   outcome: ScoreOutcome,
   result: GameResult,
   handlers: ResultHandlers,
+  options: ResultOptions = { group: false, myName: 'TU' },
 ): HTMLElement {
   const headline = headlineFor(outcome);
   const canRematch = outcome.attemptsLeft > 0;
+  const target = outcome.challengeTarget;
+  const won = outcome.overtook.length > 0;
+  // "Por poco" o "por mucho" cambia lo que se enseña: si has perdido por 2.000
+  // puntos no hace falta restregarlo, basta con el comparativo.
+  const gap = target && !target.entry.isMe ? target.gap : 0;
+  const heavyLoss = !won && gap > 0 && (gap > 1000 || gap > outcome.score * 0.4);
 
   const stats = buildStats(result, getGame(spec.gameId)?.meta.skill === 'supervivencia');
 
@@ -37,7 +50,9 @@ export function renderResult(
     outcome.ghostPassed
       ? el('div', { class: 'result__delta', text: '👻 HAS PASADO LA MARCA DEL RIVAL' })
       : null,
-    renderPique(outcome),
+    heavyLoss && target
+      ? renderComparison(outcome, target.entry.name, options.myName)
+      : renderPique(outcome),
     el(
       'div',
       { class: 'result__stats' },
@@ -48,12 +63,23 @@ export function renderResult(
         ]),
       ),
     ),
-    el('div', { class: 'result__actions' }, [
-      button(canRematch ? 'REVANCHA' : 'SIN INTENTOS', 'btn btn--play btn--lg btn--block', handlers.onRematch, {
-        disabled: !canRematch,
-      }),
-      button('CONTINUAR', 'btn btn--ghost btn--block', handlers.onContinue),
-    ]),
+    // Si has ganado, lo natural es continuar; si has perdido, volver a entrar.
+    won
+      ? el('div', { class: 'result__actions' }, [
+          button('CONTINUAR', 'btn btn--play btn--lg btn--block', handlers.onContinue),
+          canRematch
+            ? button('OTRO INTENTO', 'btn btn--ghost btn--block', handlers.onRematch)
+            : null,
+        ])
+      : el('div', { class: 'result__actions' }, [
+          button(
+            canRematch ? (heavyLoss ? 'OTRO INTENTO' : 'REVANCHA') : 'SIN INTENTOS',
+            'btn btn--play btn--lg btn--block',
+            handlers.onRematch,
+            { disabled: !canRematch },
+          ),
+          button('CONTINUAR', 'btn btn--ghost btn--block', handlers.onContinue),
+        ]),
     el('div', { class: `result__attempts${canRematch ? '' : ' result__empty'}` }, [
       el('span', { text: 'INTENTOS ' }),
       el('span', {
@@ -115,6 +141,33 @@ function renderDelta(outcome: ScoreOutcome): HTMLElement {
     });
   }
   return el('div', { class: 'result__delta', text: 'PRIMERA MARCA DEL DIA' });
+}
+
+/**
+ * Derrota clara: ni drama ni humillacion. Los dos numeros, cuanto has
+ * mejorado respecto a tu intento anterior, y a seguir.
+ */
+function renderComparison(outcome: ScoreOutcome, rivalName: string, myName: string): HTMLElement {
+  const improvement = outcome.gainVsBest;
+  return el('div', { class: 'result__pique' }, [
+    el('div', { class: 'compare' }, [
+      el('div', { class: 'compare__row compare__row--rival' }, [
+        el('span', { class: 'compare__name', text: rivalName }),
+        el('span', { class: 'compare__score num', text: formatScore(outcome.challengeTarget?.entry.total ?? 0) }),
+      ]),
+      el('div', { class: 'compare__row' }, [
+        el('span', { class: 'compare__name', text: myName }),
+        el('span', { class: 'compare__score num', text: formatScore(outcome.score) }),
+      ]),
+    ]),
+    el('div', {
+      class: 'result__pique-sub',
+      text:
+        improvement > 0
+          ? `MEJOR INTENTO: +${formatScore(improvement)}`
+          : `TU MEJOR DE HOY: ${formatScore(outcome.previousBest)}`,
+    }),
+  ]);
 }
 
 /** El bloque que decide si vuelves a darle. */

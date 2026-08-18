@@ -5,12 +5,13 @@
  * quien compites y cuanto te falta para adelantar a alguien.
  */
 import { dayLabel } from '../core/clock';
+import { bestRevengeAgainst } from '../meta/social';
+import { challengeStandings } from '../meta/ranking';
 import { describeMutators } from '../game/mutators';
 import { listGames, requireGame } from '../game/registry';
 import { attemptsDisplay } from '../meta/attempts';
 import { formatDuration, type ChallengeSpec } from '../meta/daily';
 import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
-import { secretStatus } from '../meta/secret';
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
@@ -24,7 +25,11 @@ export function renderHome(app: App): HTMLElement {
 
   const scroller = el('div', { class: 'scroller' });
   scroller.appendChild(renderHero(app, board));
+  const overtake = renderOvertake(app);
+  if (overtake) scroller.appendChild(overtake);
   scroller.appendChild(renderSocial(app, board));
+  const group = renderGroup(app);
+  if (group) scroller.appendChild(group);
 
   scroller.appendChild(sectionTitle('RETOS DE HOY', `${app.plan.challenges.length} + SECRETO`));
   const cards = el('div', { class: 'cards' });
@@ -73,11 +78,159 @@ function renderTopbar(app: App): HTMLElement {
       el('span', { class: 'brand__rush', text: 'RUSH' }),
     ]),
     el('div', { class: 'topbar__spacer' }),
+    renderNetStatus(app),
     app.clock.offset !== 0
       ? el('span', { class: 'chip chip--debug', text: `DIA ${app.clock.offset > 0 ? '+' : ''}${app.clock.offset}` })
       : null,
     muteBtn,
   ]);
+}
+
+/** Estado de conexion: discreto, pero suficiente para dar confianza. */
+function renderNetStatus(app: App): HTMLElement | null {
+  if (app.mode !== 'group') return null;
+  const pending = app.sync.pendingCount;
+  const status = app.netStatus;
+  const label =
+    pending > 0
+      ? `${pending} PENDIENTE${pending > 1 ? 'S' : ''}`
+      : status === 'online'
+        ? 'ONLINE'
+        : status === 'connecting'
+          ? 'CONECTANDO'
+          : status === 'syncing'
+            ? 'SINCRONIZANDO'
+            : status === 'error'
+              ? 'SERVIDOR KO'
+              : 'SIN CONEXION';
+  const kind = pending > 0 ? 'syncing' : status;
+  return el('div', { class: `net net--${kind}` }, [
+    el('span', { class: 'net__dot' }),
+    el('span', { text: label }),
+  ]);
+}
+
+/** Panel del grupo: quien esta, quien ha jugado y el codigo para invitar. */
+function renderGroup(app: App): HTMLElement | null {
+  const snapshot = app.snapshot;
+  if (app.mode !== 'group' || !snapshot) return null;
+  const myId = app.sync.playerId;
+
+  const copy = button('COPIAR', 'group__mini', async () => {
+    try {
+      await navigator.clipboard.writeText(snapshot.group.code);
+      app.toaster.show('CODIGO COPIADO', 'good', 1600);
+    } catch {
+      app.toaster.show(snapshot.group.code, 'neutral', 2600);
+    }
+    app.audio.play('tap');
+  });
+
+  const share = button('COMPARTIR', 'group__mini', async () => {
+    const nav = navigator as Navigator & {
+      share?: (data: { title?: string; text?: string }) => Promise<void>;
+    };
+    if (typeof nav.share !== 'function') {
+      await navigator.clipboard?.writeText?.(snapshot.group.code).catch(() => undefined);
+      app.toaster.show('CODIGO COPIADO', 'good', 1600);
+      return;
+    }
+    try {
+      await nav.share({
+        title: 'PLAYZONE RUSH',
+        text: `Entra en mi grupo de PLAYZONE RUSH con el codigo ${snapshot.group.code}`,
+      });
+    } catch {
+      /* cancelado */
+    }
+  });
+
+  return el('div', { class: 'group' }, [
+    el('div', { class: 'group__head' }, [
+      el('div', {}, [
+        el('div', { class: 'group__label', text: 'TU GRUPO' }),
+        el('div', { class: 'group__code', text: snapshot.group.code }),
+      ]),
+      el('div', { class: 'group__actions' }, [copy, share]),
+    ]),
+    el(
+      'div',
+      { class: 'group__members' },
+      snapshot.members.map((member) =>
+        el(
+          'div',
+          {
+            class: `member${member.online ? ' member--online' : ''}${
+              member.id === myId ? ' member--me' : ''
+            }${member.completedDaily ? ' member--done' : ''}`,
+          },
+          [el('span', { class: 'member__dot' }), el('span', { text: member.name })],
+        ),
+      ),
+    ),
+  ]);
+}
+
+/** "Marc te ha quitado el #1": el aviso que dispara la revancha. */
+function renderOvertake(app: App): HTMLElement | null {
+  const event = app.pendingOvertake;
+  if (!event) return null;
+
+  const target = revengeTargetFor(app, event.rivalId, event.rivalName);
+  const spec = target ? app.challengeById(target.challengeId) : null;
+
+  const actions: HTMLElement[] = [];
+  if (spec && target) {
+    app.offerRevenge(`overtake:${event.key}`, target.gap, event.rivalName, spec.gameId);
+    actions.push(
+      button('REVANCHA', 'btn btn--play btn--lg', () => {
+        app.rematch(spec, { gap: target.gap, rival: event.rivalName });
+      }),
+    );
+  }
+  actions.push(
+    button('VALE', 'btn btn--ghost', () => {
+      app.pendingOvertake = null;
+      app.renderHome();
+    }),
+  );
+
+  return el('div', { class: 'overtake' }, [
+    el('div', { class: 'overtake__title', text: `🔥 ${event.rivalName} TE HA QUITADO EL #1` }),
+    el('div', {
+      class: 'overtake__sub',
+      text: target
+        ? `+${formatScore(event.gap)} · Responde en ${spec?.title ?? ''} ${spec?.gameName ?? ''}: te faltan ${formatScore(
+            target.gap,
+          )}`
+        : `+${formatScore(event.gap)} · Sin intentos para responder hoy.`,
+    }),
+    el('div', { class: 'overtake__row' }, actions),
+  ]);
+}
+
+/** En que reto conviene contestar a ese rival. */
+function revengeTargetFor(app: App, rivalId: string, rivalName: string) {
+  const context = app.rankingContext;
+  const cache = new Map<string, ReturnType<typeof challengeStandings>>();
+  const standingsFor = (challengeId: string) => {
+    const spec = app.challengeById(challengeId);
+    if (!spec) return [];
+    if (!cache.has(challengeId)) cache.set(challengeId, challengeStandings(app.plan, app.save, spec, context));
+    return cache.get(challengeId) ?? [];
+  };
+
+  return bestRevengeAgainst(
+    rivalId,
+    app.plan.challenges.map((spec) => spec.id),
+    (playerId, challengeId) =>
+      standingsFor(challengeId).find((entry) => (entry.isMe ? 'me' : entry.id) === playerId)?.total ?? 0,
+    (challengeId) => {
+      const spec = app.challengeById(challengeId);
+      return spec ? app.canPlay(spec) : false;
+    },
+    rivalName,
+  );
 }
 
 function renderHero(app: App, board: Leaderboard): HTMLElement {
@@ -195,7 +348,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
 
 function renderSecretCard(app: App): HTMLElement {
   const spec = app.plan.secret;
-  const status = secretStatus(app.save, app.plan);
+  const status = app.secretInfo();
   const meta = gameMetaOf(app, spec);
 
   if (!status.unlocked) {
@@ -214,9 +367,14 @@ function renderSecretCard(app: App): HTMLElement {
       ]),
       el('div', {
         class: 'card__locked-note',
-        text: `Se abre cuando los ${status.total} hayais jugado los tres retos de hoy. Faltan: ${
-          status.missing.join(', ') || '—'
-        }.`,
+        text:
+          app.mode === 'group'
+            ? `${status.done}/${status.total} JUGADORES LISTOS. Se abre cuando todos los que han entrado hoy terminen los tres retos.${
+                status.missing.length > 0 ? ` Faltan: ${status.missing.join(', ')}.` : ''
+              }`
+            : `Se abre cuando los ${status.total} hayais jugado los tres retos de hoy. Faltan: ${
+                status.missing.join(', ') || '—'
+              }.`,
       }),
       pips,
     ]);
@@ -308,6 +466,7 @@ function renderBoard(app: App, board: Leaderboard): HTMLElement {
         promptText({
           title: 'TU NOMBRE EN EL GRUPO',
           value: entry.name,
+          maxLength: 16,
           onAccept: (value) => app.setName(value),
         });
       });

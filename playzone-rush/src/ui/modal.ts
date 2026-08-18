@@ -21,7 +21,7 @@ export function promptText(options: {
 
   const close = () => overlay.remove();
   const accept = () => {
-    const value = input.value.trim().toUpperCase().slice(0, options.maxLength ?? 12);
+    const value = input.value.trim().slice(0, options.maxLength ?? 12);
     if (value.length > 0) options.onAccept(value);
     close();
   };

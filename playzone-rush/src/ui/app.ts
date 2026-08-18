@@ -1,24 +1,38 @@
 /**
- * Orquestador. Conoce el save, el dia, el plan y las pantallas; nadie mas
- * necesita conocerse entre si. Cambiar una pantalla no toca la logica de meta,
- * y cambiar la logica de meta no toca las pantallas.
+ * Orquestador. Conoce el save, el dia, el plan, la conexion y las pantallas;
+ * nadie mas necesita conocerse entre si.
+ *
+ * Hay dos modos y el resto del codigo casi no se entera:
+ *   - SOLO  : rivales simulados, dia virtual local, cero red.
+ *   - GRUPO : personas reales, dia que decide el servidor, sincronizacion.
  */
 import { AudioBus } from '../core/audio';
 import { GameClock } from '../core/clock';
 import { Haptics } from '../core/haptics';
 import { seedFrom } from '../core/rng';
-import { SaveManager } from '../core/save';
+import { SaveManager, type PendingScore } from '../core/save';
 import type { GameConfig, GameResult } from '../game/contract';
 import { resolveMutators } from '../game/mutators';
 import { requireGame } from '../game/registry';
 import { attemptsLeft, beginAttempt, canPlay, refundAttempt } from '../meta/attempts';
 import { buildDailyPlan, findChallenge, type ChallengeSpec, type DailyPlan } from '../meta/daily';
-import { buildLeaderboard } from '../meta/ranking';
+import { myBestFor, remoteStandings } from '../meta/contenders';
+import { buildLeaderboard, type RankingContext, type Standing } from '../meta/ranking';
 import { commitResult, type ScoreOutcome } from '../meta/scoring';
-import { evaluateSecretUnlock, isChaosEnabled } from '../meta/secret';
-import { computeStreak, resolvePendingDays, type StreakInfo } from '../meta/streaks';
+import { evaluateSecretUnlock, isChaosEnabled, secretStatus, type SecretStatus } from '../meta/secret';
+import {
+  detectOvertakes,
+  markOvertakesSeen,
+  rememberTotals,
+  type OvertakeEvent,
+} from '../meta/social';
+import { computeStreak, resolveDay, resolvePendingDays, type StreakInfo } from '../meta/streaks';
 import { buildGameConfig } from '../meta/session';
+import { Telemetry } from '../meta/telemetry';
+import { SyncEngine, type NetStatus } from '../net/sync';
+import type { GroupSnapshot } from '../net/types';
 import { renderHome } from './home';
+import { renderOnboarding } from './onboarding';
 import { PlayScreen } from './play';
 import { Toaster } from './toast';
 import { clear, el } from './dom';
@@ -30,16 +44,24 @@ export class App {
   readonly clock: GameClock;
   readonly toaster = new Toaster();
   readonly root: HTMLElement;
+  readonly sync: SyncEngine;
+  readonly telemetry: Telemetry;
 
   plan!: DailyPlan;
   debugMode = false;
   /** Debug: si esta puesto, sustituye a los mutadores del reto. */
   mutatorOverride: string[] | null = null;
+  /** Debug: forzar rivales simulados aunque estemos en un grupo real. */
+  forceBots = false;
+  /** Adelantamiento pendiente de contestar (alimenta el boton de REVANCHA). */
+  pendingOvertake: OvertakeEvent | null = null;
+
   private shell: HTMLElement;
   private play: PlayScreen | null = null;
   private onChangeListeners: (() => void)[] = [];
+  private screen: 'onboarding' | 'home' = 'home';
 
-  constructor(root: HTMLElement, save = new SaveManager()) {
+  constructor(root: HTMLElement, save = new SaveManager(), sync?: SyncEngine) {
     this.root = root;
     this.save = save;
     const prefs = save.get().prefs;
@@ -53,19 +75,59 @@ export class App {
         });
       },
     });
+    this.sync = sync ?? new SyncEngine(save);
+    this.telemetry = new Telemetry(save, {
+      day: () => this.dayKey,
+      send: (events) =>
+        this.sync.sendTelemetry(
+          events.map((event) => ({
+            type: event.type,
+            ts: event.ts,
+            day: event.day,
+            gameId: event.gameId ?? null,
+            value: event.value ?? null,
+            meta: event.meta ?? null,
+          })),
+        ),
+    });
 
     this.shell = el('div', { class: 'shell' });
     clear(root);
     root.appendChild(this.shell);
   }
 
-  /* ---------------- estado ---------------- */
+  /* ---------------- modo y dia ---------------- */
 
+  get mode(): 'none' | 'solo' | 'group' {
+    return this.save.get().account.mode;
+  }
+
+  get isGroup(): boolean {
+    return this.mode === 'group' && !this.forceBots;
+  }
+
+  get snapshot(): GroupSnapshot | null {
+    return this.forceBots ? null : this.sync.snapshot;
+  }
+
+  get netStatus(): NetStatus {
+    return this.sync.status;
+  }
+
+  /**
+   * En grupo manda el dia del servidor (si no, bastaria con cambiar la hora
+   * del movil para tener intentos nuevos). Sin conexion se usa el ultimo dia
+   * conocido; en solitario, el dia virtual local.
+   */
   get dayKey(): string {
+    if (this.mode === 'group') {
+      return this.sync.snapshot?.day ?? this.save.get().snapshot?.day ?? this.clock.realDayKey();
+    }
     return this.clock.todayKey();
   }
 
   get secretUnlocked(): boolean {
+    if (this.isGroup && this.snapshot) return this.snapshot.secret.unlocked;
     return Boolean(this.save.get().days[this.dayKey]?.secretUnlocked);
   }
 
@@ -74,11 +136,39 @@ export class App {
   }
 
   get streak(): StreakInfo {
-    return computeStreak(this.save, this.dayKey);
+    // En grupo no inventamos ganadores de dias que no vimos.
+    return computeStreak(this.save, this.dayKey, 30, { simulate: !this.isGroup });
+  }
+
+  /** Estado del reto secreto, real o simulado segun el modo. */
+  secretInfo(): SecretStatus {
+    if (this.isGroup && this.snapshot) {
+      const secret = this.snapshot.secret;
+      return {
+        unlocked: secret.unlocked,
+        done: secret.readyCount,
+        total: Math.max(1, secret.activeCount),
+        missing: secret.missing,
+        meDone: !secret.missing.includes(this.save.get().profile.name),
+      };
+    }
+    return secretStatus(this.save, this.plan);
+  }
+
+  /* ---------------- ranking ---------------- */
+
+  get rankingContext(): RankingContext {
+    if (!this.isGroup || !this.snapshot) return {};
+    const snapshot = this.snapshot;
+    const myId = this.sync.playerId;
+    return {
+      others: remoteStandings(snapshot, myId, this.plan, this.secretUnlocked),
+      myBest: (challengeId) => myBestFor(this.save, this.dayKey, challengeId, snapshot, myId),
+    };
   }
 
   leaderboard() {
-    return buildLeaderboard(this.plan, this.save, this.secretUnlocked);
+    return buildLeaderboard(this.plan, this.save, this.secretUnlocked, this.rankingContext);
   }
 
   onChange(fn: () => void): void {
@@ -97,17 +187,41 @@ export class App {
     if (this.save.store.kind === 'memory') {
       this.toaster.show('SIN ALMACENAMIENTO: NO SE GUARDARA', 'bad', 3600);
     }
+
+    this.sync.on('snapshot', (snapshot) => this.handleSnapshot(snapshot));
+    this.sync.on('status', () => this.notify());
+    this.sync.on('dropped', ({ pending, reason }) => {
+      this.telemetry.track('sync_dropped', { gameId: pending.gameId, meta: { reason } });
+      this.toaster.show(`NO SE PUDO SUBIR UNA MARCA (${reason})`, 'bad', 3200);
+    });
+
+    if (this.mode === 'none') {
+      this.renderOnboarding();
+      return;
+    }
+    if (this.mode === 'group') this.sync.start();
+    this.telemetry.track('app_open');
     this.renderHome();
   }
 
   /** Recalcula el plan del dia (tras cambiar el dia virtual o al arrancar). */
   reloadDay(): void {
     this.plan = buildDailyPlan(this.dayKey);
-    resolvePendingDays(this.save, this.dayKey);
-    evaluateSecretUnlock(this.save, this.plan);
+    if (!this.isGroup) {
+      resolvePendingDays(this.save, this.dayKey);
+      evaluateSecretUnlock(this.save, this.plan);
+    }
+  }
+
+  renderOnboarding(): void {
+    this.screen = 'onboarding';
+    document.body.classList.remove('is-playing');
+    clear(this.shell);
+    this.shell.appendChild(renderOnboarding(this));
   }
 
   renderHome(): void {
+    this.screen = 'home';
     document.body.classList.remove('is-playing');
     clear(this.shell);
     this.shell.appendChild(renderHome(this));
@@ -116,12 +230,103 @@ export class App {
 
   refresh(): void {
     this.reloadDay();
+    if (this.screen === 'onboarding') return;
     if (!this.play) this.renderHome();
     else this.notify();
   }
 
   private notify(): void {
     for (const fn of this.onChangeListeners) fn();
+  }
+
+  /* ---------------- grupo ---------------- */
+
+  async createGroup(name: string): Promise<void> {
+    await this.sync.createGroup(name);
+    this.telemetry.track('group_created');
+    this.telemetry.track('app_open');
+    // Aqui NO se va a la portada: el onboarding ensena antes el codigo.
+    this.reloadDay();
+  }
+
+  async joinGroup(code: string, name: string): Promise<void> {
+    await this.sync.joinGroup(code, name);
+    this.telemetry.track('group_joined');
+    this.telemetry.track('app_open');
+    // Al unirse se entra directo: no hay codigo que ensenar ni paso extra.
+    this.reloadDay();
+    this.renderHome();
+  }
+
+  playSolo(): void {
+    this.sync.playSolo();
+    this.telemetry.track('app_open');
+    this.reloadDay();
+    this.renderHome();
+  }
+
+  leaveGroup(): void {
+    this.sync.reset();
+    this.renderOnboarding();
+  }
+
+  /**
+   * Llega una foto nueva del grupo: se concilia con lo local (el mejor
+   * resultado manda, los intentos tambien), se cierra el dia anterior si ha
+   * cambiado y se mira si alguien me ha pasado.
+   */
+  private handleSnapshot(snapshot: GroupSnapshot): void {
+    const previousDay = this.plan?.dayKey;
+    if (previousDay && previousDay !== snapshot.day) {
+      // Ha cambiado el dia competitivo: cerramos el anterior con lo que sabiamos.
+      resolveDay(this.save, previousDay);
+      this.plan = buildDailyPlan(snapshot.day);
+    }
+    this.reconcile(snapshot);
+    this.detectSocialEvents();
+    if (this.screen === 'home' && !this.play) this.renderHome();
+    else this.notify();
+  }
+
+  /** El servidor es la verdad de lo compartido; el movil no pierde lo suyo. */
+  private reconcile(snapshot: GroupSnapshot): void {
+    const myId = this.sync.playerId;
+    if (!myId) return;
+    this.save.update(() => {
+      for (const row of snapshot.scores) {
+        if (row.playerId !== myId) continue;
+        const progress = this.save.challenge(snapshot.day, row.challengeId);
+        progress.bestScore = Math.max(progress.bestScore, row.bestScore);
+        progress.attemptsUsed = Math.max(progress.attemptsUsed, row.attemptsUsed);
+        progress.plays = Math.max(progress.plays, row.plays);
+      }
+      if (snapshot.secret.unlocked) this.save.day(snapshot.day).secretUnlocked = true;
+    });
+  }
+
+  private detectSocialEvents(): void {
+    if (!this.isGroup) return;
+    const board = this.leaderboard();
+    const data = this.save.get();
+    const events = detectOvertakes({
+      dayKey: this.dayKey,
+      standings: board.standings,
+      previous: data.social.lastTotals[this.dayKey],
+      seen: data.social.seenOvertakes,
+    });
+    rememberTotals(this.save, this.dayKey, board.standings);
+
+    if (events.length === 0) return;
+    markOvertakesSeen(
+      this.save,
+      events.map((event) => event.key),
+    );
+    const worst = events[0] as OvertakeEvent;
+    this.pendingOvertake = worst;
+    this.telemetry.track('player_was_overtaken', { value: worst.gap, meta: { rival: worst.rivalName } });
+    this.audio.play('defeat');
+    this.haptics.fire('error');
+    this.toaster.show(`🔥 ${worst.rivalName} TE HA SUPERADO POR ${worst.gap}`, 'bad', 3600);
   }
 
   /* ---------------- juego ---------------- */
@@ -139,7 +344,10 @@ export class App {
   }
 
   /** Punto de entrada unico para jugar un reto. */
-  startChallenge(spec: ChallengeSpec, options: { quick?: boolean; ignoreAttempts?: boolean } = {}): void {
+  startChallenge(
+    spec: ChallengeSpec,
+    options: { quick?: boolean; ignoreAttempts?: boolean; revenge?: boolean } = {},
+  ): void {
     this.audio.unlock();
     if (spec.kind === 'secret' && !this.secretUnlocked && !options.ignoreAttempts) {
       this.toaster.show('RETO SECRETO BLOQUEADO', 'bad');
@@ -151,7 +359,15 @@ export class App {
       return;
     }
 
-    const config = this.applyOverride(buildGameConfig(this.plan, spec, this.save), spec);
+    const config = this.applyOverride(
+      buildGameConfig(this.plan, spec, this.save, this.rankingContext),
+      spec,
+    );
+    this.telemetry.track('game_start', {
+      gameId: spec.gameId,
+      meta: { challengeId: spec.id, revenge: options.revenge === true },
+    });
+
     if (!this.play) {
       this.play = new PlayScreen(this, spec, config);
       this.play.mount();
@@ -180,6 +396,7 @@ export class App {
     const definition = requireGame(gameId);
     const mutatorIds = this.mutatorOverride ?? [];
     const mutators = resolveMutators(mutatorIds);
+    const plays = this.save.get().days[this.dayKey]?.challenges[`debug-${gameId}`]?.plays ?? 0;
     const spec: ChallengeSpec = {
       id: `debug-${gameId}`,
       index: 99,
@@ -188,7 +405,7 @@ export class App {
       gameId,
       gameName: definition.meta.name,
       skill: definition.meta.skill,
-      seed: seedFrom('debug', this.dayKey, gameId, String(this.save.get().days[this.dayKey]?.challenges[`debug-${gameId}`]?.plays ?? 0)),
+      seed: seedFrom('debug', this.dayKey, gameId, String(plays)),
       baseDurationMs: definition.meta.defaultDurationMs,
       durationMs: Math.round(definition.meta.defaultDurationMs * mutators.durationMultiplier),
       difficulty: 0.4,
@@ -201,18 +418,25 @@ export class App {
   }
 
   /** Revancha: mismo reto, cero menus. */
-  rematch(spec: ChallengeSpec): void {
+  rematch(spec: ChallengeSpec, context: { gap?: number; rival?: string } = {}): void {
     if (!this.canPlay(spec)) {
       this.toaster.show('SIN INTENTOS', 'bad');
       this.audio.play('error');
       return;
     }
-    this.startChallenge(spec, { quick: true });
+    this.telemetry.track('revenge_clicked', {
+      gameId: spec.gameId,
+      value: context.gap ?? null,
+      meta: { rival: context.rival ?? null, challengeId: spec.id },
+    });
+    this.pendingOvertake = null;
+    this.startChallenge(spec, { quick: true, revenge: true });
   }
 
   /** El jugador abandona a mitad: se le devuelve el intento si acaba de empezar. */
   abortRun(spec: ChallengeSpec, elapsedMs: number): void {
     if (elapsedMs < 3000) refundAttempt(this.save, this.dayKey, spec);
+    this.telemetry.track('game_abandon', { gameId: spec.gameId, value: Math.round(elapsedMs) });
     this.exitToHome();
   }
 
@@ -224,17 +448,70 @@ export class App {
       result,
       secretUnlocked: this.secretUnlocked,
       ghostPassed,
+      context: this.rankingContext,
     });
 
-    // Terminar los tres retos puede abrir el secreto.
-    if (evaluateSecretUnlock(this.save, this.plan)) {
+    this.telemetry.track('game_finish', {
+      gameId: spec.gameId,
+      value: result.score,
+      meta: { challengeId: spec.id, endedBy: result.endedBy },
+    });
+    if (outcome.isChallengeBest) {
+      this.telemetry.track('score_improved', { gameId: spec.gameId, value: outcome.gainVsBest });
+    }
+    for (const passed of outcome.overtook) {
+      this.telemetry.track('rival_overtaken', {
+        gameId: spec.gameId,
+        value: outcome.score,
+        meta: { rival: passed.name },
+      });
+    }
+
+    // A la cola de envio: si hay red sale ahora, y si no, en cuanto vuelva.
+    if (this.isGroup && spec.countsForRanking !== undefined) {
+      this.queueScore(spec, result, outcome);
+    }
+
+    if (!this.isGroup && evaluateSecretUnlock(this.save, this.plan)) {
       this.toaster.show('RETO SECRETO DESBLOQUEADO', 'gold', 3000);
       this.audio.play('unlock');
+      this.telemetry.track('secret_unlocked');
+    }
+
+    if (this.dailyCompleted()) {
+      this.telemetry.track('daily_all_games_completed');
     }
 
     this.save.flush();
     this.notify();
     return outcome;
+  }
+
+  private dailyCompleted(): boolean {
+    const day = this.save.get().days[this.dayKey];
+    if (!day) return false;
+    return this.plan.challenges.every((spec) => (day.challenges[spec.id]?.plays ?? 0) > 0);
+  }
+
+  private queueScore(spec: ChallengeSpec, result: GameResult, outcome: ScoreOutcome): void {
+    const ghost = this.play?.takeGhostTrace() ?? null;
+    const pending: PendingScore = {
+      attemptId: `${this.sync.playerId ?? 'anon'}-${spec.id}-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`,
+      day: this.dayKey,
+      challengeId: spec.id,
+      gameId: spec.gameId,
+      score: result.score,
+      durationMs: Math.max(1000, Math.round(result.durationMs)),
+      attemptsUsed: this.save.get().days[this.dayKey]?.challenges[spec.id]?.attemptsUsed ?? 1,
+      countsForRanking: spec.countsForRanking,
+      // Solo tiene sentido guardar la traza si es la mejor del dia.
+      ghost: ghost && outcome.isChallengeBest ? ghost : null,
+      queuedAt: Date.now(),
+      tries: 0,
+    };
+    this.sync.queueScore(pending);
   }
 
   exitToHome(): void {
@@ -243,10 +520,23 @@ export class App {
     this.save.flush();
     this.reloadDay();
     this.renderHome();
+    if (this.isGroup) void this.sync.refresh();
   }
 
   get playScreen(): PlayScreen | null {
     return this.play;
+  }
+
+  private offeredRevenges = new Set<string>();
+
+  /**
+   * Se ha ofrecido una revancha. La clave evita contar dos veces la misma
+   * oferta cuando la pantalla se repinta: si no, el Revenge Rate mentiria.
+   */
+  offerRevenge(key: string, gap: number, rival: string | null, gameId: string): void {
+    if (this.offeredRevenges.has(key)) return;
+    this.offeredRevenges.add(key);
+    this.telemetry.track('revenge_available', { gameId, value: gap, meta: { rival } });
   }
 
   /* ---------------- preferencias ---------------- */
@@ -262,18 +552,34 @@ export class App {
   }
 
   setName(name: string): void {
+    const clean = name.trim().slice(0, 16);
+    if (clean.length === 0) return;
     this.save.update((data) => {
-      data.profile.name = name.toUpperCase().slice(0, 12);
+      data.profile.name = clean;
     });
     this.save.flush();
+    if (this.isGroup) {
+      void this.sync.rename(clean).catch(() => {
+        this.toaster.show('NO SE HA PODIDO CAMBIAR EL NOMBRE', 'bad');
+      });
+    }
     this.refresh();
   }
 
   shiftDay(delta: number): void {
+    if (this.isGroup) {
+      this.toaster.show('EN GRUPO EL DIA LO MANDA EL SERVIDOR', 'neutral', 2600);
+      return;
+    }
     this.clock.shift(delta);
     this.save.flush();
     this.exitToHomeIfPlaying();
     this.refresh();
+  }
+
+  /** Standing del jugador (atajo para la UI). */
+  me(): Standing {
+    return this.leaderboard().me;
   }
 
   private exitToHomeIfPlaying(): void {

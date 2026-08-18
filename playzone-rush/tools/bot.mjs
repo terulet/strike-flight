@@ -9,34 +9,60 @@ export async function launchGame(page, gameId) {
   await page.waitForSelector('.countdown', { state: 'detached', timeout: 10000 });
 }
 
-export async function playPulse(page, ms = 60000) {
+/**
+ * El bot juega con una "calidad" 0..1. Sirve para montar duelos deterministas:
+ * el mismo juego con la misma semilla da la misma puntuacion, asi que la unica
+ * forma de que uno gane a otro es que juegue mejor.
+ */
+export async function playPulse(page, ms = 60000, quality = 1) {
   const t0 = Date.now();
+  let tick = 0;
   while (!(await isOver(page)) && Date.now() - t0 < ms) {
     const state = await readState(page);
     if (!state) break;
     const good = (state.nodes ?? []).filter((n) => !n.mine).sort((a, b) => a.life - b.life);
-    for (const node of good.slice(0, 2)) await page.mouse.click(node.x, node.y);
+    for (const node of good.slice(0, 2)) {
+      // Fallar a proposito de forma reproducible (nada de Math.random).
+      if (quality < 1 && tick % Math.max(2, Math.round(1 / (1 - quality))) === 0) {
+        tick++;
+        continue;
+      }
+      tick++;
+      await page.mouse.click(node.x, node.y);
+    }
     await page.waitForTimeout(45);
   }
 }
 
-export async function playSnap(page, ms = 60000) {
+export async function playSnap(page, ms = 60000, quality = 1) {
   const t0 = Date.now();
+  let tick = 0;
+  const offset = (1 - quality) * 0.85;
   while (!(await isOver(page)) && Date.now() - t0 < ms) {
     const state = await readState(page);
     if (!state?.target) break;
-    await page.mouse.click(state.target.x, state.target.y);
+    // Apuntar peor = disparar desviado un porcentaje del radio de la diana.
+    const dx = Math.cos(tick) * state.target.r * offset;
+    const dy = Math.sin(tick) * state.target.r * offset;
+    tick++;
+    await page.mouse.click(state.target.x + dx, state.target.y + dy);
     await page.waitForTimeout(120);
   }
 }
 
-export async function playDrift(page, ms = 60000) {
+export async function playDrift(page, ms = 60000, quality = 1) {
   const t0 = Date.now();
+  let tick = 0;
   await page.mouse.move(VIEW.w / 2, VIEW.h * 0.79);
   await page.mouse.down();
   while (!(await isOver(page)) && Date.now() - t0 < ms) {
     const state = await readState(page);
     if (!state?.player) break;
+    // Con menos calidad, de vez en cuando "se despista" y no corrige.
+    if (quality < 1 && tick++ % Math.max(2, Math.round(1 / (1 - quality))) === 0) {
+      await page.waitForTimeout(28);
+      continue;
+    }
     const player = state.player;
     const wall = (state.walls ?? []).filter((w) => w.y < player.y + 20).sort((a, b) => b.y - a.y)[0];
     let targetX = wall ? wall.gapX + wall.gapW / 2 : player.x;
@@ -54,8 +80,8 @@ export async function playDrift(page, ms = 60000) {
 export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap };
 
 /** Juega el reto que este en marcha, sea cual sea el juego. */
-export async function playCurrent(page, ms) {
+export async function playCurrent(page, ms, quality = 1) {
   const state = await readState(page);
   const bot = BOTS[state?.game] ?? playPulse;
-  await bot(page, ms);
+  await bot(page, ms, quality);
 }
