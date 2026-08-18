@@ -2,8 +2,8 @@
  * Internal tools. Off by default and completely inert until toggled, so the
  * normal game never pays for them.
  *
- * Toggle: D key, or ?debug=1 in the URL, or a long press in the top-left
- * corner (mobile). Keys are listed in the overlay itself.
+ * Toggle: backquote or F1, ?debug=1 in the URL, or a long press in the
+ * top-left corner (mobile). Keys are listed in the overlay itself.
  */
 import { COLORS, VIEW } from '../config.js';
 import { clamp } from '../core/math.js';
@@ -39,7 +39,7 @@ export class Debug {
     if (typeof window === 'undefined') return;
     window.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
-      if (k === 'd') { this.enabled = !this.enabled; return; }
+      if (k === '`' || k === 'f1' || k === '~') { e.preventDefault(); this.enabled = !this.enabled; return; }
       if (!this.enabled) return;
       switch (k) {
         case 'h': this.showHitboxes = !this.showHitboxes; break;
@@ -130,7 +130,7 @@ export class Debug {
       gfx.text(l, 12, y + 12 + i * 12, { size: 9, color: i === 0 ? COLORS.player : COLORS.textDim, align: 'left', weight: 500 });
     });
 
-    const keys = 'D panel · H hitbox · I invuln · N/P floor · R restart · [ ] speed · M mute';
+    const keys = '` panel · H hitbox · I invuln · N/P floor · R restart · [ ] speed · M mute';
     gfx.text(keys, VIEW.W / 2, VIEW.H - this.game.viewport.hudBottom - 6, {
       size: 8, color: COLORS.textDim, alpha: 0.75,
     });

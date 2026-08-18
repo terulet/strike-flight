@@ -66,6 +66,7 @@ export class Game {
     this.hudPulse = 0;
     this.flashColor = '#ffffff';
     this.flashAlpha = 0;
+    this.retryQueued = false;
     this.transT = 1;
     this.transFrom = { x: 0, y: 0 };
     this.transTo = { x: 0, y: 0 };
@@ -86,7 +87,7 @@ export class Game {
       onBossDefeated: (b) => this.onBossDefeated(b),
     };
 
-    this._cmd = { press: false, held: false, swipeDown: false };
+    this._cmd = { press: false, held: false, swipeDown: false, face: 0 };
     window.addEventListener('resize', () => this.viewport.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.viewport.resize(), 120));
   }
@@ -121,6 +122,7 @@ export class Game {
     this.clock.resetScale();
     this.deathCause = null;
     this.isRecord = false;
+    this.retryQueued = false;
     this.runFloors = 0;
     this.hintAge = 0;
     this.transT = 1;
@@ -199,6 +201,7 @@ export class Game {
     if (!this.state.set(State.RESULT)) return;
     this.clock.resetScale();
     this.input.flush();
+    this.retryQueued = false;
     if (this.isRecord && this.floorNumber > 1) this.audio.play('record');
   }
 
@@ -248,9 +251,6 @@ export class Game {
     this.audio.play('stomp');
     this.clock.freeze(0.05);
     this.camera.addShake(3);
-    this.player.vy = PLAYER.JUMP_VEL * 0.78;
-    this.player.jumping = true;
-    this.player.grounded = false;
     this.particles.burst(w.x + w.w / 2, w.y + w.h / 2, 12, {
       color: COLORS.danger, speed: 80, speedVar: 150, spread: Math.PI * 2,
       life: 0.35, size: 2.5, sizeVar: 2, grav: 700,
@@ -274,9 +274,6 @@ export class Game {
     this.camera.addShake(8);
     this.flash('#ffffff', 0.35);
     this.audio.play('boss_hit');
-    this.player.vy = PLAYER.JUMP_VEL * 0.9;
-    this.player.jumping = true;
-    this.player.grounded = false;
     this.bus.emit('boss_hit', { floor: this.floorNumber, hpLeft: hp });
     this.particles.burst(b.x + b.w / 2, b.y, 22, {
       color: COLORS.boss, speed: 120, speedVar: 220, spread: Math.PI * 2,
@@ -314,6 +311,7 @@ export class Game {
     cmd.press = this.input.consumePress();
     cmd.held = this.input.held;
     cmd.swipeDown = this.input.consumeSwipeDown();
+    cmd.face = this.input.consumeSwipeDir();
     if (cmd.press) this.audio.unlock();
 
     switch (this.state.current) {
@@ -333,7 +331,7 @@ export class Game {
     // The bot idles on floor 1 behind the title so the game is never a still image.
     if (this.room) {
       this.room.update(dt, this.entityCtx);
-      this.player.update(dt, { press: false, held: false, swipeDown: false }, this.room.solids);
+      this.player.update(dt, { press: false, held: false, swipeDown: false, face: 0 }, this.room.solids);
       if (this.player.x > 200) this.player.dir = -1;
       if (this.player.x < 40) this.player.dir = 1;
     }
@@ -438,7 +436,12 @@ export class Game {
 
   updateResult(dt, cmd) {
     this.room.update(dt, this.entityCtx);
-    if (cmd.press && this.state.timeInState > 0.12) {
+    // A tap in the first frames is queued, never dropped. The whole promise of
+    // this screen is that hitting RETRY early works; making an eager player
+    // tap twice is exactly the moment they put the phone down.
+    if (cmd.press) this.retryQueued = true;
+    if (this.retryQueued && this.state.timeInState > 0.12) {
+      this.retryQueued = false;
       this.startRun(this.debug.startFloor > 1 ? this.debug.startFloor : 1);
     }
   }

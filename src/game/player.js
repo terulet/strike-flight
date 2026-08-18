@@ -6,6 +6,7 @@
  *   hold + grounded-> brake to a stop (wait for the laser to pass)
  *   release        -> resume running
  *   swipe down     -> dive (fast fall + slam)
+ *   swipe left/righ-> face that way; the bot runs on its own, this overrides it
  *
  * Fairness helpers baked in: coyote time, jump buffering, a forgiving hazard
  * hitbox, and a full-speed impulse on standing jumps so a jump from a dead
@@ -147,6 +148,7 @@ export class Player {
     // --- intent ----------------------------------------------------------
     if (cmd.press) this.buffer = PLAYER.JUMP_BUFFER;
     if (cmd.swipeDown) this.dive();
+    if (cmd.face) this.dir = cmd.face;
 
     this.braking = cmd.held && this.grounded;
 

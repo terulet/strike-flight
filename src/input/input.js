@@ -2,10 +2,11 @@
  * One-finger input.
  *
  * Verbs the game understands:
- *   PRESS       -> jump (fires on pointer DOWN: zero added latency)
- *   HOLD        -> keep braking once grounded (stand still and wait)
- *   RELEASE     -> resume running
- *   SWIPE DOWN  -> dive / slam
+ *   PRESS        -> jump (fires on pointer DOWN: zero added latency)
+ *   HOLD         -> keep braking once grounded (stand still and wait)
+ *   RELEASE      -> resume running
+ *   SWIPE DOWN   -> dive / slam
+ *   SWIPE L / R  -> face that way (the bot runs on its own; this overrides it)
  *
  * Keyboard mirrors the same verbs so the prototype is testable on a desktop.
  * Events are queued as counters and consumed by the fixed-step update, so a
@@ -25,6 +26,8 @@ export class Input {
     this.pressCount = 0;
     this.releaseCount = 0;
     this.swipeDownCount = 0;
+    this.swipeDirCount = 0;
+    this.swipeDir = 0;
     this.x = VIEW.W / 2;
     this.y = VIEW.H / 2;
     this.downX = 0;
@@ -60,11 +63,15 @@ export class Input {
       this.viewport.toLogical(e.clientX, e.clientY, this._tmp);
       this.x = this._tmp.x;
       this.y = this._tmp.y;
-      if (this.swipeArmed) {
+      if (this.swipeArmed && this._now() - this.downTime < SWIPE_TIME) {
         const dy = this.y - this.downY;
         const dx = this.x - this.downX;
-        if (dy > SWIPE_DIST && dy > Math.abs(dx) && this._now() - this.downTime < SWIPE_TIME) {
+        if (dy > SWIPE_DIST && dy > Math.abs(dx)) {
           this.swipeDownCount++;
+          this.swipeArmed = false;
+        } else if (Math.abs(dx) > SWIPE_DIST && Math.abs(dx) > Math.abs(dy)) {
+          this.swipeDir = dx > 0 ? 1 : -1;
+          this.swipeDirCount++;
           this.swipeArmed = false;
         }
       }
@@ -96,6 +103,14 @@ export class Input {
       } else if (k === 'ArrowDown' || k === 's' || k === 'S') {
         e.preventDefault();
         this.swipeDownCount++;
+      } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+        e.preventDefault();
+        this.swipeDir = -1;
+        this.swipeDirCount++;
+      } else if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+        e.preventDefault();
+        this.swipeDir = 1;
+        this.swipeDirCount++;
       }
     });
     this.target.addEventListener('keyup', (e) => {
@@ -155,10 +170,20 @@ export class Input {
     return false;
   }
 
+  /** Returns -1, 1 or 0 — the direction the player asked to face. */
+  consumeSwipeDir() {
+    if (this.swipeDirCount > 0) {
+      this.swipeDirCount--;
+      return this.swipeDir;
+    }
+    return 0;
+  }
+
   /** Drops anything buffered — used on state changes so a tap never double-fires. */
   flush() {
     this.pressCount = 0;
     this.releaseCount = 0;
     this.swipeDownCount = 0;
+    this.swipeDirCount = 0;
   }
 }

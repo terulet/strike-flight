@@ -71,6 +71,12 @@ export class UI {
     } else if (kind === 'hold') {
       g.circle(x, y, 4.5, COLORS.player, a);
       g.strokeRoundRect(x - 8, y - 8, 16, 16, 8, COLORS.player, 1.4, a * (0.35 + pulse * 0.45));
+    } else if (kind === 'turn') {
+      g.line(x - 7, y, x + 7, y, COLORS.player, 1.6, a * 0.8);
+      g.line(x - 7, y, x - 3, y - 3.5, COLORS.player, 1.6, a);
+      g.line(x - 7, y, x - 3, y + 3.5, COLORS.player, 1.6, a);
+      g.line(x + 7, y, x + 3, y - 3.5, COLORS.player, 1.6, a);
+      g.line(x + 7, y, x + 3, y + 3.5, COLORS.player, 1.6, a);
     } else if (kind === 'run') {
       for (let i = 0; i < 3; i++) g.rect(x - 8 + i * 6, y - 1 - i, 4, 2 + i, COLORS.player, a * (0.4 + i * 0.3));
     } else if (kind === 'danger') {
@@ -108,11 +114,11 @@ export class UI {
     }
 
     const blink = 0.55 + Math.sin(this.t * 4) * 0.45;
-    g.text('TAP TO CLIMB', VIEW.W / 2, VIEW.H * 0.7, {
+    g.text('TAP TO CLIMB', VIEW.W / 2, VIEW.H * 0.655, {
       size: 15, color: COLORS.text, letterSpacing: 4, alpha: a * blink,
     });
 
-    const y = VIEW.H * 0.79;
+    const y = VIEW.H * 0.715;
     this._legend(VIEW.W / 2, y, a * 0.85);
   }
 
@@ -121,6 +127,7 @@ export class UI {
     const rows = [
       ['tap', 'TAP', 'JUMP'],
       ['hold', 'HOLD', 'STOP'],
+      ['turn', 'SWIPE  <  >', 'TURN'],
       ['run', 'SWIPE DOWN', 'DIVE'],
     ];
     rows.forEach((r, i) => {
