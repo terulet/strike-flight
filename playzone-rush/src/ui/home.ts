@@ -24,6 +24,8 @@ export function renderHome(app: App): HTMLElement {
   screen.appendChild(renderTopbar(app));
 
   const scroller = el('div', { class: 'scroller' });
+  const update = renderUpdateBanner(app);
+  if (update) scroller.appendChild(update);
   scroller.appendChild(renderHero(app, board));
   const overtake = renderOvertake(app);
   if (overtake) scroller.appendChild(overtake);
@@ -168,6 +170,22 @@ function renderGroup(app: App): HTMLElement | null {
         ),
       ),
     ),
+  ]);
+}
+
+/** Hay build nueva en el servidor. Nunca aparece a mitad de partida: solo se pinta aqui, en portada. */
+function renderUpdateBanner(app: App): HTMLElement | null {
+  if (!app.updateAvailable) return null;
+  return el('div', { class: 'update-banner' }, [
+    el('div', { class: 'update-banner__text' }, [
+      el('span', { text: '⚡' }),
+      el('span', { text: 'HAY UNA VERSION NUEVA' }),
+    ]),
+    button('ACTUALIZAR', 'btn btn--accent update-banner__btn', () => {
+      app.audio.play('tap');
+      app.haptics.fire('light');
+      app.applyUpdate();
+    }),
   ]);
 }
 

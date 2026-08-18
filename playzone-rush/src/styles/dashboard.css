@@ -1,0 +1,237 @@
+/* ---------- Dashboard de la alfa (solo lectura) ----------
+   Sobrio a proposito: esto no es una pantalla de juego, es donde se decide
+   si el juego sigue. Nada de brillos que hagan parecer bueno un mal dato. */
+.dash {
+  padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 24px);
+  max-width: var(--shell-max);
+  margin: 0 auto;
+}
+
+.dash__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.dash__title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.dash__sub {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.dash__readonly {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--good);
+  border: 1px solid rgba(124, 243, 192, 0.35);
+  background: rgba(124, 243, 192, 0.1);
+}
+
+.dash-section {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 20px 0 8px;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.dash-section small {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--text-faint);
+  opacity: 0.8;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 7px;
+}
+
+.dash-metric {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 10px;
+  min-width: 0;
+}
+
+.dash-metric--brand {
+  border-color: rgba(255, 47, 109, 0.35);
+}
+
+.dash-metric--gold {
+  border-color: rgba(255, 210, 63, 0.35);
+}
+
+.dash-metric__label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+}
+
+.dash-metric__value {
+  margin-top: 3px;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.dash-metric--brand .dash-metric__value {
+  color: var(--brand);
+}
+
+.dash-metric--gold .dash-metric__value {
+  color: var(--gold);
+}
+
+.dash-metric__detail {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.dash-bars {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dash-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dash-bar__label {
+  width: 78px;
+  flex-shrink: 0;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.dash-bar__track {
+  flex: 1;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.dash-bar__fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 4px;
+}
+
+.dash-bar__value {
+  width: 62px;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.dash-days {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.dash-day {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.dash-day:last-child {
+  border-bottom: none;
+}
+
+.dash-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-error {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  min-width: 0;
+}
+
+.dash-error--server {
+  border-color: rgba(255, 77, 109, 0.35);
+}
+
+.dash-error__source {
+  flex-shrink: 0;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.dash-error__msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.dash-empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.dash-foot {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}

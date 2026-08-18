@@ -16,6 +16,11 @@ const externalNodeSqlite = {
 
 export default defineConfig({
   plugins: [externalNodeSqlite],
+  // Mismo nombre que inyecta vite.config.ts en la build real; aqui basta un
+  // valor fijo para poder comparar "igual" / "distinto" en los tests.
+  define: {
+    __BUILD_ID__: JSON.stringify('test-build'),
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts', 'server/test/**/*.test.mjs'],

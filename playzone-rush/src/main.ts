@@ -12,9 +12,11 @@ import './styles/play.css';
 import './styles/result.css';
 import './styles/social.css';
 import './styles/debug.css';
+import './styles/dashboard.css';
 
 import { registerAllGames } from './games/index';
 import { App } from './ui/app';
+import { installErrorReporter } from './core/errorReporter';
 
 registerAllGames();
 
@@ -53,6 +55,16 @@ async function enableDebug(): Promise<void> {
 
 const params = new URLSearchParams(location.search);
 if (params.has('debug')) void enableDebug();
+
+// ?dashboard: metricas agregadas de la semana, solo lectura. Es una pantalla
+// aparte del juego (y del panel de debug, que si puede tocar cosas): sustituye
+// la interfaz entera para que no haya forma de jugar sin querer desde aqui.
+if (params.has('dashboard')) {
+  void (async () => {
+    const { mountDashboard } = await import('./ui/dashboard');
+    await mountDashboard(root, app.sync.client.token);
+  })();
+}
 
 // Atajo para el movil: tres toques rapidos en el logo.
 let taps: number[] = [];
@@ -118,3 +130,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 globalThis.addEventListener('error', (ev) => {
   console.error('[playzone] error no controlado', ev.error ?? ev.message);
 });
+
+// Solo en produccion: en desarrollo los errores son ruido de iterar, no
+// incidentes reales, y no tiene sentido mandarlos al panel de operacion.
+if (import.meta.env.PROD) installErrorReporter(() => app.sync.client.token);

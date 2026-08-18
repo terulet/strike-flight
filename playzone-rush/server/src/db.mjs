@@ -86,6 +86,22 @@ CREATE TABLE IF NOT EXISTS events (
   meta      TEXT
 );
 CREATE INDEX IF NOT EXISTS events_by_group ON events(group_id, ts);
+
+-- Errores de cliente y servidor. Independiente de "events" (eso es producto,
+-- esto es operacion): un fallo antes de tener sesion tiene que poder
+-- registrarse igual, asi que group_id/player_id son opcionales aqui.
+CREATE TABLE IF NOT EXISTS errors (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts         INTEGER NOT NULL,
+  source     TEXT NOT NULL,   -- 'client' | 'server'
+  group_id   TEXT,
+  player_id  TEXT,
+  message    TEXT NOT NULL,
+  stack      TEXT,
+  url        TEXT,
+  meta       TEXT
+);
+CREATE INDEX IF NOT EXISTS errors_by_ts ON errors(ts DESC);
 `;
 
 export function openDatabase(path) {
@@ -168,6 +184,12 @@ export function createStore(db) {
     countEventsByType: db.prepare(
       'SELECT type, COUNT(*) AS n FROM events WHERE group_id = ? GROUP BY type',
     ),
+
+    insertError: db.prepare(
+      'INSERT INTO errors (ts, source, group_id, player_id, message, stack, url, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ),
+    recentErrors: db.prepare('SELECT * FROM errors ORDER BY ts DESC LIMIT ?'),
+    countErrorsSince: db.prepare('SELECT COUNT(*) AS n FROM errors WHERE ts >= ?'),
   };
   return q;
 }
