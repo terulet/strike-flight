@@ -213,12 +213,19 @@ function renderPique(outcome: ScoreOutcome): HTMLElement {
 
 /** Sonido y vibracion segun lo que ha pasado. */
 export function celebrate(app: App, outcome: ScoreOutcome): void {
+  // Ponerse primero suena distinto a adelantar a uno cualquiera.
+  if (outcome.becameLeader) {
+    app.audio.play('victory');
+    app.audio.play('record');
+    app.haptics.fire('success');
+    return;
+  }
   if (outcome.isPersonalRecord || (outcome.isChallengeBest && outcome.previousBest > 0)) {
     app.audio.play('record');
     app.haptics.fire('success');
     return;
   }
-  if (outcome.overtook.length > 0 || outcome.becameLeader) {
+  if (outcome.overtook.length > 0) {
     app.audio.play('overtake');
     app.haptics.fire('success');
     return;
