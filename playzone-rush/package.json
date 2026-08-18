@@ -11,12 +11,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "shots": "node tools/screenshots.mjs"
+    "shots": "node tools/screenshots.mjs",
+    "server": "node server/bin/start.mjs",
+    "dev:all": "node tools/dev-all.mjs",
+    "test:server": "vitest run server/test",
+    "test:client": "vitest run tests"
   },
   "devDependencies": {
     "playwright": "^1.49.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10",
-    "vitest": "^2.1.4"
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7"
   }
 }
