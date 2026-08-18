@@ -19,12 +19,26 @@ Sin dominio que comprar, sin factura mensual, sin cuenta en ningun sitio.
 
 El Mac Mini ya tiene Node 26, npm, git, Homebrew, pm2 y Tailscale. Lo unico
 que falta es que el CLI de Tailscale este en el PATH: la app de macOS instala
-el binario dentro del bundle.
+el binario dentro de su bundle.
+
+**Un symlink no vale.** El binario es parte de una aplicacion de macOS y
+averigua su identidad a partir de la ruta desde la que se lanza; a traves de un
+enlace no encuentra su bundle y aborta con *"The current bundleIdentifier is
+unknown to the registry"*. Hace falta un script que llame a la ruta de verdad:
 
 ```bash
-sudo ln -s /Applications/Tailscale.app/Contents/MacOS/Tailscale /usr/local/bin/tailscale
-tailscale status   # tiene que responder sin "command not found"
+cat > /opt/homebrew/bin/tailscale << 'EOF'
+#!/bin/sh
+exec /Applications/Tailscale.app/Contents/MacOS/Tailscale "$@"
+EOF
+chmod +x /opt/homebrew/bin/tailscale
+
+tailscale version   # tiene que responder sin reventar
 ```
+
+En un Mac de Apple Silicon, `/opt/homebrew/bin` ya esta en el PATH y es del
+usuario, asi que esto no necesita `sudo`. `/usr/local/bin` normalmente **no
+existe** en estas maquinas.
 
 ## 2. Traer el codigo y construir
 
@@ -94,9 +108,27 @@ pm2 list              # todos tienen que estar "online"
 
 ## 4. HTTPS y URL publica con Tailscale Funnel
 
-Funnel expone un puerto local a internet con certificado valido. La primera
-vez hay que habilitarlo en la consola de administracion de Tailscale (te dara
-el enlace exacto si no lo esta).
+Funnel expone un puerto local a internet con certificado valido.
+
+**Antes hay que habilitar dos cosas en la consola de administracion**, y no se
+pueden hacer desde la linea de comandos: son cambios de cuenta que exponen un
+servicio a internet, asi que los tiene que aprobar el dueno del tailnet desde
+un navegador.
+
+1. **Certificados HTTPS**: <https://login.tailscale.com/admin/dns> → seccion
+   *HTTPS Certificates* → *Enable*. Es requisito de Funnel, y si falta, el
+   sintoma es que `tailscale cert` dice *"your Tailscale account does not
+   support getting TLS certs"*.
+2. **Funnel**: el propio `tailscale funnel` imprime el enlace de consentimiento
+   si no esta activo. Hay que abrirlo y confirmar.
+
+Para saber si de verdad han quedado activados (la consola puede dejarse a
+medias sin avisar):
+
+```bash
+tailscale cert mac-mini-de-eloi.tail011c69.ts.net   # no debe hablar de "does not support"
+dig +short @8.8.8.8 mac-mini-de-eloi.tail011c69.ts.net   # tiene que devolver algo
+```
 
 ```bash
 tailscale funnel --bg 8788
