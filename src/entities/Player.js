@@ -67,7 +67,13 @@ export class Player {
       this.stepTimer = P.footstepInterval * 0.4;
     }
 
-    this.exposure = Math.max(0, this.exposure - P.exposureDecay * dt);
+    // Exposición = lo que decae de tu último fogonazo, o la luz que te está
+    // bañando ahora mismo. Lo que sea mayor. Salir de la luz te devuelve la
+    // invisibilidad; quedarte en ella no.
+    this.exposure = Math.max(
+      Math.max(0, this.exposure - P.exposureDecay * dt),
+      this.game.lightAt(this.x, this.y),
+    );
     this.invuln = Math.max(0, this.invuln - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt * 4);
 

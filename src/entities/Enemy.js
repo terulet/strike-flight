@@ -37,6 +37,7 @@ export class Enemy {
     this.stepTimer = rng.range(0, Config.enemy.footstepInterval);
     this.hitFlash = 0;
     this.eyeGlow = 0;
+    this.scanPhase = rng.range(0, TAU);
     this.ai.reset();
   }
 
@@ -61,10 +62,30 @@ export class Enemy {
     this.vx = res.vx; this.vy = res.vy;
 
     // Encara hacia donde va, salvo que la IA imponga un objetivo (ALERT).
-    const want = this.ai.state === State.ALERT
-      ? this.faceTarget
-      : (v > 8 ? Math.atan2(this.vy, this.vx) : this.dir);
-    this.dir = rotateToward(this.dir, want, 5.2 * dt);
+    let want;
+    if (this.ai.state === State.ALERT) {
+      want = this.faceTarget;
+    } else {
+      const heading = v > 8 ? Math.atan2(this.vy, this.vx) : this.dir;
+      if (this.ai.state === State.IDLE) {
+        want = heading;
+      } else {
+        // BUSCANDO: barre la cabeza a los lados mientras avanza.
+        //
+        // Un enemigo que solo mira hacia donde camina tiene un cono ciego
+        // enorme y, medido, casi nunca llegaba a verte: pasaba a tu lado.
+        // El barrido también se LEE — ver un par de ojos peinando la
+        // oscuridad de lado a lado dice "me está buscando" sin una sola
+        // línea de interfaz.
+        this.scanPhase += dt * Config.enemy.scanRate;
+        want = heading + Math.sin(this.scanPhase) * Config.enemy.scanArc;
+      }
+    }
+    // En ALERT gira mucho más rápido: ya sabe dónde estás, no tiene que
+    // "buscarte" con la cabeza. Girar despacio le hacía morir encarando aún
+    // hacia donde patrullaba.
+    const turn = this.ai.state === State.ALERT ? 11.0 : 5.2;
+    this.dir = rotateToward(this.dir, want, turn * dt);
 
     // Sus pasos son TU sonar. Cuanto más rápido va, más te avisa.
     if (v > 15) {
@@ -116,8 +137,8 @@ export class Enemy {
       this.die(dirX, dirY);
       return;
     }
-    // Recibir un tiro es saber exactamente de dónde vino.
-    this.ai.onSound(this.game.player.x, this.game.player.y, 'hit');
+    // Recibir un tiro es saber exactamente de dónde vino, y responder.
+    this.ai.onAttacked(this.game.player.x, this.game.player.y);
   }
 
   die(dirX = 0, dirY = 0) {

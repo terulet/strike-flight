@@ -52,27 +52,44 @@ export const Config = {
     footstepInterval: 0.36,
     footstepLoudness: 105, // radio de escucha en px
     // "Exposición": cuánto delata la luz al jugador. La suben los fogonazos.
-    exposureDecay: 1.9,   // por segundo
+    exposureDecay: 0.9,   // por segundo
   },
 
   /* ──────────────────────────── ARMA ─────────────────────────── */
   weapon: {
     name: 'PULSE',
-    fireInterval: 0.155,
+    // Cadencia LENTA a propósito.
+    //
+    // Con 0.155 s el arma disparaba 6,5 veces por segundo: la habitación
+    // quedaba permanentemente iluminada a base de fogonazos encadenados —la
+    // oscuridad dejaba de existir— y cualquier enemigo moría antes de
+    // completar su aviso previo. Medido: cero muertes del jugador en 30
+    // intentos del bot.
+    //
+    // A 0.34 s cada disparo vuelve a ser un acto: un destello, un silencio, y
+    // la decisión de si gastas el siguiente. Es la cadencia la que sostiene
+    // la tesis del juego, no el sistema de iluminación.
+    fireInterval: 0.34,
     damage: 1,
     // Munición: es lo que convierte "disparo para ver" en una DECISIÓN.
     // Ponlo a true para pruebas de sensación pura sin presión de recursos.
+    //
+    // Medido con tools/playtest.mjs: con 8+40 el bot terminaba el nivel con
+    // 44 balas en el bolsillo sin quedarse seco ni una vez. Munición que
+    // nunca se acaba no es un recurso, es decoración — y el "¿gasto una bala
+    // en ver qué hay ahí?" no llegaba a existir. Con 6+12 hay que buscar
+    // munición A OSCURAS para poder seguir viendo, que es el bucle entero.
     infiniteAmmo: false,
-    magSize: 8,
-    reserveAmmo: 40,
+    magSize: 6,
+    reserveAmmo: 12,
     reloadTime: 1.15,
     // Retroceso: empuje físico al jugador + sacudida visual del cañón.
     // Vive con el arma, no con el jugador: es propiedad de lo que dispara.
-    recoilImpulse: 118,
-    recoilKick: 7.0,       // px que retrocede visualmente el cañón
+    recoilImpulse: 155,
+    recoilKick: 9.0,       // px que retrocede visualmente el cañón
     recoilRecover: 16.0,
     spread: 0.022,         // radianes de dispersión base
-    spreadPerShot: 0.020,  // acumulado por disparo
+    spreadPerShot: 0.014,  // acumulado por disparo
     spreadMax: 0.13,
     spreadRecover: 0.34,   // radianes recuperados por segundo
     projectileSpeed: 1150,
@@ -85,7 +102,7 @@ export const Config = {
     // Congelación de fotograma al impactar. Barato y se nota muchísimo.
     hitStopMs: 42,
     hitStopKillMs: 90,
-    shakeOnFire: 0.16,
+    shakeOnFire: 0.24,
     shakeOnHit: 0.10,
     shakeOnKill: 0.30,
   },
@@ -109,7 +126,7 @@ export const Config = {
     muzzle: {
       radius: 430,
       intensity: 2.5,
-      duration: 0.085,
+      duration: 0.10,
       tint: [1.0, 0.86, 0.62],
     },
     // El proyectil ilumina su recorrido. Es el efecto firma del juego.
@@ -163,15 +180,22 @@ export const Config = {
     // Velocidades por estado.
     speedPatrol: 46,
     speedSuspicious: 84,
-    speedAlert: 138,
+    speedAlert: 152,
     speedLost: 70,
     accel: 900,
     friction: 9.0,
 
     // PERCEPCIÓN. Nada de visión mágica: el enemigo también vive a oscuras.
     visionRange: 300,        // alcance máximo con el jugador totalmente expuesto
-    visionRangeDark: 78,     // alcance si el jugador está a oscuras y quieto
-    visionFov: 1.85,         // radianes de cono total (~106°)
+    visionRangeDark: 104,    // alcance si el jugador está a oscuras y quieto
+    visionFov: 2.05,         // radianes de cono total (~117°)
+    // Barrido de cabeza mientras busca: amplitud y velocidad.
+    scanArc: 0.85,           // radianes a cada lado
+    scanRate: 2.4,           // radianes por segundo de fase
+    // Ver el fogonazo del jugador: alcance y cono. Requiere línea de visión,
+    // así que disparar desde detrás de una esquina sigue siendo seguro.
+    flashSightRange: 560,
+    flashFov: 3.1,           // ~178°: solo se escapa lo que queda a la espalda
     hearingRange: 900,       // radio propio de escucha
     // Nota de balance: con 620 un disparo apenas cruzaba una sala y el
     // riesgo de disparar no llegaba a existir. 900 hace que un tiro se
@@ -183,15 +207,19 @@ export const Config = {
     suspiciousTime: 7.0,     // cuánto persigue un ruido antes de rendirse
     lostTime: 5.5,           // cuánto busca tras perder contacto
     searchRadius: 150,       // radio de merodeo en LOST
-    reacquireDelay: 0.16,    // histéresis antes de pasar a ALERT
+    stuckTime: 1.1,          // segundos sin avanzar antes de cambiar de destino
+    reacquireDelay: 0.10,    // histéresis antes de pasar a ALERT
     loseSightGrace: 0.55,    // margen antes de considerar perdido al jugador
 
-    // Ataque.
-    attackRange: 250,
-    attackInterval: 1.25,
-    attackWindup: 0.42,      // aviso previo: el jugador puede reaccionar
+    // Ataque. Medido: con windup 0.42 / cadencia 1.25 el enemigo moría
+    // antes de completar su primer disparo y el bot despejaba el nivel diez
+    // veces seguidas sin recibir un solo impacto. Un enemigo que no puede
+    // castigarte convierte el riesgo del disparo en una idea sobre el papel.
+    attackRange: 300,
+    attackInterval: 0.95,
+    attackWindup: 0.30,      // aviso previo: el jugador aún puede reaccionar
     attackDamage: 1,
-    projectileSpeed: 430,
+    projectileSpeed: 560,
 
     // Ruido propio: sus pasos son la pista principal del jugador.
     footstepInterval: 0.55,

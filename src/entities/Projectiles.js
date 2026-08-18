@@ -132,6 +132,7 @@ export class Projectiles {
     lighting.flash(p.x, p.y, Config.lighting.impact.radius * 0.55,
       Config.lighting.impact.intensity * 0.8, p.tint, Config.lighting.impact.duration * 0.7);
     audio.play(p.owner === 'player' ? 'enemyHit' : 'hurt', p.x, p.y);
+    if (p.owner === 'player') this.game.stats.hits++;
     entity.takeDamage(p.damage, ux, uy);
   }
 

@@ -114,9 +114,13 @@ export class Weapon {
     g.audio.play('shell', o.x, o.y);
     g.camera.shake(W.shakeOnFire);
 
-    // 3 · RIESGO — dos canales distintos, a propósito.
+    // 3 · RIESGO — tres canales distintos, a propósito.
+    //   ruido      llega lejos y con error: saben por dónde, no dónde
+    //   exposición te vuelven a ver si ya estaban mirando hacia ti
+    //   fogonazo   quien tenga línea de visión te ve, y sabe exactamente dónde
     g.emitSound(o.x, o.y, W.shotLoudness, 'shot');
     o.exposure = clamp(o.exposure + W.shotExposure, 0, 1);
+    g.flashSeen(mx, my);
 
     // Retroceso: empuje real hacia atrás + sacudida del cañón.
     o.vx -= Math.cos(o.aimAngle) * W.recoilImpulse;

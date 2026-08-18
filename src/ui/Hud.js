@@ -115,6 +115,11 @@ export class Hud {
     const s = g.stats;
     const acc = s.shots > 0 ? Math.round((s.hits / s.shots) * 100) : 0;
     ctx.fillText(`${this.#clock(g.time)}   ·   ${s.kills} bajas   ·   ${acc}% acierto`, W / 2, H / 2 + 18);
+    if (g.session.best > 0 && g.session.runs > 1) {
+      ctx.fillStyle = 'rgba(200,225,255,0.35)';
+      ctx.font = FONT;
+      ctx.fillText(`intento ${g.session.runs}   ·   mejor ${this.#clock(g.session.best)}`, W / 2, H / 2 + 78);
+    }
 
     if (g.stateTime > 0.7) {
       const pulse = 0.45 + Math.sin(g.time * 4) * 0.2;

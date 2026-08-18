@@ -59,6 +59,87 @@ export class EnemyAI {
     this.moveX = 0;
     this.moveY = 0;
     this.canSeePlayer = false;
+    this.stuckTimer = 0;
+    this.lastX = this.enemy.x;
+    this.lastY = this.enemy.y;
+  }
+
+  /**
+   * Antiatasco.
+   *
+   * La navegación es dirección + bigotes, sin pathfinding: basta para una
+   * arena de una pantalla, pero tiene un modo de fallo conocido — un recoveco
+   * en el que todas las direcciones tanteadas chocan y el enemigo se queda
+   * empujando una pared indefinidamente. No es un problema de balance, es un
+   * enemigo roto a la vista, y eso arruina una sesión de pruebas entera.
+   *
+   * Si lleva un rato con destino y sin avanzar, se le cambia el destino.
+   */
+  #unstick(dt) {
+    const e = this.enemy;
+    const moved = Math.hypot(e.x - this.lastX, e.y - this.lastY);
+    this.lastX = e.x;
+    this.lastY = e.y;
+
+    if (!this.hasTarget || moved > 0.35) { this.stuckTimer = 0; return; }
+    this.stuckTimer += dt;
+    if (this.stuckTimer < Config.enemy.stuckTime) return;
+
+    this.stuckTimer = 0;
+    const p = this.game.level.randomFloorPoint(rng, e.x, e.y, 320);
+    this.targetX = p.x;
+    this.targetY = p.y;
+    this.repathTimer = rng.range(1.5, 3.0);
+  }
+
+  /**
+   * Ha VISTO el fogonazo.
+   *
+   * Es el cierre del bucle del juego. Hasta aquí, disparar te delataba de
+   * dos formas indirectas: el ruido (que llega con error) y la exposición
+   * (que solo cuenta si el enemigo ya estaba mirando en tu dirección y a
+   * distancia). Pero un fogonazo en un pasillo a oscuras no es una pista
+   * sutil: es la única fuente de luz de la habitación y se ve.
+   *
+   * Requiere línea de visión, y ese requisito es el que crea la textura
+   * táctica: disparar a un muro desde detrás de una esquina hace ruido pero
+   * no te enseña. Disparar a lo que tienes delante, sí.
+   */
+  onMuzzleFlash(x, y) {
+    const E = Config.enemy;
+    const e = this.enemy;
+    const dx = x - e.x, dy = y - e.y;
+    if (Math.hypot(dx, dy) > E.flashSightRange) return false;
+    // Cono generoso: un destello así se pilla de reojo, no hace falta
+    // estarlo mirando de frente. Solo se escapa lo que queda a la espalda.
+    if (Math.abs(angleDelta(e.dir, Math.atan2(dy, dx))) > E.flashFov * 0.5) return false;
+    if (!this.game.level.hasLineOfSight(e.x, e.y, x, y)) return false;
+    this.onAttacked(x, y);
+    return true;
+  }
+
+  /**
+   * Le han DISPARADO. No es un ruido lejano: sabe exactamente de dónde vino
+   * y responde de inmediato.
+   *
+   * Medido con tools/playtest.mjs: cuando recibir un tiro solo lo pasaba a
+   * SUSPICIOUS, el enemigo caminaba hacia ti mientras lo rematabas y el bot
+   * despejó el nivel veinte veces seguidas sin recibir un impacto. Un enemigo
+   * que no puede devolverte el golpe deja el "riesgo" del disparo en teoría.
+   */
+  onAttacked(x, y) {
+    this.lastKnownX = x;
+    this.lastKnownY = y;
+    this.hasLastKnown = true;
+    this.targetX = x;
+    this.targetY = y;
+    this.hasTarget = true;
+    this.loseTimer = 0;
+    if (this.state !== State.ALERT) {
+      this.#setState(State.ALERT);
+      // Ya estaba avisado: no le regalamos otra vez el tiempo de reacción.
+      this.attackTimer = Math.min(this.attackTimer, Config.enemy.attackWindup);
+    }
   }
 
   /** Un ruido llegó hasta aquí. `error` ya viene aplicado por Game. */
@@ -82,6 +163,7 @@ export class EnemyAI {
 
     this.stateTime += dt;
     this.attackTimer = Math.max(0, this.attackTimer - dt);
+    this.#unstick(dt);
 
     this.canSeePlayer = this.#perceive(player);
 

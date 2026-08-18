@@ -29,6 +29,7 @@ navegador con los controles táctiles.
 npm run build        # → dist/last-light.html, un solo archivo autocontenido
 npm run check        # prueba de humo en un navegador real
 npm run check -- --shots   # …y deja capturas en dist/shots/
+npm run playtest     # un bot juega 12 intentos y devuelve números de balance
 ```
 
 `dist/last-light.html` no necesita servidor: se abre con doble clic, se manda
@@ -63,7 +64,7 @@ del código para poder ajustarlas por separado:
 | --- | --- | --- |
 | **ATAQUE** | mata | `entities/Projectiles.js` |
 | **VISIÓN** | fogonazo → trayectoria → impacto | `systems/Lighting.js` |
-| **RIESGO** | te delata por sonido **y** por luz | `Game.emitSound()` + `player.exposure` |
+| **RIESGO** | te delata por sonido, por luz **y** por el fogonazo | `Game.emitSound()` · `player.exposure` · `Game.flashSeen()` |
 
 El riesgo va por dos canales a propósito:
 
@@ -75,7 +76,13 @@ El riesgo va por dos canales a propósito:
 - **`player.exposure`** — el fogonazo te ilumina, y el alcance visual del
   enemigo se interpola entre `visionRangeDark` y `visionRange` según cuánto
   brillas. La IA no pregunta "¿ha disparado?", pregunta "¿cuánto brilla?".
-  Cualquier fuente de luz futura te delatará gratis sin tocar la IA.
+  Por eso quedarse quieto bajo una luz de emergencia te delata igual que un
+  disparo: las lámparas del nivel son terreno que se cruza, no donde se está.
+- **`flashSeen()`** — cualquier enemigo con **línea de visión** al fogonazo te
+  ve, y sabe exactamente dónde estás. Un destello en un pasillo a oscuras no
+  es una pista sutil. De este requisito sale la textura táctica del juego:
+  disparar a un muro desde detrás de una esquina hace ruido pero no te
+  enseña; disparar a lo que tienes delante, sí.
 
 ---
 
@@ -161,6 +168,35 @@ aparición. Cambiar el nivel es editar texto.
 
 ## Balancear
 
+### Con datos: `npm run playtest`
+
+Un bot deliberadamente torpe —no esquiva, no ahorra balas, no usa la
+oscuridad— juega la arena entera N veces simulando **solo la lógica**, sin
+dibujar: un intento de tres minutos tarda un segundo. Es el suelo de
+habilidad: si el bot termina, un humano termina; si el bot se queda seco, un
+humano también.
+
+Un bot no puede decir si el juego es divertido. Sí detecta lo que impediría
+responder a esa pregunta, y ya ha cambiado cuatro decisiones de diseño:
+
+| Lo que midió | Lo que cambió |
+| --- | --- |
+| el bot terminaba con **44 balas de sobra** y sin quedarse seco jamás | cargador 8→6, reserva 40→12, cajas de 9→6 balas. Ahora hay que buscar munición a oscuras para poder seguir viendo. |
+| **cero muertes en 30 intentos**, con el enemigo muriendo antes de completar su aviso previo | cadencia del arma 0,155 s → **0,34 s**. Es el cambio grande: a 6,5 disparos/segundo la habitación quedaba permanentemente iluminada y la oscuridad dejaba de existir. |
+| recibir un tiro solo pasaba al enemigo a `SUSPICIOUS`: caminaba hacia ti mientras lo rematabas | `onAttacked()` → `ALERT` inmediato, sabiendo de dónde vino |
+| el enemigo estaba **a tiro 27 s por intento pero solo te veía 1 s** | ver el fogonazo pasó a ser percepción directa (`flashSeen`), y las lámparas del nivel ahora también te exponen |
+
+Estado actual (14 intentos): **14 despejados, 0 tiempos muertos, 102 s de
+media, 0,9 de 3 puntos de vida perdidos**. La duración cae en el objetivo de
+1-3 min y la munición aprieta sin ahogar.
+
+**Lo que el bot no puede juzgar y hay que mirar jugando:** el bot apunta
+perfecto y sabe dónde está cada enemigo sin verlo, así que subestima el
+peligro por definición. Si al jugar el enemigo resulta inofensivo, la perilla
+es `enemy.attackWindup` y `enemy.health`, en ese orden.
+
+### A ojo: `F2`
+
 `F2` abre un panel de deslizadores sobre `Config` en vivo. El botón **copiar**
 vuelca los valores actuales a la consola y al portapapeles, listos para pegar
 en `Config.js` sin transcribir nada a mano.
@@ -172,6 +208,7 @@ Las perillas que más cambian el juego, por orden:
 | `world.ambient` | subirlo hace el juego legible **y le quita la tensión**. Primera perilla a probar. |
 | `weapon.infiniteAmmo` | ponlo a `true` y verás cómo la oscuridad deja de importar: sin coste, disparar para ver degenera en mantener el gatillo. |
 | `memory.halfLife` | cuánto dura el recuerdo. Con 0.1 vas a ciegas; con 3 el escenario deja de dar miedo. |
+| `weapon.fireInterval` | la perilla que sostiene la tesis. Bájala a 0.15 y verás la habitación permanentemente iluminada: el juego deja de ir de la oscuridad. |
 | `enemy.hearingRange` | a 620 un disparo no cruzaba una sala y el riesgo no existía. A 900 empieza a doler. |
 | `enemy.visionRangeDark` | cuánto te ven estando a oscuras. Es el suelo de tu invisibilidad. |
 | `lighting.maskScale` | LA perilla de rendimiento. 0.6 equilibrado, 0.4 salva un móvil viejo. |

@@ -65,7 +65,13 @@ export class Game {
     // optimizar a ciegas es cómo se pierden tardes enteras.
     this.perf = { update: 0, static: 0, light: 0, compose: 0, entities: 0 };
 
-    this.stats = { shots: 0, hits: 0, kills: 0, runs: 1, best: 0 };
+    // Del INTENTO: se reinician con cada partida, son lo que muestra el
+    // marcador al morir. Antes eran acumuladas y el marcador iba sumando
+    // bajas de intentos anteriores — números sin sentido justo en el momento
+    // en el que el jugador decide si repite.
+    this.stats = { shots: 0, hits: 0, kills: 0 };
+    // De la SESIÓN: sobreviven al reinicio.
+    this.session = { runs: 1, best: 0, totalKills: 0 };
     this.reset(true);
   }
 
@@ -85,16 +91,22 @@ export class Game {
     this.enemies.length = 0;
     for (const s of this.level.enemySpawns) this.enemies.push(new Enemy(this, s.x, s.y));
 
+    // Un cargador por caja, ni uno más: la munición se encuentra explorando
+    // a oscuras, y explorar a oscuras cuesta balas. Ese es el bucle.
     this.pickups = this.level.ammoSpawns.map((s) => ({
-      x: s.x, y: s.y, taken: false, amount: Math.ceil(Config.weapon.magSize * 1.5),
+      x: s.x, y: s.y, taken: false, amount: Config.weapon.magSize,
     }));
 
     this.lamps = this.level.lampSpawns.map((s, i) => ({
       x: s.x, y: s.y, flicker: 1, phase: rng.range(0, TAU), rate: rng.range(0.7, 2.1),
     }));
 
+    this.stats.shots = 0;
+    this.stats.hits = 0;
+    this.stats.kills = 0;
+
     this.camera.snapTo(this.player.x, this.player.y);
-    if (!hard) this.stats.runs++;
+    if (!hard) this.session.runs++;
   }
 
   /* ───────────────────────── ciclo principal ───────────────────────── */
@@ -185,17 +197,60 @@ export class Game {
     }
   }
 
+  /**
+   * Cuánta luz baña un punto del mundo, 0..1.
+   *
+   * Existe para que `player.exposure` signifique de verdad "cuánto brillas",
+   * y no solo "acabas de disparar". Con esto, quedarse quieto bajo una luz de
+   * emergencia te delata igual que un fogonazo: la luz deja de ser solo una
+   * herramienta y pasa a ser también terreno peligroso. Las lámparas del
+   * nivel se vuelven sitios que hay que cruzar, no sitios donde estar.
+   *
+   * Solo mira lámparas y destellos: las luces diminutas (el aura del jugador,
+   * el brillo de un enemigo) no deberían delatar a nadie.
+   */
+  lightAt(x, y) {
+    let total = 0;
+    const consider = (lx, ly, radius, intensity) => {
+      if (radius < 90 || intensity <= 0.05) return;
+      const d = Math.hypot(lx - x, ly - y);
+      if (d > radius) return;
+      const falloff = 1 - d / radius;
+      if (!this.level.hasLineOfSight(lx, ly, x, y)) return;
+      total += intensity * falloff * falloff;
+    };
+    for (const l of this.lamps) consider(l.x, l.y, 190 * l.flicker, 0.62 * l.flicker);
+    for (const l of this.lighting.timedLights) {
+      consider(l.x, l.y, l.radius, l.intensity * (l.life / l.maxLife));
+    }
+    return clamp(total, 0, 1);
+  }
+
+  /**
+   * Un fogonazo acaba de ocurrir en (x, y). Los enemigos con línea de visión
+   * lo ven. Es la contrapartida directa de "disparar te permite ver".
+   */
+  flashSeen(x, y) {
+    let seen = 0;
+    for (const e of this.enemies) {
+      if (e.alive && e.ai.onMuzzleFlash(x, y)) seen++;
+    }
+    return seen;
+  }
+
   /* ──────────────────────────── enganches ──────────────────────────── */
 
   hitStop(ms) { this.freeze = Math.max(this.freeze, ms / 1000); }
 
   onEnemyKilled() {
     this.stats.kills++;
-    this.stats.hits++;
+    this.session.totalKills++;
     if (this.enemies.every((e) => !e.alive) && this.state === 'playing') {
       this.state = 'cleared';
       this.stateTime = 0;
-      this.stats.best = Math.max(this.stats.best, this.time);
+      this.session.best = this.session.best > 0
+        ? Math.min(this.session.best, this.time)
+        : this.time;
     }
   }
 
@@ -223,7 +278,7 @@ export class Game {
     for (const it of this.pickups) {
       if (it.taken) continue;
       if (Math.hypot(it.x - p.x, it.y - p.y) > Config.player.radius + 16) continue;
-      if (p.weapon.reserve >= Config.weapon.reserveAmmo * 2) continue;  // ya va lleno
+      if (p.weapon.reserve >= Config.weapon.reserveAmmo * 3) continue;  // ya va lleno
       it.taken = true;
       p.weapon.reserve += it.amount;
       this.audio.play('pickup', it.x, it.y);
