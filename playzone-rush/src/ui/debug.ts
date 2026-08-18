@@ -18,6 +18,7 @@ import {
   setChaosEnabled,
 } from '../meta/secret';
 import { buildLeaderboard } from '../meta/ranking';
+import { formatPercent } from '../meta/telemetry';
 import type { App } from './app';
 import { button, el } from './dom';
 
@@ -27,13 +28,15 @@ export function mountDebug(app: App): void {
   panel.mount();
 }
 
-type TabId = 'dia' | 'intentos' | 'rivales' | 'juegos' | 'estado';
+type TabId = 'dia' | 'intentos' | 'rivales' | 'juegos' | 'grupo' | 'metricas' | 'estado';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'dia', label: 'DIA' },
   { id: 'intentos', label: 'INTENTOS' },
   { id: 'rivales', label: 'RIVALES' },
   { id: 'juegos', label: 'JUEGOS' },
+  { id: 'grupo', label: 'GRUPO' },
+  { id: 'metricas', label: 'METRICAS' },
   { id: 'estado', label: 'ESTADO' },
 ];
 
@@ -136,6 +139,12 @@ class DebugPanel {
         break;
       case 'juegos':
         body.append(this.groupLaunch(), this.groupMutators());
+        break;
+      case 'grupo':
+        body.append(this.groupNetwork());
+        break;
+      case 'metricas':
+        body.append(this.groupMetrics());
         break;
       case 'estado':
         body.append(this.groupState(), this.groupSave());
@@ -359,6 +368,160 @@ class DebugPanel {
     });
     app.refresh();
     this.refresh();
+  }
+
+  /** Conexion, grupo y el interruptor para volver a los bots simulados. */
+  private groupNetwork(): HTMLElement {
+    const app = this.app;
+    const snapshot = app.snapshot;
+    const account = app.save.get().account;
+
+    const rows: HTMLElement[] = [
+      el('div', { class: 'dbg-kv' }, [
+        el('b', { text: 'modo' }),
+        el('span', { text: `${account.mode}${app.forceBots ? ' (bots forzados)' : ''}` }),
+        el('b', { text: 'red' }),
+        el('span', { text: `${app.netStatus} · ${app.sync.pendingCount} en cola` }),
+        el('b', { text: 'grupo' }),
+        el('span', { text: account.groupCode ?? '—' }),
+        el('b', { text: 'jugador' }),
+        el('span', { text: account.playerId?.slice(0, 8) ?? '—' }),
+        el('b', { text: 'dia servidor' }),
+        el('span', { text: snapshot?.day ?? '—' }),
+        el('b', { text: 'miembros' }),
+        el('span', {
+          text: snapshot
+            ? snapshot.members
+                .map((m) => `${m.name}${m.online ? '*' : ''}${m.completedDaily ? '✓' : ''}`)
+                .join(' ')
+            : '—',
+        }),
+        el('b', { text: 'secreto' }),
+        el('span', {
+          text: snapshot
+            ? `${snapshot.secret.readyCount}/${snapshot.secret.activeCount} activos${
+                snapshot.secret.unlocked ? ' · ABIERTO' : ''
+              }`
+            : '—',
+        }),
+      ]),
+    ];
+
+    return el('div', { class: 'dbg-group' }, [
+      el('div', { class: 'dbg-group__title', text: 'GRUPO Y CONEXION' }),
+      ...rows,
+      el('div', { class: 'dbg-row', style: { marginTop: '6px' } }, [
+        button(app.forceBots ? 'RIVALES SIMULADOS ✓' : 'USAR RIVALES SIMULADOS', `dbg-btn${app.forceBots ? ' is-on' : ''}`, () => {
+          app.forceBots = !app.forceBots;
+          app.refresh();
+          this.refresh();
+        }),
+        button('FORZAR SYNC', 'dbg-btn', () => {
+          void app.sync.refresh();
+          void app.sync.flush();
+          this.refresh();
+        }),
+        button('SALIR DEL GRUPO', 'dbg-btn dbg-btn--danger', () => {
+          app.leaveGroup();
+          this.togglePanel();
+        }),
+      ]),
+    ]);
+  }
+
+  /** La pestana que dice si esto engancha o no. */
+  private groupMetrics(): HTMLElement {
+    const app = this.app;
+    const metrics = app.telemetry.metrics();
+    const pct = (value: number | null) => formatPercent(value);
+
+    const kv = el('div', { class: 'dbg-kv' }, [
+      el('b', { text: 'REVENGE RATE' }),
+      el('span', {
+        text: `${pct(metrics.revengeRate)}  (${metrics.revengeClicked}/${metrics.revengeAvailable})`,
+      }),
+      el('b', { text: 'sesiones' }),
+      el('span', { text: String(metrics.sessions) }),
+      el('b', { text: 'partidas' }),
+      el('span', {
+        text: `${metrics.gamesStarted} iniciadas · ${metrics.gamesFinished} terminadas · ${metrics.gamesAbandoned} abandonadas`,
+      }),
+      el('b', { text: 'intentos' }),
+      el('span', {
+        text: `${metrics.attemptsUsed}/${metrics.attemptsAvailable} (${pct(metrics.attemptUtilization)})`,
+      }),
+      el('b', { text: 'dias completos' }),
+      el('span', {
+        text: `${metrics.daysCompleted}/${metrics.daysPlayed} (${pct(metrics.dailyCompletion)})`,
+      }),
+      el('b', { text: 'mejoras' }),
+      el('span', { text: String(metrics.scoreImproved) }),
+      el('b', { text: 'adelantamientos' }),
+      el('span', {
+        text: `${metrics.rivalsOvertaken} a favor · ${metrics.timesOvertaken} en contra`,
+      }),
+      el('b', { text: 'vuelta al dia sig.' }),
+      el('span', { text: `${metrics.nextDayReturns} (${pct(metrics.nextDayReturnRate)})` }),
+      el('b', { text: 'reaccion social' }),
+      el('span', {
+        text:
+          metrics.socialReactionMs === null
+            ? '—'
+            : `${(metrics.socialReactionMs / 1000).toFixed(1)} s hasta volver a jugar`,
+      }),
+      el('b', { text: 'secreto' }),
+      el('span', { text: String(metrics.secretUnlocks) }),
+    ]);
+
+    const buckets = el('div', { class: 'dbg-kv', style: { marginTop: '6px' } }, [
+      el('b', { text: 'por diferencia' }),
+      el('span', { text: 'revancha ofrecida -> pulsada' }),
+      ...metrics.lossBuckets.flatMap((bucket) => [
+        el('b', { text: bucket.id }),
+        el('span', { text: `${bucket.clicked}/${bucket.available} (${pct(bucket.rate)})` }),
+      ]),
+    ]);
+
+    const recent = el(
+      'div',
+      { class: 'dbg-kv', style: { marginTop: '6px' } },
+      metrics.recent.slice(0, 12).flatMap((event) => [
+        el('b', { text: new Date(event.ts).toLocaleTimeString('es-ES') }),
+        el('span', {
+          text: `${event.type}${event.gameId ? ` · ${event.gameId}` : ''}${
+            event.value !== null && event.value !== undefined ? ` · ${event.value}` : ''
+          }`,
+        }),
+      ]),
+    );
+
+    return el('div', { class: 'dbg-group' }, [
+      el('div', { class: 'dbg-group__title', text: 'METRICAS DE PRODUCTO' }),
+      kv,
+      buckets,
+      el('div', { class: 'dbg-group__title', style: { marginTop: '8px' }, text: 'ULTIMOS EVENTOS' }),
+      recent,
+      el('div', { class: 'dbg-row', style: { marginTop: '8px' } }, [
+        button('EXPORTAR JSON', 'dbg-btn', async () => {
+          const json = app.telemetry.exportJson();
+          console.log(json);
+          try {
+            await navigator.clipboard.writeText(json);
+            app.toaster.show('METRICAS COPIADAS AL PORTAPAPELES', 'good', 2200);
+          } catch {
+            app.toaster.show('METRICAS VOLCADAS EN CONSOLA', 'neutral', 2200);
+          }
+        }),
+        button('ENVIAR AL SERVIDOR', 'dbg-btn', () => {
+          void app.telemetry.flush();
+          app.toaster.show('TELEMETRIA ENVIADA', 'neutral', 1800);
+        }),
+        button('BORRAR METRICAS', 'dbg-btn dbg-btn--danger', () => {
+          app.telemetry.clear();
+          this.refresh();
+        }),
+      ]),
+    ]);
   }
 
   private groupState(): HTMLElement {
