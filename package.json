@@ -1,0 +1,15 @@
+{
+  "name": "one-more-floor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ONE MORE FLOOR — vertical one-finger arcade prototype. Zero dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "dev": "node tools/serve.mjs",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
