@@ -33,7 +33,8 @@ class Laser extends Entity {
     this.t = this.def.t0 ?? 0;
   }
 
-  update(dt) {
+  update(dt, ctx) {
+    const prev = this.phase;
     this.t = (this.t + dt) % this.cycle;
     if (this.t < this.offTime) {
       this.phase = 'off';
@@ -46,6 +47,7 @@ class Laser extends Entity {
       this.k = (this.t - this.offTime - this.charge) / this.onTime;
     }
     this.hazards[0].active = this.phase === 'on';
+    if (prev !== 'on' && this.phase === 'on') ctx?.sfx?.('laser');
   }
 
   draw(gfx) {

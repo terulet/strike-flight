@@ -30,7 +30,8 @@ class Fire extends Entity {
 
   reset() { this.t = this.def.t0 ?? 0; }
 
-  update(dt) {
+  update(dt, ctx) {
+    const prev = this.phase;
     this.t = (this.t + dt) % this.cycle;
     if (this.t < this.idleTime) {
       this.phase = 'idle';
@@ -47,6 +48,7 @@ class Fire extends Entity {
       const shape = this.k < 0.18 ? this.k / 0.18 : 1 - clamp((this.k - 0.72) / 0.28, 0, 1);
       this.height = this.len * clamp(shape, 0, 1);
     }
+    if (prev !== 'burn' && this.phase === 'burn') ctx?.sfx?.('fire');
     const hz = this.hazards[0];
     const active = this.phase === 'burn' && this.height > 8;
     hz.active = active;
