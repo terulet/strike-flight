@@ -1,0 +1,89 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(255, 47, 109, 0.18), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, rgba(34, 211, 238, 0.1), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  /* Nada de zoom accidental ni scroll de rebote mientras se juega. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.is-playing {
+  touch-action: none;
+  overflow: hidden;
+}
+
+#app {
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
