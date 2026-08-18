@@ -1,0 +1,18 @@
+{
+  "name": "PLAYZONE RUSH",
+  "short_name": "PLAYZONE",
+  "description": "Reto diario de microjuegos. Juega, supera a tus amigos, revancha.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07070d",
+  "theme_color": "#07070d",
+  "lang": "es",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -163,4 +163,45 @@ describe('servidor http', () => {
     expect(row.plays).toBe(1);
     expect(row.attemptsUsed).toBe(1);
   });
+
+  it('acepta un error de cliente sin credencial (antes de tener grupo)', async () => {
+    const response = await post('/api/errors', { message: 'fallo en el onboarding', url: '/onboarding' });
+    expect(response.status).toBe(202);
+    expect((await response.json()).ok).toBe(true);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.source).toBe('client');
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('fallo en el onboarding');
+  });
+
+  it('atribuye el error de cliente al jugador cuando llega con Bearer token', async () => {
+    const eloi = await createPlayer('Eloi');
+    await post('/api/errors', { message: 'algo raro en portada' }, eloi.token);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBe(eloi.player.id);
+  });
+
+  it('tambien atribuye el error si el token llega por query string (asi lo manda sendBeacon)', async () => {
+    const eloi = await createPlayer('Eloi');
+    const response = await fetch(`${base}/api/errors?token=${encodeURIComponent(eloi.token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'via beacon' }),
+    });
+    expect(response.status).toBe(202);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBe(eloi.player.id);
+    expect(row.message).toBe('via beacon');
+  });
+
+  it('un token invalido en /api/errors no revienta: se guarda como anonimo', async () => {
+    const response = await post('/api/errors', { message: 'token basura' }, 'esto-no-es-un-token-valido');
+    expect(response.status).toBe(202);
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('token basura');
+  });
 });

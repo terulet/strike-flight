@@ -325,6 +325,76 @@ export function createApi(store, options = {}) {
     return { ok: true, stored };
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Errores                                                             */
+  /* ------------------------------------------------------------------ */
+
+  const MAX_MESSAGE = 500;
+  const MAX_STACK = 4000;
+  const MAX_META = 1000;
+
+  /**
+   * A diferencia de assertString, esto trunca en vez de rechazar: un informe
+   * de error no puede perderse solo porque el mensaje o la traza eran
+   * demasiado largos (una traza de verdad, sin minificar, puede serlo).
+   */
+  function clip(value, max) {
+    return typeof value === 'string' && value.length > 0 ? value.slice(0, max) : null;
+  }
+
+  /**
+   * Registra un error del cliente. Funciona CON o SIN sesion: un fallo en el
+   * onboarding, antes de tener grupo, tiene que poder contarse igual que uno
+   * a mitad de partida.
+   */
+  function recordClientError(player, body) {
+    if (!body || typeof body !== 'object') throw new ApiError(400, 'invalid_body', 'Cuerpo invalido');
+    const message = clip(body.message, MAX_MESSAGE) ?? 'error sin mensaje';
+    const stack = clip(body.stack, MAX_STACK);
+    const url = clip(body.url, 300);
+    const metaJson = body.meta ? JSON.stringify(body.meta).slice(0, MAX_META) : null;
+
+    store.insertError.run(
+      now(),
+      'client',
+      player?.group_id ?? null,
+      player?.id ?? null,
+      message,
+      stack,
+      url,
+      metaJson,
+    );
+    return { ok: true };
+  }
+
+  /** Lo llama el propio proceso Node ante una excepcion no capturada. */
+  function recordServerError(source, error) {
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, MAX_MESSAGE);
+    const stack = error instanceof Error && error.stack ? error.stack.slice(0, MAX_STACK) : null;
+    try {
+      store.insertError.run(now(), 'server', null, null, message, stack, null, JSON.stringify({ source }));
+    } catch {
+      /* si ni siquiera se puede escribir el error, ya esta en la consola */
+    }
+  }
+
+  /** Ultimos errores + resumen para el dashboard de solo lectura. */
+  function errorSummary(limit = 100) {
+    const since24h = now() - 24 * 3600_000;
+    const since7d = now() - 7 * 24 * 3600_000;
+    return {
+      last24h: store.countErrorsSince.get(since24h).n,
+      last7d: store.countErrorsSince.get(since7d).n,
+      recent: store.recentErrors.all(limit).map((row) => ({
+        ts: row.ts,
+        source: row.source,
+        message: row.message,
+        url: row.url,
+        playerId: row.player_id,
+      })),
+    };
+  }
+
   function groupStats(player, limit = 50) {
     const counts = {};
     for (const row of store.countEventsByType.all(player.group_id)) counts[row.type] = row.n;
@@ -356,6 +426,9 @@ export function createApi(store, options = {}) {
     getGhost,
     rename,
     recordEvents,
+    recordClientError,
+    recordServerError,
+    errorSummary,
     groupStats,
     touch,
   };

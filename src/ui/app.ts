@@ -31,6 +31,7 @@ import { buildGameConfig } from '../meta/session';
 import { Telemetry } from '../meta/telemetry';
 import { SyncEngine, type NetStatus } from '../net/sync';
 import type { GroupSnapshot } from '../net/types';
+import { watchForUpdate } from '../core/updateWatcher';
 import { renderHome } from './home';
 import { renderOnboarding } from './onboarding';
 import { PlayScreen } from './play';
@@ -55,6 +56,8 @@ export class App {
   forceBots = false;
   /** Adelantamiento pendiente de contestar (alimenta el boton de REVANCHA). */
   pendingOvertake: OvertakeEvent | null = null;
+  /** Hay una build nueva en el servidor. Se ensena en portada, nunca a mitad de partida. */
+  updateAvailable = false;
 
   private shell: HTMLElement;
   private play: PlayScreen | null = null;
@@ -194,6 +197,11 @@ export class App {
       this.telemetry.track('sync_dropped', { gameId: pending.gameId, meta: { reason } });
       this.toaster.show(`NO SE PUDO SUBIR UNA MARCA (${reason})`, 'bad', 3200);
     });
+    // Funciona en solo y en grupo: una build nueva no depende de tener sesion.
+    watchForUpdate(() => {
+      this.updateAvailable = true;
+      if (this.screen === 'home' && !this.play) this.renderHome();
+    });
 
     if (this.mode === 'none') {
       this.renderOnboarding();
@@ -237,6 +245,12 @@ export class App {
 
   private notify(): void {
     for (const fn of this.onChangeListeners) fn();
+  }
+
+  /** El service worker ya sirve la build nueva: recargar es todo lo que hace falta. */
+  applyUpdate(): void {
+    this.telemetry.track('app_update_applied');
+    location.reload();
   }
 
   /* ---------------- grupo ---------------- */

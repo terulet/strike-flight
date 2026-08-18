@@ -26,7 +26,8 @@ export type EventType =
   | 'player_was_overtaken'
   | 'daily_all_games_completed'
   | 'secret_unlocked'
-  | 'sync_dropped';
+  | 'sync_dropped'
+  | 'app_update_applied';
 
 export interface TrackOptions {
   gameId?: string | null;

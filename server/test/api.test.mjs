@@ -351,3 +351,88 @@ describe('telemetria', () => {
     expect(stats.recent.length).toBeGreaterThan(0);
   });
 });
+
+describe('errores', () => {
+  it('registra un error de cliente con sesion, atribuido a su grupo y jugador', () => {
+    const created = api.createGroup({ name: 'Eloi' });
+    const eloi = store.playerById.get(created.player.id);
+    const result = api.recordClientError(eloi, {
+      message: 'TypeError: x is not a function',
+      stack: 'at renderHome (home.ts:42)',
+      url: 'https://playzone.example/?debug',
+      meta: { build: 'abc1234' },
+    });
+    expect(result.ok).toBe(true);
+
+    const row = store.recentErrors.all(10)[0];
+    expect(row.source).toBe('client');
+    expect(row.group_id).toBe(eloi.group_id);
+    expect(row.player_id).toBe(eloi.id);
+    expect(row.message).toBe('TypeError: x is not a function');
+    expect(JSON.parse(row.meta).build).toBe('abc1234');
+  });
+
+  it('registra un error de cliente SIN sesion (antes de crear u unirse a un grupo)', () => {
+    const result = api.recordClientError(null, { message: 'fallo en el onboarding' });
+    expect(result.ok).toBe(true);
+
+    const row = store.recentErrors.all(10)[0];
+    expect(row.source).toBe('client');
+    expect(row.group_id).toBeNull();
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('fallo en el onboarding');
+  });
+
+  it('pone un mensaje por defecto si no llega ninguno, pero no revienta', () => {
+    const result = api.recordClientError(null, {});
+    expect(result.ok).toBe(true);
+    expect(store.recentErrors.all(1)[0].message).toBe('error sin mensaje');
+  });
+
+  it('rechaza un cuerpo que no es un objeto', () => {
+    expectError(() => api.recordClientError(null, null), 'invalid_body');
+    expectError(() => api.recordClientError(null, 'no soy un objeto'), 'invalid_body');
+  });
+
+  it('trunca mensaje y stack demasiado largos en vez de guardarlos enteros', () => {
+    api.recordClientError(null, { message: 'x'.repeat(5000), stack: 'y'.repeat(20_000) });
+    const row = store.recentErrors.all(1)[0];
+    expect(row.message.length).toBeLessThanOrEqual(500);
+    expect(row.stack.length).toBeLessThanOrEqual(4000);
+  });
+
+  it('registra un error de servidor sin grupo ni jugador, con la fuente en meta', () => {
+    api.recordServerError('uncaughtException', new Error('el proceso ha reventado'));
+    const row = store.recentErrors.all(1)[0];
+    expect(row.source).toBe('server');
+    expect(row.group_id).toBeNull();
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('el proceso ha reventado');
+    expect(row.stack).toContain('Error: el proceso ha reventado');
+    expect(JSON.parse(row.meta).source).toBe('uncaughtException');
+  });
+
+  it('recordServerError no revienta si le pasan algo que no es un Error', () => {
+    expect(() => api.recordServerError('unhandledRejection', 'motivo en texto plano')).not.toThrow();
+    const row = store.recentErrors.all(1)[0];
+    expect(row.message).toBe('motivo en texto plano');
+    expect(row.stack).toBeNull();
+  });
+
+  it('errorSummary cuenta por ventana de tiempo y trae los mas recientes primero', () => {
+    const DAY = 24 * 3600 * 1000;
+    api.recordServerError('viejo', new Error('hace diez dias')); // t0: dentro de 10 dias
+    clock += 7 * DAY; // t0 + 7d = "hace tres dias" visto desde el final
+    api.recordServerError('medio', new Error('hace tres dias'));
+    clock += 3 * DAY; // t0 + 10d = "ahora"
+    api.recordClientError(null, { message: 'reciente', url: '/hoy' });
+
+    const summary = api.errorSummary(10);
+    expect(summary.last24h).toBe(1); // solo "reciente": "medio" quedo a 3 dias, fuera de 24h
+    expect(summary.last7d).toBe(2); // "reciente" + "medio" (3d); "viejo" (10d) se queda fuera
+    expect(summary.recent).toHaveLength(3);
+    expect(summary.recent[0].message).toBe('reciente');
+    expect(summary.recent[0].url).toBe('/hoy');
+    expect(summary.recent[2].message).toBe('hace diez dias');
+  });
+});

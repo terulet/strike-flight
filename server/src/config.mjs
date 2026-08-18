@@ -7,6 +7,12 @@ export const config = {
   port: Number.parseInt(process.env.PLAYZONE_PORT ?? '8787', 10),
   host: process.env.PLAYZONE_HOST ?? '0.0.0.0',
   dbPath: process.env.PLAYZONE_DB ?? new URL('../data/playzone.db', import.meta.url).pathname,
+  /** Carpeta de la build del frontend. Si no existe, el servidor solo sirve /api (modo dev). */
+  distDir: process.env.PLAYZONE_DIST ?? new URL('../../dist', import.meta.url).pathname,
+  /** Carpeta de copias de seguridad del SQLite. */
+  backupDir: process.env.PLAYZONE_BACKUP_DIR ?? new URL('../data/backups', import.meta.url).pathname,
+  backupIntervalMs: Number.parseInt(process.env.PLAYZONE_BACKUP_INTERVAL_MS ?? String(6 * 3600_000), 10),
+  backupKeep: Number.parseInt(process.env.PLAYZONE_BACKUP_KEEP ?? '28', 10),
   /** Zona horaria del dia competitivo. El dia lo decide el servidor, no el movil. */
   timezone: process.env.PLAYZONE_TZ ?? 'Europe/Madrid',
   maxPlayersPerGroup: Number.parseInt(process.env.PLAYZONE_MAX_PLAYERS ?? '8', 10),

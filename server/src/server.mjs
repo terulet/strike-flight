@@ -6,7 +6,11 @@ import { createServer } from 'node:http';
 import { config } from './config.mjs';
 import { createStore, openDatabase } from './db.mjs';
 import { createApi } from './api.mjs';
+import { createDashboard } from './dashboard.mjs';
 import { createHub } from './sse.mjs';
+import { createStaticServer } from './static.mjs';
+import { startBackupSchedule } from './backup.mjs';
+import { computeBuildId } from './version.mjs';
 import { ApiError } from './validate.mjs';
 
 export function createPlayzoneServer(options = {}) {
@@ -18,6 +22,19 @@ export function createPlayzoneServer(options = {}) {
     timezone: options.timezone,
     publish: (groupId, snapshot) => hub.publish(groupId, snapshot),
   });
+
+  // Solo lectura: no comparte el store con la API, prepara sus propios SELECT.
+  const dashboard = createDashboard(db);
+
+  const buildId = options.buildId ?? computeBuildId();
+  const serveStatic = createStaticServer(options.distDir ?? config.distDir);
+  const backup = options.disableBackups
+    ? null
+    : startBackupSchedule(db, {
+        dir: options.backupDir ?? config.backupDir,
+        intervalMs: options.backupIntervalMs ?? config.backupIntervalMs,
+        keep: options.backupKeep ?? config.backupKeep,
+      });
 
   const buckets = new Map();
   function rateLimited(key) {
@@ -47,7 +64,19 @@ export function createPlayzoneServer(options = {}) {
     }
 
     if (path === '/api/health') {
-      return sendJson(res, 200, { ok: true, day: api.serverDay(), streams: hub.size });
+      return sendJson(res, 200, {
+        ok: true,
+        day: api.serverDay(),
+        streams: hub.size,
+        buildId,
+        lastBackup: backup?.last() ?? null,
+      });
+    }
+
+    // Todo lo que no es /api es el frontend. Si no hay build (modo dev, dos
+    // procesos), esto no encuentra nada y sigue hacia las rutas de la API.
+    if (!path.startsWith('/api/') && serveStatic && (await serveStatic(req, res, path))) {
+      return undefined;
     }
 
     const ip = req.socket.remoteAddress ?? 'desconocida';
@@ -63,6 +92,20 @@ export function createPlayzoneServer(options = {}) {
     if (req.method === 'POST' && path === '/api/groups/join') {
       const body = await readJson(req, res);
       return sendJson(res, 200, api.joinGroup(body));
+    }
+
+    // /api/errors es la unica ruta que funciona sin sesion: un fallo en el
+    // onboarding, antes de tener grupo, tiene que poder contarse igual.
+    if (req.method === 'POST' && path === '/api/errors') {
+      const token = bearer(req) ?? url.searchParams.get('token');
+      let anonymous = null;
+      try {
+        anonymous = token ? api.authenticate(token) : null;
+      } catch {
+        anonymous = null;
+      }
+      const body = await readJson(req, res);
+      return sendJson(res, 202, api.recordClientError(anonymous, body));
     }
 
     // --- a partir de aqui hace falta credencial ---
@@ -93,6 +136,15 @@ export function createPlayzoneServer(options = {}) {
     }
     if (req.method === 'GET' && path === '/api/stats') {
       return sendJson(res, 200, api.groupStats(player));
+    }
+    // Metricas agregadas de la semana. Solo lectura y solo del propio grupo:
+    // no hay forma de tocar un resultado desde aqui ni de ver otro grupo.
+    if (req.method === 'GET' && path === '/api/dashboard') {
+      return sendJson(res, 200, {
+        buildId,
+        metrics: dashboard.metrics(player.group_id, api.serverDay()),
+        errors: api.errorSummary(30),
+      });
     }
     if (req.method === 'GET' && path === '/api/stream') {
       res.writeHead(200, {
@@ -184,8 +236,13 @@ export function createPlayzoneServer(options = {}) {
         server.listen(port, host, () => resolve(server.address()));
       });
     },
+    buildId,
+    logServerError(source, error) {
+      api.recordServerError(source, error);
+    },
     close() {
       hub.close();
+      backup?.stop();
       return new Promise((resolve) => server.close(() => resolve()));
     },
   };
