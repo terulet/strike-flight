@@ -276,6 +276,7 @@ export class App {
    * cambiado y se mira si alguien me ha pasado.
    */
   private handleSnapshot(snapshot: GroupSnapshot): void {
+    const secretWasLocked = !this.secretUnlocked;
     const previousDay = this.plan?.dayKey;
     if (previousDay && previousDay !== snapshot.day) {
       // Ha cambiado el dia competitivo: cerramos el anterior con lo que sabiamos.
@@ -283,6 +284,15 @@ export class App {
       this.plan = buildDailyPlan(snapshot.day);
     }
     this.reconcile(snapshot);
+
+    // El secreto lo abre el grupo entero, asi que la noticia llega por aqui.
+    if (secretWasLocked && snapshot.secret.unlocked) {
+      this.toaster.show('EL GRUPO HA ABIERTO EL RETO SECRETO', 'gold', 3600);
+      this.audio.play('unlock');
+      this.haptics.fire('success');
+      this.telemetry.track('secret_unlocked');
+    }
+
     this.detectSocialEvents();
     if (this.screen === 'home' && !this.play) this.renderHome();
     else this.notify();
