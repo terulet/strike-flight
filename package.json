@@ -1,0 +1,13 @@
+{
+  "name": "last-light",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LAST LIGHT — disparar te permite ver. Prototipo de mecánica.",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "build": "node tools/build.mjs",
+    "check": "node tools/check.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
