@@ -162,6 +162,20 @@ export abstract class BaseMiniGame implements MiniGame {
     return this.config.mutators;
   }
 
+  /** Primera linea util por arriba (debajo del HUD). */
+  protected get areaTop(): number {
+    return this.services.insets.top;
+  }
+
+  /** Ultima linea util por abajo (encima de la barra del rival). */
+  protected get areaBottom(): number {
+    return this.height - this.services.insets.bottom;
+  }
+
+  protected get areaHeight(): number {
+    return Math.max(80, this.areaBottom - this.areaTop);
+  }
+
   /** Suma puntos aplicando el multiplicador de mutadores. */
   protected addScore(points: number, x?: number, y?: number, options: { silent?: boolean } = {}): number {
     const delta = Math.round(points * this.mut.scoreMultiplier);

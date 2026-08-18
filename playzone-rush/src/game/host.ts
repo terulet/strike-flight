@@ -12,7 +12,14 @@ import { FxSystem } from '../core/fx';
 import { Haptics } from '../core/haptics';
 import { InputManager } from '../core/input';
 import { Ticker } from '../core/loop';
-import type { GameConfig, GameDefinition, GameResult, HudInfo, MiniGame } from './contract';
+import type {
+  GameConfig,
+  GameDefinition,
+  GameResult,
+  HudInfo,
+  MiniGame,
+  ScreenInsets,
+} from './contract';
 
 export interface HostCallbacks {
   onHud?: (hud: HudInfo) => void;
@@ -50,6 +57,8 @@ export class GameHost {
   private cssHeight = 0;
   private hudFrame = 0;
   private visibilityHandler: (() => void) | null = null;
+  /** Referencia viva: los juegos la leen cada frame. */
+  private insets: ScreenInsets = { top: 0, bottom: 0 };
 
   constructor(options: HostOptions) {
     this.container = options.container;
@@ -101,6 +110,13 @@ export class GameHost {
     this.fx.reducedMotion = value;
   }
 
+  /** El shell dice cuanto ocupa su HUD; los juegos dejan esa franja libre. */
+  setInsets(top: number, bottom: number): void {
+    this.insets.top = Math.max(0, Math.round(top));
+    this.insets.bottom = Math.max(0, Math.round(bottom));
+    this.current?.resize(this.cssWidth, this.cssHeight);
+  }
+
   /** Carga un juego con unas condiciones. No lo arranca. */
   load(definition: GameDefinition, config: GameConfig): MiniGame {
     this.unload();
@@ -111,6 +127,7 @@ export class GameHost {
         ctx: this.ctx,
         width: this.cssWidth,
         height: this.cssHeight,
+        insets: this.insets,
         input: this.input,
         audio: this.audio,
         haptics: this.haptics,

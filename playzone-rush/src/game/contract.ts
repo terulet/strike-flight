@@ -78,6 +78,13 @@ export interface GameConfig {
   targetName: string | null;
 }
 
+/** Franjas de pantalla ocupadas por el HUD del shell. Los juegos no deben
+ *  poner nada importante ahi. El host las mide y las mantiene al dia. */
+export interface ScreenInsets {
+  top: number;
+  bottom: number;
+}
+
 /** Lo que el host presta a cada minijuego. */
 export interface GameServices {
   canvas: HTMLCanvasElement;
@@ -85,6 +92,8 @@ export interface GameServices {
   /** Tamano logico en pixeles CSS (el host ya ha aplicado el DPR). */
   width: number;
   height: number;
+  /** Zona util: lo que queda entre el HUD de arriba y el de abajo. */
+  insets: ScreenInsets;
   input: InputManager;
   audio: AudioBus;
   haptics: Haptics;

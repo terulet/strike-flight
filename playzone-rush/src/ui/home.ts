@@ -6,7 +6,7 @@
  */
 import { dayLabel } from '../core/clock';
 import { describeMutators } from '../game/mutators';
-import { requireGame } from '../game/registry';
+import { listGames, requireGame } from '../game/registry';
 import { attemptDots } from '../meta/attempts';
 import { formatDuration, type ChallengeSpec } from '../meta/daily';
 import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
@@ -37,6 +37,9 @@ export function renderHome(app: App): HTMLElement {
   scroller.appendChild(renderBoard(app, board));
   const pique = renderPique(app, board);
   if (pique) scroller.appendChild(pique);
+
+  scroller.appendChild(sectionTitle('TUS MARCAS'));
+  scroller.appendChild(renderRecords(app));
 
   scroller.appendChild(
     el('div', { class: 'footer-note' }, [
@@ -313,6 +316,32 @@ function renderBoard(app: App, board: Leaderboard): HTMLElement {
   });
 
   return el('div', { class: 'board' }, rows);
+}
+
+/** Records personales: la otra mitad de la motivacion, competir contra ti. */
+function renderRecords(app: App): HTMLElement {
+  const records = app.save.get().records;
+  const streak = app.streak;
+  const items: [string, string][] = [];
+
+  for (const def of listGames()) {
+    const best = records.bestByGame[def.meta.id] ?? 0;
+    items.push([def.meta.name, best > 0 ? formatScore(best) : '—']);
+  }
+  items.push(['MEJOR DIA', records.bestDailyTotal > 0 ? formatScore(records.bestDailyTotal) : '—']);
+  if (records.bestChaos > 0) items.push(['CHAOS', formatScore(records.bestChaos)]);
+  items.push(['RACHA', streak.holderName ? `${streak.days}d ${streak.holderName}` : '—']);
+
+  return el(
+    'div',
+    { class: 'records' },
+    items.map(([label, value]) =>
+      el('div', { class: 'record' }, [
+        el('div', { class: 'record__value num', text: value }),
+        el('div', { class: 'record__label', text: label }),
+      ]),
+    ),
+  );
 }
 
 /** La linea que provoca "otra vez": a quien tienes al lado y con que reto. */

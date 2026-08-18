@@ -68,7 +68,7 @@ const defs: MutatorDef[] = [
   {
     id: 'rush',
     name: 'ACELERON',
-    icon: '>>',
+    icon: '»',
     description: 'Todo va un 50% mas rapido.',
     tone: 'debuff',
     apply: (s) => {
@@ -79,7 +79,7 @@ const defs: MutatorDef[] = [
   {
     id: 'heavy',
     name: 'GRAVEDAD X2',
-    icon: 'v',
+    icon: '⇓',
     description: 'El doble de peso y de inercia.',
     tone: 'debuff',
     apply: (s) => {
@@ -99,7 +99,7 @@ const defs: MutatorDef[] = [
   {
     id: 'blackout',
     name: 'APAGON',
-    icon: 'o',
+    icon: '◐',
     description: 'Solo ves lo que tienes cerca.',
     tone: 'debuff',
     apply: (s) => {
@@ -109,7 +109,7 @@ const defs: MutatorDef[] = [
   {
     id: 'mirror',
     name: 'ESPEJO',
-    icon: '<>',
+    icon: '⇄',
     description: 'Controles invertidos.',
     tone: 'debuff',
     apply: (s) => {
@@ -119,7 +119,7 @@ const defs: MutatorDef[] = [
   {
     id: 'swarm',
     name: 'ENJAMBRE',
-    icon: '###',
+    icon: '▦',
     description: 'Mas obstaculos desde el primer segundo.',
     tone: 'debuff',
     apply: (s) => {
@@ -130,7 +130,7 @@ const defs: MutatorDef[] = [
   {
     id: 'sprint',
     name: 'SPRINT',
-    icon: 'T',
+    icon: '⧗',
     description: 'Tiempo reducido: 30% menos.',
     tone: 'debuff',
     apply: (s) => {
@@ -140,7 +140,7 @@ const defs: MutatorDef[] = [
   {
     id: 'tiny',
     name: 'MINIATURA',
-    icon: '.',
+    icon: '◦',
     description: 'Los objetivos son mas pequenos.',
     tone: 'debuff',
     apply: (s) => {
@@ -150,7 +150,7 @@ const defs: MutatorDef[] = [
   {
     id: 'double',
     name: 'PUNTOS X2',
-    icon: 'x2',
+    icon: '×2',
     description: 'Cada punto vale el doble.',
     tone: 'buff',
     apply: (s) => {
@@ -160,7 +160,7 @@ const defs: MutatorDef[] = [
   {
     id: 'chaos',
     name: 'CAOS',
-    icon: '*',
+    icon: '✷',
     description: 'Rapido, oscuro, pequeno y con puntos x2.5.',
     tone: 'chaos',
     apply: (s) => {

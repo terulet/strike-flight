@@ -65,9 +65,9 @@ class SnapGame extends BaseMiniGame {
   }
 
   protected setup(): void {
-    this.radius = Math.min(this.width, this.height) * 0.16 * this.mut.sizeMultiplier;
+    this.radius = Math.min(this.width, this.areaHeight) * 0.17 * this.mut.sizeMultiplier;
     this.tx = this.width / 2;
-    this.ty = this.height * 0.45;
+    this.ty = this.areaTop + this.areaHeight * 0.45;
     this.crossX = this.width / 2;
     this.crossY = this.height / 2;
     this.shots = [];
@@ -84,15 +84,15 @@ class SnapGame extends BaseMiniGame {
   }
 
   protected override onResize(): void {
-    this.radius = Math.min(this.width, this.height) * 0.16 * this.mut.sizeMultiplier;
+    this.radius = Math.min(this.width, this.areaHeight) * 0.17 * this.mut.sizeMultiplier;
     this.tx = Math.min(this.width - this.radius, Math.max(this.radius, this.tx));
-    this.ty = Math.min(this.height - this.radius, Math.max(this.radius, this.ty));
+    this.ty = Math.min(this.areaBottom - this.radius, Math.max(this.areaTop + this.radius, this.ty));
   }
 
   private get speed(): number {
     const ramp = 0.55 + this.progress * 0.85 + this.config.difficulty * 0.4;
     const combo = 1 + Math.min(10, this.combo) * 0.045;
-    return Math.min(this.width, this.height) * 0.42 * ramp * combo * this.mut.speed;
+    return Math.min(this.width, this.areaHeight) * 0.44 * ramp * combo * this.mut.speed;
   }
 
   private launch(): void {
@@ -117,8 +117,8 @@ class SnapGame extends BaseMiniGame {
     this.ty += this.vy * speed * dt;
 
     const margin = this.radius * 1.05;
-    const topLimit = this.height * 0.1;
-    const bottomLimit = this.height * 0.92;
+    const topLimit = this.areaTop;
+    const bottomLimit = this.areaBottom - 34;
     if (this.tx < margin) {
       this.tx = margin;
       this.vx = Math.abs(this.vx);
@@ -246,7 +246,7 @@ class SnapGame extends BaseMiniGame {
     let y = this.ty;
     for (let i = 0; i < 8; i++) {
       x = this.rng.range(margin, this.width - margin);
-      y = this.rng.range(this.height * 0.12 + margin, this.height * 0.9 - margin);
+      y = this.rng.range(this.areaTop + margin, this.areaBottom - 34 - margin);
       if (Math.hypot(x - this.tx, y - this.ty) > Math.min(this.width, this.height) * 0.28) break;
     }
     this.tx = x;
@@ -326,7 +326,7 @@ class SnapGame extends BaseMiniGame {
     this.drawAmmo();
 
     if (this.combo >= 3) {
-      label(ctx, `COMBO x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.height - 52, {
+      label(ctx, `COMBO x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.areaBottom - 42, {
         size: 18,
         color: hexToRgba(PERFECT, 0.9),
       });
@@ -341,7 +341,7 @@ class SnapGame extends BaseMiniGame {
     const width = Math.min(this.width * 0.8, 240);
     const tick = (width - gap * (total - 1)) / total;
     const x0 = (this.width - width) / 2;
-    const y = this.height - 26;
+    const y = this.areaBottom - 14;
     ctx.save();
     for (let i = 0; i < total; i++) {
       const spent = i >= this.ammo;
