@@ -115,7 +115,7 @@ export const FLOORS = [
   {
     id: 'f08',
     name: 'CRUSHER',
-    hint: { text: 'READ THE RHYTHM', icon: 'eye' },
+    hint: { text: 'SWIPE  <  >  TO TURN', icon: 'turn' },
     entities: [
       { type: 'crusher', x: 108, y: 200, w: 64, h: 40, travel: 162, idleTime: 1.0, t0: 0 },
       { type: 'crusher', x: 222, y: 200, w: 64, h: 40, travel: 162, idleTime: 1.0, t0: 1.45 },
@@ -142,8 +142,10 @@ export const FLOORS = [
     hint: { text: 'LAND ON ITS CORE', icon: 'boss' },
     boss: true,
     entities: [
-      { type: 'block', x: 14, y: 328, w: 62, h: 12 },
-      { type: 'block', x: 284, y: 328, w: 62, h: 12 },
+      // One-way so a jump in the corner passes through instead of banging
+      // your head on your own safe perch.
+      { type: 'oneway', x: 14, y: 328, w: 62, h: 12 },
+      { type: 'oneway', x: 284, y: 328, w: 62, h: 12 },
       { type: 'boss', x: 134, hp: 3, hoverY: 96 },
     ],
   },
@@ -220,12 +222,15 @@ export const FLOORS = [
   {
     id: 'f16',
     name: 'SKY LIFTS',
+    // Lifts dip inside the shortest jump's reach, and the beam sits well clear
+    // of a rider's head — 4px of headroom is not a challenge, it is a coin
+    // flip the player cannot see.
     pits: [{ x: 70, w: 220 }],
     entities: [
-      { type: 'platform', x: 84, y: 352, w: 54, h: 12, path: { type: 'line', to: { x: 84, y: 302 }, time: 2.6, ease: 'sine' } },
-      { type: 'platform', x: 168, y: 302, w: 54, h: 12, path: { type: 'line', to: { x: 168, y: 352 }, time: 2.6, ease: 'sine' } },
+      { type: 'platform', x: 84, y: 364, w: 54, h: 12, path: { type: 'line', to: { x: 84, y: 302 }, time: 2.6, ease: 'sine' } },
+      { type: 'platform', x: 168, y: 302, w: 54, h: 12, path: { type: 'line', to: { x: 168, y: 364 }, time: 2.6, ease: 'sine' } },
       { type: 'block', x: 240, y: 344, w: 48, h: 12 },
-      { type: 'laser', orient: 'h', x: 70, y: 262, len: 222, thickness: 8, onTime: 1.0, offTime: 0.9, charge: 0.4 },
+      { type: 'laser', orient: 'h', x: 70, y: 248, len: 222, thickness: 8, onTime: 1.0, offTime: 0.9, charge: 0.4 },
     ],
   },
 
@@ -247,12 +252,16 @@ export const FLOORS = [
   {
     id: 'f18',
     name: 'INFERNO',
+    // Vents guard the approach and the landing; the ride itself is clean, with
+    // a blade overhead that only threatens you if you jump while crossing.
+    // (The first version ran the vents down over the whole platform path,
+    // which left no honest way across.)
     pits: [{ x: 96, w: 168 }],
     entities: [
       { type: 'platform', x: 106, y: 352, w: 64, h: 12, path: { type: 'line', to: { x: 196, y: 352 }, time: 3.4, ease: 'sine' } },
-      { type: 'fire', x: 148, y: 292, w: 26, len: 92, dir: 'down', idleTime: 1.1, warn: 0.4, burn: 0.7, t0: 0 },
-      { type: 'fire', x: 214, y: 292, w: 26, len: 92, dir: 'down', idleTime: 1.1, warn: 0.4, burn: 0.7, t0: 1.2 },
-      { type: 'saw', x: 268, y: 376, r: 16, path: { type: 'line', to: { x: 312, y: 376 }, time: 1.7, ease: 'sine' } },
+      { type: 'fire', x: 52, y: FLOOR_Y, w: 26, len: 110, dir: 'up', idleTime: 1.1, warn: 0.42, burn: 0.7, t0: 0 },
+      { type: 'saw', x: 150, y: 302, r: 16, path: { type: 'line', to: { x: 212, y: 302 }, time: 1.8, ease: 'sine' } },
+      { type: 'fire', x: 272, y: FLOOR_Y, w: 26, len: 110, dir: 'up', idleTime: 1.1, warn: 0.42, burn: 0.7, t0: 1.15 },
     ],
   },
 
@@ -275,8 +284,8 @@ export const FLOORS = [
     name: 'WARDEN MK II',
     boss: true,
     entities: [
-      { type: 'block', x: 14, y: 326, w: 58, h: 12 },
-      { type: 'block', x: 288, y: 326, w: 58, h: 12 },
+      { type: 'oneway', x: 14, y: 326, w: 58, h: 12 },
+      { type: 'oneway', x: 288, y: 326, w: 58, h: 12 },
       { type: 'spikes', x: 96, y: 390, w: 36, h: 12, dir: 'up' },
       { type: 'spikes', x: 224, y: 390, w: 36, h: 12, dir: 'up' },
       { type: 'boss', x: 134, hp: 4, hard: true, hoverY: 92 },
