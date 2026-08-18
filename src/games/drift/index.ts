@@ -364,19 +364,23 @@ class DriftGame extends BaseMiniGame {
     const x = this.ghostX * this.width;
     const y = this.playerY;
 
+    // Se dibuja en contorno, no relleno: al empezar los dos estan en el mismo
+    // sitio y asi tu nave se sigue viendo dentro de la del rival.
     ctx.save();
-    ctx.globalAlpha = 0.42;
+    ctx.globalAlpha = 0.75;
     ctx.translate(x, y);
-    ctx.fillStyle = '#e2e8f0';
-    ctx.shadowColor = 'rgba(226,232,240,0.8)';
-    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.shadowColor = 'rgba(226,232,240,0.55)';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(0, -r * 1.15);
     ctx.lineTo(r * 0.9, r * 0.8);
     ctx.lineTo(0, r * 0.4);
     ctx.lineTo(-r * 0.9, r * 0.8);
     ctx.closePath();
-    ctx.fill();
+    ctx.stroke();
     ctx.restore();
 
     ctx.save();

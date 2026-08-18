@@ -32,6 +32,8 @@ export class SyncEngine extends Emitter<SyncEvents> {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private attempt = 0;
   private flushing = false;
+  /** Alguien ha pedido enviar mientras ya estabamos enviando. */
+  private flushAgain = false;
   private _status: NetStatus = 'offline';
   private _snapshot: GroupSnapshot | null = null;
   private started = false;
@@ -308,48 +310,67 @@ export class SyncEngine extends Emitter<SyncEvents> {
     void this.flush();
   }
 
-  /** Vacia la cola en orden. Devuelve cuantos se subieron. */
+  /**
+   * Vacia la cola en orden. Devuelve cuantos se subieron.
+   *
+   * Si mientras se esta enviando entra una partida nueva, se vuelve a dar otra
+   * vuelta al terminar: si no, esa partida se quedaria esperando al siguiente
+   * sondeo (hasta 20 segundos) sin motivo.
+   */
   async flush(): Promise<number> {
-    if (!this.isGroup || this.flushing) return 0;
-    const queue = this.save.get().outbox.slice();
-    if (queue.length === 0) return 0;
+    if (!this.isGroup) return 0;
+    if (this.flushing) {
+      this.flushAgain = true;
+      return 0;
+    }
+    if (this.save.get().outbox.length === 0) return 0;
 
     this.flushing = true;
     this.setStatus('syncing');
     let sent = 0;
     try {
-      for (const pending of queue) {
-        try {
-          const response = await this.client.submitScore({
-            attemptId: pending.attemptId,
-            gameId: pending.gameId,
-            challengeId: pending.challengeId,
-            day: pending.day,
-            score: pending.score,
-            durationMs: pending.durationMs,
-            attemptsUsed: pending.attemptsUsed,
-            countsForRanking: pending.countsForRanking,
-            ghost: pending.ghost,
-          });
-          this.removePending(pending.attemptId);
-          this.applySnapshot(response.snapshot);
-          sent++;
-        } catch (error) {
-          if (error instanceof ApiError && error.permanent) {
-            // El servidor lo rechaza para siempre (dia cerrado, sin intentos,
-            // datos invalidos). Se saca de la cola, pero se deja constancia.
+      let keepGoing = true;
+      while (keepGoing) {
+        keepGoing = false;
+        for (const pending of this.save.get().outbox.slice()) {
+          try {
+            const response = await this.client.submitScore({
+              attemptId: pending.attemptId,
+              gameId: pending.gameId,
+              challengeId: pending.challengeId,
+              day: pending.day,
+              score: pending.score,
+              durationMs: pending.durationMs,
+              attemptsUsed: pending.attemptsUsed,
+              countsForRanking: pending.countsForRanking,
+              ghost: pending.ghost,
+            });
             this.removePending(pending.attemptId);
-            this.emit('dropped', { pending, reason: error.code });
-            continue;
+            this.applySnapshot(response.snapshot);
+            sent++;
+          } catch (error) {
+            if (error instanceof ApiError && error.permanent) {
+              // El servidor lo rechaza para siempre (dia cerrado, sin intentos,
+              // datos invalidos). Se saca de la cola, pero se deja constancia.
+              this.removePending(pending.attemptId);
+              this.emit('dropped', { pending, reason: error.code });
+              continue;
+            }
+            // Problema de red o del servidor: se queda en la cola y paramos.
+            this.bumpTries(pending.attemptId);
+            this.setStatus('offline');
+            this.flushAgain = false;
+            return sent;
           }
-          // Problema de red o del servidor: se queda en la cola.
-          this.bumpTries(pending.attemptId);
-          this.setStatus('offline');
-          break;
+        }
+        if (this.flushAgain) {
+          this.flushAgain = false;
+          keepGoing = this.save.get().outbox.length > 0;
         }
       }
     } finally {
       this.flushing = false;
+      this.flushAgain = false;
       this.save.flush();
       if (this.pendingCount === 0 && this._status === 'syncing') this.setStatus('online');
       this.emit('status', { status: this._status, pending: this.pendingCount });
