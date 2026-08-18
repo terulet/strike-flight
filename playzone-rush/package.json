@@ -1,0 +1,22 @@
+{
+  "name": "playzone-rush",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PLAYZONE RUSH - reto diario de microjuegos, ranking entre amigos y revancha inmediata.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "shots": "node tools/screenshots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
