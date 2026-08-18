@@ -52,14 +52,16 @@ await page.locator('.result .btn--ghost').click();
 await page.waitForSelector('.card');
 
 // 4. Los otros dos juegos.
-for (const [game, bot, name] of [
-  ['pulse', playPulse, '05-pulse'],
-  ['snap', playSnap, '06-snap'],
-  ['drift', playDrift, '07-drift'],
+for (const [game, bot, name, ms] of [
+  ['pulse', playPulse, '05-pulse', 5200],
+  // SNAP se acaba al gastar el cargador, asi que el bot juega menos rato para
+  // que la captura salga en plena partida y no en el resultado.
+  ['snap', playSnap, '06-snap', 1500],
+  ['drift', playDrift, '07-drift', 5200],
 ]) {
   await launchGame(page, game);
   await page.waitForTimeout(300);
-  await bot(page, 5200);
+  await bot(page, ms);
   await shot(name);
   await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
   await page.waitForSelector('.result');

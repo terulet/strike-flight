@@ -7,7 +7,7 @@
 import { dayLabel } from '../core/clock';
 import { describeMutators } from '../game/mutators';
 import { listGames, requireGame } from '../game/registry';
-import { attemptDots } from '../meta/attempts';
+import { attemptsDisplay } from '../meta/attempts';
 import { formatDuration, type ChallengeSpec } from '../meta/daily';
 import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
 import { secretStatus } from '../meta/secret';
@@ -175,7 +175,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
           el('div', { class: 'attempts__label', text: 'INTENTOS' }),
           el('div', {
             class: `attempts__dots${left === 0 ? ' is-empty' : ''}`,
-            text: attemptDots(spec.attempts - left, spec.attempts),
+            text: attemptsDisplay(spec.attempts - left, spec.attempts),
           }),
         ]),
         el('div', { class: 'card__best' }, [
@@ -239,7 +239,7 @@ function renderSecretCard(app: App): HTMLElement {
         el('div', { class: 'attempts__label', text: 'INTENTOS' }),
         el('div', {
           class: `attempts__dots${left === 0 ? ' is-empty' : ''}`,
-          text: attemptDots(spec.attempts - left, spec.attempts),
+          text: attemptsDisplay(spec.attempts - left, spec.attempts),
         }),
       ]),
       button(left > 0 ? 'JUGAR' : 'HECHO', 'btn btn--accent', () => app.startChallenge(spec), {

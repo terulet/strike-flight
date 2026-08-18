@@ -207,7 +207,7 @@ export class GameHost {
         const color = positive ? (combo >= 3 ? '#ffd23f' : '#7cf3c0') : '#ff5470';
         this.fx.float(x, y, `${positive ? '+' : ''}${delta}`, {
           color,
-          size: 20 + Math.min(16, Math.abs(delta) / 12) + Math.min(10, combo * 1.5),
+          size: Math.min(34, 19 + Math.abs(delta) / 18 + Math.min(7, combo)),
         });
         this.fx.burst(x, y, { count: positive ? 8 : 5, color, speed: 190, size: 3.5, life: 0.45 });
         this.audio.play(positive ? 'score' : 'error');
