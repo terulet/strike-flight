@@ -112,9 +112,25 @@ describe('servidor http', () => {
     const reader = stream.body.getReader();
     const decoder = new TextDecoder();
 
+    /**
+     * SSE es un protocolo de lineas, no de paquetes: el servidor hace dos
+     * write() (el retry y la foto) y que lleguen juntos o separados depende
+     * del buffering de la version de Node, no de que el codigo este bien. Hay
+     * que acumular hasta encontrar lo que se busca; dar por hecho que cabe
+     * todo en el primer chunk hace que el test pase o falle segun la maquina.
+     */
+    async function readUntil(needle, maxChunks = 8) {
+      let buffer = '';
+      for (let i = 0; i < maxChunks && !buffer.includes(needle); i++) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+      }
+      return buffer;
+    }
+
     // La primera foto llega sola, sin esperar a que cambie nada.
-    const first = decoder.decode((await reader.read()).value);
-    expect(first).toContain('event: snapshot');
+    expect(await readUntil('event: snapshot')).toContain('event: snapshot');
 
     await post(
       '/api/scores',
