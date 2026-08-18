@@ -26,7 +26,7 @@ export const RIVALS: Rival[] = [
     id: 'marc',
     name: 'MARC',
     color: '#ff6b6b',
-    skill: { reflejos: 0.82, supervivencia: 0.66, precision: 0.74 },
+    skill: { reflejos: 0.82, supervivencia: 0.66, precision: 0.74, memoria: 0.6 },
     consistency: 0.72,
     vibe: 'Juega a las 8 de la mañana y no lo dice.',
   },
@@ -34,7 +34,7 @@ export const RIVALS: Rival[] = [
     id: 'kali',
     name: 'KALI',
     color: '#22d3ee',
-    skill: { reflejos: 0.63, supervivencia: 0.86, precision: 0.58 },
+    skill: { reflejos: 0.63, supervivencia: 0.86, precision: 0.58, memoria: 0.71 },
     consistency: 0.55,
     vibe: 'O queda primera o queda ultima.',
   },
@@ -42,7 +42,7 @@ export const RIVALS: Rival[] = [
     id: 'yoli',
     name: 'YOLI',
     color: '#f472b6',
-    skill: { reflejos: 0.7, supervivencia: 0.6, precision: 0.83 },
+    skill: { reflejos: 0.7, supervivencia: 0.6, precision: 0.83, memoria: 0.88 },
     consistency: 0.8,
     vibe: 'Nunca falla dos veces la misma diana.',
   },
@@ -50,7 +50,7 @@ export const RIVALS: Rival[] = [
     id: 'silvia',
     name: 'SILVIA',
     color: '#a3e635',
-    skill: { reflejos: 0.58, supervivencia: 0.72, precision: 0.69 },
+    skill: { reflejos: 0.58, supervivencia: 0.72, precision: 0.69, memoria: 0.64 },
     consistency: 0.62,
     vibe: 'Empieza floja y remonta al tercer intento.',
   },
@@ -74,6 +74,7 @@ export const GAME_BASELINES: Record<string, { low: number; high: number }> = {
   pulse: { low: 1600, high: 4600 },
   drift: { low: 1400, high: 5200 },
   snap: { low: 1300, high: 4100 },
+  memory: { low: 1500, high: 4800 },
 };
 
 const DEFAULT_BASELINE = { low: 1500, high: 4200 };

@@ -28,7 +28,7 @@ import type { MutatorState } from './mutators';
 
 export type GameState = 'idle' | 'ready' | 'playing' | 'paused' | 'finished' | 'destroyed';
 
-export type SkillKind = 'reflejos' | 'supervivencia' | 'precision';
+export type SkillKind = 'reflejos' | 'supervivencia' | 'precision' | 'memoria';
 
 export type EndReason = 'time' | 'death' | 'aborted';
 

@@ -46,6 +46,24 @@ page.on('console', (m) => {
 });
 
 await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
+
+/** Estas pruebas son del modo en solitario: si sale el onboarding, lo elegimos. */
+async function enterSolo(page) {
+  if ((await page.locator('.onboarding').count()) > 0) {
+    await page.getByText('PROBAR SOLO').click();
+    await page.waitForSelector('.card', { timeout: 10000 });
+  }
+}
+
+/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+async function leaveResult(page) {
+  await page.getByText('CONTINUAR', { exact: true }).click();
+  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
+  await page.waitForSelector('.card');
+}
+
+
+await enterSolo(page);
 await page.waitForSelector('.card');
 log('portada cargada');
 await page.screenshot({ path: `${OUT}01-home.png` });
@@ -107,8 +125,7 @@ if (await rematch.isEnabled()) {
 }
 
 // Volver a la portada
-await page.locator('.result .btn--ghost').click();
-await page.waitForSelector('.card');
+await leaveResult(page);
 await page.screenshot({ path: `${OUT}06-home-after.png`, fullPage: true });
 log('vuelta a portada');
 

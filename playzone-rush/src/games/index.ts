@@ -9,11 +9,13 @@ import { registerGame } from '../game/registry';
 import { definition as pulse } from './pulse/index';
 import { definition as drift } from './drift/index';
 import { definition as snap } from './snap/index';
+import { definition as memory } from './memory/index';
 
 export function registerAllGames(): void {
   registerGame(pulse);
   registerGame(drift);
   registerGame(snap);
+  registerGame(memory);
 }
 
-export const GAME_IDS = [pulse.meta.id, drift.meta.id, snap.meta.id];
+export const GAME_IDS = [pulse.meta.id, drift.meta.id, snap.meta.id, memory.meta.id];
