@@ -6,6 +6,16 @@
  */
 import { aabb } from '../core/math.js';
 
+/**
+ * Corner correction. If a horizontal collision happens while the body is
+ * coming down and the obstacle's top is within this many pixels of its feet,
+ * the body is lifted on top instead of being stopped dead.
+ *
+ * Without it, clipping a ledge by two pixels bounces you backwards — which
+ * reads as the game cheating, not as a mistake you made.
+ */
+export const STEP_UP = 8;
+
 /** A solid: { x, y, w, h, oneWay?, id?, dx?, dy? } in world coordinates. */
 
 export function overlapsAny(x, y, w, h, boxes) {
@@ -32,6 +42,13 @@ export function moveAndCollide(body, dx, dy, solids, result) {
       const s = solids[i];
       if (s.oneWay) continue;
       if (!aabb(body.x, body.y, body.w, body.h, s.x, s.y, s.w, s.h)) continue;
+      const feet = body.y + body.h;
+      if (dy >= 0 && s.y < feet + STEP_UP && s.y > feet - STEP_UP) {
+        body.y = s.y - body.h;
+        r.hitBottom = true;
+        r.ground = s;
+        continue;
+      }
       if (dx > 0) {
         body.x = s.x - body.w;
         r.hitRight = true;

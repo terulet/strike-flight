@@ -11,7 +11,7 @@
  * hitbox, and a full-speed impulse on standing jumps so a jump from a dead
  * stop covers the same gap as a running one.
  */
-import { PLAYER } from '../config.js';
+import { COLORS, PLAYER } from '../config.js';
 import { approach, clamp, damp, sign } from '../core/math.js';
 import { groundUnder, moveAndCollide } from '../systems/collision.js';
 
@@ -102,6 +102,7 @@ export class Player {
     this.vy = PLAYER.JUMP_VEL * strength;
     this.jumping = true;
     this.grounded = false;
+    this.braking = false;
     this.diving = false;
     this.coyote = 0;
     this.buffer = 0;
@@ -167,7 +168,8 @@ export class Player {
 
     // --- vertical --------------------------------------------------------
     const g = PLAYER.GRAVITY * (this.vy > 0 ? PLAYER.FALL_GRAVITY_MULT : 1);
-    this.vy = Math.min(PLAYER.MAX_FALL, this.vy + g * dt);
+    const maxFall = this.diving ? PLAYER.DIVE_VEL : PLAYER.MAX_FALL;
+    this.vy = Math.min(maxFall, this.vy + g * dt);
 
     // --- carry by moving platforms ---------------------------------------
     if (this.rideId != null) {
@@ -245,5 +247,71 @@ export class Player {
   /** Facing sign used by the renderer (never 0). */
   get facing() {
     return sign(this.vx) || this.dir;
+  }
+
+  /**
+   * Draws the bot. Squash and stretch pivot on the feet so landings read as
+   * weight rather than as the sprite sliding into the floor.
+   */
+  draw(gfx, time = 0) {
+    if (this.dead) return;
+    const g = gfx.ctx;
+    const face = this.facing;
+
+    // Dive smear.
+    if (this.diving || this.vy > 520) {
+      for (let i = 1; i < 5; i++) {
+        const idx = (this.trailN - i * 2 + 40) % 10;
+        gfx.roundRect(this.trailX[idx] - this.w * 0.34, this.trailY[idx] - this.h * 0.34,
+          this.w * 0.68, this.h * 0.68, 5, COLORS.player, 0.1 - i * 0.02);
+      }
+    }
+
+    const cx = this.x + this.w / 2;
+    const by = this.y + this.h;
+    const w = this.w * this.sx;
+    const h = this.h * this.sy;
+
+    g.save();
+    g.translate(cx, by);
+    g.rotate(this.lean * face * 0.5);
+    const x = -w / 2;
+    const y = -h;
+
+    gfx.glowRect(x, y, w, h, COLORS.player, this.braking ? 0.24 : 0.4, 7);
+    gfx.roundRect(x, y, w, h, 7, COLORS.player);
+    gfx.roundRect(x, y + h * 0.62, w, h * 0.38, 6, COLORS.playerDark, 0.55);
+
+    // Visor: squints while braking, widens while falling.
+    const open = this.braking ? 0.45 : this.grounded ? 1 : this.vy > 260 ? 1.35 : 1.1;
+    const blink = this.blink > 0 ? 0.15 : 1;
+    const vh = 6 * open * blink;
+    const vw = w * 0.62;
+    gfx.roundRect(x + (w - vw) / 2 + face * 1.6, y + h * 0.26 - vh / 2, vw, Math.max(1.2, vh), 3, COLORS.playerEye);
+    gfx.rect(x + (w - vw) / 2 + face * 1.6 + 1.5, y + h * 0.26 - vh / 2 + 1, 3, Math.max(1, vh * 0.4), '#bff4ff', 0.85 * blink);
+
+    // Legs while running on the ground.
+    if (this.grounded && Math.abs(this.vx) > 12) {
+      const swing = Math.sin(this.runAnim * 6) * 3.2;
+      gfx.rect(x + 3, -2, 4, 3 + swing, COLORS.playerDark);
+      gfx.rect(x + w - 7, -2, 4, 3 - swing, COLORS.playerDark);
+    } else if (this.grounded) {
+      gfx.rect(x + 3, -2, 4, 3, COLORS.playerDark);
+      gfx.rect(x + w - 7, -2, 4, 3, COLORS.playerDark);
+    }
+
+    // Antenna: lags behind the movement, sells the acceleration.
+    const tilt = -this.vx / PLAYER.RUN_SPEED * 0.5 + Math.sin(time * 7) * 0.05;
+    const ax = Math.sin(tilt) * 9;
+    const ay = -Math.cos(tilt) * 9;
+    gfx.line(0, y + 2, ax, y + 2 + ay, COLORS.playerDark, 2, 0.9);
+    gfx.circle(ax, y + 2 + ay, 2.4, this.braking ? COLORS.warn : COLORS.player);
+    gfx.glowCircle(ax, y + 2 + ay, 2.4, this.braking ? COLORS.warn : COLORS.player, 0.5, 4);
+
+    g.restore();
+
+    if (this.bonk > 0) {
+      gfx.circle(cx + face * this.w * 0.6, this.y + this.h * 0.4, 4 + this.bonk * 5, COLORS.warn, this.bonk * 0.5);
+    }
   }
 }

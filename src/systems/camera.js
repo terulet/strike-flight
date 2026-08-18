@@ -8,6 +8,9 @@ import { clamp, damp, easeInOutCubic } from '../core/math.js';
 /** World Y of a room's top edge. Floor 1 sits at y = 0 and the tower grows upwards. */
 export const roomTopY = (floorIndex) => -(floorIndex - 1) * ROOM.H;
 
+/** Space kept under the room's floor for the home indicator / bottom HUD. */
+export const BOTTOM_MARGIN = 84;
+
 export class Camera {
   constructor() {
     this.y = 0;
@@ -24,10 +27,14 @@ export class Camera {
     this._shakeSeed = 1;
   }
 
-  /** Centers the given floor's room in the viewport. */
+  /**
+   * Frames a floor: its ground sits near the bottom of the screen and the
+   * shaft above it stays visible, so the player is always looking at where
+   * they are going rather than at where they have been.
+   */
   focusFloor(floorIndex, instant = true) {
     const top = roomTopY(floorIndex);
-    const y = top + ROOM.H / 2 - VIEW.H / 2;
+    const y = top + ROOM.H - (VIEW.H - BOTTOM_MARGIN);
     this.targetY = y;
     if (instant) {
       this.y = y;
