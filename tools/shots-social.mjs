@@ -3,16 +3,13 @@
  *
  *   node tools/shots-social.mjs
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { playCurrent, playDrift, playMemory } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox', '--use-gl=swiftshader'],
-});
+const browser = await launchBrowser();
 
 const shot = async (page, name) => {
   await page.screenshot({ path: `${OUT}${name}.png` });

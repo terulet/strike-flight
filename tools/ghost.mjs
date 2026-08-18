@@ -9,7 +9,7 @@
  *
  *   node tools/ghost.mjs
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { playDrift } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
@@ -22,10 +22,7 @@ const check = (name, condition, detail = '') => {
   console.log(`${condition ? '  OK  ' : ' FALLO'} ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox', '--use-gl=swiftshader'],
-});
+const browser = await launchBrowser();
 
 async function openPhone() {
   const context = await browser.newContext({

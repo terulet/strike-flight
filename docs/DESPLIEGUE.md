@@ -187,7 +187,33 @@ cp backups/LA-QUE-TOQUE.db playzone.db
 pm2 start playzone
 ```
 
-## 9. Ver como va la semana
+## 9. Comprobar el despliegue de punta a punta
+
+Con todo en marcha, la prueba del milestone contra la URL publica de verdad
+(no contra localhost: asi pasa por HTTPS y por Funnel, que es donde aparecen
+los problemas de cabeceras y de SSE):
+
+```bash
+cd ~/Developer/strike-flight/playzone-rush
+BASE=https://mac-mini-de-eloi.tail011c69.ts.net node tools/alfa.mjs
+```
+
+Son 42 comprobaciones. Necesita un Chromium instalado
+(`npx playwright install chromium` la primera vez).
+
+> **Escribe en la base de datos**: crea grupos, jugadores, marcas y errores de
+> prueba. Antes de que entren los jugadores de verdad, hacer copia y restaurar:
+>
+> ```bash
+> sqlite3 server/data/playzone.db "VACUUM INTO 'server/data/backups/pre-alfa-$(date +%Y%m%d-%H%M).db'"
+> # ...lanzar la prueba...
+> pm2 stop playzone && rm server/data/playzone.db* && pm2 start playzone
+> ```
+>
+> Borrar la base de datos la deja vacia y el servidor la crea de nuevo al
+> arrancar. Es la forma mas limpia de empezar la semana sin datos de prueba.
+
+## 10. Ver como va la semana
 
 Con la sesion iniciada en un movil del grupo, anadir `?dashboard` a la URL:
 
@@ -200,7 +226,7 @@ Organic Reopen Rate y los errores registrados. **Es solo lectura**: esa
 pantalla no puede modificar ni un resultado. El panel de debug (`?debug`), que
 si puede mover el dia y forzar partidas, es otro sitio distinto a proposito.
 
-## 10. Cuando algo va mal
+## 11. Cuando algo va mal
 
 | Sintoma | Que mirar |
 |---|---|

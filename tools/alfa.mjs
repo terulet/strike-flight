@@ -20,8 +20,16 @@
  * Necesita la build de produccion servida por el propio servidor:
  *   npm run build && npm run server
  *   node tools/alfa.mjs
+ *
+ * OJO: ESTO ESCRIBE EN LA BASE DE DATOS. Crea grupos, jugadores y marcas, y
+ * provoca errores a proposito para comprobar que quedan registrados (con lo
+ * que el dashboard ensenara una veintena de errores que no son reales). No se
+ * lanza contra una base de datos con jugadores de verdad sin hacer copia
+ * antes. Lo limpio es usar una aparte:
+ *
+ *   PLAYZONE_DB=/tmp/alfa-prueba.db npm run server
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { playCurrent } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:8787';
@@ -35,10 +43,7 @@ const check = (name, condition, detail = '') => {
 
 const section = (title) => console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 56 - title.length))}`);
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox', '--use-gl=swiftshader'],
-});
+const browser = await launchBrowser();
 
 const errors = [];
 async function openPhone(label, network = null) {
@@ -101,7 +106,28 @@ async function playChallenge(page, index, quality = 1) {
 section('1. UN SOLO PROCESO: JUEGO Y API EN EL MISMO ORIGEN');
 /* ------------------------------------------------------------------ */
 
-const health = await fetch(`${BASE}/api/health`).then((r) => r.json());
+/**
+ * Antes de nada: confirmar que al otro lado hay un PLAYZONE.
+ *
+ * Un puerto ocupado por otra aplicacion puede contestar {"status":"ok"} y
+ * parecer que todo va bien, y entonces esta prueba estaria midiendo un
+ * servicio que no es. Paso de verdad: en el Mac Mini el 8787 lo ocupa otra
+ * cosa. Si no responde con la forma exacta de PLAYZONE, se para aqui.
+ */
+const health = await fetch(`${BASE}/api/health`)
+  .then((r) => r.json())
+  .catch(() => null);
+
+if (!health || health.ok !== true || typeof health.buildId !== 'string' || !health.day) {
+  console.error(`\n  No hay un PLAYZONE en ${BASE}.`);
+  console.error(`  /api/health ha respondido: ${JSON.stringify(health)}`);
+  console.error('\n  Puede ser que el servidor no este levantado, o que en ese puerto haya');
+  console.error('  otra aplicacion distinta. Arrancalo con "npm run build && npm run server",');
+  console.error('  o indica el sitio correcto:  BASE=http://127.0.0.1:8788 node tools/alfa.mjs');
+  await browser.close();
+  process.exit(1);
+}
+
 check('/api/health responde', health.ok === true, `dia ${health.day}`);
 check('el servidor dice que build sirve', typeof health.buildId === 'string' && health.buildId.length > 0, health.buildId);
 

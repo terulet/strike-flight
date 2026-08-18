@@ -8,7 +8,7 @@
  * Necesita el servidor y el front levantados (npm run dev:all).
  *   node tools/resilience.mjs
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { playCurrent, playDrift } from './bot.mjs';
 
 // Por defecto contra la build de produccion servida por vite preview: es la
@@ -23,10 +23,7 @@ const check = (name, condition, detail = '') => {
   console.log(`${condition ? '  OK  ' : ' FALLO'} ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox', '--use-gl=swiftshader'],
-});
+const browser = await launchBrowser();
 
 async function openPhone() {
   const context = await browser.newContext({
