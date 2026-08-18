@@ -23,6 +23,16 @@ if (!root) throw new Error('Falta #app en el documento');
 const app = new App(root);
 app.boot();
 
+// Enganche para herramientas de desarrollo y pruebas automatizadas. Solo en
+// modo dev: en la build de produccion esta rama desaparece.
+if (import.meta.env.DEV) {
+  (globalThis as unknown as Record<string, unknown>).__PZ = {
+    app,
+    game: () => app.playScreen?.game ?? null,
+    state: () => app.playScreen?.game?.debugInfo?.() ?? null,
+  };
+}
+
 // Herramientas de desarrollo bajo demanda.
 let debugLoaded = false;
 async function enableDebug(): Promise<void> {

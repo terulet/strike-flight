@@ -26,7 +26,7 @@ export function renderHome(app: App): HTMLElement {
   scroller.appendChild(renderHero(app, board));
   scroller.appendChild(renderSocial(app, board));
 
-  scroller.appendChild(sectionTitle('RETOS DE HOY', `${app.plan.challenges.length} + 1`));
+  scroller.appendChild(sectionTitle('RETOS DE HOY', `${app.plan.challenges.length} + SECRETO`));
   const cards = el('div', { class: 'cards' });
   for (const spec of app.plan.challenges) cards.appendChild(renderChallengeCard(app, spec));
   cards.appendChild(renderSecretCard(app));
@@ -78,13 +78,12 @@ function renderTopbar(app: App): HTMLElement {
 }
 
 function renderHero(app: App, board: Leaderboard): HTMLElement {
-  const ahead = rivalAhead(board.standings);
   return el('div', { class: 'hero' }, [
-    el('h1', { class: 'hero__title', html: 'RUSH<br><em>DE HOY</em>' }),
+    el('h1', { class: 'hero__title', html: 'RUSH <em>DE HOY</em>' }),
     el('div', { class: 'hero__sub' }, [
       el('span', { class: 'chip chip--brand', text: dayLabel(app.dayKey, app.clock.realDayKey()) }),
-      el('span', { text: `${app.plan.challenges.length} RETOS · 3 INTENTOS CADA UNO` }),
-      ahead ? el('span', { text: `· VAS #${board.myRank}` }) : el('span', { text: '· VAS #1' }),
+      el('span', { class: 'chip chip--gold', text: `VAS #${board.myRank}` }),
+      el('span', { text: `${app.plan.challenges.length} RETOS · 3 INTENTOS` }),
     ]),
   ]);
 }
@@ -152,7 +151,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
     'div',
     {
       class: `card${left === 0 ? ' card--done' : ''}`,
-      style: { ['--accent' as never]: meta.accent },
+      style: { '--accent': meta.accent },
     },
     [
       el('div', { class: 'card__head' }, [
@@ -202,7 +201,7 @@ function renderSecretCard(app: App): HTMLElement {
       { class: 'progress-pips' },
       Array.from({ length: status.total }, (_, i) => el('div', { class: `pip${i < status.done ? ' is-on' : ''}` })),
     );
-    return el('div', { class: 'card card--locked', style: { ['--accent' as never]: '#ffd23f' } }, [
+    return el('div', { class: 'card card--locked', style: { '--accent': '#ffd23f' } }, [
       el('div', { class: 'card__head' }, [
         el('div', { class: 'card__icon', text: '🔒' }),
         el('div', { class: 'card__titles' }, [
@@ -221,7 +220,7 @@ function renderSecretCard(app: App): HTMLElement {
   }
 
   const left = app.attemptsLeft(spec);
-  return el('div', { class: 'card', style: { ['--accent' as never]: '#ffd23f' } }, [
+  return el('div', { class: 'card', style: { '--accent': '#ffd23f' } }, [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon', text: '🗝' }),
       el('div', { class: 'card__titles' }, [
@@ -253,7 +252,7 @@ function renderChaosCard(app: App): HTMLElement {
   const left = app.attemptsLeft(spec);
   const best = app.save.get().records.bestChaos;
 
-  return el('div', { class: 'card', style: { ['--accent' as never]: '#a78bfa' } }, [
+  return el('div', { class: 'card', style: { '--accent': '#a78bfa' } }, [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon', text: '☣' }),
       el('div', { class: 'card__titles' }, [

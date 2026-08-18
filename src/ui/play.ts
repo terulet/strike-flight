@@ -268,6 +268,15 @@ export class PlayScreen {
     return this.host.fps;
   }
 
+  /** Juego en curso (lo usan el panel de debug y las pruebas automatizadas). */
+  get game() {
+    return this.host.game;
+  }
+
+  get isRunning(): boolean {
+    return this.host.game?.state === 'playing';
+  }
+
   private clearOverlay(): void {
     this.overlay?.remove();
     this.overlay = null;

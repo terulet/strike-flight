@@ -29,8 +29,8 @@ export const META: GameMeta = {
   skill: 'precision',
   defaultDurationMs: 30_000,
   instructions: [
-    'Toca lo mas cerca posible del centro de la diana.',
-    'Centro = 200 puntos. Fuera = combo roto.',
+    'Tienes 18 disparos. Cada uno cuenta.',
+    'Cuanto mas cerca del centro, mas puntos. Fuera = disparo perdido.',
     'Con teclado: flechas para mover la mira y ESPACIO para disparar.',
   ],
   icon: '◉',
@@ -55,6 +55,8 @@ class SnapGame extends BaseMiniGame {
   private usingKeyboard = false;
   private shotsFired = 0;
   private accuracySum = 0;
+  private cooldown = 0;
+  private ammo = 0;
 
   constructor(services: GameServices, config: GameConfig) {
     super(services, config);
@@ -74,6 +76,8 @@ class SnapGame extends BaseMiniGame {
     this.accuracySum = 0;
     this.jumpFlash = 0;
     this.usingKeyboard = false;
+    this.cooldown = 0;
+    this.ammo = SnapGame.AMMO;
     this.tracksAccuracy = true;
     this.setLives(null);
     this.launch();
@@ -133,6 +137,7 @@ class SnapGame extends BaseMiniGame {
     }
 
     this.jumpFlash = Math.max(0, this.jumpFlash - dt * 3);
+    this.cooldown = Math.max(0, this.cooldown - dt);
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const shot = this.shots[i] as Shot;
       shot.life -= dt;
@@ -169,7 +174,15 @@ class SnapGame extends BaseMiniGame {
     }
   }
 
+  /** Cargador: la tension no es el reloj, es que cada bala cuenta. */
+  private static readonly AMMO = 18;
+  /** Pequeno margen para que un doble toque accidental no gaste dos balas. */
+  private static readonly COOLDOWN = 0.12;
+
   private shoot(x: number, y: number): void {
+    if (this.cooldown > 0 || this.ammo <= 0) return;
+    this.cooldown = SnapGame.COOLDOWN;
+    this.ammo--;
     const dist = Math.hypot(x - this.tx, y - this.ty);
     const ratio = dist / this.radius;
     this.shotsFired++;
@@ -180,13 +193,14 @@ class SnapGame extends BaseMiniGame {
       this.registerMistake(0);
       this.services.fx.burst(x, y, { count: 8, color: DANGER, speed: 180, size: 3 });
       this.services.fx.float(x, y, 'FUERA', { color: DANGER, size: 20 });
+      this.checkAmmo();
       return;
     }
 
     this.registerHit();
     this.accuracySum += Math.max(0, 1 - ratio);
     const combo = this.bumpCombo();
-    const multiplier = 1 + Math.min(10, combo) * 0.1;
+    const multiplier = 1 + Math.min(10, combo) * 0.05;
 
     let base: number;
     let color: string;
@@ -205,7 +219,7 @@ class SnapGame extends BaseMiniGame {
       text = 'BUENO';
       this.services.haptics.fire('light');
     } else {
-      base = 55;
+      base = 50;
       color = '#94a3b8';
       text = 'ROZADO';
     }
@@ -216,6 +230,14 @@ class SnapGame extends BaseMiniGame {
 
     // La diana salta: nueva posicion lejos de la anterior.
     this.jumpTo();
+    this.checkAmmo();
+  }
+
+  /** Sin balas se acaba la partida, aunque quede tiempo. */
+  private checkAmmo(): void {
+    if (this.ammo > 0) return;
+    this.announce('SIN BALAS', 'bad');
+    this.finish('death');
   }
 
   private jumpTo(): void {
@@ -301,12 +323,42 @@ class SnapGame extends BaseMiniGame {
       ctx.restore();
     }
 
+    this.drawAmmo();
+
     if (this.combo >= 3) {
-      label(ctx, `COMBO x${(1 + Math.min(10, this.combo) * 0.1).toFixed(1)}`, this.width / 2, this.height - 30, {
+      label(ctx, `COMBO x${(1 + Math.min(10, this.combo) * 0.05).toFixed(2)}`, this.width / 2, this.height - 52, {
         size: 18,
         color: hexToRgba(PERFECT, 0.9),
       });
     }
+  }
+
+  /** Cargador dibujado abajo: se lee de un vistazo cuantas balas quedan. */
+  private drawAmmo(): void {
+    const ctx = this.ctx;
+    const total = SnapGame.AMMO;
+    const gap = 4;
+    const width = Math.min(this.width * 0.8, 240);
+    const tick = (width - gap * (total - 1)) / total;
+    const x0 = (this.width - width) / 2;
+    const y = this.height - 26;
+    ctx.save();
+    for (let i = 0; i < total; i++) {
+      const spent = i >= this.ammo;
+      ctx.fillStyle = spent ? 'rgba(255,255,255,0.14)' : ACCENT;
+      if (!spent && this.ammo <= 4) ctx.fillStyle = DANGER;
+      ctx.fillRect(x0 + i * (tick + gap), y, tick, 6);
+    }
+    label(ctx, `${this.ammo} DISPAROS`, this.width / 2, y - 14, {
+      size: 11,
+      color: this.ammo <= 4 ? DANGER : 'rgba(255,255,255,0.55)',
+      weight: 800,
+    });
+    ctx.restore();
+  }
+
+  debugInfo(): Record<string, unknown> {
+    return { game: 'snap', target: { x: this.tx, y: this.ty, r: this.radius }, ammo: this.ammo };
   }
 
   protected override metrics(): Record<string, number> {

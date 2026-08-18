@@ -191,7 +191,21 @@ export function rankOf(standings: Standing[], id: string): number {
   return standings.findIndex((s) => s.id === id) + 1;
 }
 
-/** Separador de miles al estilo del juego: 8.420 */
+/**
+ * Separador de miles al estilo del juego: 8.420.
+ *
+ * A mano y no con toLocaleString: el locale es-ES no agrupa los numeros de
+ * cuatro digitos (escribiria "8420"), y aqui queremos que TODAS las
+ * puntuaciones se lean igual de grandes, en cualquier navegador.
+ */
 export function formatScore(value: number): string {
-  return Math.round(value).toLocaleString('es-ES');
+  const rounded = Math.round(value);
+  const sign = rounded < 0 ? '-' : '';
+  const digits = Math.abs(rounded).toString();
+  let out = '';
+  for (let i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 === 0) out += '.';
+    out += digits[i];
+  }
+  return sign + out;
 }

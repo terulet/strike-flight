@@ -174,7 +174,7 @@ class DriftGame extends BaseMiniGame {
           wall.grazed = true;
           this.grazes++;
           const combo = this.bumpCombo();
-          this.addScore(60 + Math.min(10, combo) * 12, this.playerX, this.playerY - 30);
+          this.addScore(50 + Math.min(10, combo) * 10, this.playerX, this.playerY - 30);
           this.services.fx.ring(this.playerX, this.playerY, radius * 3.2, ACCENT, 2.5);
         }
       }
@@ -182,7 +182,7 @@ class DriftGame extends BaseMiniGame {
       if (!wall.passed && wall.y > this.playerY + radius) {
         wall.passed = true;
         this.wallsPassed++;
-        this.addScore(120, this.playerX, this.playerY - 54);
+        this.addScore(100, this.playerX, this.playerY - 54);
         this.services.haptics.fire('tick');
       }
     }
@@ -412,6 +412,15 @@ class DriftGame extends BaseMiniGame {
 
   protected override metrics(): Record<string, number> {
     return { wallsPassed: this.wallsPassed, grazes: this.grazes };
+  }
+
+  debugInfo(): Record<string, unknown> {
+    return {
+      game: 'drift',
+      player: { x: this.playerX, y: this.playerY, r: this.playerRadius },
+      walls: this.walls.map((w) => ({ y: w.y, gapX: w.gapX, gapW: w.gapW, h: w.height })),
+      blocks: this.blocks.map((b) => ({ x: b.x, y: b.y, size: b.size })),
+    };
   }
 }
 
