@@ -69,8 +69,10 @@ export const FLOORS = [
     hint: { text: 'HOLD TO RIDE', icon: 'hold' },
     pits: [{ x: 78, w: 206 }],
     entities: [
-      { type: 'platform', x: 100, y: 346, w: 56, h: 12, path: { type: 'line', to: { x: 100, y: 300 }, time: 3.0, ease: 'sine' } },
-      { type: 'platform', x: 196, y: 300, w: 56, h: 12, path: { type: 'line', to: { x: 196, y: 346 }, time: 3.0, ease: 'sine' } },
+      // Lowest position is inside the *shortest* jump's reach: floor 5 is still
+      // a teaching floor, so a nervous quick tap must not be a death sentence.
+      { type: 'platform', x: 100, y: 366, w: 56, h: 12, path: { type: 'line', to: { x: 100, y: 312 }, time: 3.0, ease: 'sine' } },
+      { type: 'platform', x: 196, y: 312, w: 56, h: 12, path: { type: 'line', to: { x: 196, y: 366 }, time: 3.0, ease: 'sine' } },
     ],
   },
 
@@ -98,10 +100,14 @@ export const FLOORS = [
     id: 'f07',
     name: 'SPIKES',
     hint: { text: 'SPIKES', icon: 'danger' },
+    // Three clean jumps, nothing to bounce off. The earlier version put a
+    // 30px step right after a spike patch: land short and you were pinned
+    // against its face with no room for a run-up, which is the definition of
+    // an unfair floor.
     entities: [
-      { type: 'spikes', x: 104, y: 390, w: 44, h: 12, dir: 'up' },
-      { type: 'block', x: 168, y: onFloor(30), w: 40, h: 30 },
-      { type: 'spikes', x: 228, y: 390, w: 44, h: 12, dir: 'up' },
+      { type: 'spikes', x: 104, y: 390, w: 36, h: 12, dir: 'up' },
+      { type: 'spikes', x: 186, y: 390, w: 36, h: 12, dir: 'up' },
+      { type: 'spikes', x: 254, y: 390, w: 36, h: 12, dir: 'up' },
     ],
   },
 
@@ -122,7 +128,7 @@ export const FLOORS = [
     name: 'RUSH',
     pits: [{ x: 140, w: 100 }],
     entities: [
-      { type: 'saw', x: 58, y: 376, r: 16, path: { type: 'line', to: { x: 112, y: 376 }, time: 1.5, ease: 'sine' } },
+      { type: 'saw', x: 84, y: 376, r: 16, path: { type: 'line', to: { x: 138, y: 376 }, time: 1.5, ease: 'sine' } },
       { type: 'crumble', x: 144, y: FLOOR_Y, w: 44, h: 14 },
       { type: 'crumble', x: 194, y: FLOOR_Y, w: 44, h: 14 },
       { type: 'laser', orient: 'v', x: 268, y: 130, len: 272, thickness: 8, onTime: 0.7, offTime: 0.95, charge: 0.36 },
@@ -175,7 +181,7 @@ export const FLOORS = [
     entities: [
       { type: 'fire', x: 116, y: FLOOR_Y, w: 26, len: 112, dir: 'up', idleTime: 1.0, warn: 0.42, burn: 0.7, t0: 0 },
       { type: 'fire', x: 196, y: FLOOR_Y, w: 26, len: 112, dir: 'up', idleTime: 1.0, warn: 0.42, burn: 0.7, t0: 1.15 },
-      { type: 'spikes', x: 248, y: 390, w: 40, h: 12, dir: 'up' },
+      { type: 'spikes', x: 248, y: 390, w: 36, h: 12, dir: 'up' },
     ],
   },
 
@@ -256,7 +262,7 @@ export const FLOORS = [
     name: 'FINAL RUSH',
     pits: [{ x: 236, w: 56 }],
     entities: [
-      { type: 'saw', x: 56, y: 376, r: 16, path: { type: 'line', to: { x: 108, y: 376 }, time: 1.3, ease: 'sine' } },
+      { type: 'saw', x: 84, y: 376, r: 16, path: { type: 'line', to: { x: 136, y: 376 }, time: 1.3, ease: 'sine' } },
       { type: 'walker', x: 150, y: 380, w: 24, h: 22, left: 132, right: 204, speed: 62 },
       { type: 'laser', orient: 'v', x: 214, y: 128, len: 274, thickness: 8, onTime: 0.6, offTime: 0.85, charge: 0.32 },
       { type: 'crumble', x: 240, y: FLOOR_Y, w: 48, h: 14 },
@@ -271,8 +277,8 @@ export const FLOORS = [
     entities: [
       { type: 'block', x: 14, y: 326, w: 58, h: 12 },
       { type: 'block', x: 288, y: 326, w: 58, h: 12 },
-      { type: 'spikes', x: 96, y: 390, w: 40, h: 12, dir: 'up' },
-      { type: 'spikes', x: 224, y: 390, w: 40, h: 12, dir: 'up' },
+      { type: 'spikes', x: 96, y: 390, w: 36, h: 12, dir: 'up' },
+      { type: 'spikes', x: 224, y: 390, w: 36, h: 12, dir: 'up' },
       { type: 'boss', x: 134, hp: 4, hard: true, hoverY: 92 },
     ],
   },
