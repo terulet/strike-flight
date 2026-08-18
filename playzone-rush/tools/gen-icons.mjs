@@ -6,7 +6,7 @@
  *
  *   node tools/gen-icons.mjs
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,10 +54,7 @@ const TARGETS = [
   { name: 'apple-touch-icon.png', size: 180, radius: 0, boltScale: 1 },
 ];
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox'],
-});
+const browser = await launchBrowser({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 512, height: 512 }, deviceScaleFactor: 1 });
 
 for (const target of TARGETS) {

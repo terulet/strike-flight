@@ -5,17 +5,14 @@
  *
  *   node tools/playtest.mjs [pulse|drift|snap] [repeticiones]
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 import { playMemory } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const only = process.argv[2];
 const runs = Number.parseInt(process.argv[3] ?? '2', 10);
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox', '--use-gl=swiftshader'],
-});
+const browser = await launchBrowser();
 const context = await browser.newContext({
   viewport: { width: 393, height: 852 },
   deviceScaleFactor: 2,

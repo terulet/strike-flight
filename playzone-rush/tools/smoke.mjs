@@ -1,5 +1,5 @@
 // Recorrido manual automatizado en viewport de iPhone (393x852).
-import { chromium } from 'playwright';
+import { launchBrowser } from './browser.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = process.env.OUT ?? new URL('../shots/', import.meta.url).pathname;
@@ -27,10 +27,7 @@ async function safeClick(page, locator, label) {
   }
 }
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROME ?? '/opt/pw-browsers/chromium',
-  args: ['--use-gl=swiftshader', '--no-sandbox'],
-});
+const browser = await launchBrowser();
 const context = await browser.newContext({
   viewport: { width: 393, height: 852 },
   deviceScaleFactor: 2,

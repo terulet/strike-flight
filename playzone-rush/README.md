@@ -615,6 +615,19 @@ Comprueba las seis cosas del milestone: un solo proceso, instalable, versión
 nueva, errores registrados, dashboard de solo lectura, y dos móviles en
 condiciones de red muy distintas.
 
+Antes de nada comprueba que al otro lado hay un PLAYZONE de verdad, y si no,
+para. Otra aplicación en ese puerto puede contestar un `{"status":"ok"}` con
+buena pinta, y entonces la prueba estaría midiendo un servicio que no es.
+
+> **`alfa.mjs` escribe en la base de datos**: crea grupos, jugadores y marcas,
+> y provoca errores a propósito para comprobar que quedan registrados. No lo
+> lances contra datos reales sin copia previa. Lo limpio es usar otra base:
+> `PLAYZONE_DB=/tmp/alfa-prueba.db npm run server`
+
+Las herramientas usan el Chromium que tenga instalado Playwright
+(`npx playwright install chromium` si no hay ninguno). `PW_CHROME` fuerza uno
+concreto.
+
 El resto necesita `npm run dev:all` levantado (`resilience.mjs` va contra
 `npm run preview`, que es donde vive el service worker).
 
