@@ -30,6 +30,7 @@
  *   PLAYZONE_DB=/tmp/alfa-prueba.db npm run server
  */
 import { launchBrowser } from './browser.mjs';
+import { fetchWithTimeout as fetch } from './fetch.mjs';
 import { playCurrent } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:8787';
