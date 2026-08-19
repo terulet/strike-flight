@@ -30,7 +30,7 @@
  *   PLAYZONE_DB=/tmp/alfa-prueba.db npm run server
  */
 import { launchBrowser } from './browser.mjs';
-import { fetchWithTimeout as fetch } from './fetch.mjs';
+import { fetchWithTimeout as fetch, fetchHeaders } from './fetch.mjs';
 import { playCurrent } from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:8787';
@@ -143,7 +143,7 @@ check(
 
 const assetMatch = indexHtml.match(/src="\.\/(assets\/[^"]+\.js)"/);
 if (assetMatch) {
-  const asset = await fetch(`${BASE}/${assetMatch[1]}`);
+  const asset = await fetchHeaders(`${BASE}/${assetMatch[1]}`);
   check(
     'los assets con hash se cachean un ano',
     (asset.headers.get('cache-control') ?? '').includes('immutable'),
@@ -168,7 +168,7 @@ check('tiene nombre y modo standalone', manifest.name === 'PLAYZONE RUSH' && man
 check('y color de fondo de la marca', manifest.background_color === '#07070d');
 
 for (const icon of manifest.icons) {
-  const response = await fetch(`${BASE}/${icon.src}`);
+  const response = await fetchHeaders(`${BASE}/${icon.src}`);
   check(
     `icono ${icon.sizes} ${icon.purpose} accesible`,
     response.status === 200 && response.headers.get('content-type') === 'image/png',
@@ -177,12 +177,12 @@ for (const icon of manifest.icons) {
 }
 check('hay un icono maskable (iconos redondos de Android)', manifest.icons.some((i) => i.purpose === 'maskable'));
 
-const apple = await fetch(`${BASE}/icons/apple-touch-icon.png`);
+const apple = await fetchHeaders(`${BASE}/icons/apple-touch-icon.png`);
 check('apple-touch-icon accesible (iOS ignora el manifest)', apple.status === 200);
 check('index.html enlaza el manifest y el icono de Apple',
   indexHtml.includes('rel="manifest"') && indexHtml.includes('rel="apple-touch-icon"'));
 
-const sw = await fetch(`${BASE}/sw.js`);
+const sw = await fetchHeaders(`${BASE}/sw.js`);
 check('el service worker se revalida siempre', sw.headers.get('cache-control') === 'no-cache');
 
 const installable = await openPhone('instalacion');
@@ -310,7 +310,7 @@ check('los errores se cuentan por ventana de tiempo', panel.errors.last24h >= 2,
 section('5. DASHBOARD: DATOS REALES, CERO ESCRITURA');
 /* ------------------------------------------------------------------ */
 
-const sinToken = await fetch(`${BASE}/api/dashboard`);
+const sinToken = await fetchHeaders(`${BASE}/api/dashboard`);
 check('sin credencial no se ven los datos', sinToken.status === 401, `HTTP ${sinToken.status}`);
 
 check('trae las metricas de retencion', typeof panel.metrics.retention.d1.eligible === 'number');
