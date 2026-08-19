@@ -9,6 +9,7 @@
  *   node tools/resilience.mjs
  */
 import { launchBrowser } from './browser.mjs';
+import { fetchWithTimeout as fetch } from './fetch.mjs';
 import { playCurrent, playDrift } from './bot.mjs';
 
 // Por defecto contra la build de produccion servida por vite preview: es la
