@@ -1,0 +1,1809 @@
+{
+  "generado": "herramientas/forjar-audio.mjs",
+  "formato": "mp3 mono 32 kHz VBR q6, base64 en audio/muestras.js",
+  "sha256_muestras_js": "9176d59b84d128cbe8aea1f8efa6945d15847a94e26e4a10365f8a1ca5524e66",
+  "contrato": {
+    "disparo": {
+      "objetivo": -19.5,
+      "pico": 0.9,
+      "durMax": 0.34,
+      "sr": 32000,
+      "q": 9
+    },
+    "disparoEne": {
+      "objetivo": -23,
+      "pico": 0.82,
+      "durMax": 0.4,
+      "sr": 24000,
+      "q": 9
+    },
+    "impacto": {
+      "objetivo": -19,
+      "pico": 0.88,
+      "durMax": 0.42,
+      "sr": 32000,
+      "q": 9
+    },
+    "explosion": {
+      "objetivo": -15,
+      "pico": 0.95,
+      "durMax": 1.2,
+      "sr": 24000,
+      "q": 9
+    },
+    "jefe": {
+      "objetivo": -12,
+      "pico": 0.99,
+      "durMax": 2.8,
+      "sr": 24000,
+      "q": 9
+    },
+    "premio": {
+      "objetivo": -18,
+      "pico": 0.9,
+      "durMax": 0.9,
+      "sr": 32000,
+      "q": 9
+    },
+    "aviso": {
+      "objetivo": -16,
+      "pico": 0.93,
+      "durMax": 1.1,
+      "sr": 24000,
+      "q": 9
+    },
+    "ui": {
+      "objetivo": -19,
+      "pico": 0.88,
+      "durMax": 0.3,
+      "sr": 32000,
+      "q": 9
+    }
+  },
+  "totales": {
+    "sonidos": 71,
+    "archivos": 124,
+    "segundos": 47.53,
+    "kb_mp3": 279.2,
+    "kb_js": 374.1
+  },
+  "sonidos": [
+    {
+      "id": "cannon",
+      "cat": "disparo",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 73,
+          "pico": 0.381,
+          "son": -19.5,
+          "cresta": 11.1,
+          "grave": 10,
+          "agudo": 6,
+          "kb": 1.4
+        },
+        {
+          "v": 1,
+          "ms": 72,
+          "pico": 0.376,
+          "son": -19.5,
+          "cresta": 11,
+          "grave": 10,
+          "agudo": 6,
+          "kb": 1.3
+        },
+        {
+          "v": 2,
+          "ms": 72,
+          "pico": 0.398,
+          "son": -19.5,
+          "cresta": 11.5,
+          "grave": 9,
+          "agudo": 5,
+          "kb": 1.3
+        }
+      ]
+    },
+    {
+      "id": "rapid",
+      "cat": "disparo",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 45,
+          "pico": 0.435,
+          "son": -19.5,
+          "cresta": 12.3,
+          "grave": 4,
+          "agudo": 13,
+          "kb": 1.2
+        },
+        {
+          "v": 1,
+          "ms": 44,
+          "pico": 0.445,
+          "son": -19.5,
+          "cresta": 12.5,
+          "grave": 4,
+          "agudo": 12,
+          "kb": 1.2
+        },
+        {
+          "v": 2,
+          "ms": 44,
+          "pico": 0.431,
+          "son": -19.5,
+          "cresta": 12.2,
+          "grave": 4,
+          "agudo": 12,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "plasma",
+      "cat": "disparo",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 161,
+          "pico": 0.315,
+          "son": -19.5,
+          "cresta": 9.5,
+          "grave": 9,
+          "agudo": 8,
+          "kb": 1.6
+        },
+        {
+          "v": 1,
+          "ms": 160,
+          "pico": 0.314,
+          "son": -19.5,
+          "cresta": 9.4,
+          "grave": 9,
+          "agudo": 8,
+          "kb": 1.7
+        },
+        {
+          "v": 2,
+          "ms": 161,
+          "pico": 0.316,
+          "son": -19.5,
+          "cresta": 9.5,
+          "grave": 10,
+          "agudo": 7,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "laser",
+      "cat": "disparo",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 125,
+          "pico": 0.517,
+          "son": -19.5,
+          "cresta": 13.8,
+          "grave": 6,
+          "agudo": 57,
+          "kb": 1.6
+        },
+        {
+          "v": 1,
+          "ms": 124,
+          "pico": 0.49,
+          "son": -19.5,
+          "cresta": 13.3,
+          "grave": 6,
+          "agudo": 54,
+          "kb": 1.6
+        }
+      ]
+    },
+    {
+      "id": "railgun",
+      "cat": "disparo",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 254,
+          "pico": 0.396,
+          "son": -19.5,
+          "cresta": 11.5,
+          "grave": 31,
+          "agudo": 2,
+          "kb": 2.1
+        },
+        {
+          "v": 1,
+          "ms": 254,
+          "pico": 0.408,
+          "son": -19.5,
+          "cresta": 11.7,
+          "grave": 32,
+          "agudo": 2,
+          "kb": 2.1
+        }
+      ]
+    },
+    {
+      "id": "electrico",
+      "cat": "disparo",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 81,
+          "pico": 0.575,
+          "son": -19.5,
+          "cresta": 14.7,
+          "grave": 6,
+          "agudo": 49,
+          "kb": 1.6
+        },
+        {
+          "v": 1,
+          "ms": 91,
+          "pico": 0.677,
+          "son": -19.5,
+          "cresta": 16.1,
+          "grave": 7,
+          "agudo": 43,
+          "kb": 1.4
+        }
+      ]
+    },
+    {
+      "id": "fuego",
+      "cat": "disparo",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 131,
+          "pico": 0.46,
+          "son": -19.5,
+          "cresta": 12.8,
+          "grave": 30,
+          "agudo": 2,
+          "kb": 1.5
+        },
+        {
+          "v": 1,
+          "ms": 129,
+          "pico": 0.49,
+          "son": -19.5,
+          "cresta": 13.3,
+          "grave": 35,
+          "agudo": 2,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "cryo",
+      "cat": "disparo",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 109,
+          "pico": 0.512,
+          "son": -19.5,
+          "cresta": 13.7,
+          "grave": 8,
+          "agudo": 25,
+          "kb": 1.5
+        },
+        {
+          "v": 1,
+          "ms": 110,
+          "pico": 0.522,
+          "son": -19.5,
+          "cresta": 13.9,
+          "grave": 8,
+          "agudo": 22,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "misil",
+      "cat": "disparo",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 304,
+          "pico": 0.562,
+          "son": -19.5,
+          "cresta": 14.6,
+          "grave": 50,
+          "agudo": 1,
+          "kb": 2.2
+        },
+        {
+          "v": 1,
+          "ms": 304,
+          "pico": 0.554,
+          "son": -19.5,
+          "cresta": 14.4,
+          "grave": 50,
+          "agudo": 1,
+          "kb": 2.2
+        },
+        {
+          "v": 2,
+          "ms": 304,
+          "pico": 0.563,
+          "son": -19.5,
+          "cresta": 14.6,
+          "grave": 50,
+          "agudo": 1,
+          "kb": 2.2
+        }
+      ]
+    },
+    {
+      "id": "ultimate",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 956,
+          "pico": 0.639,
+          "son": -12,
+          "cresta": 11.1,
+          "grave": 24,
+          "agudo": 2,
+          "kb": 4.3
+        }
+      ]
+    },
+    {
+      "id": "carga",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 917,
+          "pico": 0.37,
+          "son": -16,
+          "cresta": 8.3,
+          "grave": 43,
+          "agudo": 2,
+          "kb": 5
+        }
+      ]
+    },
+    {
+      "id": "jug_golpe",
+      "cat": "impacto",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 236,
+          "pico": 0.49,
+          "son": -19,
+          "cresta": 12.8,
+          "grave": 47,
+          "agudo": 1,
+          "kb": 2
+        },
+        {
+          "v": 1,
+          "ms": 236,
+          "pico": 0.522,
+          "son": -19,
+          "cresta": 13.4,
+          "grave": 47,
+          "agudo": 2,
+          "kb": 2.3
+        }
+      ]
+    },
+    {
+      "id": "jug_escudo",
+      "cat": "impacto",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 400,
+          "pico": 0.43,
+          "son": -19,
+          "cresta": 12.8,
+          "grave": 30,
+          "agudo": 3,
+          "kb": 2.8
+        },
+        {
+          "v": 1,
+          "ms": 400,
+          "pico": 0.421,
+          "son": -19,
+          "cresta": 12.7,
+          "grave": 17,
+          "agudo": 3,
+          "kb": 2.7
+        }
+      ]
+    },
+    {
+      "id": "jug_muerte",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1058,
+          "pico": 0.602,
+          "son": -12,
+          "cresta": 10.9,
+          "grave": 35,
+          "agudo": 2,
+          "kb": 4.2
+        }
+      ]
+    },
+    {
+      "id": "ene_disparo",
+      "cat": "disparoEne",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 76,
+          "pico": 0.273,
+          "son": -23,
+          "cresta": 11.7,
+          "grave": 17,
+          "agudo": 1,
+          "kb": 0.9
+        },
+        {
+          "v": 1,
+          "ms": 75,
+          "pico": 0.265,
+          "son": -23,
+          "cresta": 11.5,
+          "grave": 18,
+          "agudo": 1,
+          "kb": 0.9
+        },
+        {
+          "v": 2,
+          "ms": 74,
+          "pico": 0.254,
+          "son": -23,
+          "cresta": 11.1,
+          "grave": 19,
+          "agudo": 1,
+          "kb": 0.9
+        }
+      ]
+    },
+    {
+      "id": "ene_pesado",
+      "cat": "disparoEne",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 195,
+          "pico": 0.272,
+          "son": -23,
+          "cresta": 11.7,
+          "grave": 51,
+          "agudo": 0,
+          "kb": 1.1
+        },
+        {
+          "v": 1,
+          "ms": 195,
+          "pico": 0.265,
+          "son": -23,
+          "cresta": 11.5,
+          "grave": 53,
+          "agudo": 0,
+          "kb": 1.1
+        },
+        {
+          "v": 2,
+          "ms": 195,
+          "pico": 0.26,
+          "son": -23,
+          "cresta": 11.3,
+          "grave": 54,
+          "agudo": 0,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "ene_mortero",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 277,
+          "pico": 0.259,
+          "son": -23,
+          "cresta": 11.3,
+          "grave": 78,
+          "agudo": 0,
+          "kb": 1.4
+        },
+        {
+          "v": 1,
+          "ms": 277,
+          "pico": 0.259,
+          "son": -23,
+          "cresta": 11.3,
+          "grave": 78,
+          "agudo": 0,
+          "kb": 1.4
+        }
+      ]
+    },
+    {
+      "id": "ene_barrido",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 191,
+          "pico": 0.227,
+          "son": -23,
+          "cresta": 10.1,
+          "grave": 16,
+          "agudo": 3,
+          "kb": 1.3
+        },
+        {
+          "v": 1,
+          "ms": 191,
+          "pico": 0.227,
+          "son": -23,
+          "cresta": 10.1,
+          "grave": 17,
+          "agudo": 3,
+          "kb": 1.3
+        }
+      ]
+    },
+    {
+      "id": "ene_laser",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 205,
+          "pico": 0.324,
+          "son": -23,
+          "cresta": 13.2,
+          "grave": 18,
+          "agudo": 25,
+          "kb": 1.5
+        },
+        {
+          "v": 1,
+          "ms": 205,
+          "pico": 0.336,
+          "son": -23,
+          "cresta": 13.5,
+          "grave": 18,
+          "agudo": 24,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "ene_misil",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 344,
+          "pico": 0.317,
+          "son": -23,
+          "cresta": 13.6,
+          "grave": 81,
+          "agudo": 0,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 344,
+          "pico": 0.334,
+          "son": -23,
+          "cresta": 14.1,
+          "grave": 81,
+          "agudo": 0,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "imp_ligero",
+      "cat": "impacto",
+      "variantes": 4,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 36,
+          "pico": 0.544,
+          "son": -19,
+          "cresta": 13.7,
+          "grave": 1,
+          "agudo": 15,
+          "kb": 1.2
+        },
+        {
+          "v": 1,
+          "ms": 36,
+          "pico": 0.545,
+          "son": -19,
+          "cresta": 13.7,
+          "grave": 1,
+          "agudo": 15,
+          "kb": 1.2
+        },
+        {
+          "v": 2,
+          "ms": 36,
+          "pico": 0.504,
+          "son": -19,
+          "cresta": 13.1,
+          "grave": 1,
+          "agudo": 16,
+          "kb": 1.1
+        },
+        {
+          "v": 3,
+          "ms": 36,
+          "pico": 0.55,
+          "son": -19,
+          "cresta": 13.8,
+          "grave": 1,
+          "agudo": 16,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "imp_medio",
+      "cat": "impacto",
+      "variantes": 4,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 66,
+          "pico": 0.567,
+          "son": -19,
+          "cresta": 14.1,
+          "grave": 21,
+          "agudo": 5,
+          "kb": 1.2
+        },
+        {
+          "v": 1,
+          "ms": 66,
+          "pico": 0.66,
+          "son": -19,
+          "cresta": 15.4,
+          "grave": 20,
+          "agudo": 5,
+          "kb": 1.2
+        },
+        {
+          "v": 2,
+          "ms": 71,
+          "pico": 0.606,
+          "son": -19,
+          "cresta": 14.7,
+          "grave": 20,
+          "agudo": 5,
+          "kb": 1.2
+        },
+        {
+          "v": 3,
+          "ms": 66,
+          "pico": 0.621,
+          "son": -19,
+          "cresta": 14.9,
+          "grave": 20,
+          "agudo": 5,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "imp_pesado",
+      "cat": "impacto",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 195,
+          "pico": 0.491,
+          "son": -19,
+          "cresta": 12.8,
+          "grave": 49,
+          "agudo": 1,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 195,
+          "pico": 0.478,
+          "son": -19,
+          "cresta": 12.6,
+          "grave": 47,
+          "agudo": 1,
+          "kb": 1.9
+        },
+        {
+          "v": 2,
+          "ms": 195,
+          "pico": 0.476,
+          "son": -19,
+          "cresta": 12.6,
+          "grave": 48,
+          "agudo": 1,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "imp_escudo",
+      "cat": "impacto",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 165,
+          "pico": 0.433,
+          "son": -19,
+          "cresta": 11.7,
+          "grave": 14,
+          "agudo": 2,
+          "kb": 1.7
+        },
+        {
+          "v": 1,
+          "ms": 165,
+          "pico": 0.413,
+          "son": -19,
+          "cresta": 11.3,
+          "grave": 29,
+          "agudo": 2,
+          "kb": 1.7
+        },
+        {
+          "v": 2,
+          "ms": 165,
+          "pico": 0.422,
+          "son": -19,
+          "cresta": 11.5,
+          "grave": 7,
+          "agudo": 1,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "exp_peq",
+      "cat": "explosion",
+      "variantes": 4,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 214,
+          "pico": 0.944,
+          "son": -15,
+          "cresta": 14.5,
+          "grave": 40,
+          "agudo": 2,
+          "kb": 1.5
+        },
+        {
+          "v": 1,
+          "ms": 214,
+          "pico": 0.865,
+          "son": -15,
+          "cresta": 13.7,
+          "grave": 35,
+          "agudo": 3,
+          "kb": 1.5
+        },
+        {
+          "v": 2,
+          "ms": 213,
+          "pico": 0.792,
+          "son": -15,
+          "cresta": 13,
+          "grave": 32,
+          "agudo": 3,
+          "kb": 1.5
+        },
+        {
+          "v": 3,
+          "ms": 214,
+          "pico": 0.95,
+          "son": -15,
+          "cresta": 14.6,
+          "grave": 41,
+          "agudo": 3,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "exp_med",
+      "cat": "explosion",
+      "variantes": 4,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 464,
+          "pico": 0.552,
+          "son": -15,
+          "cresta": 11.4,
+          "grave": 50,
+          "agudo": 1,
+          "kb": 2.4
+        },
+        {
+          "v": 1,
+          "ms": 464,
+          "pico": 0.544,
+          "son": -15,
+          "cresta": 11.3,
+          "grave": 47,
+          "agudo": 1,
+          "kb": 2.5
+        },
+        {
+          "v": 2,
+          "ms": 464,
+          "pico": 0.534,
+          "son": -15,
+          "cresta": 11.3,
+          "grave": 53,
+          "agudo": 1,
+          "kb": 2.4
+        },
+        {
+          "v": 3,
+          "ms": 464,
+          "pico": 0.529,
+          "son": -15,
+          "cresta": 11.3,
+          "grave": 55,
+          "agudo": 1,
+          "kb": 2.7
+        }
+      ]
+    },
+    {
+      "id": "exp_grande",
+      "cat": "explosion",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 915,
+          "pico": 0.434,
+          "son": -15,
+          "cresta": 10.6,
+          "grave": 55,
+          "agudo": 1,
+          "kb": 3.9
+        },
+        {
+          "v": 1,
+          "ms": 907,
+          "pico": 0.438,
+          "son": -15,
+          "cresta": 11.4,
+          "grave": 53,
+          "agudo": 1,
+          "kb": 3.5
+        },
+        {
+          "v": 2,
+          "ms": 915,
+          "pico": 0.402,
+          "son": -15,
+          "cresta": 10.2,
+          "grave": 57,
+          "agudo": 1,
+          "kb": 4.3
+        }
+      ]
+    },
+    {
+      "id": "exp_boss",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1749,
+          "pico": 0.546,
+          "son": -12,
+          "cresta": 10,
+          "grave": 48,
+          "agudo": 1,
+          "kb": 6.7
+        }
+      ]
+    },
+    {
+      "id": "exp_miniboss",
+      "cat": "jefe",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1046,
+          "pico": 0.573,
+          "son": -12,
+          "cresta": 10.5,
+          "grave": 40,
+          "agudo": 1,
+          "kb": 4.3
+        },
+        {
+          "v": 1,
+          "ms": 1056,
+          "pico": 0.58,
+          "son": -12,
+          "cresta": 10.5,
+          "grave": 36,
+          "agudo": 1,
+          "kb": 4.6
+        }
+      ]
+    },
+    {
+      "id": "premio_cae",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 225,
+          "pico": 0.248,
+          "son": -18,
+          "cresta": 5.9,
+          "grave": 0,
+          "agudo": 1,
+          "kb": 1.9
+        }
+      ]
+    },
+    {
+      "id": "pickup",
+      "cat": "premio",
+      "variantes": 3,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 181,
+          "pico": 0.703,
+          "son": -18,
+          "cresta": 14.9,
+          "grave": 3,
+          "agudo": 4,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 181,
+          "pico": 0.699,
+          "son": -18,
+          "cresta": 14.9,
+          "grave": 3,
+          "agudo": 5,
+          "kb": 1.8
+        },
+        {
+          "v": 2,
+          "ms": 181,
+          "pico": 0.688,
+          "son": -18,
+          "cresta": 14.7,
+          "grave": 3,
+          "agudo": 6,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "mejora",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 358,
+          "pico": 0.563,
+          "son": -18,
+          "cresta": 13.8,
+          "grave": 2,
+          "agudo": 2,
+          "kb": 2.8
+        }
+      ]
+    },
+    {
+      "id": "escudo_on",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 550,
+          "pico": 0.31,
+          "son": -18,
+          "cresta": 9.8,
+          "grave": 24,
+          "agudo": 1,
+          "kb": 3.2
+        }
+      ]
+    },
+    {
+      "id": "vida",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 557,
+          "pico": 0.394,
+          "son": -18,
+          "cresta": 12.2,
+          "grave": 3,
+          "agudo": 4,
+          "kb": 3.3
+        }
+      ]
+    },
+    {
+      "id": "combo",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 190,
+          "pico": 0.492,
+          "son": -18,
+          "cresta": 11.8,
+          "grave": 0,
+          "agudo": 7,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "aviso",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 625,
+          "pico": 0.41,
+          "son": -16,
+          "cresta": 8.4,
+          "grave": 4,
+          "agudo": 5,
+          "kb": 3.6
+        }
+      ]
+    },
+    {
+      "id": "boss_llega",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 2047,
+          "pico": 0.406,
+          "son": -12,
+          "cresta": 5.7,
+          "grave": 94,
+          "agudo": 0,
+          "kb": 6.1
+        }
+      ]
+    },
+    {
+      "id": "fase",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 694,
+          "pico": 0.578,
+          "son": -12,
+          "cresta": 10.1,
+          "grave": 52,
+          "agudo": 6,
+          "kb": 3
+        }
+      ]
+    },
+    {
+      "id": "bomba",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1167,
+          "pico": 0.521,
+          "son": -12,
+          "cresta": 10.3,
+          "grave": 47,
+          "agudo": 3,
+          "kb": 5.5
+        }
+      ]
+    },
+    {
+      "id": "emp",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 411,
+          "pico": 0.381,
+          "son": -16,
+          "cresta": 9,
+          "grave": 8,
+          "agudo": 26,
+          "kb": 2.1
+        }
+      ]
+    },
+    {
+      "id": "mision_ini",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 844,
+          "pico": 0.516,
+          "son": -16,
+          "cresta": 12.8,
+          "grave": 11,
+          "agudo": 1,
+          "kb": 3.8
+        }
+      ]
+    },
+    {
+      "id": "victoria",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1036,
+          "pico": 0.463,
+          "son": -16,
+          "cresta": 11.8,
+          "grave": 8,
+          "agudo": 1,
+          "kb": 4.7
+        }
+      ]
+    },
+    {
+      "id": "derrota",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1100,
+          "pico": 0.362,
+          "son": -16,
+          "cresta": 9,
+          "grave": 40,
+          "agudo": 1,
+          "kb": 4.1
+        }
+      ]
+    },
+    {
+      "id": "desbloqueo",
+      "cat": "premio",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 580,
+          "pico": 0.416,
+          "son": -18,
+          "cresta": 12.9,
+          "grave": 2,
+          "agudo": 4,
+          "kb": 3.5
+        }
+      ]
+    },
+    {
+      "id": "ui_sel",
+      "cat": "ui",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 54,
+          "pico": 0.501,
+          "son": -19,
+          "cresta": 13,
+          "grave": 5,
+          "agudo": 2,
+          "kb": 1.1
+        },
+        {
+          "v": 1,
+          "ms": 54,
+          "pico": 0.533,
+          "son": -19,
+          "cresta": 13.5,
+          "grave": 5,
+          "agudo": 3,
+          "kb": 1.1
+        }
+      ]
+    },
+    {
+      "id": "ui_ok",
+      "cat": "ui",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 188,
+          "pico": 0.573,
+          "son": -19,
+          "cresta": 14.2,
+          "grave": 2,
+          "agudo": 2,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "ui_atras",
+      "cat": "ui",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 88,
+          "pico": 0.579,
+          "son": -19,
+          "cresta": 14.2,
+          "grave": 10,
+          "agudo": 1,
+          "kb": 1.3
+        }
+      ]
+    },
+    {
+      "id": "ui_no",
+      "cat": "ui",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 122,
+          "pico": 0.329,
+          "son": -19,
+          "cresta": 9.4,
+          "grave": 43,
+          "agudo": 1,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "ui_pausa",
+      "cat": "ui",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 204,
+          "pico": 0.632,
+          "son": -19,
+          "cresta": 15,
+          "grave": 20,
+          "agudo": 4,
+          "kb": 2
+        }
+      ]
+    },
+    {
+      "id": "sniper_lock",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 218,
+          "pico": 0.735,
+          "son": -16,
+          "cresta": 13.3,
+          "grave": 0,
+          "agudo": 19,
+          "kb": 1.5
+        }
+      ]
+    },
+    {
+      "id": "sniper_aviso",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 59,
+          "pico": 0.423,
+          "son": -16,
+          "cresta": 8.5,
+          "grave": 0,
+          "agudo": 12,
+          "kb": 0.8
+        }
+      ]
+    },
+    {
+      "id": "sniper_tiro",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 152,
+          "pico": 0.265,
+          "son": -23,
+          "cresta": 11.5,
+          "grave": 22,
+          "agudo": 23,
+          "kb": 1.2
+        },
+        {
+          "v": 1,
+          "ms": 152,
+          "pico": 0.267,
+          "son": -23,
+          "cresta": 11.5,
+          "grave": 22,
+          "agudo": 23,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "kamikaze",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 556,
+          "pico": 0.363,
+          "son": -16,
+          "cresta": 7.9,
+          "grave": 14,
+          "agudo": 4,
+          "kb": 3
+        }
+      ]
+    },
+    {
+      "id": "escudo_zumb",
+      "cat": "aviso",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 285,
+          "pico": 0.487,
+          "son": -16,
+          "cresta": 9.7,
+          "grave": 39,
+          "agudo": 0,
+          "kb": 1.6
+        },
+        {
+          "v": 1,
+          "ms": 285,
+          "pico": 0.476,
+          "son": -16,
+          "cresta": 9.5,
+          "grave": 19,
+          "agudo": 0,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "roca_impacto",
+      "cat": "impacto",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 148,
+          "pico": 0.456,
+          "son": -19,
+          "cresta": 12.2,
+          "grave": 77,
+          "agudo": 1,
+          "kb": 1.6
+        },
+        {
+          "v": 1,
+          "ms": 148,
+          "pico": 0.469,
+          "son": -19,
+          "cresta": 12.4,
+          "grave": 72,
+          "agudo": 1,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "roca_break",
+      "cat": "explosion",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 323,
+          "pico": 0.771,
+          "son": -15,
+          "cresta": 13,
+          "grave": 52,
+          "agudo": 2,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 323,
+          "pico": 0.811,
+          "son": -15,
+          "cresta": 13.5,
+          "grave": 64,
+          "agudo": 2,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "reaper_carga",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 619,
+          "pico": 0.364,
+          "son": -16,
+          "cresta": 8.4,
+          "grave": 49,
+          "agudo": 3,
+          "kb": 3.6
+        }
+      ]
+    },
+    {
+      "id": "aegis_lock",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 128,
+          "pico": 0.525,
+          "son": -16,
+          "cresta": 10.4,
+          "grave": 0,
+          "agudo": 22,
+          "kb": 1.4
+        }
+      ]
+    },
+    {
+      "id": "aegis_nodo",
+      "cat": "explosion",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 213,
+          "pico": 0.72,
+          "son": -15,
+          "cresta": 12.1,
+          "grave": 29,
+          "agudo": 19,
+          "kb": 1.5
+        },
+        {
+          "v": 1,
+          "ms": 213,
+          "pico": 0.729,
+          "son": -15,
+          "cresta": 12.3,
+          "grave": 30,
+          "agudo": 18,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "aegis_overload",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1396,
+          "pico": 0.471,
+          "son": -12,
+          "cresta": 8,
+          "grave": 24,
+          "agudo": 13,
+          "kb": 5.9
+        }
+      ]
+    },
+    {
+      "id": "venom_pulso",
+      "cat": "disparoEne",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 281,
+          "pico": 0.198,
+          "son": -23,
+          "cresta": 8.9,
+          "grave": 44,
+          "agudo": 0,
+          "kb": 1.1
+        },
+        {
+          "v": 1,
+          "ms": 280,
+          "pico": 0.202,
+          "son": -23,
+          "cresta": 9.1,
+          "grave": 44,
+          "agudo": 0,
+          "kb": 1.2
+        }
+      ]
+    },
+    {
+      "id": "venom_zona",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 423,
+          "pico": 0.364,
+          "son": -16,
+          "cresta": 8.4,
+          "grave": 55,
+          "agudo": 0,
+          "kb": 1.9
+        }
+      ]
+    },
+    {
+      "id": "venom_collapse",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1155,
+          "pico": 0.472,
+          "son": -12,
+          "cresta": 8.8,
+          "grave": 53,
+          "agudo": 0,
+          "kb": 4.9
+        }
+      ]
+    },
+    {
+      "id": "gravedad_forma",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 625,
+          "pico": 0.33,
+          "son": -16,
+          "cresta": 8.4,
+          "grave": 12,
+          "agudo": 1,
+          "kb": 2.7
+        }
+      ]
+    },
+    {
+      "id": "gravedad_colapso",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 727,
+          "pico": 0.515,
+          "son": -12,
+          "cresta": 9,
+          "grave": 26,
+          "agudo": 12,
+          "kb": 2.6
+        }
+      ]
+    },
+    {
+      "id": "fuego_ignicion",
+      "cat": "aviso",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 319,
+          "pico": 0.654,
+          "son": -16,
+          "cresta": 12.6,
+          "grave": 52,
+          "agudo": 2,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 320,
+          "pico": 0.632,
+          "son": -16,
+          "cresta": 12.3,
+          "grave": 48,
+          "agudo": 2,
+          "kb": 1.8
+        }
+      ]
+    },
+    {
+      "id": "core_offline",
+      "cat": "aviso",
+      "variantes": 2,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 301,
+          "pico": 0.422,
+          "son": -16,
+          "cresta": 8.5,
+          "grave": 7,
+          "agudo": 4,
+          "kb": 1.8
+        },
+        {
+          "v": 1,
+          "ms": 301,
+          "pico": 0.428,
+          "son": -16,
+          "cresta": 8.6,
+          "grave": 7,
+          "agudo": 4,
+          "kb": 1.7
+        }
+      ]
+    },
+    {
+      "id": "alarma_flota",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 474,
+          "pico": 0.433,
+          "son": -16,
+          "cresta": 9,
+          "grave": 5,
+          "agudo": 3,
+          "kb": 2.8
+        }
+      ]
+    },
+    {
+      "id": "reactor",
+      "cat": "aviso",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 905,
+          "pico": 0.313,
+          "son": -16,
+          "cresta": 7.9,
+          "grave": 84,
+          "agudo": 0,
+          "kb": 3.9
+        }
+      ]
+    },
+    {
+      "id": "finale",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1889,
+          "pico": 0.607,
+          "son": -12,
+          "cresta": 11.3,
+          "grave": 56,
+          "agudo": 0,
+          "kb": 7.5
+        }
+      ]
+    },
+    {
+      "id": "campana_victoria",
+      "cat": "jefe",
+      "variantes": 1,
+      "medidas": [
+        {
+          "v": 0,
+          "ms": 1679,
+          "pico": 0.764,
+          "son": -12,
+          "cresta": 12,
+          "grave": 20,
+          "agudo": 1,
+          "kb": 6.8
+        }
+      ]
+    }
+  ]
+}

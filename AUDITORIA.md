@@ -15,7 +15,7 @@ las pruebas.
 | Sistema | Estado |
 |---|---|
 | Campo de juego vertical con marco | **Sólido** |
-| Motor de audio (4 buses, 58 sonidos, prioridades) | **Sólido** |
+| Motor de audio (4 buses, 7 grupos, 71 sonidos por muestra + repuesto sintetizado) | **Sólido** |
 | Reservas de objetos (partículas, balas, efectos) | **Sólido** · sin fugas medidas |
 | Calidad adaptativa en 3 niveles, con recuperación | **Sólido** |
 | Sacudida de cámara en 5 intensidades + congelado | **Sólido** |
@@ -32,6 +32,13 @@ las pruebas.
 | Supervivencia (4 mundos) | Conservado íntegro |
 | Persistencia con versión de guardado | **Sólido** |
 | Pipeline de sprites (recorte, inundación, escalado) | **Sólido** |
+| 5 chasis con arte propio, ficha heredada sin tocar y alias de los ids viejos | **Sólido** |
+| Hangar: catálogo, desbloqueo por misión con concesión retroactiva y personalización | **Sólido** |
+| Skins por tinte compuesto en código (5) · por material | 5 sólidas · 5 **declaradas y bloqueadas** a falta de arte |
+| Estelas (7) y emblemas (10) | **Sólido** |
+| Ficha de juego de SV-12 SOVEREIGN | **Provisional y declarada** · valores neutros, sin calibrar |
+| Modo ADMIN / FAMILY: capa de permisos, 4 perfiles, saves separados por clave | **Sólido** · aislamiento verificado byte a byte |
+| FOUNDER FLEET (4 naves privadas, `adminOnly`) | **Sólido** · fuera del juego normal desde un solo sitio |
 | Música | **Pendiente a propósito** |
 
 ---
@@ -157,6 +164,12 @@ De esta fase:
 | Sin música | Bajo | Arquitectura puesta; documentado en THIRD_PARTY_AUDIO_LICENSES.md |
 | `localStorage` para naves cargadas | Bajo | 4 naves × 320 px ≈ 400 KB de un tope de ~5 MB |
 | Dificultad de la segunda mitad sin jugador real | Medio | Calibrada con piloto automático; falta que la juegue una persona |
+| SV-12 SOVEREIGN sin balancear | Medio | Ficha neutra, marcada `fichaProvisional` y avisada en el Hangar. Se calibra con `duracion-*.mjs` |
+| 5 skins de material sin arte | Bajo | Salen bloqueadas y dicen por qué, en vez de fingirse con un cambio de matiz |
+| El fondo del Hangar es apaisado y el juego vertical | Bajo | Se coloca como banda con degradados; `hangar_v.png` entra por la misma ruta y lo sustituye solo |
+| El PIN de admin viaja en el código | Bajo · es lo pedido | Barrera casual, no seguridad. Quien abra el inspector entra. Lo que sirve para lo comercial es `ADMIN.excluido()`, que no depende del PIN |
+| Un save de admin corrupto | Bajo | Mismo esquema y misma validación que el normal, y su copia de seguridad va aparte (`sf_admin_<perfil>_prev`) |
+| Inversión visual/hitbox entre AEGIS y PHANTOM | Bajo · estético | El AEGIS se dibuja ancho con radio pequeño y el PHANTOM al revés. **A propósito**: tocar la hitbox cambiaría el juego |
 
 ---
 

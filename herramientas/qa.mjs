@@ -26,9 +26,13 @@ const MIME = { ".html":"text/html", ".js":"text/javascript", ".png":"image/png",
 // Comprobarlo aquí ahorra el rato de buscar el fantasma.
 export async function comprobarSintaxis() {
   const html = await readFile(join(RAIZ, "index.html"), "utf8");
-  const m = html.match(/<script>([\s\S]*?)<\/script>/);
-  if (!m) return;
-  try { new Function(m[1]); }
+  // El primer <script> ya no es el juego: es <script src="audio/muestras.js">.
+  // Hay que quedarse con el bloque EN LÍNEA más largo, o esto pasaría a
+  // comprobar la sintaxis de una cadena vacía y no avisaría de nada.
+  const bloques = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+    .map(m => m[1]).sort((a, b) => b.length - a.length);
+  if (!bloques.length) return;
+  try { new Function(bloques[0]); }
   catch (e) {
     console.error("✗ index.html no compila: " + e.message);
     process.exit(1);
@@ -42,7 +46,28 @@ export async function servidor() {
     const f = join(RAIZ, url === "/" ? "index.html" : url);
     try {
       const d = await readFile(f);
-      res.writeHead(200, { "content-type": MIME[extname(f).toLowerCase()] || "application/octet-stream" });
+      const tipo = MIME[extname(f).toLowerCase()] || "application/octet-stream";
+      // Rangos HTTP. Sin esto un <audio> NO PUEDE SALTAR: cualquier
+      // cambio de posición se queda en 0, y la prueba de música daba
+      // por roto lo que en un alojamiento de verdad funciona. Es
+      // exactamente lo que sirve GitHub Pages, que es donde se publica.
+      const rango = req.headers.range && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+      if (rango) {
+        const ini = rango[1] ? +rango[1] : 0;
+        const fin = rango[2] ? Math.min(+rango[2], d.length - 1) : d.length - 1;
+        if (ini >= d.length || ini > fin) {
+          res.writeHead(416, { "content-range": "bytes */" + d.length });
+          return res.end();
+        }
+        res.writeHead(206, {
+          "content-type": tipo,
+          "content-range": "bytes " + ini + "-" + fin + "/" + d.length,
+          "accept-ranges": "bytes",
+          "content-length": fin - ini + 1,
+        });
+        return res.end(d.subarray(ini, fin + 1));
+      }
+      res.writeHead(200, { "content-type": tipo, "accept-ranges": "bytes", "content-length": d.length });
       res.end(d);
     } catch (_) { res.writeHead(404); res.end("no"); }
   });
@@ -76,7 +101,18 @@ export async function abrir(pw, srv, disp, opts = {}) {
   const errores = [];
   p.on("console", m => { if (m.type() === "error") errores.push("CONSOLE " + m.text()); });
   p.on("pageerror", e => errores.push("EXCEPCION " + e.message));
-  p.on("requestfailed", r => errores.push("404 " + r.url().replace(srv.url, "")));
+  // Una petición fallida NO es siempre un 404, y llamarlas todas así
+  // mandaba a buscar archivos que estaban perfectamente. El caso normal
+  // es `net::ERR_ABORTED`: cambiar de pista de música mientras la
+  // anterior se está descargando aborta esa descarga, y eso es el
+  // comportamiento correcto, no un fallo. Se informa del motivo REAL y
+  // se ignoran los abortos de medios.
+  p.on("requestfailed", r => {
+    const motivo = (r.failure() && r.failure().errorText) || "?";
+    const url = r.url().replace(srv.url, "");
+    if (motivo.includes("ERR_ABORTED") && /\.(mp3|ogg|wav)$/i.test(url)) return;
+    errores.push("PETICION " + motivo + " " + url);
+  });
   await p.goto(srv.url + (opts.query || ""), { waitUntil: "load" });
   await p.waitForTimeout(opts.espera || 1200);
   p.errores = errores;
@@ -102,13 +138,21 @@ export async function captura(p, destino, nombre) {
 }
 
 export async function estado(p) {
-  return p.evaluate(() => ({
-    state, elapsed: +elapsed.toFixed(1), fps: +fps.toFixed(1),
-    enemigos: enemies.length, balas: bullets.length, eBalas: eBullets.length,
-    particulas: particles.length, efectos: efectos.length,
-    boss: miniboss ? miniboss.tipo + " f" + miniboss.fase + " " + miniboss.hp + "/" + miniboss.hpMax : null,
-    score, vidas: lives, calidad: calidadAuto,
-  }));
+  return p.evaluate(() => {
+    // Las partículas ya no son un array suelto: las lleva VFX, con su
+    // presupuesto. Se informa del conteo y del tiempo de fotograma real,
+    // que es lo que de verdad hace falta vigilar.
+    const v = typeof VFX !== "undefined" ? VFX.metricas() : null;
+    return {
+      state, elapsed: +elapsed.toFixed(1), fps: +fps.toFixed(1),
+      enemigos: enemies.length, balas: bullets.length, eBalas: eBullets.length,
+      particulas: v ? v.parts : 0, maxPart: v ? v.maxParts : 0,
+      ms: v ? +v.ms.toFixed(1) : 0, vfx: v ? v.calidad : "—",
+      efectos: efectos.length,
+      boss: miniboss ? miniboss.tipo + " f" + miniboss.fase + " " + miniboss.hp + "/" + miniboss.hpMax : null,
+      score, vidas: lives, calidad: calidadAuto,
+    };
+  });
 }
 
 export async function informe(paginas, destino, titulo) {

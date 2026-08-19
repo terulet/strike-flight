@@ -18,6 +18,19 @@ mismo son estos catorce:
   crucero.png        M6: dos baterias laterales
   comando.png        M6: acelera a toda la flota
   dron_ataque.png    escolta rapida y fragil
+
+Y diez mas, de la expansion (bloque 5E):
+
+  sierra_hielo.png   hielo, rebota en las paredes
+  prisma.png         hielo, refleja tus disparos
+  patrulla.png       megaciudad, cruza disparando
+  torre_neon.png     megaciudad, torre fija de borde
+  medusa.png         abismo, invisible hasta que late
+  sembrador.png      abismo, suelta minas y se va
+  crisol.png         fragua, se parte en dos al morir
+  martillo.png       fragua, golpe pesado telegrafiado
+  rompedor.png       grieta, se teletransporta
+  eco.png            grieta, copia tu posicion con retraso
   dron_escudo.png    escolta de apoyo
   dron_misil.png     escolta con misil guiado
 

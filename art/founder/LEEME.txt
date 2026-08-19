@@ -1,0 +1,61 @@
+===========================================
+  FOUNDER FLEET  -  coleccion privada
+===========================================
+
+  kali.png
+  yoli.png
+  silvia.png
+  eloi.png
+
+Son los PNG ORIGINALES de las cuatro naves
+personales, recuperados del historial de git
+(commit 404449d) cuando art/naves/ se sustituyo
+por los chasis nuevos.
+
+NO SE BORRAN.
+
+-------------------------------------------
+  DONDE SE USAN
+-------------------------------------------
+
+SOLO dentro del MODO ADMIN / FAMILY.
+
+En js/ships.js estan declaradas con:
+
+  adminOnly:     true
+  legacyFounder: true
+
+`adminOnly` las saca del juego normal desde un
+solo sitio: la funcion visibles(). No aparecen
+en el Hangar normal, no se conceden por
+progreso, no entran en naves.desbloqueadas y no
+pueden salir en una tienda futura.
+
+Sus ids son founder_kali, founder_yoli,
+founder_silvia y founder_eloi. NO son los ids
+legacy (kali, yoli...): esos siguen siendo
+alias de lectura que apuntan a los chasis
+nuevos, y reutilizar el nombre le cambiaria la
+nave a cualquier save antiguo.
+
+-------------------------------------------
+  CARGA
+-------------------------------------------
+
+Estos cuatro PNG NO se descargan en el juego
+normal. Se piden al entrar en Admin, cuando la
+tabla de naves se rehace. Son medio mega que un
+jugador normal no va a ver nunca.
+
+-------------------------------------------
+  FORMATO
+-------------------------------------------
+
+Vienen ya recortados al pixel (sin margen
+transparente) y con el lado mayor en 320 px,
+que es como estaban. No hace falta pasarlos por
+preparar-naves.mjs.
+
+Llevan el nombre pintado en el casco. En la
+coleccion privada eso es lo que se quiere: son
+las naves de KALI, YOLI, SILVIA y ELOI.

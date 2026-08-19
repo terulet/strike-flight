@@ -18,8 +18,8 @@ const p = await abrir({ navegador }, srv, "ipad");
 const medir = async () => p.evaluate(() => ({
   fps: +fps.toFixed(1),
   ene: enemies.length, eBal: eBullets.length, bal: bullets.length,
-  part: particles.length, fx: efectos.length, tel: telegrafos.length,
-  reservaPart: libresPart.length, reservaBala: libresBala.length,
+  part: VFX.metricas().parts, fx: efectos.length, tel: telegrafos.length,
+  reservaPart: VFX.metricas().reserva, reservaBala: libresBala.length,
   calidad: calidadAuto, voces,
 }));
 
