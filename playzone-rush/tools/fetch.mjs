@@ -23,3 +23,24 @@ export async function fetchWithTimeout(url, init = {}, timeoutMs = DEFAULT_TIMEO
     clearTimeout(timer);
   }
 }
+
+/**
+ * Igual que fetchWithTimeout, pero para cuando solo interesan el estado y las
+ * cabeceras: consume el cuerpo antes de devolver la respuesta.
+ *
+ * No es una cortesia, es obligatorio. undici (el fetch de Node) no devuelve la
+ * conexion al pool hasta que alguien lee o cancela el cuerpo. En localhost da
+ * igual porque abre conexiones nuevas sin limite, pero a traves de Tailscale
+ * Funnel la concurrencia util es de UNA conexion: una sola respuesta sin leer
+ * deja la siguiente peticion esperando para siempre.
+ *
+ * Encontrado en produccion: alfa.mjs pasaba 42/42 contra 127.0.0.1 y se
+ * quedaba clavado en POST /api/groups a traves del Funnel. La causa no estaba
+ * en el servidor ni en el proxy, sino aqui: antes se habia descargado el
+ * bundle (133 KB) mirando solo la cabecera cache-control, sin leerlo.
+ */
+export async function fetchHeaders(url, init = {}, timeoutMs) {
+  const response = await fetchWithTimeout(url, init, timeoutMs);
+  await response.arrayBuffer();
+  return response;
+}
