@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
-/** Mismo id que calcula el servidor (server/src/version.mjs): un commit corto. */
+/** Commit corto del momento de compilar. */
 function buildId() {
   try {
     return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
@@ -12,13 +12,36 @@ function buildId() {
   }
 }
 
+const BUILD_ID = buildId();
+
+/**
+ * Deja el id del build dentro de dist/, junto al bundle que lo lleva dentro.
+ *
+ * El servidor lo lee de ahi en vez de preguntarle a git: si alguien hace un
+ * git pull y no reconstruye, git ya dice otro commit pero lo que se esta
+ * sirviendo sigue siendo el de antes. Preguntandole a git, el servidor
+ * anunciaba una version que no existia y todos los moviles se quedaban con el
+ * aviso de "hay una version nueva" para siempre, porque al recargar recibian
+ * el mismo bundle. Este fichero solo cambia cuando cambia el bundle, que es
+ * justo lo que hay que comparar.
+ */
+function emitBuildId(): Plugin {
+  return {
+    name: 'playzone-build-id',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'build-id.txt', source: BUILD_ID });
+    },
+  };
+}
+
 // Base relativa: el build sale como ficheros estaticos que funcionan servidos
 // por HTTP y tambien empaquetados dentro de un WKWebView (Capacitor) sin tocar
 // una sola linea del juego.
 export default defineConfig({
   base: './',
+  plugins: [emitBuildId()],
   define: {
-    __BUILD_ID__: JSON.stringify(buildId()),
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   server: {
     host: true,

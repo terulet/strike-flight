@@ -26,8 +26,10 @@ export function createPlayzoneServer(options = {}) {
   // Solo lectura: no comparte el store con la API, prepara sus propios SELECT.
   const dashboard = createDashboard(db);
 
-  const buildId = options.buildId ?? computeBuildId();
-  const serveStatic = createStaticServer(options.distDir ?? config.distDir);
+  // El id sale de dist/, no de git: tiene que ser el de lo que se sirve.
+  const distDir = options.distDir ?? config.distDir;
+  const buildId = options.buildId ?? computeBuildId(distDir);
+  const serveStatic = createStaticServer(distDir);
   const backup = options.disableBackups
     ? null
     : startBackupSchedule(db, {
