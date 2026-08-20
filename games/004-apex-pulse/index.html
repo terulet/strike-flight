@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Apex Pulse">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07060c">
+<title>APEX PULSE — PLAYZONE 004</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; overflow:hidden; background:#07060c;
+    overscroll-behavior:none; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body { position:fixed; inset:0; }
+  canvas { display:block; touch-action:none; }
+  #volver {
+    position:absolute; z-index:2;
+    top:calc(12px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left));
+    padding:9px 15px 9px 12px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.16); background:rgba(10,8,18,.62);
+    color:#d4cfe6; text-decoration:none;
+    font:700 11.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing:.14em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="volver" href="../../index.html">‹ &nbsp;PLAYZONE</a>
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════
+//  APEX PULSE — PLAYZONE 004
+//  Conducción arcade de trazada. No es un simulador: la única
+//  obsesión es clavar el ápex y arañar centésimas.
+//
+//  AJUSTES — cambia los números, guarda y recarga.
+// ════════════════════════════════════════════════════════════
+const CONFIG = {
+  // Motor
+  velMaxima:        520,   // px/s
+  aceleracion:      330,
+  frenada:          620,
+  rozamiento:       0.55,  // cuánto frena sola al no acelerar
+
+  // Dirección
+  giro:             3.05,  // radianes/s a tope
+  giroRefVel:       150,   // por debajo de esta velocidad se gira menos
+
+  // Agarre. La diferencia entre los dos es TODO el derrape.
+  agarre:           9.0,   // agarre lateral normal
+  agarreDerrape:    2.3,   // agarre lateral frenando: aquí se derrapa
+
+  // Fuera de pista
+  penalizacionHierba: 0.32, // multiplica la velocidad al pisar fuera
+
+  // Ápex
+  radioApex:        52,    // cómo de cerca hay que pasar
+  turboApex:        95,    // empujón al clavarlo
+  turboMax:         190,   // tope de turbo acumulado
+
+  // Circuito
+  anchoPista:       82,
+  escalaCircuito:   1.35,  // estira el trazado sin tocar el ancho: vuelta mas larga
+  sectores:         3,
+
+  sonido:           true,
+};
+
+const COLOR = {
+  cielo:    "#07060c",
+  asfalto:  "#2b2936",
+  suelo:    "#0d0c14",
+  rejilla:  "#191826",
+  borde:    "#ff6b1f",
+  linea:    "#413f52",
+  coche:    "#ff8a3d",
+  cocheB:   "#ffd166",
+  fantasma: "#5ce1ff",
+  apex:     "#ffd166",
+  apexOk:   "#00ff9d",
+  texto:    "#ffffff",
+  mejor:    "#00ff9d",
+  peor:     "#ff4d6d",
+};
+
+// Trazado del circuito, en coordenadas de mundo. Cerrado: el último
+// punto enlaza con el primero. Toca estos puntos y tienes otro circuito.
+const TRAZADO = [
+  [500,  60], [760,  70], [900, 180], [905, 330], [820, 430],
+  [660, 430], [600, 520], [700, 600], [560, 615], [380, 600],
+  [250, 560], [150, 450], [120, 300], [130, 170], [250,  75],
+];
+
+// ════════════════════════════════════════════════════════════
+//  A partir de aquí es la maquinaria.
+// ════════════════════════════════════════════════════════════
+
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+const botonVolver = document.getElementById("volver");
+const F = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+let W = 0, H = 0;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  c.style.width = W + "px"; c.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// Mide la franja que se come la barra de estado del iPad.
+const medidor = document.createElement("div");
+medidor.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;"
+                      + "padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none";
+document.body.appendChild(medidor);
+function margenArriba() { return parseFloat(getComputedStyle(medidor).paddingTop) || 0; }
+
+// ── Geometría del circuito ────────────────────────────────
+// Se suaviza el trazado con Catmull-Rom y se guarda como polilínea
+// densa, con la distancia acumulada. Todo lo demás se apoya en esto.
+const PISTA = (function construirPista() {
+  const p = TRAZADO, n = p.length, pasos = 26, pts = [];
+  const en = i => p[(i % n + n) % n];
+  for (let i = 0; i < n; i++) {
+    const p0 = en(i - 1), p1 = en(i), p2 = en(i + 1), p3 = en(i + 2);
+    for (let s = 0; s < pasos; s++) {
+      const t = s / pasos, t2 = t * t, t3 = t2 * t;
+      const k = CONFIG.escalaCircuito;
+      pts.push([
+        k * 0.5 * ((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        k * 0.5 * ((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
+      ]);
+    }
+  }
+  // distancia acumulada
+  const dist = [0];
+  for (let i = 1; i < pts.length; i++) {
+    dist.push(dist[i-1] + Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
+  }
+  const cierre = Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]);
+  const largo = dist[dist.length-1] + cierre;
+  return { pts, dist, largo };
+})();
+
+// Los ápex se deducen de la propia curva: donde más cierra, y siempre
+// por el lado de dentro. Así cambiar TRAZADO no obliga a recolocarlos.
+const APEX = (function buscarApex() {
+  const { pts } = PISTA, n = pts.length, curv = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i - 7 + n) % n], b = pts[i], d = pts[(i + 7) % n];
+    const a1 = Math.atan2(b[1]-a[1], b[0]-a[0]);
+    const a2 = Math.atan2(d[1]-b[1], d[0]-b[0]);
+    let dif = a2 - a1;
+    while (dif >  Math.PI) dif -= Math.PI * 2;
+    while (dif < -Math.PI) dif += Math.PI * 2;
+    curv[i] = dif;
+  }
+  const lista = [];
+  for (let i = 0; i < n; i++) {
+    const k = Math.abs(curv[i]);
+    if (k < 0.12) continue;                       // recta: no hay ápex
+    let pico = true;
+    for (let j = -11; j <= 11; j++) if (Math.abs(curv[(i+j+n)%n]) > k) { pico = false; break; }
+    if (!pico) continue;
+    if (lista.some(a => Math.abs(a.i - i) < 26 || Math.abs(a.i - i) > n - 26)) continue;
+    const b = pts[i], d = pts[(i + 4) % n];
+    const nx = -(d[1]-b[1]), ny = (d[0]-b[0]);
+    const m = Math.hypot(nx, ny) || 1;
+    const lado = Math.sign(curv[i]);              // dentro de la curva
+    lista.push({ i, x: b[0] + (nx/m) * lado * CONFIG.anchoPista * 0.34,
+                    y: b[1] + (ny/m) * lado * CONFIG.anchoPista * 0.34 });
+  }
+  return lista;
+})();
+
+// Punto más cercano de la pista. Se busca alrededor del último índice
+// conocido, que es barato y basta porque el coche avanza poco por cuadro.
+function enPista(x, y, pista) {
+  const { pts } = PISTA, n = pts.length;
+  let mejor = Infinity, idx = pista;
+  for (let j = -60; j <= 60; j++) {
+    const i = (pista + j + n) % n;
+    const d = (pts[i][0]-x)**2 + (pts[i][1]-y)**2;
+    if (d < mejor) { mejor = d; idx = i; }
+  }
+  return { idx, dist: Math.sqrt(mejor), avance: PISTA.dist[idx] };
+}
+
+// ── Sonido ────────────────────────────────────────────────
+let audio = null, motorOsc = null, motorGan = null;
+function despertarAudio() {
+  if (!CONFIG.sonido || audio) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio = new AC();
+  motorOsc = audio.createOscillator(); motorGan = audio.createGain();
+  motorOsc.type = "sawtooth"; motorOsc.frequency.value = 70;
+  motorGan.gain.value = 0;
+  motorOsc.connect(motorGan); motorGan.connect(audio.destination);
+  motorOsc.start();
+}
+function motor(v, derrapando) {
+  if (!audio) return;
+  motorOsc.frequency.setTargetAtTime(62 + v * 0.28, audio.currentTime, 0.05);
+  motorGan.gain.setTargetAtTime(estado === "corre" ? (derrapando ? 0.05 : 0.032) : 0, audio.currentTime, 0.08);
+}
+function pitido(f1, f2, dur, tipo, vol) {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f1, audio.currentTime);
+  if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(f2, audio.currentTime + dur);
+  g.gain.setValueAtTime(vol, audio.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+  o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+}
+const sonApex    = () => pitido(880, 1450, 0.12, "triangle", 0.09);
+const sonSector  = (mejora) => pitido(mejora ? 700 : 420, mejora ? 1100 : 330, 0.14, "square", 0.06);
+const sonVuelta  = () => { pitido(660, 990, 0.2, "triangle", 0.1); setTimeout(() => pitido(990, 1320, 0.25, "triangle", 0.1), 130); };
+
+// ── Guardado ──────────────────────────────────────────────
+const CLAVE = "pz_apex_";
+function leer(k, pordefecto) {
+  try { const v = localStorage.getItem(CLAVE + k); return v === null ? pordefecto : JSON.parse(v); }
+  catch (_) { return pordefecto; }
+}
+function guardar(k, v) { try { localStorage.setItem(CLAVE + k, JSON.stringify(v)); } catch (_) {} }
+
+let mejorVuelta   = leer("pb", null);          // segundos
+let mejoresSectores = leer("sectores", [null, null, null]);
+let fantasma      = leer("fantasma", null);    // [{t, avance}] de la vuelta récord
+
+// ── Estado ────────────────────────────────────────────────
+let estado = "menu";        // menu · corre · fin
+let coche, tiempo, vuelta, sectorAct, tiemposSector, apexTocados;
+let traza, chispas, aviso, avisoT, ultimaVuelta, fueRecord, finT;
+let grabacion, deltaVivo, derrapando = false;
+
+function nuevoCoche() {
+  const p0 = PISTA.pts[0], p1 = PISTA.pts[6];
+  return {
+    x: p0[0], y: p0[1],
+    ang: Math.atan2(p1[1]-p0[1], p1[0]-p0[0]),
+    vx: 0, vy: 0, turbo: 0, pista: 0, avance: 0, vueltasDadas: 0,
+  };
+}
+
+function empezar() {
+  coche = nuevoCoche();
+  tiempo = 0; sectorAct = 0; tiemposSector = []; apexTocados = new Set();
+  traza = []; chispas = []; aviso = ""; avisoT = 0;
+  grabacion = []; deltaVivo = null;
+  estado = "corre";
+  botonVolver.style.display = "none";
+}
+
+function terminarVuelta() {
+  ultimaVuelta = tiempo;
+  fueRecord = mejorVuelta === null || tiempo < mejorVuelta;
+  if (fueRecord) {
+    mejorVuelta = tiempo; guardar("pb", mejorVuelta);
+    fantasma = grabacion.slice(); guardar("fantasma", fantasma);
+  }
+  tiemposSector.forEach((t, i) => {
+    if (mejoresSectores[i] === null || t < mejoresSectores[i]) mejoresSectores[i] = t;
+  });
+  guardar("sectores", mejoresSectores);
+  sonVuelta();
+  estado = "fin"; finT = 0;
+  botonVolver.style.display = "";
+}
+
+// ── Control ───────────────────────────────────────────────
+// Dos pulgares: mitad izquierda gira a izquierda, derecha a derecha,
+// y las dos a la vez es el freno. Con teclado, flechas y espacio.
+const dedos = new Map();
+let teclaIzq = false, teclaDer = false, teclaFreno = false;
+
+function alPulsar(e) {
+  e.preventDefault(); despertarAudio();
+  if (estado === "menu") { empezar(); return; }
+  if (estado === "fin") { if (finT > 0.4) empezar(); return; }
+  dedos.set(e.pointerId, e.clientX);
+}
+function alMover(e) { if (dedos.has(e.pointerId)) dedos.set(e.pointerId, e.clientX); }
+function alSoltar(e) { dedos.delete(e.pointerId); }
+c.addEventListener("pointerdown", alPulsar, { passive:false });
+c.addEventListener("pointermove", alMover,  { passive:false });
+c.addEventListener("pointerup", alSoltar);
+c.addEventListener("pointercancel", alSoltar);
+addEventListener("keydown", e => {
+  if (e.repeat) return;
+  despertarAudio();
+  if (e.key === "ArrowLeft"  || e.key === "a") teclaIzq = true;
+  if (e.key === "ArrowRight" || e.key === "d") teclaDer = true;
+  if (e.key === " " || e.key === "ArrowDown" || e.key === "s") { teclaFreno = true; e.preventDefault(); }
+  if (e.key === "Enter" || e.key === " ") {
+    if (estado === "menu") empezar();
+    else if (estado === "fin" && finT > 0.4) empezar();
+  }
+});
+addEventListener("keyup", e => {
+  if (e.key === "ArrowLeft"  || e.key === "a") teclaIzq = false;
+  if (e.key === "ArrowRight" || e.key === "d") teclaDer = false;
+  if (e.key === " " || e.key === "ArrowDown" || e.key === "s") teclaFreno = false;
+});
+
+function mandos() {
+  let izq = teclaIzq, der = teclaDer;
+  for (const x of dedos.values()) { if (x < W / 2) izq = true; else der = true; }
+  const freno = teclaFreno || (izq && der);
+  return { direccion: freno ? 0 : (der ? 1 : 0) - (izq ? 1 : 0), freno };
+}
+
+// ── Física ────────────────────────────────────────────────
+function actualizar(dt) {
+  if (avisoT > 0) avisoT -= dt;
+  for (let i = chispas.length - 1; i >= 0; i--) {
+    const p = chispas[i];
+    p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.t >= p.vida) chispas.splice(i, 1);
+  }
+  if (estado === "fin") { finT += dt; motor(0, false); return; }
+  if (estado !== "corre") { motor(0, false); return; }
+
+  tiempo += dt;
+  const m = mandos();
+
+  const dx = Math.cos(coche.ang), dy = Math.sin(coche.ang);
+  let fwd = coche.vx * dx + coche.vy * dy;
+  let lat = -coche.vx * dy + coche.vy * dx;
+
+  // Motor y freno
+  if (m.freno) fwd -= CONFIG.frenada * dt;
+  else fwd += CONFIG.aceleracion * dt;
+  fwd -= fwd * CONFIG.rozamiento * dt;
+  const techo = CONFIG.velMaxima + coche.turbo;
+  if (fwd > techo) fwd = techo;
+  if (fwd < 0) fwd = 0;
+
+  // Dirección: a poca velocidad se gira menos, como en cualquier coche
+  const factor = Math.min(1, fwd / CONFIG.giroRefVel);
+  coche.ang += m.direccion * CONFIG.giro * factor * dt;
+
+  // Agarre lateral: frenando se pierde, y eso es el derrape
+  const agarre = m.freno ? CONFIG.agarreDerrape : CONFIG.agarre;
+  lat *= Math.exp(-agarre * dt);
+  derrapando = Math.abs(lat) > 55;
+
+  coche.vx = dx * fwd - dy * lat;
+  coche.vy = dy * fwd + dx * lat;
+  coche.x += coche.vx * dt;
+  coche.y += coche.vy * dt;
+
+  coche.turbo = Math.max(0, coche.turbo - 60 * dt);
+
+  // Pista
+  const ref = enPista(coche.x, coche.y, coche.pista);
+  coche.pista = ref.idx;
+  const fuera = ref.dist > CONFIG.anchoPista / 2;
+  if (fuera) {
+    const f = 1 - CONFIG.penalizacionHierba * dt * 4;
+    coche.vx *= f; coche.vy *= f;
+    if (Math.random() < 0.35) polvo(coche.x, coche.y);
+  }
+
+  // Ápex
+  APEX.forEach((a, i) => {
+    if (apexTocados.has(i)) return;
+    if (Math.hypot(a.x - coche.x, a.y - coche.y) < CONFIG.radioApex) {
+      apexTocados.add(i);
+      coche.turbo = Math.min(CONFIG.turboMax, coche.turbo + CONFIG.turboApex);
+      aviso = "ÁPEX"; avisoT = 0.75;
+      for (let k = 0; k < 10; k++) polvo(a.x, a.y, COLOR.apexOk);
+      sonApex();
+    }
+  });
+
+  // Avance en la vuelta, sectores y meta
+  const antes = coche.avance;
+  coche.avance = ref.avance;
+  const largoSector = PISTA.largo / CONFIG.sectores;
+
+  if (antes > PISTA.largo * 0.75 && coche.avance < PISTA.largo * 0.25) {
+    // ha cruzado la meta
+    tiemposSector.push(tiempo - (tiemposSector.reduce((a, b) => a + b, 0)));
+    terminarVuelta();
+    return;
+  }
+  const sectorQueToca = Math.min(CONFIG.sectores - 1, Math.floor(coche.avance / largoSector));
+  if (sectorQueToca > sectorAct) {
+    const acumulado = tiemposSector.reduce((a, b) => a + b, 0);
+    const parcial = tiempo - acumulado;
+    tiemposSector.push(parcial);
+    const ref2 = mejoresSectores[sectorAct];
+    sonSector(ref2 === null || parcial < ref2);
+    if (ref2 !== null) {
+      const d = parcial - ref2;
+      aviso = (d < 0 ? "−" : "+") + Math.abs(d).toFixed(2) + "  S" + (sectorAct + 1);
+      avisoT = 1.4;
+    }
+    sectorAct = sectorQueToca;
+  }
+
+  // Grabación para el fantasma, y delta en vivo contra él
+  grabacion.push({ t: tiempo, avance: coche.avance });
+  if (fantasma && fantasma.length > 1) {
+    const tf = tiempoDelFantasmaEn(coche.avance);
+    deltaVivo = tf === null ? null : tiempo - tf;
+  }
+
+  if (fwd > 120 && (derrapando || fuera) && Math.random() < 0.6) polvo(coche.x, coche.y);
+  traza.push({ x: coche.x, y: coche.y, a: coche.ang, humo: derrapando });
+  if (traza.length > 26) traza.shift();
+
+  motor(fwd, derrapando);
+}
+
+// Cuándo pasó el fantasma por este mismo punto del circuito.
+function tiempoDelFantasmaEn(avance) {
+  const g = fantasma;
+  if (!g || !g.length) return null;
+  let lo = 0, hi = g.length - 1;
+  if (avance <= g[0].avance) return g[0].t;
+  if (avance >= g[hi].avance) return null;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (g[mid].avance <= avance) lo = mid; else hi = mid;
+  }
+  const a = g[lo], b = g[hi];
+  const k = (avance - a.avance) / Math.max(1e-6, b.avance - a.avance);
+  return a.t + (b.t - a.t) * k;
+}
+
+function polvo(x, y, color) {
+  const a = Math.random() * Math.PI * 2, v = 20 + Math.random() * 60;
+  chispas.push({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v, t: 0, vida: 0.35 + Math.random()*0.4,
+                 color: color || "#8b7f6b" });
+}
+
+// ── Dibujo ────────────────────────────────────────────────
+function reloj(s) {
+  if (s === null || s === undefined) return "--:--.--";
+  const m = Math.floor(s / 60), r = s - m * 60;
+  return m + ":" + (r < 10 ? "0" : "") + r.toFixed(2);
+}
+
+function ladoPista(i, lado) {
+  const { pts } = PISTA, n = pts.length;
+  const b = pts[i], d = pts[(i + 3) % n];
+  const nx = -(d[1]-b[1]), ny = (d[0]-b[0]);
+  const m = Math.hypot(nx, ny) || 1;
+  return [b[0] + (nx/m) * lado * CONFIG.anchoPista/2, b[1] + (ny/m) * lado * CONFIG.anchoPista/2];
+}
+
+// El suelo es una rejilla amplia alrededor del coche: sin ella, fuera de la
+// pista no hay nada con lo que medir la velocidad.
+function dibujarSuelo() {
+  const r = 1400, paso = 90;
+  const x0 = Math.floor((coche.x - r) / paso) * paso;
+  const y0 = Math.floor((coche.y - r) / paso) * paso;
+  ctx.fillStyle = COLOR.suelo;
+  ctx.fillRect(coche.x - r, coche.y - r, r * 2, r * 2);
+  ctx.strokeStyle = COLOR.rejilla; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let x = x0; x < coche.x + r; x += paso) { ctx.moveTo(x, coche.y - r); ctx.lineTo(x, coche.y + r); }
+  for (let y = y0; y < coche.y + r; y += paso) { ctx.moveTo(coche.x - r, y); ctx.lineTo(coche.x + r, y); }
+  ctx.stroke();
+}
+
+function dibujarPista() {
+  const { pts } = PISTA, n = pts.length;
+  // asfalto
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) { const p = ladoPista(i, 1); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+  for (let i = n - 1; i >= 0; i--) { const p = ladoPista(i, -1); ctx.lineTo(p[0], p[1]); }
+  ctx.closePath();
+  ctx.fillStyle = COLOR.asfalto; ctx.fill();
+
+  // bordes
+  ctx.lineWidth = 3.5; ctx.strokeStyle = COLOR.borde;
+  for (const lado of [1, -1]) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) { const p = ladoPista(i, lado); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // línea central discontinua
+  ctx.setLineDash([16, 22]); ctx.lineWidth = 2; ctx.strokeStyle = COLOR.linea;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) { const p = pts[i]; i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+
+  // meta
+  const a = ladoPista(0, 1), b = ladoPista(0, -1);
+  ctx.lineWidth = 7; ctx.strokeStyle = "#e8e6f0";
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+
+  // ápex
+  APEX.forEach((p, i) => {
+    const ok = apexTocados.has(i);
+    ctx.strokeStyle = ok ? COLOR.apexOk : COLOR.apex;
+    ctx.globalAlpha = ok ? 0.9 : 0.5;
+    ctx.lineWidth = ok ? 3 : 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, CONFIG.radioApex * 0.5, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+}
+
+function dibujarCoche(x, y, ang, cuerpo, detalle, alfa) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.globalAlpha = alfa === undefined ? 1 : alfa;
+  ctx.fillStyle = cuerpo;
+  ctx.beginPath();
+  ctx.moveTo(17, 0); ctx.lineTo(6, -8); ctx.lineTo(-13, -8);
+  ctx.lineTo(-16, 0); ctx.lineTo(-13, 8); ctx.lineTo(6, 8);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = detalle;
+  ctx.fillRect(-2, -5.5, 8, 11);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+function dibujarMundo() {
+  // Cámara: pegada al coche y girada, para que el morro apunte siempre arriba.
+  const zoom = 1.15;
+  ctx.save();
+  ctx.translate(W / 2, H * 0.64);
+  ctx.scale(zoom, zoom);
+  ctx.rotate(-coche.ang - Math.PI / 2);
+  ctx.translate(-coche.x, -coche.y);
+
+  dibujarSuelo();
+  dibujarPista();
+
+  // marcas de derrape
+  ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 5; ctx.lineCap = "round";
+  ctx.beginPath();
+  traza.forEach((t, i) => { if (!t.humo) return; i ? ctx.lineTo(t.x, t.y) : ctx.moveTo(t.x, t.y); });
+  ctx.stroke();
+
+  chispas.forEach(p => {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.vida);
+    ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  });
+  ctx.globalAlpha = 1;
+
+  // fantasma: dónde iba el récord en este mismo instante
+  if (fantasma && fantasma.length > 1 && estado === "corre") {
+    const g = fantasma;
+    let i = 0; while (i < g.length - 1 && g[i].t < tiempo) i++;
+    const av = g[i].avance;
+    const n = PISTA.pts.length;
+    let idx = 0, mejor = Infinity;
+    for (let k = 0; k < n; k += 2) { const d = Math.abs(PISTA.dist[k] - av); if (d < mejor) { mejor = d; idx = k; } }
+    const p = PISTA.pts[idx], q = PISTA.pts[(idx + 4) % n];
+    dibujarCoche(p[0], p[1], Math.atan2(q[1]-p[1], q[0]-p[0]), COLOR.fantasma, "#bff3ff", 0.42);
+  }
+
+  if (estado !== "menu") dibujarCoche(coche.x, coche.y, coche.ang, COLOR.coche, COLOR.cocheB);
+  ctx.restore();
+}
+
+function texto(t, x, y, tam, peso, color, alin, alfa) {
+  ctx.globalAlpha = alfa === undefined ? 1 : alfa;
+  ctx.fillStyle = color || COLOR.texto;
+  ctx.font = peso + " " + tam + "px " + F;
+  ctx.textAlign = alin || "center"; ctx.textBaseline = "middle";
+  ctx.fillText(t, x, y);
+  ctx.globalAlpha = 1;
+}
+
+function minimapa() {
+  const esc = 112 / (1000 * CONFIG.escalaCircuito), ox = W - 128, oy = margenArriba() + 16;
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(esc, esc);
+  ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 26;
+  ctx.beginPath();
+  PISTA.pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.closePath(); ctx.stroke();
+  if (estado === "corre") {
+    ctx.fillStyle = COLOR.coche;
+    ctx.beginPath(); ctx.arc(coche.x, coche.y, 34, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function hud() {
+  const y0 = margenArriba();
+  texto(reloj(tiempo), W / 2, y0 + 40, Math.min(46, W * 0.115), "900");
+  texto("RÉCORD  " + reloj(mejorVuelta), W / 2, y0 + 74, 12, "700", "#9aa1cc");
+
+  if (deltaVivo !== null && deltaVivo !== undefined) {
+    const mejor = deltaVivo < 0;
+    texto((mejor ? "−" : "+") + Math.abs(deltaVivo).toFixed(2), W / 2, y0 + 106,
+          Math.min(30, W * 0.075), "900", mejor ? COLOR.mejor : COLOR.peor);
+  }
+
+  // sectores
+  const anchoS = Math.min(96, W * 0.26);
+  for (let i = 0; i < CONFIG.sectores; i++) {
+    const x = W/2 + (i - 1) * (anchoS + 8);
+    const hecho = tiemposSector[i] !== undefined;
+    const ref = mejoresSectores[i];
+    let col = "#4a5178";
+    if (hecho && ref !== null) col = tiemposSector[i] <= ref ? COLOR.mejor : COLOR.peor;
+    else if (hecho) col = "#9aa1cc";
+    ctx.fillStyle = col; ctx.globalAlpha = i === sectorAct && !hecho ? 0.9 : 0.55;
+    ctx.fillRect(x - anchoS/2, H - 46, anchoS, 4);
+    ctx.globalAlpha = 1;
+    texto(hecho ? tiemposSector[i].toFixed(2) : "S" + (i+1), x, H - 62, 11, "700", col);
+  }
+
+  texto("ÁPEX  " + apexTocados.size + "/" + APEX.length, W/2, H - 22, 11, "700",
+        apexTocados.size === APEX.length ? COLOR.apexOk : "#7d84b4");
+
+  if (avisoT > 0) {
+    texto(aviso, W / 2, H * 0.42, Math.min(34, W * 0.085), "900",
+          aviso.startsWith("−") ? COLOR.mejor : aviso.startsWith("+") ? COLOR.peor : COLOR.apexOk,
+          "center", Math.min(1, avisoT * 2));
+  }
+  minimapa();
+}
+
+function pantallaMenu() {
+  ctx.fillStyle = "rgba(7,6,12,.72)"; ctx.fillRect(0, 0, W, H);
+  texto("APEX PULSE", W/2, H*0.33, Math.min(50, W*0.125), "900");
+  texto("Clava el ápex. Araña centésimas.", W/2, H*0.33 + 42, 14, "600", "#c0b9d6");
+  texto("RÉCORD  " + reloj(mejorVuelta), W/2, H*0.33 + 78, 13, "700", "#9aa1cc");
+  texto("Un pulgar a cada lado para girar.", W/2, H*0.56, 13.5, "600", "#9aa1cc");
+  texto("Los dos a la vez: freno, y ahí derrapa.", W/2, H*0.56 + 22, 13.5, "600", "#9aa1cc");
+  const pulso = 0.55 + Math.sin(Date.now() / 320) * 0.25;
+  texto("TOCA PARA SALIR", W/2, H*0.72, 15, "800", "#fff", "center", pulso);
+}
+
+function pantallaFin() {
+  ctx.fillStyle = "rgba(7,6,12,.78)"; ctx.fillRect(0, 0, W, H);
+  const perfecta = apexTocados.size === APEX.length;
+  texto(fueRecord ? "¡RÉCORD!" : perfecta ? "VUELTA PERFECTA" : "VUELTA COMPLETADA",
+        W/2, H*0.32, Math.min(34, W*0.085), "900", fueRecord ? COLOR.mejor : "#fff");
+  texto(reloj(ultimaVuelta), W/2, H*0.32 + 58, Math.min(56, W*0.14), "900");
+  texto("RÉCORD  " + reloj(mejorVuelta), W/2, H*0.32 + 100, 13, "700", "#9aa1cc");
+  for (let i = 0; i < tiemposSector.length; i++) {
+    const ref = mejoresSectores[i];
+    const col = ref !== null && tiemposSector[i] <= ref ? COLOR.mejor : "#9aa1cc";
+    texto("S" + (i+1) + "  " + tiemposSector[i].toFixed(2), W/2, H*0.32 + 132 + i * 20, 12.5, "700", col);
+  }
+  texto("ÁPEX  " + apexTocados.size + "/" + APEX.length, W/2, H*0.32 + 132 + tiemposSector.length * 20 + 16,
+        12.5, "800", perfecta ? COLOR.apexOk : "#7d84b4");
+  if (finT > 0.4) {
+    const pulso = 0.55 + Math.sin(Date.now() / 320) * 0.25;
+    texto("OTRA", W/2, H*0.78, 16, "800", "#fff", "center", pulso);
+  }
+}
+
+function dibujar() {
+  ctx.fillStyle = COLOR.cielo; ctx.fillRect(0, 0, W, H);
+  if (estado === "menu") { coche = coche || nuevoCoche(); dibujarMundo(); pantallaMenu(); return; }
+  dibujarMundo();
+  if (estado === "corre") hud(); else { hud(); pantallaFin(); }
+}
+
+// ── Bucle, con paso fijo para que la física sea determinista ──
+coche = nuevoCoche(); tiempo = 0; sectorAct = 0; tiemposSector = [];
+apexTocados = new Set(); traza = []; chispas = []; aviso = ""; avisoT = 0;
+grabacion = []; deltaVivo = null;
+
+const PASO = 1 / 120;
+let anterior = performance.now(), resto = 0;
+function bucle(ahora) {
+  let dt = (ahora - anterior) / 1000;
+  anterior = ahora;
+  if (dt > 0.25) dt = 0.25;
+  resto += dt;
+  while (resto >= PASO) { actualizar(PASO); resto -= PASO; }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+</body>
+</html>
