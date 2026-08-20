@@ -87,6 +87,9 @@
   .puerta.rush .titulo { background-image:linear-gradient(96deg, #00f5ff, #00ff9d); }
   .puerta .desc { margin-top:6px; font-size:13px; line-height:1.45; color:#c3c8ee; }
   .puerta .flecha { margin-top:12px; font-size:11.5px; font-weight:700; letter-spacing:.16em; color:#fff; opacity:.8; }
+  .puerta.rush { cursor:default; }
+  .puerta.rush .flecha { letter-spacing:.06em; opacity:.62; }
+  .puerta.rush .flecha code { font-size:11px; color:#9fe8d0; letter-spacing:0; }
 
   footer { margin-top:40px; text-align:center; font-size:11.5px; line-height:1.75; color:#565d8a; }
   code { font-size:11px; color:#7d84b4; }
@@ -112,11 +115,11 @@
       <div class="desc">Los juegos largos, con mundos, progresión y jefes. Aquí vive Flight&nbsp;Strike.</div>
       <div class="flecha">ENTRAR &nbsp;›</div>
     </a>
-    <a class="puerta rush" href="rush/playzone-rush/index.html">
+    <div class="puerta rush" id="puertaRush">
       <div class="titulo">PLAYZONE RUSH</div>
       <div class="desc">La capa competitiva: reto diario, ranking, fantasma y revancha. No es un juego del catálogo.</div>
-      <div class="flecha">ENTRAR &nbsp;›</div>
-    </a>
+      <div class="flecha">SE ARRANCA APARTE: <code>cd rush/playzone-rush &amp;&amp; npm run dev:all</code></div>
+    </div>
   </div>
 
   <footer>
