@@ -1,78 +1,57 @@
-# Strike Flight
+# PLAYZONE
 
-Matamarcianos vertical para jugar en tablet. Un solo archivo, sin dependencias,
-sin compilar y sin conexión.
+El paraguas de todos los juegos que vamos haciendo.
+
+Son dos zonas, cada una con su portada y su icono propio:
+
+- **PLAYZONE** (`index.html`) — los **minijuegos**: partida corta, se
+  entiende en cinco segundos, se juega de pie.
+- **PLAYZONE MAX** (`max/index.html`) — los **juegos grandes**: mundos,
+  progresión, jefes. Aquí vive Strike Flight.
+
+Sin instalar nada, sin compilar y sin conexión. Un archivo por juego.
 
 ## Jugar
 
-Doble clic en `index.html`.
+Doble clic en `index.html`. Desde ahí se llega a todo.
 
-Se arrastra el dedo (o el ratón) por cualquier parte de la pantalla y la nave
-sigue. Dispara sola: solo hay que esquivar y recoger premios.
-
-## Cargar tus propias naves
-
-En el menú, casilla **`+ CARGAR`**. Eliges un PNG y ya está: aparece en el
-selector y se queda guardada en el navegador.
-
-El juego le quita el fondo automáticamente si es de un color plano —
-magenta, blanco, verde— mediante relleno por inundación desde los bordes,
-así que los blancos del interior de la nave se conservan. Después la recorta
-y la ajusta de tamaño.
-
-Caben 4 naves. Para borrar una, la `×` de su esquina.
-
-En el iPad el `+` abre la galería de fotos.
-
-## La carpeta `art/`
-
-Para que las naves vengan puestas de serie en vez de cargarlas a mano:
+## Cómo está montado
 
 ```
-art/naves/kali.png
-art/naves/yoli.png
-art/naves/silvia.png
-
-art/enemigos/normal.png
-art/enemigos/veloz.png
-art/enemigos/torreta.png
-art/enemigos/tanque.png
+index.html                     ← PLAYZONE, la portada
+minijuegos/
+  LEEME.txt                    ← cómo añadir un minijuego
+  esquiva/index.html
+max/
+  index.html                   ← PLAYZONE MAX, la portada
+  strike-flight/
+    index.html
+    README.md · LEEME.txt · AUDITORIA.md
+    art/                       ← aquí van los PNG de Strike Flight
 ```
 
-Lo que falte se dibuja por código. No se rompe nada.
+Cada juego es un `index.html` que no depende de nada externo, así que se
+puede abrir suelto, mover de sitio o borrar sin romper el resto. Las dos
+portadas son lo único que sabe qué juegos existen.
 
-> Abriendo con `file://`, el navegador no deja leer los píxeles de una imagen
-> de disco, así que a estas no se les puede quitar el fondo: tienen que venir
-> ya con transparencia. Servido por HTTP (GitHub Pages) sí funciona el
-> recorte automático.
+## Añadir un juego
 
-## Requisitos de las imágenes
+En la cabecera de cada portada hay una lista, comentada en español:
 
-- La nave **mirando hacia arriba**
-- Los enemigos hacia abajo, o simétricos
-- PNG con transparencia, o con fondo de un color plano
-- Del tamaño que sea: se reducen a 512 px por el lado largo
+- minijuego nuevo → lista `MINIJUEGOS` de `index.html`
+- juego grande → lista `JUEGOS` de `max/index.html`
 
-## Ajustes
+Se copia una línea, se cambian los datos y se recarga. Con `listo:false`
+la casilla queda en gris como «próximamente», que sirve para reservar el
+hueco de algo que aún no existe sin romper nada.
 
-Todo en la cabecera de `index.html`, comentado en español:
-
-- **`CONFIG`** — vidas, velocidad, cadencia de disparo, dificultad, tamaño de
-  la nave, y `llamasMotor` (ponlo a `false` si tu nave ya lleva las llamas
-  dibujadas).
-- **`TEMAS`** — los cuatro mundos. Copiar un bloque y cambiar los colores es
-  un mundo nuevo.
-
-## Contenido
-
-Cuatro mundos, cuatro tipos de enemigo (normales, veloces en zigzag, torretas
-que apuntan, y acorazados con barra de vida), seis niveles de arma, cinco
-premios, combos con multiplicador, y récord guardado.
-
-Sonido generado por síntesis: cero archivos de audio.
+Los detalles, en `minijuegos/LEEME.txt`.
 
 ## Ponerlo en la tablet
 
-Con Pages activado, abrir el enlace en Safari y **Compartir → Añadir a
-pantalla de inicio**. Queda con icono propio, a pantalla completa y funciona
-sin conexión.
+Con GitHub Pages activado, abrir el enlace en Safari y **Compartir →
+Añadir a pantalla de inicio**.
+
+Las dos portadas se pueden añadir por separado: PLAYZONE con la raíz, y
+PLAYZONE MAX abriendo antes `max/`. Quedan como dos apps distintas, cada
+una con su nombre, a pantalla completa y funcionando sin conexión.

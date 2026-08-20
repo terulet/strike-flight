@@ -4,1247 +4,180 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Strike Flight">
+<meta name="apple-mobile-web-app-title" content="PLAYZONE">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Strike Flight</title>
+<meta name="theme-color" content="#05060f">
+<title>PLAYZONE</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body {
-    width:100%; height:100%; overflow:hidden; background:#05060f;
-    overscroll-behavior:none; -webkit-user-select:none; user-select:none;
-    -webkit-tap-highlight-color:transparent;
+    min-height:100%; background:#05060f; color:#fff;
+    font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none; user-select:none;
+    overscroll-behavior-y:none;
   }
-  body { position:fixed; inset:0; }
-  canvas { display:block; touch-action:none; }
-  #file { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+  body {
+    min-height:100vh; min-height:100dvh;
+    padding:calc(28px + env(safe-area-inset-top)) 22px calc(40px + env(safe-area-inset-bottom));
+    background:
+      radial-gradient(1100px 620px at 50% -12%, #2a1055 0%, transparent 62%),
+      radial-gradient(760px 520px at 8% 105%, #05203f 0%, transparent 60%),
+      #05060f;
+  }
+  .marco { max-width:1000px; margin:0 auto; }
+
+  h1 {
+    font-size:clamp(46px, 13vw, 104px); font-weight:900; letter-spacing:.03em;
+    line-height:.95; text-align:center;
+    background:linear-gradient(102deg, #00f5ff 0%, #c77dff 46%, #ff2ea6 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 26px rgba(199,125,255,.45));
+  }
+  .lema {
+    text-align:center; margin-top:10px; font-size:13px; font-weight:600;
+    letter-spacing:.22em; text-transform:uppercase; color:#8f96c4;
+  }
+
+  h2 {
+    margin:44px 0 16px; font-size:12px; font-weight:700;
+    letter-spacing:.24em; text-transform:uppercase; color:#7d84b4;
+    display:flex; align-items:center; gap:14px;
+  }
+  h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg, #2c3160, transparent); }
+
+  .rejilla {
+    display:grid; gap:14px;
+    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .carta {
+    display:block; text-decoration:none; color:inherit;
+    border-radius:20px; padding:20px 18px 18px; min-height:172px;
+    background:linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.11);
+    display:flex; flex-direction:column; gap:8px;
+    transition:transform .12s ease, border-color .12s ease;
+    position:relative; overflow:hidden;
+  }
+  .carta::before {
+    content:""; position:absolute; inset:-40% -30% auto -30%; height:150px;
+    background:radial-gradient(closest-side, var(--tinte), transparent 72%);
+    opacity:.34; pointer-events:none;
+  }
+  .carta:active { transform:scale(.97); }
+  .carta .icono { font-size:34px; line-height:1; color:var(--tinte); }
+  .carta .nombre { margin-top:auto; font-size:17px; font-weight:800; letter-spacing:.04em; }
+  .carta .desc { font-size:12.5px; line-height:1.4; color:#9aa1cc; }
+
+  .carta.pronto {
+    background:none; border-style:dashed; border-color:rgba(255,255,255,.14);
+    opacity:.42; cursor:default;
+  }
+  .carta.pronto::before { display:none; }
+  .carta.pronto .etiqueta {
+    margin-top:auto; font-size:10px; font-weight:800;
+    letter-spacing:.18em; color:#7d84b4;
+  }
+
+  .puerta-max {
+    display:block; text-decoration:none; color:inherit;
+    margin-top:16px; padding:26px 24px; border-radius:22px;
+    background:linear-gradient(112deg, rgba(255,46,166,.16), rgba(0,245,255,.13));
+    border:1px solid rgba(255,255,255,.17);
+    transition:transform .12s ease;
+  }
+  .puerta-max:active { transform:scale(.985); }
+  .puerta-max .titulo {
+    font-size:clamp(26px, 7vw, 40px); font-weight:900; letter-spacing:.02em;
+    background:linear-gradient(96deg, #ff2ea6, #ffd166 55%, #00f5ff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .puerta-max .desc { margin-top:6px; font-size:13.5px; line-height:1.45; color:#c3c8ee; }
+  .puerta-max .flecha { margin-top:14px; font-size:12px; font-weight:700; letter-spacing:.16em; color:#fff; opacity:.8; }
+
+  footer {
+    margin-top:40px; text-align:center; font-size:11.5px; line-height:1.7; color:#565d8a;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .carta, .puerta-max { animation:entra .34s ease both; }
+    @keyframes entra { from { opacity:0; transform:translateY(10px); } }
+  }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<input type="file" id="file" accept="image/*">
+<div class="marco">
+  <h1>PLAYZONE</h1>
+  <p class="lema">Todos nuestros juegos en un sitio</p>
+
+  <h2>Minijuegos</h2>
+  <div class="rejilla" id="rejilla"></div>
+
+  <h2>Los grandes</h2>
+  <a class="puerta-max" href="max/index.html">
+    <div class="titulo">PLAYZONE MAX</div>
+    <div class="desc">Los juegos largos, con mundos, niveles y jefes. Empezando por Strike&nbsp;Flight.</div>
+    <div class="flecha">ENTRAR &nbsp;›</div>
+  </a>
+
+  <footer>
+    Un archivo por juego. Sin instalar nada, sin internet.<br>
+    Para añadir un minijuego, mira <code>minijuegos/LEEME.txt</code>.
+  </footer>
+</div>
+
 <script>
 "use strict";
 
 // ════════════════════════════════════════════════════════════
-//  AJUSTES — cambia los números, guarda y recarga.
+//  LOS MINIJUEGOS
+//  Aquí van los juegos cortos, de partida rápida.
+//  Los juegos grandes NO van aquí: esos van en PLAYZONE MAX.
+//
+//  Para añadir uno: copia una línea, cambia los datos y pon
+//  listo:true cuando la carpeta exista de verdad.
+//    ruta   → siempre terminando en index.html, que si no
+//             no funciona al abrir con doble clic
+//    listo  → false lo deja en gris como "PRÓXIMAMENTE"
 // ════════════════════════════════════════════════════════════
-const CONFIG = {
-  vidas:              3,
-  cadenciaDisparo:    165,   // ms entre disparos (menos = más rápido)
-  velocidadBala:      820,
-  velocidadNave:      15,    // qué pegada va al dedo
-  offsetDedo:         64,    // px que la nave va POR ENCIMA del dedo
-  enemigosPorSegundo: 1.15,
-  velocidadEnemigo:   135,
-  subeDificultadCada: 11,    // segundos por nivel
-  invulnerable:       1.5,
-  probPremio:         0.16,
-  tamanoNave:         4.8,   // cómo de grande se dibuja la nave cargada
-  llamasMotor:        true,  // ponlo en false si tu nave YA lleva las llamas dibujadas
-  sonido:             true,
-};
+const MINIJUEGOS = [
+  { nombre:"ESQUIVA", icono:"◆", color:"#00f5ff", listo:true,
+    desc:"Cruza los muros por el hueco. Un roce y se acabó.",
+    ruta:"minijuegos/esquiva/index.html" },
 
-// ════════════════════════════════════════════════════════════
-//  MUNDOS
-// ════════════════════════════════════════════════════════════
-const TEMAS = [
-  { id:"espacio", nombre:"ESPACIO PROFUNDO", icono:"✦", fondoA:"#070b1e", fondoB:"#161247",
-    bg:"estrellas", bgColor:"#9fb4ff",
-    nave:"#5ce1ff", naveAla:"#2b6cff", cabina:"#fff6a8", motor:"#ffcf5c",
-    bala:"#ffe066", enemigoA:"#ff4d6d", enemigoB:"#ff9f45", enemigoC:"#c77dff", balaEnemiga:"#ff7b9c" },
-
-  { id:"oceano", nombre:"FOSA ABISAL", icono:"≈", fondoA:"#021520", fondoB:"#053b4d",
-    bg:"burbujas", bgColor:"#7fe3ff",
-    nave:"#8affd1", naveAla:"#00a89c", cabina:"#eaffff", motor:"#7de8ff",
-    bala:"#b6ffe8", enemigoA:"#ff5c8a", enemigoB:"#ffd166", enemigoC:"#a06bff", balaEnemiga:"#ff8fb0" },
-
-  { id:"volcan", nombre:"NÚCLEO DE LAVA", icono:"▲", fondoA:"#1a0505", fondoB:"#4d1200",
-    bg:"brasas", bgColor:"#ff9b3d",
-    nave:"#ffd86b", naveAla:"#ff6b1f", cabina:"#fff3d0", motor:"#ff3d00",
-    bala:"#fff07a", enemigoA:"#7b2cff", enemigoB:"#00d9c0", enemigoC:"#ff2e6a", balaEnemiga:"#b18cff" },
-
-  { id:"neon", nombre:"CIUDAD NEÓN", icono:"◈", fondoA:"#0a0118", fondoB:"#2d0a4e",
-    bg:"rejilla", bgColor:"#ff2ea6",
-    nave:"#c77dff", naveAla:"#ff2ea6", cabina:"#00f5ff", motor:"#00f5ff",
-    bala:"#00f5ff", enemigoA:"#ffe600", enemigoB:"#00ff9d", enemigoC:"#ff5400", balaEnemiga:"#ffe600" },
-];
-
-// ════════════════════════════════════════════════════════════
-//  NAVES
-//  - "clasica" es la dibujada por código, siempre está.
-//  - Las de art/naves/*.png se cargan solas SI existen.
-//  - Las que ella cargue con el botón + se guardan en el navegador.
-// ════════════════════════════════════════════════════════════
-const NAVES = [
-  { id:"clasica", nombre:"CLÁSICA", src:null,                  fija:true },
-  { id:"kali",    nombre:"KALI",    src:"art/naves/kali.png",  fija:true },
-  { id:"yoli",    nombre:"YOLI",    src:"art/naves/yoli.png",  fija:true },
-  { id:"silvia",  nombre:"SILVIA",  src:"art/naves/silvia.png",fija:true },
+  // Estos dos son solo el hueco esperando. Cámbialos o bórralos.
+  { nombre:"", icono:"", color:"#c77dff", listo:false, desc:"", ruta:"" },
+  { nombre:"", icono:"", color:"#ff2ea6", listo:false, desc:"", ruta:"" },
 ];
 
 // ════════════════════════════════════════════════════════════
 //  A partir de aquí es la maquinaria.
 // ════════════════════════════════════════════════════════════
 
-const c = document.getElementById("c");
-const ctx = c.getContext("2d");
-const fileInput = document.getElementById("file");
-let W = 0, H = 0;
+const rejilla = document.getElementById("rejilla");
 
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
-  c.style.width = W + "px"; c.style.height = H + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Tocar canvas.width reinicia TODO el estado del contexto, así que la
-  // calidad de filtrado hay que volver a ponerla aquí. Si no, las naves
-  // se reducen con el filtro malo y pierden detalle en cada fotograma.
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-}
-window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 120));
-resize();
+MINIJUEGOS.forEach((j, i) => {
+  const carta = document.createElement(j.listo ? "a" : "div");
+  carta.className = "carta" + (j.listo ? "" : " pronto");
+  carta.style.setProperty("--tinte", j.color || "#c77dff");
+  carta.style.animationDelay = (i * 45) + "ms";
 
-const rand = (a, b) => a + Math.random() * (b - a);
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const TAU = Math.PI * 2;
-
-// ── Tratamiento de imagen ─────────────────────────────────
-//  Quita el fondo si es de un color plano (magenta, blanco, verde…),
-//  recorta lo que sobra y reduce a 256 px. Todo en el navegador.
-const MAX_SPRITE = 512;
-
-// Reducir de golpe de 1024 a 512 pierde detalle aunque el filtro sea bueno.
-// Bajando de mitad en mitad se conserva mucho más.
-function reducir(img, destW, destH) {
-  let cur = img;
-  let cw = img.naturalWidth || img.width, ch = img.naturalHeight || img.height;
-  while (cw > destW * 2 && ch > destH * 2) {
-    const nw = Math.max(destW, cw >> 1), nh = Math.max(destH, ch >> 1);
-    const t = document.createElement("canvas");
-    t.width = nw; t.height = nh;
-    const tx = t.getContext("2d");
-    tx.imageSmoothingEnabled = true; tx.imageSmoothingQuality = "high";
-    tx.drawImage(cur, 0, 0, nw, nh);
-    cur = t; cw = nw; ch = nh;
+  if (j.listo) {
+    carta.href = j.ruta;
+    carta.innerHTML =
+      '<div class="icono"></div>' +
+      '<div class="nombre"></div>' +
+      '<div class="desc"></div>';
+    carta.querySelector(".icono").textContent  = j.icono;
+    carta.querySelector(".nombre").textContent = j.nombre;
+    carta.querySelector(".desc").textContent   = j.desc;
+  } else {
+    carta.innerHTML = '<div class="etiqueta">PRÓXIMAMENTE</div>';
   }
-  return cur;
-}
 
-// Relleno por inundación DESDE LOS BORDES. Solo se va el fondo que toca
-// el marco: un blanco del interior de la nave, rodeado de contorno, no se
-// toca. Con el método anterior (comparar toda la imagen contra el color de
-// fondo) una nave blanca sobre fondo blanco se quedaba sin la mitad.
-function quitarFondo(cx, w, h) {
-  let d;
-  try { d = cx.getImageData(0, 0, w, h); } catch (_) { return null; }
-  const px = d.data;
-  const at = (x, y) => (y * w + x) * 4;
-
-  const esq = [at(1, 1), at(w - 2, 1), at(1, h - 2), at(w - 2, h - 2)]
-    .map(i => [px[i], px[i + 1], px[i + 2], px[i + 3]]);
-  const cerca = (a, b) => Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]) + Math.abs(a[2]-b[2]) < 40;
-  if (!esq.every(q => q[3] > 200 && cerca(q, esq[0]))) return px;   // ya tiene transparencia
-
-  const bgc = esq[0];
-  const TOL = 100, SUAVE = 90;
-  const visto = new Uint8Array(w * h);
-  const pila = [];
-  for (let x = 0; x < w; x++) pila.push(x, 0, x, h - 1);
-  for (let y = 0; y < h; y++) pila.push(0, y, w - 1, y);
-
-  while (pila.length) {
-    const y = pila.pop(), x = pila.pop();
-    if (x < 0 || y < 0 || x >= w || y >= h) continue;
-    const k = y * w + x;
-    if (visto[k]) continue;
-    const i = k * 4;
-    const dist = Math.abs(px[i]-bgc[0]) + Math.abs(px[i+1]-bgc[1]) + Math.abs(px[i+2]-bgc[2]);
-    if (dist > TOL + SUAVE) continue;
-    visto[k] = 1;
-    px[i + 3] = dist <= TOL ? 0 : Math.round(px[i + 3] * (dist - TOL) / SUAVE);
-    pila.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
-  }
-  cx.putImageData(d, 0, 0);
-  return px;
-}
-
-function prepararSprite(img) {
-  const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
-  if (!w0 || !h0) return null;
-
-  const esc = Math.min(1, MAX_SPRITE / Math.max(w0, h0));
-  const w = Math.max(1, Math.round(w0 * esc)), h = Math.max(1, Math.round(h0 * esc));
-  const cv = document.createElement("canvas");
-  cv.width = w; cv.height = h;
-  const cx = cv.getContext("2d", { willReadFrequently: true });
-  cx.imageSmoothingEnabled = true;
-  cx.imageSmoothingQuality = "high";
-  cx.drawImage(reducir(img, w, h), 0, 0, w, h);
-
-  // Al abrir con file:// el navegador no deja leer los píxeles de una imagen
-  // de disco. En ese caso la usamos tal cual: se verá con su fondo, pero
-  // no se rompe nada. Con el botón + sí se puede leer siempre.
-  const px = quitarFondo(cx, w, h);
-  if (!px) return cv;
-
-  const at = (x, y) => (y * w + x) * 4;
-  let x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (px[at(x, y) + 3] > 12) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-    }
-  }
-  if (x1 < 0) return cv;
-  x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1);
-  x1 = Math.min(w - 1, x1 + 1); y1 = Math.min(h - 1, y1 + 1);
-  const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
-  if (cw === w && ch === h) return cv;
-
-  const cv2 = document.createElement("canvas");
-  cv2.width = cw; cv2.height = ch;
-  cv2.getContext("2d").drawImage(cv, x0, y0, cw, ch, 0, 0, cw, ch);
-  return cv2;
-}
-
-const SPRITES = {};
-function cargarSprite(id, src) {
-  const img = new Image();
-  img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; };
-  img.onerror = () => {};      // no existe el archivo: se dibuja por código
-  img.src = src;
-}
-for (const n of NAVES) if (n.src) cargarSprite(n.id, n.src);
-// (los sprites de enemigos se precargan más abajo, con la tabla ENEMIGOS)
-
-// ── Naves guardadas por ella ──────────────────────────────
-const MAX_CUSTOM = 4;
-function leerCustom() {
-  try { return JSON.parse(localStorage.getItem("sf_naves") || "[]"); } catch (_) { return []; }
-}
-function aplicarCustom() {
-  for (let i = NAVES.length - 1; i >= 0; i--) if (!NAVES[i].fija) NAVES.splice(i, 1);
-  leerCustom().forEach((n, i) => {
-    const id = "custom" + i;
-    NAVES.push({ id, nombre: n.nombre, src: null, fija: false, indice: i });
-    const img = new Image();
-    img.onload = () => { SPRITES[id] = img; };
-    img.src = n.data;
-  });
-}
-function guardarCustom(nombre, dataURL) {
-  const lista = leerCustom();
-  lista.push({ nombre, data: dataURL });
-  while (lista.length > MAX_CUSTOM) lista.shift();
-  try { localStorage.setItem("sf_naves", JSON.stringify(lista)); }
-  catch (_) {
-    lista.shift();
-    try { localStorage.setItem("sf_naves", JSON.stringify(lista)); } catch (__) { return false; }
-  }
-  aplicarCustom();
-  return true;
-}
-function borrarCustom(indice) {
-  const lista = leerCustom();
-  lista.splice(indice, 1);
-  localStorage.setItem("sf_naves", JSON.stringify(lista));
-  aplicarCustom();
-}
-aplicarCustom();
-
-let aviso = "", avisoT = 0;
-fileInput.addEventListener("change", (ev) => {
-  const f = ev.target.files && ev.target.files[0];
-  ev.target.value = "";
-  if (!f) return;
-  const fr = new FileReader();
-  fr.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const cv = prepararSprite(img);
-      if (!cv || !cv.toDataURL) { aviso = "No he podido leer esa imagen"; avisoT = 3; return; }
-      const nombre = (f.name || "NAVE").replace(/\.[^.]+$/, "").toUpperCase().slice(0, 9) || "NAVE";
-      if (guardarCustom(nombre, cv.toDataURL("image/png"))) {
-        naveSel = NAVES.length - 1;
-        localStorage.setItem("sf_nave", NAVES[naveSel].id);
-        aviso = "¡" + nombre + " lista!"; avisoT = 2.5;
-        beep(880, 0.18, "triangle", 0.06, 1760);
-      } else { aviso = "No cabe: borra alguna nave"; avisoT = 3; }
-    };
-    img.onerror = () => { aviso = "Ese archivo no es una imagen"; avisoT = 3; };
-    img.src = fr.result;
-  };
-  fr.readAsDataURL(f);
+  rejilla.appendChild(carta);
 });
-
-// ── Sonido generado, cero archivos ────────────────────────
-let audio = null;
-function unlockAudio() {
-  if (audio || !CONFIG.sonido) return;
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  audio = new AC();
-  if (audio.state === "suspended") audio.resume();
-}
-function beep(f, dur, type, vol, f2) {
-  if (!audio || audio.state !== "running") return;
-  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
-  o.type = type || "square";
-  o.frequency.setValueAtTime(f, t);
-  o.frequency.exponentialRampToValueAtTime(Math.max(f2 || f * 0.5, 20), t + dur);
-  g.gain.setValueAtTime(vol || 0.04, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(audio.destination);
-  o.start(t); o.stop(t + dur);
-}
-function ruido(dur, vol) {
-  if (!audio || audio.state !== "running") return;
-  const n = Math.floor(audio.sampleRate * dur);
-  const buf = audio.createBuffer(1, n, audio.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
-  const s = audio.createBufferSource(), g = audio.createGain();
-  s.buffer = buf; g.gain.value = vol || 0.08;
-  s.connect(g).connect(audio.destination); s.start();
-}
-
-// ── Premios ───────────────────────────────────────────────
-const PREMIOS = {
-  arma:   { letra:"W", color:"#ffe066", nombre:"ARMA +1" },
-  escudo: { letra:"S", color:"#5ce1ff", nombre:"ESCUDO" },
-  bomba:  { letra:"B", color:"#ff5c8a", nombre:"BOMBA" },
-  vida:   { letra:"♥", color:"#ff5d8f", nombre:"VIDA EXTRA" },
-  rapido: { letra:"R", color:"#8affd1", nombre:"TURBO FUEGO" },
-};
-const ARMA_MAX = 6;
-
-// ════════════════════════════════════════════════════════════
-//  PATRONES DE DISPARO
-//  Reutilizables. Los usan los enemigos y, cuando lleguen, los
-//  bosses. Añadir un patrón aquí lo pone a disposición de todos.
-// ════════════════════════════════════════════════════════════
-const haciaJugador = (e) => Math.atan2(player.y - e.y, player.x - e.x);
-
-const PATRONES = {
-  // n disparos abiertos alrededor de un ángulo
-  abanico(x, y, ang, vel, n, apertura, r) {
-    for (let i = 0; i < n; i++) {
-      const a = ang + (n === 1 ? 0 : (i - (n - 1) / 2) * apertura);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
-    }
-  },
-  // n disparos repartidos por toda la circunferencia
-  circulo(x, y, vel, n, fase, r) {
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU + (fase || 0);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
-    }
-  },
-};
-
-// ════════════════════════════════════════════════════════════
-//  ENEMIGOS — dirigidos por datos
-//  Cada tipo declara sus números, su forma y su comportamiento.
-//  Añadir uno nuevo es añadir una entrada AQUÍ: no hay que tocar
-//  ni update() ni dibujarEnemigo().
-//
-//    mover(e, dt)   obligatorio
-//    atacar(e)      opcional; si existe, se usa recarga()
-//    embiste        true = sobrevive al chocar contra el jugador
-//    grande         true = explosión y sonido de peso pesado
-//    premio         multiplicador de probabilidad de soltar premio
-// ════════════════════════════════════════════════════════════
-const caer = (e, dt) => { e.y += e.vy * dt; };
-
-const ENEMIGOS = {
-  normal: {
-    r: 18, hp: 2, puntos: 10, vel: 1, forma: "circulo",
-    color: t => t.enemigoA,
-    mover: caer,
-  },
-
-  veloz: {
-    r: 13, hp: 1, puntos: 25, vel: 1.7, forma: "rombo",
-    color: t => t.enemigoB,
-    init(e) { e.zig = rand(70, 150) * (Math.random() < 0.5 ? -1 : 1); },
-    mover(e, dt) {
-      caer(e, dt);
-      e.fase += dt * 3;
-      e.x = clamp(e.x + Math.cos(e.fase) * e.zig * dt, e.r, W - e.r);
-    },
-  },
-
-  torreta: {
-    r: 20, hp: 4, puntos: 40, vel: 0.62, forma: "hexagono", premio: 2.2,
-    color: t => t.enemigoA,
-    mover: caer,
-    recarga: () => rand(1.1, 1.9),
-    atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 1, 0);
-      beep(220, 0.09, "sawtooth", 0.03);
-    },
-  },
-
-  tanque: {
-    r: 27, hp: 12, puntos: 120, vel: 0.5, forma: "acorazado",
-    color: t => t.enemigoC, embiste: true, grande: true, premio: 6,
-    mover: caer,
-    recarga: () => rand(0.7, 1.1),
-    atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 3, 0.24);
-      beep(220, 0.09, "sawtooth", 0.03);
-    },
-  },
-
-  // ── El quinto tipo: la prueba de que los cimientos aguantan ──
-  // Va a por el jugador, pero con giro limitado, así que SIEMPRE
-  // se puede esquivar. Nunca daño inevitable.
-  kamikaze: {
-    r: 15, hp: 2, puntos: 35, vel: 1.2, forma: "punta",
-    color: t => t.enemigoB,
-    init(e) { e.vx = 0; },
-    mover(e, dt) {
-      caer(e, dt);
-      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * dt, -230, 230);
-      e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
-      e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
-    },
-  },
-};
-
-// Formas por defecto, para cuando todavía no hay PNG del enemigo
-const FORMAS = {
-  circulo(e) { ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill(); },
-
-  rombo(e) {
-    ctx.rotate(e.giro);
-    ctx.beginPath();
-    ctx.moveTo(0, -e.r); ctx.lineTo(e.r * 0.7, 0);
-    ctx.lineTo(0, e.r); ctx.lineTo(-e.r * 0.7, 0);
-    ctx.closePath(); ctx.fill();
-  },
-
-  hexagono(e) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * TAU + e.giro * 0.4;
-      ctx[i ? "lineTo" : "moveTo"](Math.cos(a) * e.r, Math.sin(a) * e.r);
-    }
-    ctx.closePath(); ctx.fill();
-  },
-
-  acorazado(e) {
-    const r = e.r;
-    ctx.beginPath();
-    ctx.moveTo(0, -r);
-    ctx.lineTo(r * 0.95, -r * 0.3); ctx.lineTo(r * 0.7, r * 0.55);
-    ctx.lineTo(0, r * 0.88);
-    ctx.lineTo(-r * 0.7, r * 0.55); ctx.lineTo(-r * 0.95, -r * 0.3);
-    ctx.closePath(); ctx.fill();
-    ctx.fillRect(-r * 1.38, -r * 0.28, r * 0.42, r * 0.72);
-    ctx.fillRect(r * 0.96, -r * 0.28, r * 0.42, r * 0.72);
-    ctx.fillStyle = "rgba(0,0,0,0.32)";
-    ctx.fillRect(-r * 0.62, -r * 0.55, r * 1.24, r * 0.26);
-  },
-
-  // Punta hacia abajo: se ve de un vistazo que viene a por ti
-  punta(e) {
-    ctx.rotate(e.giro || 0);
-    const r = e.r;
-    ctx.beginPath();
-    ctx.moveTo(0, r * 1.2);
-    ctx.lineTo(r * 0.9, -r * 0.55);
-    ctx.lineTo(0, -r * 0.2);
-    ctx.lineTo(-r * 0.9, -r * 0.55);
-    ctx.closePath(); ctx.fill();
-  },
-};
-
-// Si pones PNG en art/enemigos/, se recogen solos
-Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, "art/enemigos/" + t + ".png"));
-
-// ── Estado ────────────────────────────────────────────────
-let T, naveSel = 0;
-let state = "menu";
-let player, bullets, eBullets, enemies, premios, particles, bg, flotantes;
-let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
-let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
-let targetX, targetY, dragging = false, bank = 0;
-let menuRects = [], naveRects = [], masRect = null;
-
-best = Number(localStorage.getItem("sf_record") || 0);
-T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
-{
-  const g = localStorage.getItem("sf_nave");
-  const i = NAVES.findIndex(n => n.id === g);
-  naveSel = i >= 0 ? i : 0;
-}
-
-function crearFondo() {
-  bg = [];
-  const n = T.bg === "rejilla" ? 16 : 80;
-  for (let i = 0; i < n; i++) {
-    bg.push({ x: rand(0, W), y: rand(0, H), z: rand(0.25, 1), r: rand(0.7, 2.6), f: rand(0, TAU) });
-  }
-}
-
-function reset() {
-  state = "play";
-  player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
-  targetX = player.x; targetY = player.y;
-  bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = [];
-  crearFondo();
-  score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
-  spawnAcc = 0; shootAcc = 0; invulnT = 0;
-  arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
-  shakeT = 0; shakeMag = 0; flash = 0; bank = 0;
-}
-
-// El menú también anima, así que todo esto tiene que existir ya
-bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = [];
-player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
-targetX = player.x; targetY = player.y;
-score = 0; lives = 0; elapsed = 0; level = 1; spawnAcc = 0; shootAcc = 0; invulnT = 0;
-arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
-shakeT = 0; shakeMag = 0; flash = 0; bank = 0;
-crearFondo();
-
-// ── Entrada ───────────────────────────────────────────────
-function pos(e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo; }
-const dentro = (p, r) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
-
-c.addEventListener("pointerdown", (e) => {
-  unlockAudio();
-  if (state === "menu") {
-    const p = pos(e);
-
-    for (const r of naveRects) {
-      if (!dentro(p, r)) continue;
-      // La x de borrar, solo en las naves cargadas por ella
-      if (r.borrar && p.x > r.x + r.w - 22 && p.y < r.y + 22) {
-        borrarCustom(r.indice);
-        naveSel = Math.min(naveSel, NAVES.length - 1);
-        localStorage.setItem("sf_nave", NAVES[naveSel].id);
-        beep(200, 0.12, "square", 0.04);
-        return;
-      }
-      naveSel = r.i;
-      localStorage.setItem("sf_nave", NAVES[naveSel].id);
-      beep(760, 0.1, "triangle", 0.045, 1200);
-      return;
-    }
-
-    if (dentro(p, masRect)) { fileInput.click(); return; }
-
-    for (const m of menuRects) {
-      if (dentro(p, m)) {
-        T = m.tema;
-        localStorage.setItem("sf_tema", T.id);
-        beep(660, 0.12, "triangle", 0.05, 1320);
-        reset();
-        return;
-      }
-    }
-    return;
-  }
-  if (state === "over") {
-    if (performance.now() - overAt > 700) state = "menu";
-    return;
-  }
-  dragging = true; aim(e);
-  if (c.setPointerCapture) { try { c.setPointerCapture(e.pointerId); } catch (_) {} }
-});
-c.addEventListener("pointermove", (e) => { if (dragging && state === "play") aim(e); });
-window.addEventListener("pointerup", () => { dragging = false; });
-window.addEventListener("pointercancel", () => { dragging = false; });
-
-// ── Efectos ───────────────────────────────────────────────
-function boom(x, y, color, n, fuerza) {
-  const f = fuerza || 1;
-  for (let i = 0; i < n; i++) {
-    const a = rand(0, TAU), s = rand(50, 300) * f;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-      life: rand(0.25, 0.65), t: 0, color, r: rand(1.5, 4) * f });
-  }
-}
-function shake(mag, dur) { shakeMag = Math.max(shakeMag, mag); shakeT = Math.max(shakeT, dur); }
-function texto(x, y, txt, color) {
-  flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9 });
-}
-
-// ── Enemigos ──────────────────────────────────────────────
-// Modo supervivencia: elige al azar según el nivel. La campaña por
-// niveles llamará a spawnEnemy() con el tipo y la posición concretos.
-function elegirTipo() {
-  const r = Math.random();
-  if (level >= 2 && r < Math.min(0.13 + level * 0.035, 0.36)) return "veloz";
-  if (level >= 4 && r > 0.90) return "kamikaze";
-  if (level >= 3 && r > 0.84 && r <= 0.90) return "torreta";
-  if (level >= 5 && r > 0.78 && r <= 0.84) return "tanque";
-  return "normal";
-}
-
-function spawnEnemy(tipo, x) {
-  const k = tipo || elegirTipo();
-  const d = ENEMIGOS[k];
-  const e = {
-    tipo: k, r: d.r, hp: d.hp, hpMax: d.hp,
-    x: x != null ? clamp(x, d.r, W - d.r) : rand(d.r + 10, W - d.r - 10),
-    y: -d.r - 12,
-    vy: CONFIG.velocidadEnemigo * (1 + (level - 1) * 0.13) * d.vel,
-    fase: rand(0, TAU), giro: rand(0, TAU),
-    cd: d.recarga ? d.recarga() : 0, flash: 0,
-  };
-  if (d.init) d.init(e);
-  enemies.push(e);
-  return e;
-}
-
-function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95, r: 15, tipo, f: rand(0, TAU) }); }
-
-function matar(e, i) {
-  const d = ENEMIGOS[e.tipo];
-  combo++; comboT = 2.6;
-  const mult = 1 + Math.floor(combo / 8);
-  score += d.puntos * mult;
-  boom(e.x, e.y, d.color(T), d.grande ? 42 : 18, d.grande ? 1.6 : 1);
-  beep(d.grande ? 120 : 300, d.grande ? 0.32 : 0.12, "square", 0.055);
-  if (d.grande) { shake(11, 0.35); ruido(0.3, 0.1); }
-  if (mult > 1) texto(e.x, e.y, "x" + mult, T.bala);
-
-  const p = CONFIG.probPremio * (d.premio || 1);
-  if (Math.random() < p) {
-    const r = Math.random();
-    let tipo = "arma";
-    if (r > 0.92) tipo = "vida";
-    else if (r > 0.76) tipo = "bomba";
-    else if (r > 0.56) tipo = "escudo";
-    else if (r > 0.40) tipo = "rapido";
-    soltarPremio(e.x, e.y, tipo);
-  }
-  enemies.splice(i, 1);
-}
-
-function cogerPremio(p) {
-  beep(880, 0.16, "triangle", 0.06, 1760);
-  boom(p.x, p.y, PREMIOS[p.tipo].color, 14);
-  texto(p.x, p.y - 10, PREMIOS[p.tipo].nombre, PREMIOS[p.tipo].color);
-  if (p.tipo === "arma") arma = Math.min(arma + 1, ARMA_MAX);
-  else if (p.tipo === "escudo") escudo = 1;
-  else if (p.tipo === "vida") lives = Math.min(lives + 1, 6);
-  else if (p.tipo === "rapido") turbo = 8;
-  else if (p.tipo === "bomba") {
-    flash = 1; shake(16, 0.5); ruido(0.5, 0.14);
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      score += 15; boom(enemies[i].x, enemies[i].y, T.enemigoB, 14);
-      enemies.splice(i, 1);
-    }
-    eBullets.length = 0;
-  }
-}
-
-function golpe() {
-  if (invulnT > 0) return;
-  if (escudo > 0) {
-    escudo = 0; invulnT = 0.9;
-    boom(player.x, player.y, "#5ce1ff", 30, 1.3);
-    beep(500, 0.3, "sine", 0.07, 120); shake(9, 0.3);
-    texto(player.x, player.y - 30, "ESCUDO ROTO", "#5ce1ff");
-    return;
-  }
-  lives--; invulnT = CONFIG.invulnerable;
-  arma = Math.max(1, arma - 1); combo = 0;
-  boom(player.x, player.y, T.nave, 34, 1.4);
-  beep(150, 0.35, "sawtooth", 0.08); ruido(0.25, 0.1); shake(14, 0.4);
-  if (lives <= 0) {
-    state = "over"; overAt = performance.now();
-    boom(player.x, player.y, T.motor, 60, 2); shake(20, 0.7);
-    if (score > best) { best = score; localStorage.setItem("sf_record", String(best)); }
-  }
-}
-
-function disparar() {
-  const y = player.y - 18;
-  const add = (dx, vx) => bullets.push({ x: player.x + dx, y, vx: vx || 0, r: 3.6 });
-  if (arma === 1) add(0, 0);
-  else if (arma === 2) { add(-9, 0); add(9, 0); }
-  else if (arma === 3) { add(0, 0); add(-12, -80); add(12, 80); }
-  else if (arma === 4) { add(-8, 0); add(8, 0); add(-16, -150); add(16, 150); }
-  else if (arma === 5) { add(0, 0); add(-10, -90); add(10, 90); add(-18, -210); add(18, 210); }
-  else { add(-6, 0); add(6, 0); add(-14, -110); add(14, 110); add(-22, -260); add(22, 260); }
-  beep(1050 + arma * 40, 0.045, "square", 0.02);
-}
-
-// ── Actualizar ────────────────────────────────────────────
-function update(dt) {
-  for (const s of bg) {
-    s.y += (T.bg === "rejilla" ? 120 : 34 + s.z * 78) * dt;
-    if (T.bg === "burbujas") s.x += Math.sin(s.f += dt * 2) * 14 * dt;
-    if (s.y > H + 10) { s.y = -10; s.x = rand(0, W); }
-  }
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.t += dt;
-    if (p.t >= p.life) { particles.splice(i, 1); continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.93; p.vy *= 0.93;
-  }
-  for (let i = flotantes.length - 1; i >= 0; i--) {
-    const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
-    if (f.t >= f.life) flotantes.splice(i, 1);
-  }
-  if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeMag = 0; }
-  if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
-  if (avisoT > 0) avisoT -= dt;
-  if (state !== "play") return;
-
-  elapsed += dt;
-  const nl = 1 + Math.floor(elapsed / CONFIG.subeDificultadCada);
-  if (nl > level) { level = nl; beep(700, 0.2, "triangle", 0.05, 1400); texto(W / 2, H * 0.42, "NIVEL " + level, T.bala); }
-  if (invulnT > 0) invulnT -= dt;
-  if (turbo > 0) turbo -= dt;
-  if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
-
-  const k = 1 - Math.exp(-CONFIG.velocidadNave * dt);
-  player.px = player.x;
-  player.x += (clamp(targetX, player.r, W - player.r) - player.x) * k;
-  player.y += (clamp(targetY, player.r + 40, H - player.r) - player.y) * k;
-  bank += (clamp((player.x - player.px) * 0.045, -0.45, 0.45) - bank) * (1 - Math.exp(-9 * dt));
-
-  if (Math.random() < 0.9) {
-    particles.push({ x: player.x + rand(-5, 5), y: player.y + 16, vx: rand(-18, 18), vy: rand(90, 190),
-      life: rand(0.18, 0.36), t: 0, color: T.motor, r: rand(1.2, 2.8) });
-  }
-
-  const cad = CONFIG.cadenciaDisparo * (turbo > 0 ? 0.55 : 1);
-  shootAcc += dt * 1000;
-  while (shootAcc >= cad) { shootAcc -= cad; disparar(); }
-
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const b = bullets[i];
-    b.y -= CONFIG.velocidadBala * dt; b.x += (b.vx || 0) * dt;
-    if (b.y < -24 || b.x < -24 || b.x > W + 24) bullets.splice(i, 1);
-  }
-  for (let i = eBullets.length - 1; i >= 0; i--) {
-    const b = eBullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.y > H + 24 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
-    const dx = b.x - player.x, dy = b.y - player.y;
-    if (dx * dx + dy * dy < (b.r + player.r * 0.66) ** 2) { eBullets.splice(i, 1); golpe(); }
-  }
-
-  spawnAcc += dt;
-  const ritmo = 1 / (CONFIG.enemigosPorSegundo * (1 + (level - 1) * 0.2));
-  while (spawnAcc >= ritmo) { spawnAcc -= ritmo; spawnEnemy(); }
-
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const e = enemies[i], d = ENEMIGOS[e.tipo];
-    if (e.flash > 0) e.flash -= dt;
-    e.giro += dt * 1.6;          // antes de mover: quien fije su propio giro manda
-    d.mover(e, dt);
-    if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
-
-    if (d.atacar) {
-      e.cd -= dt;
-      if (e.cd <= 0 && e.y > 30) { e.cd = d.recarga(); d.atacar(e); }
-    }
-
-    let muerto = false;
-    for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j], bx = b.x - e.x, by = b.y - e.y;
-      if (bx * bx + by * by < (b.r + e.r) ** 2) {
-        bullets.splice(j, 1); e.hp--; e.flash = 0.08;
-        if (e.hp <= 0) { matar(e, i); muerto = true; }
-        else { boom(b.x, b.y, "#ffffff", 3, 0.6); beep(700, 0.03, "square", 0.015); }
-        break;
-      }
-    }
-    if (muerto) continue;
-
-    const px = player.x - e.x, py = player.y - e.y;
-    if (px * px + py * py < (player.r * 0.7 + e.r) ** 2) {
-      boom(e.x, e.y, d.color(T), 16);
-      if (!d.embiste) enemies.splice(i, 1);
-      golpe();
-    }
-  }
-
-  for (let i = premios.length - 1; i >= 0; i--) {
-    const p = premios[i];
-    p.f += dt * 4;
-    const dx = player.x - p.x, dy = player.y - p.y;
-    const d = Math.hypot(dx, dy);
-    if (d < 150) { p.x += (dx / d) * 240 * dt; p.y += (dy / d) * 240 * dt; }
-    else p.y += p.vy * dt;
-    if (p.y > H + 30) { premios.splice(i, 1); continue; }
-    if (d < player.r + p.r) { cogerPremio(p); premios.splice(i, 1); }
-  }
-}
-
-// ── Dibujo ────────────────────────────────────────────────
-function fondo() {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-  ctx.fillStyle = T.bgColor; ctx.strokeStyle = T.bgColor;
-  if (T.bg === "rejilla") {
-    ctx.lineWidth = 1;
-    for (const s of bg) {
-      ctx.globalAlpha = 0.10 + s.z * 0.16;
-      ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(W, s.y); ctx.stroke();
-    }
-    ctx.globalAlpha = 0.07;
-    for (let i = 0; i <= 10; i++) {
-      const x = (i / 10) * W;
-      ctx.beginPath(); ctx.moveTo(W / 2 + (x - W / 2) * 0.15, H * 0.1); ctx.lineTo(x, H); ctx.stroke();
-    }
-  } else if (T.bg === "burbujas") {
-    for (const s of bg) {
-      ctx.globalAlpha = 0.12 + s.z * 0.26;
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 2.2, 0, TAU); ctx.stroke();
-    }
-  } else if (T.bg === "brasas") {
-    for (const s of bg) {
-      ctx.globalAlpha = 0.2 + s.z * 0.45;
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 1.1, 0, TAU); ctx.fill();
-    }
-  } else {
-    for (const s of bg) {
-      ctx.globalAlpha = 0.25 + s.z * 0.55;
-      ctx.fillRect(s.x, s.y, s.r, s.r * 2.6);
-    }
-  }
-  ctx.globalAlpha = 1;
-}
-
-function naveVector(r) {
-  ctx.fillStyle = T.naveAla;
-  ctx.beginPath();
-  ctx.moveTo(0, -r * 0.35);
-  ctx.lineTo(r * 1.5, r * 0.5); ctx.lineTo(r * 1.05, r * 0.72);
-  ctx.lineTo(0, r * 0.3);
-  ctx.lineTo(-r * 1.05, r * 0.72); ctx.lineTo(-r * 1.5, r * 0.5);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = T.nave;
-  ctx.beginPath();
-  ctx.moveTo(0, -r * 1.25);
-  ctx.lineTo(r * 0.42, r * 0.15); ctx.lineTo(r * 0.5, r * 0.72);
-  ctx.lineTo(0, r * 0.55);
-  ctx.lineTo(-r * 0.5, r * 0.72); ctx.lineTo(-r * 0.42, r * 0.15);
-  ctx.closePath(); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = T.cabina;
-  ctx.beginPath(); ctx.ellipse(0, -r * 0.35, r * 0.2, r * 0.42, 0, 0, TAU); ctx.fill();
-}
-
-// Dibuja el sprite encajado en un ancho dado, manteniendo proporción
-function pintarSprite(s, ancho) {
-  const w = s.width || s.naturalWidth, h = s.height || s.naturalHeight;
-  if (!w || !h) return false;
-  const esc = ancho / w;
-  ctx.drawImage(s, -ancho / 2, -h * esc / 2, ancho, h * esc);
-  return true;
-}
-
-function dibujarNave(x, y, r, ang) {
-  ctx.save();
-  ctx.translate(x, y); ctx.rotate(ang);
-
-  // Medidas del sprite, si hay. Las llamas se ajustan a ellas.
-  const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
-  let ws = 0, hs = 0;
-  if (sp) {
-    const iw = sp.width || sp.naturalWidth, ih = sp.height || sp.naturalHeight;
-    if (iw && ih) { ws = r * CONFIG.tamanoNave; hs = ws * ih / iw; }
-  }
-
-  const llama = 1 + Math.random() * 0.7;
-  const sep    = ws ? ws * 0.16 : 7;
-  const yMotor = ws ? hs * 0.40 : r * 0.5;
-  const largo  = ws ? ws * 0.32 : 22;
-  const grosor = ws ? ws * 0.075 : 4;
-  // Si la nave trae las llamas ya dibujadas, se apagan las del juego
-  for (const sx of (CONFIG.llamasMotor || !ws) ? [-sep, sep] : []) {
-    const g = ctx.createLinearGradient(0, yMotor, 0, yMotor + largo * llama);
-    g.addColorStop(0, T.motor); g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(sx - grosor, yMotor); ctx.lineTo(sx + grosor, yMotor);
-    ctx.lineTo(sx, yMotor + largo * llama); ctx.closePath(); ctx.fill();
-  }
-
-  if (ws) {
-    // Sombra oscura, no de color: despega la nave del fondo sin pelearse
-    // con la paleta del mundo, sea cual sea la nave que haya cargado.
-    ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10;
-    ctx.drawImage(sp, -ws / 2, -hs / 2, ws, hs);
-    ctx.shadowBlur = 0;
-  } else {
-    ctx.shadowColor = T.nave; ctx.shadowBlur = 18;
-    naveVector(r);
-    ctx.fillStyle = T.bala;
-    for (let i = 0; i < Math.min(arma, 3); i++) {
-      const px = r * (0.95 + i * 0.22);
-      ctx.beginPath(); ctx.arc(px, r * 0.55, 2.4, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(-px, r * 0.55, 2.4, 0, TAU); ctx.fill();
-    }
-  }
-
-  if (escudo > 0) {
-    ctx.strokeStyle = "#5ce1ff"; ctx.lineWidth = 2.5;
-    ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 140) * 0.25;
-    ctx.shadowColor = "#5ce1ff"; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.arc(0, 0, r * 2, 0, TAU); ctx.stroke();
-    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-  }
-  ctx.restore();
-}
-
-function dibujarEnemigo(e) {
-  const d = ENEMIGOS[e.tipo];
-  ctx.save();
-  ctx.translate(e.x, e.y);
-  const col = e.flash > 0 ? "#ffffff" : d.color(T);
-
-  const sp = SPRITES["e_" + e.tipo];
-  if (sp) {
-    if (e.flash > 0) ctx.globalAlpha = 0.6;
-    pintarSprite(sp, e.r * 2.4);
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 14;
-    (FORMAS[d.forma] || FORMAS.circulo)(e);
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.arc(0, e.r * 0.08, e.r * 0.34, 0, TAU); ctx.fill();
-  }
-  ctx.restore();
-
-  if (e.hpMax > 3 && e.hp < e.hpMax) {
-    const w = e.r * 2;
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(e.x - w / 2, e.y - e.r - 10, w, 4);
-    ctx.fillStyle = T.bala;
-    ctx.fillRect(e.x - w / 2, e.y - e.r - 10, w * (e.hp / e.hpMax), 4);
-  }
-}
-
-function dibujarPremio(p) {
-  const s = 1 + Math.sin(p.f) * 0.12;
-  const d = PREMIOS[p.tipo];
-  ctx.save();
-  ctx.translate(p.x, p.y); ctx.scale(s, s);
-  ctx.shadowColor = d.color; ctx.shadowBlur = 18;
-  ctx.fillStyle = d.color;
-  ctx.beginPath(); ctx.arc(0, 0, p.r, 0, TAU); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.font = "800 15px -apple-system, system-ui, sans-serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(d.letra, 0, 1);
-  ctx.restore();
-}
-
-function corazon(x, y, s, color) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s / 16, s / 16);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(0, 5);
-  ctx.bezierCurveTo(-9, -3, -5, -10, 0, -5);
-  ctx.bezierCurveTo(5, -10, 9, -3, 0, 5);
-  ctx.fill(); ctx.restore();
-}
-
-const F = "-apple-system, system-ui, Segoe UI, Roboto, sans-serif";
-
-function hud() {
-  const top = 14;
-  const g = ctx.createLinearGradient(0, 0, 0, 132);
-  g.addColorStop(0, "rgba(0,0,0,0.55)"); g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 132);
-
-  ctx.textBaseline = "top";
-  ctx.font = "700 12px " + F;
-  ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
-  ctx.textAlign = "left";  ctx.fillText("NIVEL " + level, 16, top + 2);
-  ctx.textAlign = "right"; ctx.fillText("RÉCORD " + best, W - 16, top + 2);
-  ctx.globalAlpha = 1;
-
-  ctx.textAlign = "center";
-  ctx.font = "800 32px " + F;
-  ctx.fillText(String(score), W / 2, top + 18);
-
-  for (let i = 0; i < lives; i++) corazon(26 + i * 25, top + 78, 20, "#ff5d8f");
-
-  ctx.textAlign = "right";
-  ctx.font = "700 11px " + F;
-  ctx.globalAlpha = 0.55; ctx.fillStyle = "#fff";
-  ctx.fillText("ARMA", W - 16, top + 56); ctx.globalAlpha = 1;
-  for (let i = 0; i < ARMA_MAX; i++) {
-    ctx.fillStyle = i < arma ? T.bala : "rgba(255,255,255,0.16)";
-    ctx.fillRect(W - 16 - (ARMA_MAX - i) * 11, top + 72, 8, 8);
-  }
-  if (turbo > 0) {
-    ctx.fillStyle = "#8affd1"; ctx.globalAlpha = 0.9;
-    ctx.font = "800 11px " + F;
-    ctx.fillText("TURBO " + turbo.toFixed(1), W - 16, top + 88);
-    ctx.globalAlpha = 1;
-  }
-  if (combo >= 8) {
-    ctx.textAlign = "center"; ctx.fillStyle = T.bala;
-    ctx.globalAlpha = clamp(comboT, 0, 1);
-    ctx.font = "800 18px " + F;
-    ctx.fillText("COMBO x" + (1 + Math.floor(combo / 8)), W / 2, top + 76);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function miniNave(x, y, tam, tema) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(tam / 46, tam / 46);
-  ctx.fillStyle = tema.naveAla;
-  ctx.beginPath();
-  ctx.moveTo(0, -6); ctx.lineTo(24, 8); ctx.lineTo(17, 12);
-  ctx.lineTo(0, 5); ctx.lineTo(-17, 12); ctx.lineTo(-24, 8);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = tema.nave;
-  ctx.beginPath();
-  ctx.moveTo(0, -20); ctx.lineTo(7, 2); ctx.lineTo(8, 12);
-  ctx.lineTo(0, 9); ctx.lineTo(-8, 12); ctx.lineTo(-7, 2);
-  ctx.closePath(); ctx.fill();
-  ctx.restore();
-}
-
-function menu() {
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#fff";
-  ctx.font = "800 " + Math.min(40, W * 0.098) + "px " + F;
-  ctx.fillText("STRIKE FLIGHT", W / 2, 54);
-  ctx.globalAlpha = 0.5;
-  ctx.font = "600 12px " + F;
-  ctx.fillText(best > 0 ? "RÉCORD  " + best : "toca un mundo para empezar", W / 2, 80);
-  ctx.globalAlpha = 1;
-
-  // ── Fila de naves ──
-  naveRects = []; masRect = null;
-  const total = NAVES.length + 1;
-  // Hasta 6 caben de una fila; a partir de ahí, dos filas equilibradas
-  const porFila = total <= 6 ? total : Math.ceil(total / 2);
-  const filas = Math.ceil(total / porFila);
-  const hueco = 8;
-  const slot = Math.min(70, (W - 32 - hueco * (porFila - 1)) / porFila);
-  const anchoFila = porFila * slot + hueco * (porFila - 1);
-  const yBase = 114;
-
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff";
-  ctx.font = "700 11px " + F;
-  ctx.fillText("TU NAVE", W / 2, yBase - 12);
-  ctx.globalAlpha = 1;
-
-  for (let i = 0; i < total; i++) {
-    const fila = Math.floor(i / porFila), col = i % porFila;
-    const enFila = Math.min(porFila, total - fila * porFila);
-    const ancho = enFila * slot + hueco * (enFila - 1);
-    const x = (W - (enFila === porFila ? anchoFila : ancho)) / 2 + col * (slot + hueco);
-    const y = yBase + fila * (slot + hueco);
-    const esMas = i === NAVES.length;
-
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
-    ctx.fill();
-
-    if (esMas) {
-      masRect = { x, y, w: slot, h: slot };
-      ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = "300 30px " + F;
-      ctx.fillText("+", x + slot / 2, y + slot / 2 - 5);
-      ctx.font = "700 9px " + F;
-      ctx.globalAlpha = 0.6;
-      ctx.fillText("CARGAR", x + slot / 2, y + slot - 13);
-      ctx.globalAlpha = 1;
-      continue;
-    }
-
-    const n = NAVES[i];
-    naveRects.push({ x, y, w: slot, h: slot, i, borrar: !n.fija, indice: n.indice });
-
-    const sel = i === naveSel;
-    ctx.strokeStyle = sel ? T.nave : "rgba(255,255,255,0.12)";
-    ctx.lineWidth = sel ? 2.5 : 1;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, slot, slot, 12) : ctx.rect(x, y, slot, slot);
-    ctx.stroke();
-
-    const sp = SPRITES[n.id];
-    if (sp) {
-      ctx.save(); ctx.translate(x + slot / 2, y + slot / 2 - 4);
-      pintarSprite(sp, slot * 0.66);
-      ctx.restore();
-    } else if (n.src) {
-      ctx.globalAlpha = 0.28; ctx.fillStyle = "#fff";
-      ctx.font = "700 9px " + F;
-      ctx.fillText("falta", x + slot / 2, y + slot / 2 - 4);
-      ctx.fillText("el PNG", x + slot / 2, y + slot / 2 + 6);
-      ctx.globalAlpha = 1;
-    } else {
-      miniNave(x + slot / 2, y + slot / 2 - 4, slot * 0.6, T);
-    }
-
-    ctx.fillStyle = sel ? T.nave : "rgba(255,255,255,0.55)";
-    ctx.font = "800 9px " + F;
-    // maxWidth: un nombre largo se encoge en vez de salirse de la casilla
-    ctx.fillText(n.nombre, x + slot / 2, y + slot - 11, slot - 8);
-
-    if (!n.fija) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.beginPath(); ctx.arc(x + slot - 11, y + 11, 8.5, 0, TAU); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.font = "700 11px " + F;
-      ctx.fillText("×", x + slot - 11, y + 11);
-    }
-  }
-
-  // ── Mundos ──
-  menuRects = [];
-  const yMundos = yBase + filas * (slot + hueco) + 20;
-  const disp = H - yMundos - 16;
-  const alto = clamp((disp - 3 * 10) / 4, 44, 68);
-  const bloque = 4 * alto + 3 * 10;
-  const w = Math.min(W - 40, 380);
-  // En pantallas altas, reparte el hueco sobrante en vez de dejarlo todo abajo
-  let y = yMundos + 6 + Math.max(0, (disp - bloque) * 0.35);
-
-  // La etiqueta va pegada al bloque, no a donde empezaría sin centrar
-  ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff";
-  ctx.font = "700 11px " + F;
-  ctx.fillText("ELIGE MUNDO", W / 2, y - 16);
-  ctx.globalAlpha = 1;
-
-  for (const t of TEMAS) {
-    const x = (W - w) / 2;
-    menuRects.push({ x, y, w, h: alto, tema: t });
-    const g = ctx.createLinearGradient(x, y, x + w, y + alto);
-    g.addColorStop(0, t.fondoA); g.addColorStop(1, t.fondoB);
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, w, alto, 12) : ctx.rect(x, y, w, alto);
-    ctx.fill();
-    ctx.strokeStyle = t.id === T.id ? t.nave : "rgba(255,255,255,0.13)";
-    ctx.lineWidth = t.id === T.id ? 2.5 : 1;
-    ctx.stroke();
-
-    ctx.fillStyle = t.nave;
-    ctx.font = "800 22px " + F;
-    ctx.textAlign = "left";
-    ctx.fillText(t.icono, x + 20, y + alto / 2);
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 14px " + F;
-    ctx.fillText(t.nombre, x + 50, y + alto / 2);
-    ctx.textAlign = "center";
-
-    const sp = SPRITES[NAVES[naveSel] && NAVES[naveSel].id];
-    ctx.save(); ctx.translate(x + w - 38, y + alto / 2);
-    if (sp) pintarSprite(sp, 40); else miniNave(0, 0, 40, t);
-    ctx.restore();
-
-    y += alto + 10;
-  }
-
-  if (avisoT > 0) {
-    ctx.globalAlpha = clamp(avisoT, 0, 1);
-    ctx.fillStyle = "#000"; ctx.globalAlpha *= 0.75;
-    ctx.fillRect(0, H / 2 - 26, W, 52);
-    ctx.globalAlpha = clamp(avisoT, 0, 1);
-    ctx.fillStyle = "#fff"; ctx.font = "800 16px " + F;
-    ctx.fillText(aviso, W / 2, H / 2);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function render() {
-  ctx.save();
-  if (shakeT > 0) {
-    const m = shakeMag * (shakeT / 0.4);
-    ctx.translate(rand(-m, m), rand(-m, m));
-  }
-  fondo();
-
-  for (const p of particles) {
-    ctx.globalAlpha = 1 - p.t / p.life;
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  if (state !== "menu") {
-    ctx.fillStyle = T.bala; ctx.shadowColor = T.bala; ctx.shadowBlur = 10;
-    for (const b of bullets) {
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(b.x - b.r, b.y - 10, b.r * 2, 20, b.r)
-                    : ctx.rect(b.x - b.r, b.y - 10, b.r * 2, 20);
-      ctx.fill();
-    }
-    ctx.fillStyle = T.balaEnemiga; ctx.shadowColor = T.balaEnemiga;
-    for (const b of eBullets) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
-    ctx.shadowBlur = 0;
-
-    for (const e of enemies) dibujarEnemigo(e);
-    for (const p of premios) dibujarPremio(p);
-
-    if (state === "play" && !(invulnT > 0 && Math.floor(invulnT * 15) % 2 === 0)) {
-      dibujarNave(player.x, player.y, player.r, bank);
-    }
-  }
-
-  for (const f of flotantes) {
-    ctx.globalAlpha = 1 - f.t / f.life;
-    ctx.fillStyle = f.color;
-    ctx.font = "800 16px " + F;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(f.txt, f.x, f.y);
-  }
-  ctx.globalAlpha = 1;
-  ctx.restore();
-
-  if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
-
-  if (state === "menu") menu();
-  else hud();
-
-  if (state === "over") {
-    ctx.fillStyle = "rgba(5,6,15,0.84)"; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "800 " + Math.min(60, W * 0.15) + "px " + F;
-    ctx.fillText(String(score), W / 2, H / 2 - 40);
-    ctx.font = "700 14px " + F;
-    ctx.globalAlpha = 0.6;
-    ctx.fillText(score >= best ? "¡NUEVO RÉCORD!" : "RÉCORD  " + best, W / 2, H / 2 + 10);
-    ctx.fillText("NIVEL " + level, W / 2, H / 2 + 32);
-    ctx.globalAlpha = 0.9;
-    ctx.font = "700 16px " + F;
-    ctx.fillText("Toca para volver", W / 2, H / 2 + 82);
-    ctx.globalAlpha = 1;
-  }
-}
-
-let last = performance.now();
-function loop(now) {
-  const dt = Math.min((now - last) / 1000, 0.05);
-  last = now;
-  update(dt); render();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
 </script>
 </body>
 </html>
