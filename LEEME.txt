@@ -1,5 +1,5 @@
 ===========================================
-  STRIKE FLIGHT
+  PLAYZONE
 ===========================================
 
 Un solo archivo. No hay que instalar nada.

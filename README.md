@@ -1,4 +1,4 @@
-# Strike Flight
+# PLAYZONE
 
 Matamarcianos vertical para jugar en tablet. Un solo archivo, sin dependencias,
 sin compilar y sin conexión.

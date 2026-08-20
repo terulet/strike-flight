@@ -1,12 +1,17 @@
-# Flight Strike — Auditoría
+# PLAYZONE — Auditoría
 
 Sobre el código real de `index.html` (1133 líneas, 1107 de JS). Todas las
 referencias llevan número de línea para que se puedan comprobar.
 
-> **Nota de nombre:** el repo, el título en pantalla y la clave de guardado
-> dicen *Strike Flight*; la dirección dice *Flight Strike*. Hay que fijar uno.
-> Afecta a `<title>`, al texto del menú (l. 913) y a las claves `sf_*` de
-> `localStorage`.
+> **Nombre: decidido.** El proyecto se llama **PLAYZONE**. Ya está aplicado
+> en `<title>`, en el `apple-mobile-web-app-title`, en el título del menú y
+> en las claves de `localStorage`, que pasan de `sf_*` a `pz_*`. Lo que
+> hubiera guardado con las claves viejas se copia una sola vez al arrancar,
+> así que no se pierden ni el récord ni las naves cargadas.
+>
+> Los números de línea de este documento son de la versión anterior al
+> cambio de nombre y ya estaban desfasados; sirven de orientación, no como
+> referencia exacta.
 
 ---
 
@@ -200,9 +205,9 @@ quinto enemigo (kamikaze) que persiga al jugador. Si añadirlo cuesta unas
 pocas líneas y no toca `update()`, los cimientos son correctos y el resto del
 plan es ejecución.
 
-Antes de eso hay que decidir dos cosas:
+De las dos decisiones previas queda una:
 
-1. **El nombre**, porque afecta a las claves de guardado.
+1. ~~**El nombre**, porque afecta a las claves de guardado.~~ Hecho: PLAYZONE.
 2. **Si el modo actual sobrevive** como modo «supervivencia» aparte de la
    campaña por niveles. Recomiendo que sí: ya funciona, no cuesta nada
    conservarlo, y da algo que jugar mientras la campaña se construye.
