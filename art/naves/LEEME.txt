@@ -41,6 +41,17 @@ del chasis, no el nombre del fichero.
 
 4. MORRO ARRIBA, vista cenital, sin rotar.
 
+OJO: assets\ esta en .gitignore. Un dibujo que
+se quede SOLO ahi funciona en el ordenador donde
+esta y no llega a GitHub, ni a la web, ni al iPad.
+Los definitivos van en art\
+
+CUIDADO CON LAS MAYUSCULAS: en Windows da igual
+KALI.PNG que kali.png, pero en GitHub Pages NO.
+Si el archivo se llama KALI.PNG funcionara en tu
+ordenador y fallara en el iPad. En minusculas
+siempre.
+
 5. LADO MAYOR 512 px COMO MUCHO.
    Por encima de eso el navegador los reduce
    en cada arranque (MAX_SPRITE = 512).

@@ -59,17 +59,24 @@ serie, sin tener que cargarlas a mano:
 Dentro de cada carpeta hay un LEEME.txt que
 repite los nombres, por si se te olvida.
 
-TAMBIEN VALE assets\ : cada dibujo se busca en
-varios sitios y gana el primero que lo tenga:
+Cada dibujo se busca en varios sitios y gana el
+primero que lo tenga:
 
   art\naves\kali.png
   assets\naves\kali.png
   assets\kali.png        (sueltas, sin subcarpeta)
 
-O sea que si tu carpeta ya se llama assets\, no
-tienes que renombrar nada. La lista de sitios
-donde buscar esta arriba del todo de index.html,
-en CARPETAS.
+La lista esta arriba del todo de index.html, en
+CARPETAS.
+
+OJO CON assets\ : esta en .gitignore a proposito,
+porque es el cajon de los originales en bruto.
+Un dibujo que se quede SOLO ahi funciona en este
+ordenador y no llega a GitHub, ni a la web, ni al
+iPad. Se veria bien en una pantalla y roto en
+todas las demas, sin avisar de nada.
+
+LOS DIBUJOS DEFINITIVOS VAN EN art\
 
 LOS NOMBRES EN MINUSCULAS. En Windows da igual
 KALI.PNG que kali.png, pero en GitHub Pages no:

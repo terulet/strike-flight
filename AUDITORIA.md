@@ -41,6 +41,38 @@ las pruebas.
 | FOUNDER FLEET (4 naves privadas, `adminOnly`) | **Sólido** · fuera del juego normal desde un solo sitio |
 | Música | **Pendiente a propósito** |
 
+### Escala por tamaño de pantalla
+
+El juego estaba calibrado en píxeles fijos a 414×896 (el móvil). En un iPad,
+esos mismos píxeles ocupan una fracción menor de la pantalla: la nave se veía
+diminuta y esquivar era más fácil de lo diseñado — medido, no a ojo: en una
+partida ciega simulada (el dedo barriendo la pantalla en seno, sin reaccionar
+a nada) el iPad perdía una partida entera en 45 s con daño 0 en el móvil.
+
+`ESC` (l. 127-152) multiplica tamaños y velocidades de lo que se juega —nave,
+enemigos, balas, premios— por el **menor** de los dos ratios, ancho y alto,
+no solo el ancho. Hace falta el de los dos: el iPad es más "cuadrado" que el
+móvil, así que escalar solo por ancho aceleraba la caída de los enemigos más
+de lo que crecía la pantalla, y el tiempo de reacción bajaba en vez de
+mantenerse igual. Con el menor de los dos ratios, ese mismo test ciego pasa a
+dar **0 golpes en las dos pantallas**, y el nivel alcanzado en 45 s es
+comparable (5 en móvil, 5 en iPad, frente al 2 de antes de la corrección).
+
+No toca `CONFIG.velocidadNave` (es un tiempo de respuesta al dedo, no una
+distancia) ni la capa de sensación —partículas, sacudida, fogonazo—, que
+sigue calibrada tal cual estaba.
+
+**Hallazgo aparte, no causado por esto:** con el lienzo del iPad (más
+píxeles reales que el móvil a la misma densidad), el juego rinde a la mitad
+de fps que el original — 21-23 fps frente a los ~45 del móvil, medido
+headless y sin GPU. Forzando `ESC=1` en ese mismo lienzo el fps no cambia
+(22 → 23), así que **no es el escalado**: es el coste fijo de la capa visual
+—viñeta de pantalla completa y degradados por enemigo— sobre más píxeles.
+Con GPU real (cualquier iPad físico) los degradados son mucho más baratos que
+en Chromium headless sin aceleración, así que no está claro que esto se note
+fuera de este entorno de pruebas. Sin optimizar sin medir en el dispositivo
+real primero.
+
 ---
 
 ## 2. Decisiones estructurales
@@ -159,6 +191,7 @@ De esta fase:
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | FPS reales en iPad sin medir | Alto si falla | Topes, reservas y calidad adaptativa puestos. Falta la medida |
+| Compensación de tamaño/velocidad por pantalla física, sin re-verificar tras el paso a `PROPORCION_MAX` | Medio | Una rama vieja (fusionada aquí el 2026-08-21) medía que en iPad la nave ocupaba menos pantalla y esquivar era más fácil de lo diseñado, y lo arreglaba escalando naves/enemigos/balas con `ESC`. Esa rama es anterior al reparto en `js/enemigos.js` etc. y a `PROPORCION_MAX`, así que su código se descartó por obsoleto — pero `PROPORCION_MAX` solo acota el ANCHO, no repite la compensación por ALTO que `ESC` hacía. Falta repetir esa medida ciega en la versión actual antes de dar el tema por cerrado |
 | `index.html` en ~6 700 líneas | Medio · mantenimiento | Partir en `<script src>` clásicos. **Nunca** módulos ES |
 | Colisiones O(balas × enemigos) | Medio | Con 631 enemigos y 49 balas aguanta. Rejilla espacial solo si se mide caída |
 | Sin música | Bajo | Arquitectura puesta; documentado en THIRD_PARTY_AUDIO_LICENSES.md |

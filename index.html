@@ -481,6 +481,28 @@ const fileInput = document.getElementById("file");
 // va metido en la transformación base del contexto.
 let W = 0, H = 0, VW = 0, VH = 0, PX = 0, DPR = 1;
 
+// ── Escala por tamaño de pantalla ─────────────────────────
+//  El juego está calibrado en el móvil (414×896). Sin esto, ese mismo
+//  número de píxeles en un iPad ocupa una fracción menor de la pantalla:
+//  la nave se ve diminuta y esquivar es más fácil de lo que se diseñó.
+//  ESC multiplica tamaños Y velocidades de lo que se juega —nave, enemigos,
+//  balas, premios— para que ocupen el mismo % de pantalla y se crucen en
+//  el mismo tiempo relativo en cualquier dispositivo.
+//
+//  Se usa el MENOR de los dos ratios (ancho y alto), no solo el ancho.
+//  El iPad es más "cuadrado" que el móvil (menos alto en proporción a lo
+//  ancho que es), así que escalar solo por ancho aceleraba la caída de
+//  los enemigos más de lo que crecía la pantalla: menos tiempo de
+//  reacción, no el mismo. Con el menor de los dos, el eje que manda es
+//  el que de verdad determina cuánto tiempo hay para esquivar, y en el
+//  peor de los casos sobra margen de reacción, nunca falta.
+//
+//  Solo CRECE (mínimo 1): por debajo de la referencia el juego ya está
+//  probado y no se toca. Tope en 2x para que una ventana de escritorio
+//  enorme no convierta la nave en un pantallazo.
+const REF_ANCHO = 414, REF_ALTO = 896;
+let ESC = 1;
+
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   VW = window.innerWidth; VH = window.innerHeight;
@@ -4255,10 +4277,10 @@ function spawnEnemy(tipo, x) {
   const d = ENEMIGOS[k];
   asegurarSpriteEnemigo(k);
   const e = {
-    tipo: k, r: d.r, hp: d.hp, hpMax: d.hp,
-    x: x != null ? clamp(x, d.r, W - d.r) : rand(d.r + 10, W - d.r - 10),
-    y: -d.r - 12,
-    vy: CONFIG.velocidadEnemigo * (1 + (level - 1) * 0.13) * d.vel,
+    tipo: k, r, hp: d.hp, hpMax: d.hp,
+    x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
+    y: -r - 12,
+    vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
     cd: d.recarga ? d.recarga() : 0, flash: 0,
     recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
