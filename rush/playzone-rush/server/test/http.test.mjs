@@ -1,0 +1,223 @@
+/** Pruebas del servidor HTTP de verdad: sockets, cabeceras, SSE y limites. */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createPlayzoneServer } from '../src/server.mjs';
+
+let instance;
+let base;
+
+beforeEach(async () => {
+  instance = createPlayzoneServer({ dbPath: ':memory:', timezone: 'Europe/Madrid' });
+  const address = await instance.listen(0, '127.0.0.1');
+  base = `http://127.0.0.1:${address.port}`;
+});
+
+afterEach(async () => {
+  await instance.close();
+});
+
+const post = (path, body, token) =>
+  fetch(base + path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+const get = (path, token) =>
+  fetch(base + path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+
+async function createPlayer(name) {
+  const response = await post('/api/groups', { name });
+  const data = await response.json();
+  return { ...data, token: `${data.player.id}.${data.player.secret}` };
+}
+
+async function joinPlayer(code, name) {
+  const response = await post('/api/groups/join', { code, name });
+  const data = await response.json();
+  return { ...data, token: `${data.player.id}.${data.player.secret}` };
+}
+
+describe('servidor http', () => {
+  it('responde al health check', async () => {
+    const data = await get('/api/health').then((r) => r.json());
+    expect(data.ok).toBe(true);
+    expect(data.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('permite el flujo completo crear -> unirse -> puntuar -> ver', async () => {
+    const eloi = await createPlayer('Eloi');
+    const marc = await joinPlayer(eloi.group.code, 'Marc');
+
+    const day = (await get('/api/health').then((r) => r.json())).day;
+    const submit = await post(
+      '/api/scores',
+      {
+        attemptId: 'http-attempt-01',
+        gameId: 'pulse',
+        challengeId: 'c1',
+        day,
+        score: 6200,
+        durationMs: 30_000,
+        attemptsUsed: 1,
+      },
+      eloi.token,
+    ).then((r) => r.json());
+    expect(submit.bestScore).toBe(6200);
+
+    const snapshot = await get('/api/snapshot', marc.token).then((r) => r.json());
+    const mine = snapshot.snapshot.scores.find((s) => s.playerId === eloi.player.id);
+    expect(mine.bestScore).toBe(6200);
+  });
+
+  it('rechaza peticiones sin credencial', async () => {
+    const response = await get('/api/snapshot');
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe('unauthorized');
+  });
+
+  it('rechaza cuerpos gigantes', async () => {
+    const eloi = await createPlayer('Eloi');
+    const response = await post('/api/scores', { relleno: 'x'.repeat(70_000) }, eloi.token);
+    expect([400, 413]).toContain(response.status);
+  });
+
+  it('rechaza JSON invalido', async () => {
+    const eloi = await createPlayer('Eloi');
+    const response = await fetch(`${base}/api/scores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${eloi.token}` },
+      body: '{esto no es json',
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe('invalid_json');
+  });
+
+  it('devuelve 404 en rutas desconocidas', async () => {
+    const eloi = await createPlayer('Eloi');
+    expect((await get('/api/loquesea', eloi.token)).status).toBe(404);
+  });
+
+  it('empuja el snapshot por SSE cuando alguien puntua', async () => {
+    const eloi = await createPlayer('Eloi');
+    const marc = await joinPlayer(eloi.group.code, 'Marc');
+    const day = (await get('/api/health').then((r) => r.json())).day;
+
+    const controller = new AbortController();
+    const stream = await fetch(`${base}/api/stream?token=${encodeURIComponent(eloi.token)}`, {
+      signal: controller.signal,
+    });
+    const reader = stream.body.getReader();
+    const decoder = new TextDecoder();
+
+    /**
+     * SSE es un protocolo de lineas, no de paquetes: el servidor hace dos
+     * write() (el retry y la foto) y que lleguen juntos o separados depende
+     * del buffering de la version de Node, no de que el codigo este bien. Hay
+     * que acumular hasta encontrar lo que se busca; dar por hecho que cabe
+     * todo en el primer chunk hace que el test pase o falle segun la maquina.
+     */
+    async function readUntil(needle, maxChunks = 8) {
+      let buffer = '';
+      for (let i = 0; i < maxChunks && !buffer.includes(needle); i++) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+      }
+      return buffer;
+    }
+
+    // La primera foto llega sola, sin esperar a que cambie nada.
+    expect(await readUntil('event: snapshot')).toContain('event: snapshot');
+
+    await post(
+      '/api/scores',
+      {
+        attemptId: 'sse-attempt-01',
+        gameId: 'snap',
+        challengeId: 'c2',
+        day,
+        score: 4321,
+        durationMs: 30_000,
+        attemptsUsed: 1,
+      },
+      marc.token,
+    );
+
+    let payload = '';
+    for (let i = 0; i < 5 && !payload.includes('4321'); i++) {
+      payload += decoder.decode((await reader.read()).value);
+    }
+    expect(payload).toContain('4321');
+
+    controller.abort();
+  });
+
+  it('el mismo intento enviado dos veces no duplica nada', async () => {
+    const eloi = await createPlayer('Eloi');
+    const day = (await get('/api/health').then((r) => r.json())).day;
+    const payload = {
+      attemptId: 'idem-http-01',
+      gameId: 'drift',
+      challengeId: 'c1',
+      day,
+      score: 5000,
+      durationMs: 30_000,
+      attemptsUsed: 1,
+    };
+    const [a, b] = await Promise.all([
+      post('/api/scores', payload, eloi.token).then((r) => r.json()),
+      post('/api/scores', payload, eloi.token).then((r) => r.json()),
+    ]);
+    const snapshot = await get('/api/snapshot', eloi.token).then((r) => r.json());
+    const row = snapshot.snapshot.scores.find((s) => s.challengeId === 'c1');
+    // Una de las dos puede ser la duplicada; lo importante es que solo cuenta una.
+    expect(a.bestScore).toBe(5000);
+    expect(b.bestScore).toBe(5000);
+    expect(row.plays).toBe(1);
+    expect(row.attemptsUsed).toBe(1);
+  });
+
+  it('acepta un error de cliente sin credencial (antes de tener grupo)', async () => {
+    const response = await post('/api/errors', { message: 'fallo en el onboarding', url: '/onboarding' });
+    expect(response.status).toBe(202);
+    expect((await response.json()).ok).toBe(true);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.source).toBe('client');
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('fallo en el onboarding');
+  });
+
+  it('atribuye el error de cliente al jugador cuando llega con Bearer token', async () => {
+    const eloi = await createPlayer('Eloi');
+    await post('/api/errors', { message: 'algo raro en portada' }, eloi.token);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBe(eloi.player.id);
+  });
+
+  it('tambien atribuye el error si el token llega por query string (asi lo manda sendBeacon)', async () => {
+    const eloi = await createPlayer('Eloi');
+    const response = await fetch(`${base}/api/errors?token=${encodeURIComponent(eloi.token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'via beacon' }),
+    });
+    expect(response.status).toBe(202);
+
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBe(eloi.player.id);
+    expect(row.message).toBe('via beacon');
+  });
+
+  it('un token invalido en /api/errors no revienta: se guarda como anonimo', async () => {
+    const response = await post('/api/errors', { message: 'token basura' }, 'esto-no-es-un-token-valido');
+    expect(response.status).toBe(202);
+    const row = instance.store.recentErrors.all(1)[0];
+    expect(row.player_id).toBeNull();
+    expect(row.message).toBe('token basura');
+  });
+});
