@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Redline">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05060a">
+<title>REDLINE: DON'T CHOKE — PLAYZONE 007</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; overflow:hidden; background:#05060a;
+    overscroll-behavior:none; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body { position:fixed; inset:0; }
+  canvas { display:block; touch-action:none; }
+  #volver {
+    position:absolute; z-index:2;
+    top:calc(12px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left));
+    padding:9px 15px 9px 12px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.14); background:rgba(5,6,10,.66);
+    color:#b9bcc9; text-decoration:none;
+    font:700 11.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing:.14em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="volver" href="../../index.html">‹ &nbsp;PLAYZONE</a>
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════
+//  REDLINE: DON'T CHOKE — PLAYZONE 007
+//  El coche acelera solo. Tú solo frenas. Eso es todo el mando,
+//  y aun así clavar la vuelta perfecta es dificilísimo.
+//
+//  AJUSTES — cambia los números, guarda y recarga.
+// ════════════════════════════════════════════════════════════
+const CONFIG = {
+  aceleracion:    118,    // px/s² — acelera sola, siempre
+  frenada:        420,
+  velMinima:      110,    // nunca se para del todo
+  velMaxima:      760,
+
+  agarre:         255,    // cuánta curva aguanta: vLimite = √(agarre / curvatura)
+  escalaCircuito: 5.5,    // estira el trazado: vuelta larga sin abrir las curvas
+  empujeFuera:    2.9,    // con qué fuerza te saca la curva al pasarte
+  recupera:       2.4,    // con qué rapidez vuelves a la trazada
+  anchoPista:     118,
+  castigoFuera:   0.55,   // multiplica la velocidad al salirte
+
+  sectores:       3,
+  sonido:         true,
+};
+
+const COLOR = {
+  fondo:     "#05060a",
+  asfalto:   "#14151d",
+  borde:     "#2a2c3a",
+  bordeLuz:  "#ff2d3d",
+  centro:    "#23252f",
+  coche:     "#f2f3f7",
+  cocheLuz:  "#ff2d3d",
+  fantasma:  "#4a5a7d",
+  texto:     "#ffffff",
+  mejor:     "#00e08a",
+  peor:      "#ff2d3d",
+  ambar:     "#ffb020",
+};
+
+// El circuito. Curvas de verdad y dos rectas donde respirar.
+const TRAZADO = [
+  [520,  90], [900, 110], [1080, 260], [1040, 400], [1130, 520],
+  [1080, 670], [ 900, 710], [ 800, 620], [ 700, 700], [ 730, 870],
+  [ 560, 910], [ 380, 885], [ 300, 765], [ 185, 785], [ 125, 625],
+  [ 215, 520], [ 135, 395], [ 205, 245], [ 350, 125],
+];
+
+// ════════════════════════════════════════════════════════════
+//  A partir de aquí es la maquinaria.
+// ════════════════════════════════════════════════════════════
+
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+const botonVolver = document.getElementById("volver");
+const F = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+let W = 0, H = 0;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  c.style.width = W + "px"; c.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+const medidor = document.createElement("div");
+medidor.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;"
+                      + "padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none";
+document.body.appendChild(medidor);
+function margenArriba() { return parseFloat(getComputedStyle(medidor).paddingTop) || 0; }
+window.addEventListener("resize", resize);
+resize();
+
+// ── Circuito: línea central, longitud y curvatura en cada punto ──
+const PISTA = (function construir() {
+  const p = TRAZADO, n = p.length, pasos = 30, pts = [];
+  const en = i => p[(i % n + n) % n];
+  for (let i = 0; i < n; i++) {
+    const p0 = en(i-1), p1 = en(i), p2 = en(i+1), p3 = en(i+2);
+    for (let s = 0; s < pasos; s++) {
+      const t = s/pasos, t2 = t*t, t3 = t2*t;
+      const f = CONFIG.escalaCircuito;
+      pts.push([
+        f*0.5*((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        f*0.5*((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
+      ]);
+    }
+  }
+  const m = pts.length;
+  const ds = [], acum = [0];
+  for (let i = 0; i < m; i++) {
+    const a = pts[i], b = pts[(i+1) % m];
+    const d = Math.hypot(b[0]-a[0], b[1]-a[1]);
+    ds.push(d); if (i < m-1) acum.push(acum[i] + d);
+  }
+  const largo = acum[m-1] + ds[m-1];
+
+  // curvatura con signo, suavizada
+  const cur = new Array(m).fill(0);
+  for (let i = 0; i < m; i++) {
+    const a = pts[(i-5+m)%m], b = pts[i], d = pts[(i+5)%m];
+    let dif = Math.atan2(d[1]-b[1], d[0]-b[0]) - Math.atan2(b[1]-a[1], b[0]-a[0]);
+    while (dif >  Math.PI) dif -= Math.PI*2;
+    while (dif < -Math.PI) dif += Math.PI*2;
+    const arco = Math.hypot(d[0]-a[0], d[1]-a[1]) || 1;
+    cur[i] = dif / arco;
+  }
+  const suave = cur.slice();
+  for (let k = 0; k < 6; k++) {
+    for (let i = 0; i < m; i++) suave[i] = (cur[(i-1+m)%m] + cur[i]*2 + cur[(i+1)%m]) / 4;
+    for (let i = 0; i < m; i++) cur[i] = suave[i];
+  }
+  return { pts, acum, largo, cur };
+})();
+
+const indiceEn = s => {
+  const k = ((s % PISTA.largo) + PISTA.largo) % PISTA.largo;
+  let lo = 0, hi = PISTA.acum.length - 1;
+  while (hi - lo > 1) { const mid = (lo+hi)>>1; if (PISTA.acum[mid] <= k) lo = mid; else hi = mid; }
+  return lo;
+};
+const curvaturaEn = s => PISTA.cur[indiceEn(s)];
+const limiteEn = s => {
+  const k = Math.abs(curvaturaEn(s));
+  return k < 1e-5 ? CONFIG.velMaxima : Math.min(CONFIG.velMaxima, Math.sqrt(CONFIG.agarre / k));
+};
+function puntoEn(s, lat) {
+  const i = indiceEn(s), m = PISTA.pts.length;
+  const a = PISTA.pts[i], b = PISTA.pts[(i+1)%m];
+  const t = (((s % PISTA.largo) + PISTA.largo) % PISTA.largo - PISTA.acum[i]) /
+            Math.max(1e-6, Math.hypot(b[0]-a[0], b[1]-a[1]));
+  const x = a[0] + (b[0]-a[0])*t, y = a[1] + (b[1]-a[1])*t;
+  const ang = Math.atan2(b[1]-a[1], b[0]-a[0]);
+  return { x: x - Math.sin(ang)*(lat||0), y: y + Math.cos(ang)*(lat||0), ang };
+}
+
+// ── Sonido: motor, y un latido cuando vas de récord ───────
+let audio = null, motorOsc = null, motorGan = null;
+function despertarAudio() {
+  if (!CONFIG.sonido || audio) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio = new AC();
+  motorOsc = audio.createOscillator(); motorGan = audio.createGain();
+  motorOsc.type = "sawtooth"; motorOsc.frequency.value = 60; motorGan.gain.value = 0;
+  motorOsc.connect(motorGan); motorGan.connect(audio.destination); motorOsc.start();
+}
+function motor(v) {
+  if (!audio) return;
+  motorOsc.frequency.setTargetAtTime(52 + v * 0.34, audio.currentTime, 0.04);
+  motorGan.gain.setTargetAtTime(estado === "corre" ? 0.036 : 0, audio.currentTime, 0.08);
+}
+function pitido(f1, f2, dur, tipo, vol) {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f1, audio.currentTime);
+  if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(f2, audio.currentTime + dur);
+  g.gain.setValueAtTime(vol, audio.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+  o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+}
+const latido  = () => pitido(66, 40, 0.16, "sine", 0.16);
+const sonFuera= () => pitido(150, 70, 0.28, "sawtooth", 0.1);
+const sonSector=(m)=> pitido(m?680:380, m?1020:300, 0.13, "square", 0.055);
+const sonMeta = () => { pitido(660,990,0.18,"triangle",0.1); setTimeout(()=>pitido(990,1480,0.24,"triangle",0.1),130); };
+
+// ── Guardado ──────────────────────────────────────────────
+const CLAVE = "pz_redline_";
+function leer(k,d){ try{const v=localStorage.getItem(CLAVE+k);return v===null?d:JSON.parse(v);}catch(_){return d;} }
+function guardar(k,v){ try{localStorage.setItem(CLAVE+k,JSON.stringify(v));}catch(_){} }
+let pb = leer("pb", null);
+let mejoresSectores = leer("sectores", [null,null,null]);
+let fantasma = leer("fantasma", null);
+let vueltasHechas = leer("vueltas", 0);
+
+// ── Estado ────────────────────────────────────────────────
+let estado = "menu";     // menu · corre · fin
+let coche, tiempo, sectorAct, tiemposSector, grabacion, deltaVivo;
+let fuera, avisoFuera, ultimoT, fueRecord, finT, latidoT = 0, veces = 0, choke = false;
+
+function nuevoCoche() { return { s:0, v:CONFIG.velMinima, lat:0, latv:0 }; }
+function empezar() {
+  coche = nuevoCoche(); tiempo = 0; sectorAct = 0; tiemposSector = [];
+  grabacion = []; deltaVivo = null; fuera = false; avisoFuera = 0; veces = 0; choke = false;
+  estado = "corre"; botonVolver.style.display = "none";
+}
+function terminar() {
+  ultimoT = tiempo;
+  fueRecord = pb === null || tiempo < pb;
+  if (fueRecord) { pb = tiempo; guardar("pb", pb); fantasma = grabacion.slice(); guardar("fantasma", fantasma); }
+  tiemposSector.forEach((t,i) => { if (mejoresSectores[i]===null || t<mejoresSectores[i]) mejoresSectores[i]=t; });
+  guardar("sectores", mejoresSectores);
+  vueltasHechas++; guardar("vueltas", vueltasHechas);
+  sonMeta(); estado = "fin"; finT = 0; botonVolver.style.display = "";
+}
+
+// ── Control: solo frenar. Tocar es frenar. ────────────────
+let pulsando = false, teclaFreno = false;
+function alPulsar(e) {
+  e.preventDefault(); despertarAudio();
+  if (estado === "menu") { empezar(); return; }
+  if (estado === "fin") { if (finT > 0.25) empezar(); return; }
+  pulsando = true;
+}
+c.addEventListener("pointerdown", alPulsar, { passive:false });
+c.addEventListener("pointerup", () => { pulsando = false; });
+c.addEventListener("pointercancel", () => { pulsando = false; });
+addEventListener("keydown", e => {
+  if (e.repeat) return; despertarAudio();
+  if (e.key === " " || e.key === "ArrowDown" || e.key === "s") { teclaFreno = true; e.preventDefault(); }
+  if (e.key === "Enter" || e.key === " ") {
+    if (estado === "menu") empezar(); else if (estado === "fin" && finT > 0.25) empezar();
+  }
+});
+addEventListener("keyup", e => { if (e.key===" "||e.key==="ArrowDown"||e.key==="s") teclaFreno = false; });
+function frenando() { return pulsando || teclaFreno; }
+
+// ── Física ────────────────────────────────────────────────
+function actualizar(dt) {
+  if (avisoFuera > 0) avisoFuera -= dt;
+  if (estado === "fin") { finT += dt; motor(0); return; }
+  if (estado !== "corre") { motor(0); return; }
+
+  tiempo += dt;
+  const freno = frenando();
+
+  if (freno) coche.v -= CONFIG.frenada * dt;
+  else       coche.v += CONFIG.aceleracion * dt;
+  coche.v = Math.max(CONFIG.velMinima, Math.min(CONFIG.velMaxima, coche.v));
+
+  // La curva tiene un límite. Pasarte no te para: te saca.
+  const lim = limiteEn(coche.s);
+  const k = curvaturaEn(coche.s);
+  const exceso = coche.v - lim;
+  if (exceso > 0) {
+    coche.latv += Math.sign(k || 1) * -(exceso * CONFIG.empujeFuera) * dt;
+  }
+  coche.latv -= coche.latv * CONFIG.recupera * dt;
+  coche.lat  += coche.latv * dt;
+  coche.lat  -= coche.lat * (exceso > 0 ? 0.3 : CONFIG.recupera) * dt;
+
+  const borde = CONFIG.anchoPista / 2;
+  if (Math.abs(coche.lat) > borde) {
+    coche.lat = Math.sign(coche.lat) * borde;
+    coche.latv *= -0.15;
+    if (!fuera) { coche.v *= CONFIG.castigoFuera; avisoFuera = 0.9; sonFuera(); }
+    fuera = true;
+  } else fuera = false;
+
+  const antes = coche.s;
+  coche.s += coche.v * dt;
+
+  const largoSector = PISTA.largo / CONFIG.sectores;
+  const sectorQueToca = Math.min(CONFIG.sectores-1, Math.floor(coche.s / largoSector));
+  if (coche.s >= PISTA.largo) {
+    tiemposSector.push(tiempo - tiemposSector.reduce((a,b)=>a+b,0));
+    terminar(); return;
+  }
+  if (sectorQueToca > sectorAct) {
+    const parcial = tiempo - tiemposSector.reduce((a,b)=>a+b,0);
+    tiemposSector.push(parcial);
+    const ref = mejoresSectores[sectorAct];
+    sonSector(ref === null || parcial < ref);
+    sectorAct = sectorQueToca;
+  }
+
+  grabacion.push({ t: tiempo, s: coche.s });
+  if (fantasma && fantasma.length > 1) {
+    const tf = tiempoFantasmaEn(coche.s);
+    deltaVivo = tf === null ? null : tiempo - tf;
+  }
+
+  // El momento. Vas por delante del récord y quedan dos curvas.
+  choke = deltaVivo !== null && deltaVivo < 0 && sectorAct === CONFIG.sectores - 1;
+  if (choke) {
+    latidoT -= dt;
+    if (latidoT <= 0) { latido(); latidoT = 0.46; }
+  }
+  motor(coche.v);
+}
+
+function tiempoFantasmaEn(s) {
+  const g = fantasma;
+  if (!g || !g.length) return null;
+  if (s <= g[0].s) return g[0].t;
+  let lo = 0, hi = g.length-1;
+  if (s >= g[hi].s) return null;
+  while (hi-lo > 1) { const mid=(lo+hi)>>1; if (g[mid].s <= s) lo = mid; else hi = mid; }
+  const a = g[lo], b = g[hi];
+  return a.t + (b.t-a.t) * ((s-a.s) / Math.max(1e-6, b.s-a.s));
+}
+
+// ── Dibujo ────────────────────────────────────────────────
+function reloj(s) {
+  if (s === null || s === undefined) return "--.---";
+  return s.toFixed(3);
+}
+function texto(t,x,y,tam,peso,color,alfa,alin) {
+  ctx.globalAlpha = alfa===undefined?1:alfa;
+  ctx.fillStyle = color || COLOR.texto;
+  ctx.font = peso+" "+tam+"px "+F;
+  ctx.textAlign = alin||"center"; ctx.textBaseline="middle";
+  ctx.fillText(t,x,y); ctx.globalAlpha = 1;
+}
+function ladoEn(i, lado) {
+  const m = PISTA.pts.length, b = PISTA.pts[i], d = PISTA.pts[(i+2)%m];
+  const nx = -(d[1]-b[1]), ny = (d[0]-b[0]), n = Math.hypot(nx,ny)||1;
+  return [b[0] + (nx/n)*lado*CONFIG.anchoPista/2, b[1] + (ny/n)*lado*CONFIG.anchoPista/2];
+}
+function dibujarPista() {
+  const m = PISTA.pts.length;
+  ctx.beginPath();
+  for (let i=0;i<m;i++){ const p=ladoEn(i,1); i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }
+  for (let i=m-1;i>=0;i--){ const p=ladoEn(i,-1); ctx.lineTo(p[0],p[1]); }
+  ctx.closePath(); ctx.fillStyle = COLOR.asfalto; ctx.fill();
+
+  // El borde se enciende donde la curva aprieta: es la única pista visual
+  // de dónde hay que frenar, y no dice cuándo.
+  for (const lado of [1,-1]) {
+    for (let i=0;i<m;i++){
+      const a = ladoEn(i,lado), b = ladoEn((i+1)%m,lado);
+      const ap = Math.min(1, Math.abs(PISTA.cur[i]) * 900);
+      ctx.strokeStyle = ap > 0.12 ? COLOR.bordeLuz : COLOR.borde;
+      ctx.globalAlpha = ap > 0.12 ? 0.25 + ap*0.75 : 0.5;
+      ctx.lineWidth = 2 + ap*2.5;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.setLineDash([14,26]); ctx.lineWidth = 1.5; ctx.strokeStyle = COLOR.centro;
+  ctx.beginPath();
+  PISTA.pts.forEach((p,i)=> i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+
+  const a = ladoEn(0,1), b = ladoEn(0,-1);
+  ctx.lineWidth = 5; ctx.strokeStyle = "#e8e6f0";
+  ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+}
+function dibujarCoche(x,y,ang,cuerpo,luz,alfa) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang); ctx.globalAlpha = alfa===undefined?1:alfa;
+  ctx.fillStyle = cuerpo;
+  ctx.beginPath();
+  ctx.moveTo(19,0); ctx.lineTo(7,-7); ctx.lineTo(-14,-7);
+  ctx.lineTo(-17,0); ctx.lineTo(-14,7); ctx.lineTo(7,7);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = luz; ctx.fillRect(-17,-6,4,12);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+function dibujarMundo() {
+  ctx.fillStyle = COLOR.fondo; ctx.fillRect(0,0,W,H);
+  const p = puntoEn(coche.s, coche.lat);
+  ctx.save();
+  ctx.translate(W/2, H*0.62);
+  ctx.scale(1.05, 1.05);
+  ctx.rotate(-p.ang - Math.PI/2);
+  ctx.translate(-p.x, -p.y);
+  dibujarPista();
+  if (fantasma && fantasma.length > 1 && estado === "corre") {
+    let i = 0; while (i < fantasma.length-1 && fantasma[i].t < tiempo) i++;
+    const q = puntoEn(fantasma[i].s, 0);
+    dibujarCoche(q.x, q.y, q.ang, COLOR.fantasma, "#7d8db0", 0.5);
+  }
+  if (estado !== "menu") dibujarCoche(p.x, p.y, p.ang, COLOR.coche, COLOR.cocheLuz);
+  ctx.restore();
+}
+
+function hud() {
+  const y0 = margenArriba();
+  texto(tiempo.toFixed(3), W/2, y0+42, Math.min(48, W*0.12), "900");
+  texto("PB  " + reloj(pb), W/2, y0+76, 12, "700", "#8b8f9e");
+
+  if (deltaVivo !== null && deltaVivo !== undefined) {
+    const m = deltaVivo < 0;
+    texto((m?"−":"+")+Math.abs(deltaVivo).toFixed(3), W/2, y0+112,
+          Math.min(34, W*0.085), "900", m ? COLOR.mejor : COLOR.peor);
+  }
+
+  // sectores
+  const an = Math.min(100, W*0.27);
+  for (let i=0;i<CONFIG.sectores;i++){
+    const x = W/2 + (i-1)*(an+8);
+    const hecho = tiemposSector[i] !== undefined;
+    const ref = mejoresSectores[i];
+    let col = "#3d4152";
+    if (hecho && ref!==null) col = tiemposSector[i] <= ref ? COLOR.mejor : COLOR.peor;
+    else if (hecho) col = "#8b8f9e";
+    ctx.fillStyle = col; ctx.globalAlpha = (i===sectorAct && !hecho) ? 0.95 : 0.6;
+    ctx.fillRect(x-an/2, H-48, an, 4); ctx.globalAlpha = 1;
+    texto(hecho ? tiemposSector[i].toFixed(3) : "S"+(i+1), x, H-64, 11, "700", col);
+  }
+
+  // velocidad y límite de la curva que viene: la barra roja avisa, no salva
+  const lim = limiteEn(coche.s + coche.v * 0.55);
+  const anchoB = Math.min(220, W*0.6), xB = W/2 - anchoB/2;
+  ctx.fillStyle = "rgba(255,255,255,.09)"; ctx.fillRect(xB, H-30, anchoB, 6);
+  const pv = coche.v / CONFIG.velMaxima, pl = lim / CONFIG.velMaxima;
+  ctx.fillStyle = coche.v > lim ? COLOR.peor : COLOR.mejor;
+  ctx.fillRect(xB, H-30, anchoB*pv, 6);
+  ctx.fillStyle = COLOR.ambar; ctx.fillRect(xB + anchoB*pl - 1, H-34, 2, 14);
+
+  if (choke) {
+    const pulso = 0.6 + Math.sin(Date.now()/140)*0.4;
+    texto("RECORD PACE", W/2, H*0.30, Math.min(26, W*0.065), "900", COLOR.mejor, pulso);
+    texto("DON'T CHOKE", W/2, H*0.30+30, Math.min(17, W*0.042), "800", COLOR.ambar, pulso*0.9);
+  }
+  if (avisoFuera > 0) texto("FUERA", W/2, H*0.44, Math.min(32,W*0.08), "900", COLOR.peor, Math.min(1,avisoFuera*2));
+}
+
+function pantallaMenu() {
+  ctx.fillStyle = "rgba(5,6,10,.8)"; ctx.fillRect(0,0,W,H);
+  texto("REDLINE", W/2, H*0.30, Math.min(52,W*0.13), "900");
+  texto("DON'T CHOKE", W/2, H*0.30+38, Math.min(19,W*0.048), "800", COLOR.bordeLuz);
+  texto("El coche acelera solo. Tú solo frenas.", W/2, H*0.50, 14, "600", "#b9bcc9");
+  texto("Toca y mantén para frenar. Suelta y vuela.", W/2, H*0.50+24, 13.5, "600", "#8b8f9e");
+  texto("Si entras pasado, la curva te echa fuera.", W/2, H*0.50+46, 13.5, "600", "#8b8f9e");
+  texto("PB  " + reloj(pb) + (vueltasHechas ? "   ·   " + vueltasHechas + " vueltas" : ""),
+        W/2, H*0.64, 13, "700", "#8b8f9e");
+  const pulso = 0.55 + Math.sin(Date.now()/320)*0.25;
+  texto("TOCA PARA SALIR", W/2, H*0.78, 15, "800", "#fff", pulso);
+}
+
+function pantallaFin() {
+  ctx.fillStyle = "rgba(5,6,10,.84)"; ctx.fillRect(0,0,W,H);
+  texto(fueRecord ? "NUEVO PB" : "VUELTA", W/2, H*0.34, Math.min(32,W*0.08), "900",
+        fueRecord ? COLOR.mejor : "#fff");
+  texto(ultimoT.toFixed(3), W/2, H*0.34+60, Math.min(60,W*0.15), "900");
+  texto("PB  " + reloj(pb), W/2, H*0.34+104, 13, "700", "#8b8f9e");
+  for (let i=0;i<tiemposSector.length;i++){
+    const ref = mejoresSectores[i];
+    const col = ref!==null && tiemposSector[i] <= ref ? COLOR.mejor : "#8b8f9e";
+    texto("S"+(i+1)+"   "+tiemposSector[i].toFixed(3), W/2, H*0.34+136+i*20, 12.5, "700", col);
+  }
+  if (finT > 0.25) {
+    const pulso = 0.55 + Math.sin(Date.now()/300)*0.25;
+    texto("OTRA", W/2, H*0.74, 16, "800", "#fff", pulso);
+  }
+}
+
+function dibujar() {
+  dibujarMundo();
+  if (estado === "menu") pantallaMenu();
+  else { hud(); if (estado === "fin") pantallaFin(); }
+}
+
+// ── Bucle, paso fijo: la vuelta tiene que ser comparable ──
+coche = nuevoCoche(); tiempo = 0; sectorAct = 0; tiemposSector = [];
+grabacion = []; deltaVivo = null; fuera = false; avisoFuera = 0;
+const PASO = 1/120;
+let anterior = performance.now(), resto = 0;
+function bucle(ahora) {
+  let dt = (ahora-anterior)/1000; anterior = ahora;
+  if (dt > 0.25) dt = 0.25;
+  resto += dt;
+  while (resto >= PASO) { actualizar(PASO); resto -= PASO; }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+</body>
+</html>
