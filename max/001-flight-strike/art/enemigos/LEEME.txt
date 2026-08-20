@@ -1,0 +1,60 @@
+===========================================
+  ENEMIGOS  -  suelta aqui los PNG
+===========================================
+
+Un archivo por tipo. Los nombres salen de la
+tabla ENEMIGOS de index.html, asi que ahora
+mismo son estos cinco:
+
+  normal.png      el basico, cae recto
+  veloz.png       pequeno y en zigzag
+  torreta.png     apunta y dispara
+  tanque.png      grande, con barra de vida
+  kamikaze.png    va a por la nave
+
+El que falte se dibuja por codigo con su forma
+de siempre. No se rompe nada, y en la consola
+del navegador saldra un 404: es normal.
+
+Cuando se anadan tipos nuevos a la tabla, el
+archivo que toca es <nombre del tipo>.png y
+se recoge solo, sin tocar codigo.
+
+Vale cualquiera de estas carpetas, en este
+orden:
+
+  art\enemigos\veloz.png    <- la de este repo
+  assets\enemigos\veloz.png
+  assets\veloz.png          <- sueltas
+
+OJO: assets\ esta en .gitignore. Un dibujo que
+se quede SOLO ahi funciona en el ordenador donde
+esta y no llega a GitHub, ni a la web, ni al iPad.
+Los definitivos van en art\
+
+En minusculas siempre: en Windows da igual, en
+GitHub Pages no.
+
+
+-------------------------------------------
+  COMO TIENE QUE SER EL DIBUJO
+-------------------------------------------
+
+  - Mirando HACIA ABAJO, o simetrico
+  - Fondo transparente, o de un color plano
+  - Del tamano que sea: se reduce a 512 px
+
+Ojo con la legibilidad: el enemigo tiene que
+distinguirse de la nave de un vistazo, y no
+solo por el color. Enemigo = rojo/naranja y
+formas redondas; jugador = cian y formas
+alargadas.
+
+
+-------------------------------------------
+  SI SALEN CON SU FONDO
+-------------------------------------------
+
+Igual que con las naves:
+
+  node herramientas/recortar.mjs art/enemigos/

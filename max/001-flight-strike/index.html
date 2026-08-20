@@ -40,46 +40,79 @@ const CONFIG = {
   invulnerable:       1.5,
   probPremio:         0.16,
   tamanoNave:         4.8,   // cómo de grande se dibuja la nave cargada
-  llamasMotor:        true,  // ponlo en false si tu nave YA lleva las llamas dibujadas
+  llamasMotor:        false, // las naves ya traen las llamas dibujadas; ponlo
+                             // en true si alguna viene sin ellas
   sonido:             true,
 };
+
+// El negro de los contornos. Uno solo para todo el juego: es lo que hace que
+// las naves dibujadas y lo que pinta el código parezcan la misma cosa.
+const TINTA = "#0a0714";
+
+// ── Lenguaje visual fijo ──────────────────────────────────
+//  Esto NO cambia con el mundo, a propósito. Lo que te mata tiene que verse
+//  igual en los cuatro, o hay que reaprenderlo cada vez que cambias de
+//  mundo. Y no se distingue solo por el color: tu disparo es ALARGADO y
+//  cian, el suyo es REDONDO y rosa. Aunque se juegue en blanco y negro,
+//  se sigue leyendo.
+const TIRO_TUYO = "#7df9ff";
+const TIRO_SUYO = "#ff2f6e";
 
 // ════════════════════════════════════════════════════════════
 //  MUNDOS
 // ════════════════════════════════════════════════════════════
+//  Los mundos van OSCUROS a propósito. La nave se elige aparte del mundo,
+//  así que cualquiera puede acabar en cualquiera: si el fondo también grita,
+//  se pelean. El escenario recede y el color lo pone la nave.
 const TEMAS = [
-  { id:"espacio", nombre:"ESPACIO PROFUNDO", icono:"✦", fondoA:"#070b1e", fondoB:"#161247",
-    bg:"estrellas", bgColor:"#9fb4ff",
+  // Los enemigos huyen del rosa (reservado a SUS balas) y del cian
+  // (reservado a las TUYAS). Cálido = amenaza, frío = tú.
+  { id:"espacio", nombre:"ESPACIO PROFUNDO", icono:"✦", fondoA:"#03050e", fondoB:"#0d1130",
+    bg:"estrellas", bgColor:"#a8bcff",
     nave:"#5ce1ff", naveAla:"#2b6cff", cabina:"#fff6a8", motor:"#ffcf5c",
-    bala:"#ffe066", enemigoA:"#ff4d6d", enemigoB:"#ff9f45", enemigoC:"#c77dff", balaEnemiga:"#ff7b9c" },
+    bala:"#ffe066", enemigoA:"#e0662a", enemigoB:"#d9a520", enemigoC:"#8a5ce0" },
 
-  { id:"oceano", nombre:"FOSA ABISAL", icono:"≈", fondoA:"#021520", fondoB:"#053b4d",
-    bg:"burbujas", bgColor:"#7fe3ff",
+  { id:"oceano", nombre:"FOSA ABISAL", icono:"≈", fondoA:"#010a11", fondoB:"#052733",
+    bg:"burbujas", bgColor:"#6fd0e8",
     nave:"#8affd1", naveAla:"#00a89c", cabina:"#eaffff", motor:"#7de8ff",
-    bala:"#b6ffe8", enemigoA:"#ff5c8a", enemigoB:"#ffd166", enemigoC:"#a06bff", balaEnemiga:"#ff8fb0" },
+    bala:"#b6ffe8", enemigoA:"#e07a35", enemigoB:"#c9a53a", enemigoC:"#6f52c9" },
 
-  { id:"volcan", nombre:"NÚCLEO DE LAVA", icono:"▲", fondoA:"#1a0505", fondoB:"#4d1200",
-    bg:"brasas", bgColor:"#ff9b3d",
+  { id:"volcan", nombre:"NÚCLEO DE LAVA", icono:"▲", fondoA:"#120303", fondoB:"#331002",
+    bg:"brasas", bgColor:"#e8853a",
     nave:"#ffd86b", naveAla:"#ff6b1f", cabina:"#fff3d0", motor:"#ff3d00",
-    bala:"#fff07a", enemigoA:"#7b2cff", enemigoB:"#00d9c0", enemigoC:"#ff2e6a", balaEnemiga:"#b18cff" },
+    bala:"#fff07a", enemigoA:"#5a3fd6", enemigoB:"#17a58c", enemigoC:"#9b40d6" },
 
-  { id:"neon", nombre:"CIUDAD NEÓN", icono:"◈", fondoA:"#0a0118", fondoB:"#2d0a4e",
-    bg:"rejilla", bgColor:"#ff2ea6",
+  { id:"neon", nombre:"CIUDAD NEÓN", icono:"◈", fondoA:"#050110", fondoB:"#1c0730",
+    bg:"rejilla", bgColor:"#d63a95",
     nave:"#c77dff", naveAla:"#ff2ea6", cabina:"#00f5ff", motor:"#00f5ff",
-    bala:"#00f5ff", enemigoA:"#ffe600", enemigoB:"#00ff9d", enemigoC:"#ff5400", balaEnemiga:"#ffe600" },
+    bala:"#00f5ff", enemigoA:"#ff5c1a", enemigoB:"#2bd97f", enemigoC:"#b45cff" },
 ];
+
+// ════════════════════════════════════════════════════════════
+//  DÓNDE ESTÁN LOS DIBUJOS
+//  Se prueban estas carpetas en orden y gana la primera que tenga
+//  el archivo. Así da igual que la carpeta se llame art\ o assets\,
+//  y da igual que las naves estén en su subcarpeta o sueltas.
+//  ¿Otra carpeta? Se añade a la lista y ya.
+// ════════════════════════════════════════════════════════════
+const CARPETAS = {
+  naves:    ["art/naves/",    "assets/naves/",    "assets/"],
+  enemigos: ["art/enemigos/", "assets/enemigos/", "assets/"],
+  fondos:   ["art/fondos/",   "assets/fondos/",   "assets/"],
+};
+const buscar = (grupo, archivo) => CARPETAS[grupo].map(d => d + archivo);
 
 // ════════════════════════════════════════════════════════════
 //  NAVES
 //  - "clasica" es la dibujada por código, siempre está.
-//  - Las de art/naves/*.png se cargan solas SI existen.
+//  - Las demás se cargan solas SI existe su PNG en alguna carpeta.
 //  - Las que ella cargue con el botón + se guardan en el navegador.
 // ════════════════════════════════════════════════════════════
 const NAVES = [
-  { id:"clasica", nombre:"CLÁSICA", src:null,                  fija:true },
-  { id:"kali",    nombre:"KALI",    src:"art/naves/kali.png",  fija:true },
-  { id:"yoli",    nombre:"YOLI",    src:"art/naves/yoli.png",  fija:true },
-  { id:"silvia",  nombre:"SILVIA",  src:"art/naves/silvia.png",fija:true },
+  { id:"clasica", nombre:"CLÁSICA", src:null,                      fija:true },
+  { id:"kali",    nombre:"KALI",    src:buscar("naves","kali.png"),   fija:true },
+  { id:"yoli",    nombre:"YOLI",    src:buscar("naves","yoli.png"),   fija:true },
+  { id:"silvia",  nombre:"SILVIA",  src:buscar("naves","silvia.png"), fija:true },
 ];
 
 // ════════════════════════════════════════════════════════════
@@ -91,9 +124,32 @@ const ctx = c.getContext("2d");
 const fileInput = document.getElementById("file");
 let W = 0, H = 0;
 
+// ── Escala por tamaño de pantalla ─────────────────────────
+//  El juego está calibrado en el móvil (414×896). Sin esto, ese mismo
+//  número de píxeles en un iPad ocupa una fracción menor de la pantalla:
+//  la nave se ve diminuta y esquivar es más fácil de lo que se diseñó.
+//  ESC multiplica tamaños Y velocidades de lo que se juega —nave, enemigos,
+//  balas, premios— para que ocupen el mismo % de pantalla y se crucen en
+//  el mismo tiempo relativo en cualquier dispositivo.
+//
+//  Se usa el MENOR de los dos ratios (ancho y alto), no solo el ancho.
+//  El iPad es más "cuadrado" que el móvil (menos alto en proporción a lo
+//  ancho que es), así que escalar solo por ancho aceleraba la caída de
+//  los enemigos más de lo que crecía la pantalla: menos tiempo de
+//  reacción, no el mismo. Con el menor de los dos, el eje que manda es
+//  el que de verdad determina cuánto tiempo hay para esquivar, y en el
+//  peor de los casos sobra margen de reacción, nunca falta.
+//
+//  Solo CRECE (mínimo 1): por debajo de la referencia el juego ya está
+//  probado y no se toca. Tope en 2x para que una ventana de escritorio
+//  enorme no convierta la nave en un pantallazo.
+const REF_ANCHO = 414, REF_ALTO = 896;
+let ESC = 1;
+
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
+  ESC = Math.min(2, Math.max(1, Math.min(W / REF_ANCHO, H / REF_ALTO)));
   c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
   c.style.width = W + "px"; c.style.height = H + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -110,6 +166,16 @@ resize();
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const TAU = Math.PI * 2;
+
+// Mezcla dos colores "#rrggbb". Sirve para sacar la luz y la sombra de un
+// color base sin tener que declarar tres tonos por cada cosa.
+function mezcla(a, b, t) {
+  const n = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const [r1, g1, b1] = n(a), [r2, g2, b2] = n(b);
+  return "rgb(" + Math.round(r1 + (r2 - r1) * t) + "," +
+                  Math.round(g1 + (g2 - g1) * t) + "," +
+                  Math.round(b1 + (b2 - b1) * t) + ")";
+}
 
 // ── Tratamiento de imagen ─────────────────────────────────
 //  Quita el fondo si es de un color plano (magenta, blanco, verde…),
@@ -215,11 +281,32 @@ function prepararSprite(img) {
 }
 
 const SPRITES = {};
-function cargarSprite(id, src) {
-  const img = new Image();
-  img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; };
-  img.onerror = () => {};      // no existe el archivo: se dibuja por código
-  img.src = src;
+// Prueba las rutas una tras otra y se queda con la primera que cargue.
+// Si no está en ninguna, esa pieza se dibuja por código y no pasa nada.
+function cargarSprite(id, rutas) {
+  const cola = Array.isArray(rutas) ? rutas.slice() : [rutas];
+  (function siguiente() {
+    const src = cola.shift();
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => { const s = prepararSprite(img); if (s) SPRITES[id] = s; else siguiente(); };
+    img.onerror = siguiente;
+    img.src = src;
+  })();
+}
+
+// Igual, pero tal cual viene: ni recorte de fondo ni recorte al contenido.
+// Para imágenes que YA son el fondo.
+function cargarImagen(id, rutas) {
+  const cola = Array.isArray(rutas) ? rutas.slice() : [rutas];
+  (function siguiente() {
+    const src = cola.shift();
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => { SPRITES[id] = img; };
+    img.onerror = siguiente;
+    img.src = src;
+  })();
 }
 for (const n of NAVES) if (n.src) cargarSprite(n.id, n.src);
 // (los sprites de enemigos se precargan más abajo, con la tabla ENEMIGOS)
@@ -337,14 +424,14 @@ const PATRONES = {
   abanico(x, y, ang, vel, n, apertura, r) {
     for (let i = 0; i < n; i++) {
       const a = ang + (n === 1 ? 0 : (i - (n - 1) / 2) * apertura);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 * ESC });
     }
   },
   // n disparos repartidos por toda la circunferencia
   circulo(x, y, vel, n, fase, r) {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + (fase || 0);
-      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 });
+      eBullets.push({ x, y, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, r: r || 5 * ESC });
     }
   },
 };
@@ -373,7 +460,7 @@ const ENEMIGOS = {
   veloz: {
     r: 13, hp: 1, puntos: 25, vel: 1.7, forma: "rombo",
     color: t => t.enemigoB,
-    init(e) { e.zig = rand(70, 150) * (Math.random() < 0.5 ? -1 : 1); },
+    init(e) { e.zig = rand(70, 150) * ESC * (Math.random() < 0.5 ? -1 : 1); },
     mover(e, dt) {
       caer(e, dt);
       e.fase += dt * 3;
@@ -387,7 +474,7 @@ const ENEMIGOS = {
     mover: caer,
     recarga: () => rand(1.1, 1.9),
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 1, 0);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250 * ESC, 1, 0);
       beep(220, 0.09, "sawtooth", 0.03);
     },
   },
@@ -398,7 +485,7 @@ const ENEMIGOS = {
     mover: caer,
     recarga: () => rand(0.7, 1.1),
     atacar(e) {
-      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250, 3, 0.24);
+      PATRONES.abanico(e.x, e.y, haciaJugador(e), 250 * ESC, 3, 0.24);
       beep(220, 0.09, "sawtooth", 0.03);
     },
   },
@@ -412,68 +499,86 @@ const ENEMIGOS = {
     init(e) { e.vx = 0; },
     mover(e, dt) {
       caer(e, dt);
-      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * dt, -230, 230);
+      e.vx = clamp(e.vx + Math.sign(player.x - e.x) * 400 * ESC * dt, -230 * ESC, 230 * ESC);
       e.x = clamp(e.x + e.vx * dt, e.r, W - e.r);
       e.giro = Math.atan2(e.vx, Math.max(e.vy, 1)) * 0.6;
     },
   },
 };
 
-// Formas por defecto, para cuando todavía no hay PNG del enemigo
+// Formas por defecto, para cuando todavía no hay PNG del enemigo.
+// Solo trazan el contorno: de rellenarlo y perfilarlo se encarga
+// dibujarEnemigo(), para que todos compartan el mismo acabado.
 const FORMAS = {
-  circulo(e) { ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill(); },
+  circulo(e) { ctx.arc(0, 0, e.r, 0, TAU); },
 
   rombo(e) {
     ctx.rotate(e.giro);
-    ctx.beginPath();
     ctx.moveTo(0, -e.r); ctx.lineTo(e.r * 0.7, 0);
     ctx.lineTo(0, e.r); ctx.lineTo(-e.r * 0.7, 0);
-    ctx.closePath(); ctx.fill();
+    ctx.closePath();
   },
 
   hexagono(e) {
-    ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * TAU + e.giro * 0.4;
       ctx[i ? "lineTo" : "moveTo"](Math.cos(a) * e.r, Math.sin(a) * e.r);
     }
-    ctx.closePath(); ctx.fill();
+    ctx.closePath();
   },
 
+  // Los pods laterales van dentro del MISMO trazo que el casco. Si fueran
+  // rectángulos aparte, el contorno perfilaría cada pieza y se vería como
+  // tres cosas pegadas en vez de una nave.
   acorazado(e) {
     const r = e.r;
-    ctx.beginPath();
     ctx.moveTo(0, -r);
-    ctx.lineTo(r * 0.95, -r * 0.3); ctx.lineTo(r * 0.7, r * 0.55);
+    ctx.lineTo(r * 0.95, -r * 0.3);
+    ctx.lineTo(r * 1.38, -r * 0.28); ctx.lineTo(r * 1.38, r * 0.44);
+    ctx.lineTo(r * 0.9, r * 0.44);
+    ctx.lineTo(r * 0.7, r * 0.55);
     ctx.lineTo(0, r * 0.88);
-    ctx.lineTo(-r * 0.7, r * 0.55); ctx.lineTo(-r * 0.95, -r * 0.3);
-    ctx.closePath(); ctx.fill();
-    ctx.fillRect(-r * 1.38, -r * 0.28, r * 0.42, r * 0.72);
-    ctx.fillRect(r * 0.96, -r * 0.28, r * 0.42, r * 0.72);
-    ctx.fillStyle = "rgba(0,0,0,0.32)";
-    ctx.fillRect(-r * 0.62, -r * 0.55, r * 1.24, r * 0.26);
+    ctx.lineTo(-r * 0.7, r * 0.55);
+    ctx.lineTo(-r * 0.9, r * 0.44);
+    ctx.lineTo(-r * 1.38, r * 0.44); ctx.lineTo(-r * 1.38, -r * 0.28);
+    ctx.lineTo(-r * 0.95, -r * 0.3);
+    ctx.closePath();
   },
 
   // Punta hacia abajo: se ve de un vistazo que viene a por ti
   punta(e) {
     ctx.rotate(e.giro || 0);
     const r = e.r;
-    ctx.beginPath();
     ctx.moveTo(0, r * 1.2);
     ctx.lineTo(r * 0.9, -r * 0.55);
     ctx.lineTo(0, -r * 0.2);
     ctx.lineTo(-r * 0.9, -r * 0.55);
-    ctx.closePath(); ctx.fill();
+    ctx.closePath();
   },
 };
 
-// Si pones PNG en art/enemigos/, se recogen solos
-Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, "art/enemigos/" + t + ".png"));
+// Detalles que van ENCIMA del relleno, una vez perfilada la silueta
+const DETALLES = {
+  acorazado(e) {
+    const r = e.r;
+    ctx.fillStyle = "rgba(10,7,20,0.42)";
+    ctx.fillRect(-r * 0.62, -r * 0.55, r * 1.24, r * 0.26);
+  },
+};
+
+// Si pones PNG de enemigos en cualquiera de las carpetas, se recogen solos
+Object.keys(ENEMIGOS).forEach(t => cargarSprite("e_" + t, buscar("enemigos", t + ".png")));
+
+// Fondos: art/fondos/espacio.png, oceano.png, volcan.png, neon.png
+// Van por cargarImagen y NO por cargarSprite: al fondo no se le quita el
+// fondo. Pasarlo por el recorte por inundación le comería el cielo, que es
+// justo lo que queremos ver.
+TEMAS.forEach(t => cargarImagen("f_" + t.id, buscar("fondos", t.id + ".png")));
 
 // ── Estado ────────────────────────────────────────────────
-let T, naveSel = 0;
+let T, naveSel = 0, fondoY = 0;
 let state = "menu";
-let player, bullets, eBullets, enemies, premios, particles, bg, flotantes;
+let player, bullets, eBullets, enemies, premios, particles, bg, flotantes, ondas;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let targetX, targetY, dragging = false, bank = 0;
@@ -489,17 +594,20 @@ T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
 
 function crearFondo() {
   bg = [];
-  const n = T.bg === "rejilla" ? 16 : 80;
+  const n = T.bg === "rejilla" ? 18 : 120;
   for (let i = 0; i < n; i++) {
-    bg.push({ x: rand(0, W), y: rand(0, H), z: rand(0.25, 1), r: rand(0.7, 2.6), f: rand(0, TAU) });
+    // Una de cada seis, gorda y brillante: da profundidad sin llenar de ruido
+    const gorda = i % 6 === 0;
+    bg.push({ x: rand(0, W), y: rand(0, H), z: gorda ? rand(0.8, 1) : rand(0.2, 0.75),
+              r: gorda ? rand(2.2, 3.4) : rand(0.6, 1.7), f: rand(0, TAU) });
   }
 }
 
 function reset() {
   state = "play";
-  player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
+  player = { x: W / 2, y: H * 0.78, r: 16 * ESC, px: W / 2 };
   targetX = player.x; targetY = player.y;
-  bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = [];
+  bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
@@ -508,8 +616,8 @@ function reset() {
 }
 
 // El menú también anima, así que todo esto tiene que existir ya
-bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = [];
-player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2 };
+bullets = []; eBullets = []; enemies = []; premios = []; particles = []; flotantes = []; ondas = [];
+player = { x: W / 2, y: H * 0.78, r: 16 * ESC, px: W / 2 };
 targetX = player.x; targetY = player.y;
 score = 0; lives = 0; elapsed = 0; level = 1; spawnAcc = 0; shootAcc = 0; invulnT = 0;
 arma = 1; escudo = 0; turbo = 0; combo = 0; comboT = 0;
@@ -518,7 +626,7 @@ crearFondo();
 
 // ── Entrada ───────────────────────────────────────────────
 function pos(e) { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo; }
+function aim(e) { const p = pos(e); targetX = p.x; targetY = p.y - CONFIG.offsetDedo * ESC; }
 const dentro = (p, r) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 
 c.addEventListener("pointerdown", (e) => {
@@ -576,6 +684,11 @@ function boom(x, y, color, n, fuerza) {
   }
 }
 function shake(mag, dur) { shakeMag = Math.max(shakeMag, mag); shakeT = Math.max(shakeT, dur); }
+// Anillo de choque. Solo para lo que pesa: acorazados, bombas y la nave.
+// Si sale en cada muerte deja de significar nada.
+function onda(x, y, color, rMax, dur) {
+  ondas.push({ x, y, color, rMax, t: 0, life: dur || 0.45 });
+}
 function texto(x, y, txt, color) {
   flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9 });
 }
@@ -595,11 +708,12 @@ function elegirTipo() {
 function spawnEnemy(tipo, x) {
   const k = tipo || elegirTipo();
   const d = ENEMIGOS[k];
+  const r = d.r * ESC;   // el tamaño de la tabla es "a 414 px de ancho"
   const e = {
-    tipo: k, r: d.r, hp: d.hp, hpMax: d.hp,
-    x: x != null ? clamp(x, d.r, W - d.r) : rand(d.r + 10, W - d.r - 10),
-    y: -d.r - 12,
-    vy: CONFIG.velocidadEnemigo * (1 + (level - 1) * 0.13) * d.vel,
+    tipo: k, r, hp: d.hp, hpMax: d.hp,
+    x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
+    y: -r - 12,
+    vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
     cd: d.recarga ? d.recarga() : 0, flash: 0,
   };
@@ -608,7 +722,7 @@ function spawnEnemy(tipo, x) {
   return e;
 }
 
-function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95, r: 15, tipo, f: rand(0, TAU) }); }
+function soltarPremio(x, y, tipo) { premios.push({ x, y, vy: 95 * ESC, r: 15 * ESC, tipo, f: rand(0, TAU) }); }
 
 function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
@@ -617,7 +731,7 @@ function matar(e, i) {
   score += d.puntos * mult;
   boom(e.x, e.y, d.color(T), d.grande ? 42 : 18, d.grande ? 1.6 : 1);
   beep(d.grande ? 120 : 300, d.grande ? 0.32 : 0.12, "square", 0.055);
-  if (d.grande) { shake(11, 0.35); ruido(0.3, 0.1); }
+  if (d.grande) { shake(11, 0.35); ruido(0.3, 0.1); onda(e.x, e.y, d.color(T), e.r * 6); }
   if (mult > 1) texto(e.x, e.y, "x" + mult, T.bala);
 
   const p = CONFIG.probPremio * (d.premio || 1);
@@ -643,6 +757,7 @@ function cogerPremio(p) {
   else if (p.tipo === "rapido") turbo = 8;
   else if (p.tipo === "bomba") {
     flash = 1; shake(16, 0.5); ruido(0.5, 0.14);
+    onda(player.x, player.y, "#ffffff", Math.max(W, H) * 1.1, 0.7);
     for (let i = enemies.length - 1; i >= 0; i--) {
       score += 15; boom(enemies[i].x, enemies[i].y, T.enemigoB, 14);
       enemies.splice(i, 1);
@@ -663,17 +778,21 @@ function golpe() {
   lives--; invulnT = CONFIG.invulnerable;
   arma = Math.max(1, arma - 1); combo = 0;
   boom(player.x, player.y, T.nave, 34, 1.4);
+  onda(player.x, player.y, T.nave, player.r * 9);
   beep(150, 0.35, "sawtooth", 0.08); ruido(0.25, 0.1); shake(14, 0.4);
   if (lives <= 0) {
     state = "over"; overAt = performance.now();
     boom(player.x, player.y, T.motor, 60, 2); shake(20, 0.7);
+    onda(player.x, player.y, T.motor, player.r * 20, 0.9);
     if (score > best) { best = score; localStorage.setItem("sf_record", String(best)); }
   }
 }
 
 function disparar() {
-  const y = player.y - 18;
-  const add = (dx, vx) => bullets.push({ x: player.x + dx, y, vx: vx || 0, r: 3.6 });
+  const y = player.y - 18 * ESC;
+  // dx/vx están escritos "a 414 px de ancho"; add() los lleva a la escala
+  // real, así que los patrones de abajo no cambian ni se repiten por talla.
+  const add = (dx, vx) => bullets.push({ x: player.x + dx * ESC, y, vx: (vx || 0) * ESC, r: 3.6 * ESC });
   if (arma === 1) add(0, 0);
   else if (arma === 2) { add(-9, 0); add(9, 0); }
   else if (arma === 3) { add(0, 0); add(-12, -80); add(12, 80); }
@@ -685,6 +804,7 @@ function disparar() {
 
 // ── Actualizar ────────────────────────────────────────────
 function update(dt) {
+  fondoY += 42 * dt;          // la imagen de fondo, más lenta que el polvo
   for (const s of bg) {
     s.y += (T.bg === "rejilla" ? 120 : 34 + s.z * 78) * dt;
     if (T.bg === "burbujas") s.x += Math.sin(s.f += dt * 2) * 14 * dt;
@@ -699,6 +819,10 @@ function update(dt) {
   for (let i = flotantes.length - 1; i >= 0; i--) {
     const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
     if (f.t >= f.life) flotantes.splice(i, 1);
+  }
+  for (let i = ondas.length - 1; i >= 0; i--) {
+    const o = ondas[i]; o.t += dt;
+    if (o.t >= o.life) ondas.splice(i, 1);
   }
   if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeMag = 0; }
   if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
@@ -719,7 +843,9 @@ function update(dt) {
   bank += (clamp((player.x - player.px) * 0.045, -0.45, 0.45) - bank) * (1 - Math.exp(-9 * dt));
 
   if (Math.random() < 0.9) {
-    particles.push({ x: player.x + rand(-5, 5), y: player.y + 16, vx: rand(-18, 18), vy: rand(90, 190),
+    // El punto de anclaje sigue al tamaño de la nave; la velocidad y el
+    // tamaño de la partícula son sensación pura y no se tocan.
+    particles.push({ x: player.x + rand(-5, 5) * ESC, y: player.y + player.r, vx: rand(-18, 18), vy: rand(90, 190),
       life: rand(0.18, 0.36), t: 0, color: T.motor, r: rand(1.2, 2.8) });
   }
 
@@ -729,7 +855,7 @@ function update(dt) {
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.y -= CONFIG.velocidadBala * dt; b.x += (b.vx || 0) * dt;
+    b.y -= CONFIG.velocidadBala * ESC * dt; b.x += (b.vx || 0) * dt;
     if (b.y < -24 || b.x < -24 || b.x > W + 24) bullets.splice(i, 1);
   }
   for (let i = eBullets.length - 1; i >= 0; i--) {
@@ -790,59 +916,96 @@ function update(dt) {
 
 // ── Dibujo ────────────────────────────────────────────────
 function fondo() {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Si hay imagen de fondo para este mundo, manda ella: se ajusta al ancho
+  // y se repite hacia arriba, así que basta con que enlace por arriba y por
+  // abajo para que el desplazamiento sea infinito y sin costura.
+  const img = SPRITES["f_" + T.id];
+  let iw = 0, ih = 0;
+  if (img) { iw = img.naturalWidth || img.width; ih = img.naturalHeight || img.height; }
+  if (iw && ih) {
+    const alto = W * ih / iw;
+    for (let y = -(fondoY % alto); y < H; y += alto) ctx.drawImage(img, 0, y, W, alto);
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, T.fondoA); g.addColorStop(1, T.fondoB);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
 
+  // Con imagen detrás, el polvo de siempre se queda como capa de parallax
+  // por encima: da sensación de velocidad sin taparla.
+  const cap = (iw && ih) ? 0.4 : 1;
   ctx.fillStyle = T.bgColor; ctx.strokeStyle = T.bgColor;
   if (T.bg === "rejilla") {
     ctx.lineWidth = 1;
     for (const s of bg) {
-      ctx.globalAlpha = 0.10 + s.z * 0.16;
+      ctx.globalAlpha = (0.10 + s.z * 0.16) * cap;
       ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(W, s.y); ctx.stroke();
     }
-    ctx.globalAlpha = 0.07;
+    ctx.globalAlpha = 0.07 * cap;
     for (let i = 0; i <= 10; i++) {
       const x = (i / 10) * W;
       ctx.beginPath(); ctx.moveTo(W / 2 + (x - W / 2) * 0.15, H * 0.1); ctx.lineTo(x, H); ctx.stroke();
     }
   } else if (T.bg === "burbujas") {
     for (const s of bg) {
-      ctx.globalAlpha = 0.12 + s.z * 0.26;
+      ctx.globalAlpha = (0.12 + s.z * 0.26) * cap;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 2.2, 0, TAU); ctx.stroke();
     }
   } else if (T.bg === "brasas") {
     for (const s of bg) {
-      ctx.globalAlpha = 0.2 + s.z * 0.45;
+      ctx.globalAlpha = (0.2 + s.z * 0.45) * cap;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 1.1, 0, TAU); ctx.fill();
     }
   } else {
     for (const s of bg) {
-      ctx.globalAlpha = 0.25 + s.z * 0.55;
+      ctx.globalAlpha = (0.25 + s.z * 0.55) * cap;
       ctx.fillRect(s.x, s.y, s.r, s.r * 2.6);
     }
   }
   ctx.globalAlpha = 1;
+
+  // Viñeta: apaga los bordes para que la acción del centro respire y la
+  // nave sea lo más claro de la pantalla. Es lo que impide que el fondo
+  // compita con un dibujo de contorno grueso.
+  const v = ctx.createRadialGradient(W / 2, H * 0.46, Math.min(W, H) * 0.2,
+                                     W / 2, H * 0.46, Math.max(W, H) * 0.76);
+  v.addColorStop(0, "rgba(0,0,0,0)");
+  v.addColorStop(0.6, "rgba(0,0,0,0.14)");
+  v.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
 }
 
 function naveVector(r) {
-  ctx.fillStyle = T.naveAla;
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, r * 0.15);
+  ctx.strokeStyle = TINTA;
+
+  const cuerpo = (col, arriba) => {
+    const g = ctx.createLinearGradient(0, -r, 0, r);
+    g.addColorStop(0, mezcla(col, "#ffffff", arriba));
+    g.addColorStop(1, mezcla(col, TINTA, 0.35));
+    ctx.fillStyle = g;
+    ctx.fill(); ctx.stroke();
+  };
+
   ctx.beginPath();
   ctx.moveTo(0, -r * 0.35);
   ctx.lineTo(r * 1.5, r * 0.5); ctx.lineTo(r * 1.05, r * 0.72);
   ctx.lineTo(0, r * 0.3);
   ctx.lineTo(-r * 1.05, r * 0.72); ctx.lineTo(-r * 1.5, r * 0.5);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = T.nave;
+  ctx.closePath(); cuerpo(T.naveAla, 0.3);
+
   ctx.beginPath();
   ctx.moveTo(0, -r * 1.25);
   ctx.lineTo(r * 0.42, r * 0.15); ctx.lineTo(r * 0.5, r * 0.72);
   ctx.lineTo(0, r * 0.55);
   ctx.lineTo(-r * 0.5, r * 0.72); ctx.lineTo(-r * 0.42, r * 0.15);
-  ctx.closePath(); ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.closePath(); cuerpo(T.nave, 0.45);
+
   ctx.fillStyle = T.cabina;
-  ctx.beginPath(); ctx.ellipse(0, -r * 0.35, r * 0.2, r * 0.42, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -r * 0.35, r * 0.2, r * 0.42, 0, 0, TAU);
+  ctx.fill(); ctx.lineWidth = Math.max(1.5, r * 0.1); ctx.stroke();
 }
 
 // Dibuja el sprite encajado en un ancho dado, manteniendo proporción
@@ -888,8 +1051,9 @@ function dibujarNave(x, y, r, ang) {
     ctx.drawImage(sp, -ws / 2, -hs / 2, ws, hs);
     ctx.shadowBlur = 0;
   } else {
-    ctx.shadowColor = T.nave; ctx.shadowBlur = 18;
+    ctx.shadowColor = "rgba(0,0,0,0.65)"; ctx.shadowBlur = 10;
     naveVector(r);
+    ctx.shadowBlur = 0;
     ctx.fillStyle = T.bala;
     for (let i = 0; i < Math.min(arma, 3); i++) {
       const px = r * (0.95 + i * 0.22);
@@ -912,19 +1076,54 @@ function dibujarEnemigo(e) {
   const d = ENEMIGOS[e.tipo];
   ctx.save();
   ctx.translate(e.x, e.y);
-  const col = e.flash > 0 ? "#ffffff" : d.color(T);
 
   const sp = SPRITES["e_" + e.tipo];
   if (sp) {
-    if (e.flash > 0) ctx.globalAlpha = 0.6;
+    // Sombra propia: despega el dibujo del fondo sin teñirlo
+    ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = 9;
     pintarSprite(sp, e.r * 2.4);
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 14;
-    (FORMAS[d.forma] || FORMAS.circulo)(e);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.arc(0, e.r * 0.08, e.r * 0.34, 0, TAU); ctx.fill();
+    if (e.flash > 0) {   // fogonazo blanco recortado por el propio dibujo
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fillRect(-e.r * 2, -e.r * 2, e.r * 4, e.r * 4);
+      ctx.globalCompositeOperation = "source-over";
+    }
+  } else {
+    const col = d.color(T);
+    ctx.beginPath();
+    (FORMAS[d.forma] || FORMAS.circulo)(e);
+
+    // Volumen: luz arriba, sombra abajo. Lo que separa un cuerpo de
+    // una mancha de color, y lo que hace que peguen con las naves.
+    // Un contorno negro sobre fondo casi negro no separa nada: en las
+    // imágenes de las naves funciona porque están dibujadas sobre blanco.
+    // Así que primero un filo claro que despegue del fondo, y el negro
+    // por dentro. Se traza antes de rellenar para que el relleno tape la
+    // mitad interior de ambos.
+    const lw = Math.max(2, e.r * 0.17);
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = mezcla(col, "#ffffff", 0.6);
+    ctx.lineWidth = lw + 6;
+    ctx.stroke();
+    ctx.strokeStyle = TINTA;
+    ctx.lineWidth = lw + 2;
+    ctx.stroke();
+
+    const g = ctx.createLinearGradient(0, -e.r, 0, e.r);
+    g.addColorStop(0, mezcla(col, "#ffffff", 0.42));
+    g.addColorStop(0.5, col);
+    g.addColorStop(1, mezcla(col, TINTA, 0.5));
+    ctx.fillStyle = e.flash > 0 ? "#ffffff" : g;
+    ctx.fill();
+
+    if (DETALLES[d.forma]) DETALLES[d.forma](e);
+
+    // Brillo especular, como el de las chapas de las naves
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(-e.r * 0.22, -e.r * 0.34, e.r * 0.34, e.r * 0.17, -0.5, 0, TAU);
+    ctx.fill();
   }
   ctx.restore();
 
@@ -942,12 +1141,23 @@ function dibujarPremio(p) {
   const d = PREMIOS[p.tipo];
   ctx.save();
   ctx.translate(p.x, p.y); ctx.scale(s, s);
-  ctx.shadowColor = d.color; ctx.shadowBlur = 18;
-  ctx.fillStyle = d.color;
-  ctx.beginPath(); ctx.arc(0, 0, p.r, 0, TAU); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.font = "800 15px -apple-system, system-ui, sans-serif";
+  // CHAPA CUADRADA, no un círculo. El círculo ya significa "bala enemiga",
+  // y un premio redondo del mismo color se coge por error o se esquiva por
+  // error. En el juego no hay ningún otro cuadrado.
+  const l = p.r * 1.05;
+  const chapa = (m) => {
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-l - m, -l - m, (l + m) * 2, (l + m) * 2, 5 + m)
+                  : ctx.rect(-l - m, -l - m, (l + m) * 2, (l + m) * 2);
+  };
+  chapa(3.5); ctx.fillStyle = mezcla(d.color, "#ffffff", 0.7); ctx.fill();
+  chapa(2);   ctx.fillStyle = TINTA; ctx.fill();
+  const g = ctx.createLinearGradient(0, -l, 0, l);
+  g.addColorStop(0, mezcla(d.color, "#ffffff", 0.55));
+  g.addColorStop(1, mezcla(d.color, TINTA, 0.14));
+  chapa(0); ctx.fillStyle = g; ctx.fill();
+  ctx.fillStyle = "rgba(10,7,20,0.85)";
+  ctx.font = "900 16px -apple-system, system-ui, sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(d.letra, 0, 1);
   ctx.restore();
@@ -971,6 +1181,9 @@ function hud() {
   g.addColorStop(0, "rgba(0,0,0,0.55)"); g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, 132);
 
+  // Todo el HUD con sombra dura: tiene que leerse igual sobre un fondo
+  // negro que sobre una explosión blanca.
+  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
   ctx.textBaseline = "top";
   ctx.font = "700 12px " + F;
   ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6;
@@ -1005,6 +1218,7 @@ function hud() {
     ctx.fillText("COMBO x" + (1 + Math.floor(combo / 8)), W / 2, top + 76);
     ctx.globalAlpha = 1;
   }
+  ctx.shadowBlur = 0;
 }
 
 function miniNave(x, y, tam, tema) {
@@ -1179,6 +1393,18 @@ function render() {
   }
   fondo();
 
+  // Los anillos van DEBAJO de los restos, para que la explosión los tape
+  for (const o of ondas) {
+    const k = o.t / o.life;
+    ctx.globalAlpha = (1 - k) * 0.85;
+    ctx.strokeStyle = o.color;
+    ctx.lineWidth = Math.max(1, 8 * (1 - k));
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.rMax * (1 - Math.pow(1 - k, 2.2)), 0, TAU);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
   for (const p of particles) {
     ctx.globalAlpha = 1 - p.t / p.life;
     ctx.fillStyle = p.color;
@@ -1187,16 +1413,33 @@ function render() {
   ctx.globalAlpha = 1;
 
   if (state !== "menu") {
-    ctx.fillStyle = T.bala; ctx.shadowColor = T.bala; ctx.shadowBlur = 10;
-    for (const b of bullets) {
+    // Las balas se distinguen por FORMA antes que por color, porque el color
+    // depende del mundo y de la nave, y la forma no. Tuyas: alargadas, con
+    // núcleo blanco. Suyas: redondas, con anillo. Aunque cambie la paleta
+    // entera, esto se sigue leyendo.
+    const caja = (x, y, w, h, r) => {
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(b.x - b.r, b.y - 10, b.r * 2, 20, b.r)
-                    : ctx.rect(b.x - b.r, b.y - 10, b.r * 2, 20);
-      ctx.fill();
+      ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
+    };
+    ctx.lineJoin = "round";
+    for (const b of bullets) {
+      caja(b.x - b.r - 1.5, b.y - 12.5, (b.r + 1.5) * 2, 25, b.r + 1.5);
+      ctx.fillStyle = TINTA; ctx.fill();
+      caja(b.x - b.r, b.y - 11, b.r * 2, 22, b.r);
+      ctx.fillStyle = TIRO_TUYO; ctx.fill();
+      caja(b.x - b.r * 0.4, b.y - 7.5, b.r * 0.8, 15, b.r * 0.4);
+      ctx.fillStyle = "rgba(255,255,255,0.92)"; ctx.fill();
     }
-    ctx.fillStyle = T.balaEnemiga; ctx.shadowColor = T.balaEnemiga;
-    for (const b of eBullets) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
-    ctx.shadowBlur = 0;
+    for (const b of eBullets) {
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 3.5, 0, TAU);
+      ctx.fillStyle = "rgba(255,47,110,0.3)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 1.8, 0, TAU);
+      ctx.fillStyle = TINTA; ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU);
+      ctx.fillStyle = TIRO_SUYO; ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x - b.r * 0.16, b.y - b.r * 0.16, b.r * 0.44, 0, TAU);
+      ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.fill();
+    }
 
     for (const e of enemies) dibujarEnemigo(e);
     for (const p of premios) dibujarPremio(p);
@@ -1206,6 +1449,7 @@ function render() {
     }
   }
 
+  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4;
   for (const f of flotantes) {
     ctx.globalAlpha = 1 - f.t / f.life;
     ctx.fillStyle = f.color;
@@ -1213,6 +1457,7 @@ function render() {
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(f.txt, f.x, f.y);
   }
+  ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
   ctx.restore();
 

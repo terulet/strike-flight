@@ -14,8 +14,7 @@
     min-height:100%; background:#05060f; color:#fff;
     font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
-    -webkit-user-select:none; user-select:none;
-    overscroll-behavior-y:none;
+    -webkit-user-select:none; user-select:none; overscroll-behavior-y:none;
   }
   body {
     min-height:100vh; min-height:100dvh;
@@ -25,40 +24,32 @@
       radial-gradient(760px 520px at 8% 105%, #05203f 0%, transparent 60%),
       #05060f;
   }
-  .marco { max-width:1000px; margin:0 auto; }
+  .marco { max-width:1060px; margin:0 auto; }
 
   h1 {
     font-size:clamp(46px, 13vw, 104px); font-weight:900; letter-spacing:.03em;
-    line-height:.95; text-align:center;
+    line-height:.95; text-align:center; white-space:nowrap;
     background:linear-gradient(102deg, #00f5ff 0%, #c77dff 46%, #ff2ea6 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
     filter:drop-shadow(0 0 26px rgba(199,125,255,.45));
   }
-  .lema {
-    text-align:center; margin-top:10px; font-size:13px; font-weight:600;
-    letter-spacing:.22em; text-transform:uppercase; color:#8f96c4;
-  }
+  .lema { text-align:center; margin-top:10px; font-size:13px; font-weight:600;
+    letter-spacing:.22em; text-transform:uppercase; color:#8f96c4; }
 
-  h2 {
-    margin:44px 0 16px; font-size:12px; font-weight:700;
+  h2 { margin:44px 0 16px; font-size:12px; font-weight:700;
     letter-spacing:.24em; text-transform:uppercase; color:#7d84b4;
-    display:flex; align-items:center; gap:14px;
-  }
+    display:flex; align-items:center; gap:14px; }
   h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg, #2c3160, transparent); }
 
-  .rejilla {
-    display:grid; gap:14px;
-    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
-  }
+  .rejilla { display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(228px, 1fr)); }
 
   .carta {
-    display:block; text-decoration:none; color:inherit;
-    border-radius:20px; padding:20px 18px 18px; min-height:172px;
+    display:flex; flex-direction:column; gap:7px;
+    text-decoration:none; color:inherit;
+    border-radius:20px; padding:18px; min-height:194px;
     background:linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.02));
     border:1px solid rgba(255,255,255,.11);
-    display:flex; flex-direction:column; gap:8px;
-    transition:transform .12s ease, border-color .12s ease;
-    position:relative; overflow:hidden;
+    position:relative; overflow:hidden; transition:transform .12s ease;
   }
   .carta::before {
     content:""; position:absolute; inset:-40% -30% auto -30%; height:150px;
@@ -66,42 +57,42 @@
     opacity:.34; pointer-events:none;
   }
   .carta:active { transform:scale(.97); }
-  .carta .icono { font-size:34px; line-height:1; color:var(--tinte); }
-  .carta .nombre { margin-top:auto; font-size:17px; font-weight:800; letter-spacing:.04em; }
-  .carta .desc { font-size:12.5px; line-height:1.4; color:#9aa1cc; }
-
-  .carta.pronto {
-    background:none; border-style:dashed; border-color:rgba(255,255,255,.14);
-    opacity:.42; cursor:default;
+  .fila { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .num { font-size:12px; font-weight:800; letter-spacing:.2em; color:var(--tinte); }
+  .insignia {
+    font-size:9.5px; font-weight:800; letter-spacing:.14em; padding:4px 8px;
+    border-radius:999px; border:1px solid rgba(255,255,255,.22); color:#e8e4ff;
   }
+  .nombre { margin-top:6px; font-size:19px; font-weight:900; letter-spacing:.02em; line-height:1.15; }
+  .genero { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--tinte); opacity:.85; }
+  .gancho { margin-top:auto; padding-top:10px; font-size:12.5px; line-height:1.45; color:#9aa1cc; }
+
+  .carta.pronto { background:none; border-style:dashed; border-color:rgba(255,255,255,.14); opacity:.45; cursor:default; }
   .carta.pronto::before { display:none; }
-  .carta.pronto .etiqueta {
-    margin-top:auto; font-size:10px; font-weight:800;
-    letter-spacing:.18em; color:#7d84b4;
-  }
 
-  .puerta-max {
+  .puertas { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); }
+  .puerta {
     display:block; text-decoration:none; color:inherit;
-    margin-top:16px; padding:26px 24px; border-radius:22px;
-    background:linear-gradient(112deg, rgba(255,46,166,.16), rgba(0,245,255,.13));
-    border:1px solid rgba(255,255,255,.17);
+    padding:24px; border-radius:22px; border:1px solid rgba(255,255,255,.17);
     transition:transform .12s ease;
   }
-  .puerta-max:active { transform:scale(.985); }
-  .puerta-max .titulo {
-    font-size:clamp(26px, 7vw, 40px); font-weight:900; letter-spacing:.02em;
-    background:linear-gradient(96deg, #ff2ea6, #ffd166 55%, #00f5ff);
+  .puerta:active { transform:scale(.985); }
+  .puerta.max  { background:linear-gradient(112deg, rgba(255,46,166,.16), rgba(255,209,102,.12)); }
+  .puerta.rush { background:linear-gradient(112deg, rgba(0,245,255,.14), rgba(0,255,157,.11)); }
+  .puerta .titulo {
+    font-size:clamp(22px, 5.4vw, 32px); font-weight:900; letter-spacing:.02em; white-space:nowrap;
     -webkit-background-clip:text; background-clip:text; color:transparent;
   }
-  .puerta-max .desc { margin-top:6px; font-size:13.5px; line-height:1.45; color:#c3c8ee; }
-  .puerta-max .flecha { margin-top:14px; font-size:12px; font-weight:700; letter-spacing:.16em; color:#fff; opacity:.8; }
+  .puerta.max  .titulo { background-image:linear-gradient(96deg, #ff2ea6, #ffd166); }
+  .puerta.rush .titulo { background-image:linear-gradient(96deg, #00f5ff, #00ff9d); }
+  .puerta .desc { margin-top:6px; font-size:13px; line-height:1.45; color:#c3c8ee; }
+  .puerta .flecha { margin-top:12px; font-size:11.5px; font-weight:700; letter-spacing:.16em; color:#fff; opacity:.8; }
 
-  footer {
-    margin-top:40px; text-align:center; font-size:11.5px; line-height:1.7; color:#565d8a;
-  }
+  footer { margin-top:40px; text-align:center; font-size:11.5px; line-height:1.75; color:#565d8a; }
+  code { font-size:11px; color:#7d84b4; }
 
   @media (prefers-reduced-motion: no-preference) {
-    .carta, .puerta-max { animation:entra .34s ease both; }
+    .carta, .puerta { animation:entra .34s ease both; }
     @keyframes entra { from { opacity:0; transform:translateY(10px); } }
   }
 </style>
@@ -109,21 +100,28 @@
 <body>
 <div class="marco">
   <h1>PLAYZONE</h1>
-  <p class="lema">Todos nuestros juegos en un sitio</p>
+  <p class="lema">Catálogo de juegos</p>
 
-  <h2>Minijuegos</h2>
+  <h2>El catálogo</h2>
   <div class="rejilla" id="rejilla"></div>
 
-  <h2>Los grandes</h2>
-  <a class="puerta-max" href="max/index.html">
-    <div class="titulo">PLAYZONE MAX</div>
-    <div class="desc">Los juegos largos, con mundos, niveles y jefes. Empezando por Strike&nbsp;Flight.</div>
-    <div class="flecha">ENTRAR &nbsp;›</div>
-  </a>
+  <h2>Las zonas</h2>
+  <div class="puertas">
+    <a class="puerta max" href="max/index.html">
+      <div class="titulo">PLAYZONE MAX</div>
+      <div class="desc">Los juegos largos, con mundos, progresión y jefes. Aquí vive Flight&nbsp;Strike.</div>
+      <div class="flecha">ENTRAR &nbsp;›</div>
+    </a>
+    <a class="puerta rush" href="rush/playzone-rush/index.html">
+      <div class="titulo">PLAYZONE RUSH</div>
+      <div class="desc">La capa competitiva: reto diario, ranking, fantasma y revancha. No es un juego del catálogo.</div>
+      <div class="flecha">ENTRAR &nbsp;›</div>
+    </a>
+  </div>
 
   <footer>
-    Un archivo por juego. Sin instalar nada, sin internet.<br>
-    Para añadir un minijuego, mira <code>minijuegos/LEEME.txt</code>.
+    Cada juego es independiente: se desarrolla, se prueba y se publica por su cuenta.<br>
+    El catálogo y el registro, en <code>docs/</code>.
   </footer>
 </div>
 
@@ -131,24 +129,42 @@
 "use strict";
 
 // ════════════════════════════════════════════════════════════
-//  LOS MINIJUEGOS
-//  Aquí van los juegos cortos, de partida rápida.
-//  Los juegos grandes NO van aquí: esos van en PLAYZONE MAX.
+//  EL CATÁLOGO PLAYZONE
+//  Un número por juego, y el número no se reutiliza nunca.
+//  El siguiente que hagamos es el 008.
 //
-//  Para añadir uno: copia una línea, cambia los datos y pon
-//  listo:true cuando la carpeta exista de verdad.
-//    ruta   → siempre terminando en index.html, que si no
-//             no funciona al abrir con doble clic
-//    listo  → false lo deja en gris como "PRÓXIMAMENTE"
+//    ruta   → siempre terminando en index.html
+//    listo  → false lo deja en gris como "EN CONSTRUCCIÓN"
+//    zona   → "MAX" para los juegos grandes, vacío para el resto
 // ════════════════════════════════════════════════════════════
-const MINIJUEGOS = [
-  { nombre:"ESQUIVA", icono:"◆", color:"#00f5ff", listo:true,
-    desc:"Cruza los muros por el hueco. Un roce y se acabó.",
-    ruta:"minijuegos/esquiva/index.html" },
+const CATALOGO = [
+  { num:"001", nombre:"FLIGHT STRIKE", genero:"Shoot'em up vertical", color:"#5ce1ff", listo:true, zona:"MAX",
+    gancho:"Esquivar, disparar y no soltar. Cuatro mundos y naves propias.",
+    ruta:"max/001-flight-strike/index.html" },
 
-  // Estos dos son solo el hueco esperando. Cámbialos o bórralos.
-  { nombre:"", icono:"", color:"#c77dff", listo:false, desc:"", ruta:"" },
-  { nombre:"", icono:"", color:"#ff2ea6", listo:false, desc:"", ruta:"" },
+  { num:"002", nombre:"ONE MORE FLOOR", genero:"Torre / supervivencia", color:"#00ff9d", listo:true, zona:"",
+    gancho:"Una planta más. Siempre una planta más.",
+    ruta:"games/002-one-more-floor/index.html" },
+
+  { num:"003", nombre:"LAST LIGHT", genero:"Oscuridad y memoria", color:"#ffd166", listo:true, zona:"",
+    gancho:"Disparar te permite ver. Y disparar les dice dónde estás.",
+    ruta:"games/003-last-light/index.html" },
+
+  { num:"004", nombre:"APEX PULSE", genero:"Conducción / time attack", color:"#ff6b1f", listo:false, zona:"",
+    gancho:"Clavar la trazada perfecta. Nada más.",
+    ruta:"games/004-apex-pulse/index.html" },
+
+  { num:"005", nombre:"NO SECOND SHOT", genero:"Precisión / rebotes", color:"#c77dff", listo:false, zona:"",
+    gancho:"Una bala. Todos los objetivos. Calcula.",
+    ruta:"games/005-no-second-shot/index.html" },
+
+  { num:"006", nombre:"CROSS RUSH", genero:"Motocross arcade", color:"#ff2ea6", listo:false, zona:"",
+    gancho:"Vuelo, inclinación y aterrizaje. Las décimas se ganan en el aire.",
+    ruta:"games/006-cross-rush/index.html" },
+
+  { num:"007", nombre:"REDLINE", genero:"Conducción bajo presión", color:"#ff4d6d", listo:false, zona:"",
+    gancho:"Vas por delante del récord y quedan dos curvas. Don't choke.",
+    ruta:"games/007-redline-dont-choke/index.html" },
 ];
 
 // ════════════════════════════════════════════════════════════
@@ -157,24 +173,26 @@ const MINIJUEGOS = [
 
 const rejilla = document.getElementById("rejilla");
 
-MINIJUEGOS.forEach((j, i) => {
+CATALOGO.forEach((j, i) => {
   const carta = document.createElement(j.listo ? "a" : "div");
   carta.className = "carta" + (j.listo ? "" : " pronto");
-  carta.style.setProperty("--tinte", j.color || "#c77dff");
-  carta.style.animationDelay = (i * 45) + "ms";
+  carta.style.setProperty("--tinte", j.color);
+  carta.style.animationDelay = (i * 40) + "ms";
+  if (j.listo) carta.href = j.ruta;
 
-  if (j.listo) {
-    carta.href = j.ruta;
-    carta.innerHTML =
-      '<div class="icono"></div>' +
-      '<div class="nombre"></div>' +
-      '<div class="desc"></div>';
-    carta.querySelector(".icono").textContent  = j.icono;
-    carta.querySelector(".nombre").textContent = j.nombre;
-    carta.querySelector(".desc").textContent   = j.desc;
-  } else {
-    carta.innerHTML = '<div class="etiqueta">PRÓXIMAMENTE</div>';
-  }
+  carta.innerHTML =
+    '<div class="fila"><span class="num"></span><span class="insignia"></span></div>' +
+    '<div class="nombre"></div>' +
+    '<div class="genero"></div>' +
+    '<div class="gancho"></div>';
+
+  carta.querySelector(".num").textContent    = j.num;
+  carta.querySelector(".nombre").textContent = j.nombre;
+  carta.querySelector(".genero").textContent = j.genero;
+  carta.querySelector(".gancho").textContent = j.listo ? j.gancho : "En construcción.";
+
+  const insignia = carta.querySelector(".insignia");
+  if (j.zona) insignia.textContent = j.zona; else insignia.remove();
 
   rejilla.appendChild(carta);
 });
