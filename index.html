@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="PLAYZONE">
+<meta name="apple-mobile-web-app-title" content="Strike Flight">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>PLAYZONE</title>
+<title>Strike Flight</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body {
@@ -224,29 +224,10 @@ function cargarSprite(id, src) {
 for (const n of NAVES) if (n.src) cargarSprite(n.id, n.src);
 // (los sprites de enemigos se precargan más abajo, con la tabla ENEMIGOS)
 
-// ── Rescate del guardado antiguo ──────────────────────────
-//  El proyecto se llamaba Strike Flight y guardaba con claves "sf_*".
-//  Ahora es PLAYZONE y usa "pz_*". Esto se copia una sola vez, para que
-//  quien ya jugara no pierda el récord ni las naves que tuviera cargadas.
-(function rescatarGuardado() {
-  try {
-    if (localStorage.getItem("pz_rescatado")) return;
-    const claves = ["record", "tema", "nave", "naves"];
-    claves.forEach(k => {
-      const viejo = localStorage.getItem("sf_" + k);
-      if (viejo !== null && localStorage.getItem("pz_" + k) === null) {
-        localStorage.setItem("pz_" + k, viejo);
-      }
-    });
-    claves.forEach(k => localStorage.removeItem("sf_" + k));
-    localStorage.setItem("pz_rescatado", "1");
-  } catch (_) { /* navegador sin localStorage: se juega igual, sin guardar */ }
-})();
-
 // ── Naves guardadas por ella ──────────────────────────────
 const MAX_CUSTOM = 4;
 function leerCustom() {
-  try { return JSON.parse(localStorage.getItem("pz_naves") || "[]"); } catch (_) { return []; }
+  try { return JSON.parse(localStorage.getItem("sf_naves") || "[]"); } catch (_) { return []; }
 }
 function aplicarCustom() {
   for (let i = NAVES.length - 1; i >= 0; i--) if (!NAVES[i].fija) NAVES.splice(i, 1);
@@ -262,10 +243,10 @@ function guardarCustom(nombre, dataURL) {
   const lista = leerCustom();
   lista.push({ nombre, data: dataURL });
   while (lista.length > MAX_CUSTOM) lista.shift();
-  try { localStorage.setItem("pz_naves", JSON.stringify(lista)); }
+  try { localStorage.setItem("sf_naves", JSON.stringify(lista)); }
   catch (_) {
     lista.shift();
-    try { localStorage.setItem("pz_naves", JSON.stringify(lista)); } catch (__) { return false; }
+    try { localStorage.setItem("sf_naves", JSON.stringify(lista)); } catch (__) { return false; }
   }
   aplicarCustom();
   return true;
@@ -273,7 +254,7 @@ function guardarCustom(nombre, dataURL) {
 function borrarCustom(indice) {
   const lista = leerCustom();
   lista.splice(indice, 1);
-  localStorage.setItem("pz_naves", JSON.stringify(lista));
+  localStorage.setItem("sf_naves", JSON.stringify(lista));
   aplicarCustom();
 }
 aplicarCustom();
@@ -292,7 +273,7 @@ fileInput.addEventListener("change", (ev) => {
       const nombre = (f.name || "NAVE").replace(/\.[^.]+$/, "").toUpperCase().slice(0, 9) || "NAVE";
       if (guardarCustom(nombre, cv.toDataURL("image/png"))) {
         naveSel = NAVES.length - 1;
-        localStorage.setItem("pz_nave", NAVES[naveSel].id);
+        localStorage.setItem("sf_nave", NAVES[naveSel].id);
         aviso = "¡" + nombre + " lista!"; avisoT = 2.5;
         beep(880, 0.18, "triangle", 0.06, 1760);
       } else { aviso = "No cabe: borra alguna nave"; avisoT = 3; }
@@ -498,10 +479,10 @@ let arma, escudo, turbo, combo, comboT, shakeT, shakeMag, flash;
 let targetX, targetY, dragging = false, bank = 0;
 let menuRects = [], naveRects = [], masRect = null;
 
-best = Number(localStorage.getItem("pz_record") || 0);
-T = TEMAS.find(t => t.id === localStorage.getItem("pz_tema")) || TEMAS[0];
+best = Number(localStorage.getItem("sf_record") || 0);
+T = TEMAS.find(t => t.id === localStorage.getItem("sf_tema")) || TEMAS[0];
 {
-  const g = localStorage.getItem("pz_nave");
+  const g = localStorage.getItem("sf_nave");
   const i = NAVES.findIndex(n => n.id === g);
   naveSel = i >= 0 ? i : 0;
 }
@@ -551,12 +532,12 @@ c.addEventListener("pointerdown", (e) => {
       if (r.borrar && p.x > r.x + r.w - 22 && p.y < r.y + 22) {
         borrarCustom(r.indice);
         naveSel = Math.min(naveSel, NAVES.length - 1);
-        localStorage.setItem("pz_nave", NAVES[naveSel].id);
+        localStorage.setItem("sf_nave", NAVES[naveSel].id);
         beep(200, 0.12, "square", 0.04);
         return;
       }
       naveSel = r.i;
-      localStorage.setItem("pz_nave", NAVES[naveSel].id);
+      localStorage.setItem("sf_nave", NAVES[naveSel].id);
       beep(760, 0.1, "triangle", 0.045, 1200);
       return;
     }
@@ -566,7 +547,7 @@ c.addEventListener("pointerdown", (e) => {
     for (const m of menuRects) {
       if (dentro(p, m)) {
         T = m.tema;
-        localStorage.setItem("pz_tema", T.id);
+        localStorage.setItem("sf_tema", T.id);
         beep(660, 0.12, "triangle", 0.05, 1320);
         reset();
         return;
@@ -686,7 +667,7 @@ function golpe() {
   if (lives <= 0) {
     state = "over"; overAt = performance.now();
     boom(player.x, player.y, T.motor, 60, 2); shake(20, 0.7);
-    if (score > best) { best = score; localStorage.setItem("pz_record", String(best)); }
+    if (score > best) { best = score; localStorage.setItem("sf_record", String(best)); }
   }
 }
 
@@ -1045,7 +1026,7 @@ function menu() {
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillStyle = "#fff";
   ctx.font = "800 " + Math.min(40, W * 0.098) + "px " + F;
-  ctx.fillText("PLAYZONE", W / 2, 54);
+  ctx.fillText("STRIKE FLIGHT", W / 2, 54);
   ctx.globalAlpha = 0.5;
   ctx.font = "600 12px " + F;
   ctx.fillText(best > 0 ? "RÉCORD  " + best : "toca un mundo para empezar", W / 2, 80);
