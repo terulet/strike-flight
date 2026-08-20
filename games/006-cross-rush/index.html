@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cross Rush">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0d16">
+<title>CROSS RUSH — PLAYZONE 006</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; overflow:hidden; background:#0a0d16;
+    overscroll-behavior:none; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body { position:fixed; inset:0; }
+  canvas { display:block; touch-action:none; }
+  #volver {
+    position:absolute; z-index:2;
+    top:calc(12px + env(safe-area-inset-top)); left:calc(12px + env(safe-area-inset-left));
+    padding:9px 15px 9px 12px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.16); background:rgba(10,13,22,.62);
+    color:#d4cfe6; text-decoration:none;
+    font:700 11.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing:.14em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="volver" href="../../index.html">‹ &nbsp;PLAYZONE</a>
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════
+//  CROSS RUSH — PLAYZONE 006
+//  Motocross lateral. La carrera dura menos de un minuto y todo
+//  se decide en el aire: cómo inclinas y cómo aterrizas.
+//
+//  AJUSTES — cambia los números, guarda y recarga.
+// ════════════════════════════════════════════════════════════
+const CONFIG = {
+  // Moto
+  gas:            900,    // aceleración en suelo
+  freno:          760,
+  velMaxima:      880,
+  rozamiento:     0.42,
+  gravedad:       1750,
+
+  // Aire
+  giroAire:       4.2,    // rad/s al inclinar en vuelo
+  enderezaSuelo:  16,     // cómo de rápido se pega al terreno
+
+  // Aterrizajes. Aquí está el juego.
+  toleranciaBuena:  0.22, // rad de diferencia con la pendiente: aterrizaje limpio
+  toleranciaMala:   0.62, // más de esto es caída
+  premioClavado:    75,   // empujón al clavarlo
+  castigoTorpe:     0.62, // multiplica la velocidad al aterrizar mal
+  penalizacionCaida:1.15, // segundos parado tras caerse
+
+  pendienteMaxima: 0.95,  // 54°: por encima de esto no hay moto que aterrice
+  radioMoto:      17,
+  sonido:         true,
+};
+
+const COLOR = {
+  cieloA:  "#0a0d16", cieloB:"#241a3a",
+  tierra:  "#3a2a1e", tierraLuz:"#6b4a2e",
+  linea:   "#ff2ea6",
+  moto:    "#ff2ea6", motoB:"#ffd166",
+  piloto:  "#e8e6f0",
+  fantasma:"#5ce1ff",
+  ok:      "#00ff9d", mal:"#ff4d6d",
+  texto:   "#ffffff",
+};
+
+// El circuito. Cada rasgo emite su trozo de terreno, así que reordenar
+// esta lista es literalmente otro circuito. Nada es aleatorio: los dos
+// jugadores corren exactamente lo mismo.
+const RASGOS = [
+  ["recta",  700],
+  ["salto",  460, 120],
+  ["mesa",   620,  70],
+  ["ondas",  760,  30],
+  ["salto",  520, 165],
+  ["recta",  380],
+  ["doble",  820, 150],
+  ["ondas",  640,  38],
+  ["mesa",   700,  95],
+  ["salto",  560, 185],
+  ["bajada", 700, 140],
+  ["ondas",  820,  34],
+  ["doble",  900, 175],
+  ["subida", 640, 120],
+  ["salto",  500, 145],
+  ["recta",  340],
+  ["ondas",  700,  42],
+  ["mesa",   760, 110],
+  ["doble",  860, 160],
+  ["bajada", 620, 110],
+  ["salto",  540, 170],
+  ["ondas",  880,  30],
+  ["subida", 700, 150],
+  ["doble",  940, 185],
+  ["mesa",   680,  80],
+  ["salto",  520, 155],
+  ["ondas",  760,  46],
+  ["recta",  620],
+];
+
+// ════════════════════════════════════════════════════════════
+//  A partir de aquí es la maquinaria.
+// ════════════════════════════════════════════════════════════
+
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+const botonVolver = document.getElementById("volver");
+const F = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+let W = 0, H = 0;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  c.style.width = W + "px"; c.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+const medidor = document.createElement("div");
+medidor.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;"
+                      + "padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none";
+document.body.appendChild(medidor);
+function margenArriba() { return parseFloat(getComputedStyle(medidor).paddingTop) || 0; }
+window.addEventListener("resize", resize);
+resize();
+
+// ── El terreno ────────────────────────────────────────────
+// Se construye una lista de alturas cada PASO px. Suavizada, para que
+// no haya escalones que la moto no pueda leer.
+const PASO = 6;
+const TERRENO = (function construir() {
+  const h = [];
+  let y = 0;
+  const empuja = (n, fn) => { for (let i = 0; i < n; i++) h.push(fn(i / n)); };
+
+  RASGOS.forEach(r => {
+    const [tipo, largo, alto] = r, n = Math.round(largo / PASO);
+    if (tipo === "recta")  empuja(n, () => y);
+    if (tipo === "subida") { const y0 = y; empuja(n, t => y0 - alto * t); y = y0 - alto; }
+    if (tipo === "bajada") { const y0 = y; empuja(n, t => y0 + alto * t); y = y0 + alto; }
+    if (tipo === "ondas")  empuja(n, t => y - alto * Math.sin(t * Math.PI * 6));
+    if (tipo === "mesa") {
+      // rampa, meseta y caída: el clásico tabletop
+      const y0 = y;
+      empuja(n, t => t < 0.3 ? y0 - alto * (t / 0.3)
+                   : t < 0.62 ? y0 - alto
+                   : y0 - alto * (1 - (t - 0.62) / 0.38));
+    }
+    if (tipo === "salto") {
+      // kicker que lanza, y el terreno cae al otro lado para dar aire
+      const y0 = y;
+      empuja(n, t => t < 0.46 ? y0 - alto * Math.pow(t / 0.46, 1.5)
+                   : t < 0.54 ? y0 - alto
+                   : y0 - alto + alto * 1.32 * ((t - 0.54) / 0.46));
+      y = y0 + alto * 0.32;
+    }
+    if (tipo === "doble") {
+      // dos badenes: o los pasas de un vuelo, o te comes el segundo
+      const y0 = y;
+      empuja(n, t => {
+        const a = Math.max(0, Math.sin(t * Math.PI * 2));
+        return y0 - alto * Math.pow(a, 0.7);
+      });
+    }
+  });
+  empuja(140, () => y);            // frenada final
+
+  // Tope de pendiente. Da igual lo que se ponga en RASGOS: si un rasgo saca
+  // una pared, aquí se lima. Sin esto, un escalón hace el circuito injugable.
+  const salto = Math.tan(CONFIG.pendienteMaxima) * PASO;
+  for (let vuelta = 0; vuelta < 4; vuelta++) {
+    for (let i = 1; i < h.length; i++) {
+      const d = h[i] - h[i-1];
+      if (d >  salto) h[i] = h[i-1] + salto;
+      if (d < -salto) h[i] = h[i-1] - salto;
+    }
+    for (let i = h.length - 2; i >= 0; i--) {
+      const d = h[i] - h[i+1];
+      if (d >  salto) h[i] = h[i+1] + salto;
+      if (d < -salto) h[i] = h[i+1] - salto;
+    }
+  }
+
+  // suavizado
+  const s = h.slice();
+  for (let k = 0; k < 3; k++) {
+    for (let i = 2; i < h.length - 2; i++) {
+      s[i] = (h[i-2] + h[i-1]*2 + h[i]*3 + h[i+1]*2 + h[i+2]) / 9;
+    }
+    for (let i = 0; i < h.length; i++) h[i] = s[i];
+  }
+  return h;
+})();
+
+const META = (TERRENO.length - 150) * PASO;
+
+function alturaEn(x) {
+  const i = x / PASO;
+  if (i <= 0) return TERRENO[0];
+  if (i >= TERRENO.length - 1) return TERRENO[TERRENO.length - 1];
+  const a = Math.floor(i), t = i - a;
+  return TERRENO[a] * (1 - t) + TERRENO[a + 1] * t;
+}
+function pendienteEn(x) {
+  return Math.atan2(alturaEn(x + PASO * 2) - alturaEn(x - PASO * 2), PASO * 4);
+}
+
+// ── Sonido ────────────────────────────────────────────────
+let audio = null, motorOsc = null, motorGan = null;
+function despertarAudio() {
+  if (!CONFIG.sonido || audio) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio = new AC();
+  motorOsc = audio.createOscillator(); motorGan = audio.createGain();
+  motorOsc.type = "sawtooth"; motorOsc.frequency.value = 80; motorGan.gain.value = 0;
+  motorOsc.connect(motorGan); motorGan.connect(audio.destination); motorOsc.start();
+}
+function motor(v, enSuelo) {
+  if (!audio) return;
+  motorOsc.frequency.setTargetAtTime(70 + v * 0.22, audio.currentTime, 0.05);
+  motorGan.gain.setTargetAtTime(estado === "corre" ? (enSuelo ? 0.04 : 0.018) : 0, audio.currentTime, 0.08);
+}
+function pitido(f1, f2, dur, tipo, vol) {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f1, audio.currentTime);
+  if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(f2, audio.currentTime + dur);
+  g.gain.setValueAtTime(vol, audio.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+  o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+}
+const sonClavado = () => pitido(760, 1240, 0.13, "triangle", 0.09);
+const sonTorpe   = () => pitido(240, 130, 0.16, "square", 0.06);
+const sonCaida   = () => pitido(190, 55, 0.4, "sawtooth", 0.13);
+const sonMeta    = () => { pitido(660, 990, 0.18, "triangle", 0.1); setTimeout(()=>pitido(990,1480,0.24,"triangle",0.1),130); };
+
+// ── Guardado ──────────────────────────────────────────────
+const CLAVE = "pz_cross_";
+function leer(k, d) { try { const v = localStorage.getItem(CLAVE+k); return v===null?d:JSON.parse(v); } catch(_) { return d; } }
+function guardar(k, v) { try { localStorage.setItem(CLAVE+k, JSON.stringify(v)); } catch(_) {} }
+let mejorTiempo = leer("pb", null);
+let fantasma    = leer("fantasma", null);   // [{t, x}]
+let masClavados = leer("clavados", 0);
+
+// ── Estado ────────────────────────────────────────────────
+let estado = "menu";      // menu · corre · fin
+let moto, tiempo, grabacion, chispas, aviso, avisoT, finT;
+let clavados = 0, torpes = 0, caidas = 0, ultimoT = 0, fueRecord = false, deltaVivo = null;
+
+function nuevaMoto() {
+  return { x: 60, y: alturaEn(60) - CONFIG.radioMoto, vx: 0, vy: 0,
+           ang: 0, vang: 0, suelo: true, castigo: 0, atasco: 0 };
+}
+function empezar() {
+  moto = nuevaMoto(); tiempo = 0; grabacion = []; chispas = [];
+  aviso = ""; avisoT = 0; clavados = 0; torpes = 0; caidas = 0; deltaVivo = null;
+  estado = "corre";
+  botonVolver.style.display = "none";
+}
+function terminar() {
+  ultimoT = tiempo;
+  fueRecord = mejorTiempo === null || tiempo < mejorTiempo;
+  if (fueRecord) { mejorTiempo = tiempo; guardar("pb", mejorTiempo); fantasma = grabacion.slice(); guardar("fantasma", fantasma); }
+  if (clavados > masClavados) { masClavados = clavados; guardar("clavados", masClavados); }
+  sonMeta(); estado = "fin"; finT = 0;
+  botonVolver.style.display = "";
+}
+
+// ── Control: mitad derecha gas, mitad izquierda freno ─────
+// En el aire, la derecha tira la moto hacia atrás y la izquierda hacia
+// delante. Es todo. Dos dedos y ya está.
+const dedos = new Map();
+let tGas = false, tFreno = false;
+function alPulsar(e) {
+  e.preventDefault(); despertarAudio();
+  if (estado === "menu") { empezar(); return; }
+  if (estado === "fin") { if (finT > 0.4) empezar(); return; }
+  dedos.set(e.pointerId, e.clientX);
+}
+function alMover(e) { if (dedos.has(e.pointerId)) dedos.set(e.pointerId, e.clientX); }
+function alSoltar(e) { dedos.delete(e.pointerId); }
+c.addEventListener("pointerdown", alPulsar, { passive:false });
+c.addEventListener("pointermove", alMover, { passive:false });
+c.addEventListener("pointerup", alSoltar);
+c.addEventListener("pointercancel", alSoltar);
+addEventListener("keydown", e => {
+  if (e.repeat) return; despertarAudio();
+  if (e.key === "ArrowRight" || e.key === "d") tGas = true;
+  if (e.key === "ArrowLeft"  || e.key === "a") tFreno = true;
+  if (e.key === " " || e.key === "Enter") {
+    if (estado === "menu") empezar(); else if (estado === "fin" && finT > 0.4) empezar();
+    e.preventDefault();
+  }
+});
+addEventListener("keyup", e => {
+  if (e.key === "ArrowRight" || e.key === "d") tGas = false;
+  if (e.key === "ArrowLeft"  || e.key === "a") tFreno = false;
+});
+function mandos() {
+  let gas = tGas, freno = tFreno;
+  for (const x of dedos.values()) { if (x > W / 2) gas = true; else freno = true; }
+  return { gas, freno };
+}
+
+// ── Física ────────────────────────────────────────────────
+function chispa(x, y, color) {
+  const a = Math.random() * Math.PI * 2, v = 40 + Math.random() * 190;
+  chispas.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 60, t:0, vida:0.3+Math.random()*0.5, color });
+}
+
+function actualizar(dt) {
+  if (avisoT > 0) avisoT -= dt;
+  for (let i = chispas.length - 1; i >= 0; i--) {
+    const p = chispas[i];
+    p.t += dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 700*dt;
+    if (p.t >= p.vida) chispas.splice(i, 1);
+  }
+  if (estado === "fin") { finT += dt; motor(0, false); return; }
+  if (estado !== "corre") { motor(0, false); return; }
+
+  tiempo += dt;
+  const m = mandos();
+
+  if (moto.castigo > 0) {                      // levantándose tras la caída
+    moto.castigo -= dt;
+    moto.vx *= 0.86;
+    moto.ang += (pendienteEn(moto.x) - moto.ang) * Math.min(1, 10 * dt);
+    if (moto.castigo <= 0) recolocar();
+  } else if (moto.suelo) {
+    const pend = pendienteEn(moto.x);
+    let v = moto.vx / Math.max(0.2, Math.cos(moto.ang));
+    if (m.gas)   v += CONFIG.gas * dt;
+    if (m.freno) v -= CONFIG.freno * dt;
+    v -= Math.sin(pend) * CONFIG.gravedad * dt * -1;   // la pendiente ayuda o estorba
+    v -= v * CONFIG.rozamiento * dt;
+    v = Math.max(0, Math.min(CONFIG.velMaxima, v));
+    moto.ang += (pend - moto.ang) * Math.min(1, CONFIG.enderezaSuelo * dt);
+    moto.vx = Math.cos(moto.ang) * v;
+    moto.vy = Math.sin(moto.ang) * v;
+  } else {
+    moto.vy += CONFIG.gravedad * dt;
+    if (m.gas)   moto.vang -= CONFIG.giroAire * dt * 2.4;   // tumba hacia atrás
+    if (m.freno) moto.vang += CONFIG.giroAire * dt * 2.4;   // pica hacia delante
+    moto.vang *= Math.exp(-1.6 * dt);
+    moto.vang = Math.max(-CONFIG.giroAire, Math.min(CONFIG.giroAire, moto.vang));
+    moto.ang += moto.vang * dt;
+  }
+
+  moto.x += moto.vx * dt;
+  moto.y += moto.vy * dt;
+
+  const suelo = alturaEn(moto.x) - CONFIG.radioMoto;
+  if (moto.y >= suelo) {
+    const veniaVolando = !moto.suelo;
+    moto.y = suelo; moto.suelo = true;
+    if (veniaVolando && moto.castigo <= 0) aterrizar();
+  } else if (moto.y < suelo - 2) {
+    moto.suelo = false;
+  }
+
+  if (moto.suelo && moto.castigo <= 0) {
+    const quieto = Math.hypot(moto.vx, moto.vy) < 12;
+    moto.atasco = quieto && m.gas ? (moto.atasco || 0) + dt : 0;
+    if (moto.atasco > 0.6) recolocar();
+  }
+
+  if (moto.suelo && Math.abs(moto.vx) > 90 && Math.random() < 0.3) {
+    chispa(moto.x - 12, moto.y + CONFIG.radioMoto, COLOR.tierraLuz);
+  }
+
+  // Fantasma: en qué instante pasó el récord por esta misma x
+  grabacion.push({ t: tiempo, x: moto.x });
+  if (fantasma && fantasma.length > 1) {
+    const tf = tiempoFantasmaEn(moto.x);
+    deltaVivo = tf === null ? null : tiempo - tf;
+  }
+
+  if (moto.x >= META) { terminar(); return; }
+  motor(Math.hypot(moto.vx, moto.vy), moto.suelo);
+}
+
+// Busca hacia atrás el último trozo suficientemente llano y deja ahí la moto
+// con algo de impulso. Es la red de seguridad: sin esto, caerse en una rampa
+// deja la moto a cero en una cuesta que el gas no puede subir, y ahí se acaba
+// la partida sin que el juego se entere.
+function recolocar() {
+  let x = moto.x;
+  for (let i = 0; i < 220; i++) {
+    if (Math.abs(pendienteEn(x)) < 0.14) break;
+    x -= PASO * 2;
+    if (x < 40) { x = 40; break; }
+  }
+  const pend = pendienteEn(x);
+  moto.x = x;
+  moto.y = alturaEn(x) - CONFIG.radioMoto;
+  moto.ang = pend; moto.vang = 0; moto.suelo = true; moto.atasco = 0;
+  moto.vx = Math.cos(pend) * 170;
+  moto.vy = Math.sin(pend) * 170;
+}
+
+function aterrizar() {
+  const pend = pendienteEn(moto.x);
+  let dif = moto.ang - pend;
+  while (dif >  Math.PI) dif -= Math.PI * 2;
+  while (dif < -Math.PI) dif += Math.PI * 2;
+  const err = Math.abs(dif);
+  const v = Math.hypot(moto.vx, moto.vy);
+
+  if (err < CONFIG.toleranciaBuena) {
+    clavados++;
+    const nueva = Math.min(CONFIG.velMaxima, v + CONFIG.premioClavado);
+    moto.vx = Math.cos(pend) * nueva; moto.vy = Math.sin(pend) * nueva;
+    aviso = "CLAVADO"; avisoT = 0.8; sonClavado();
+    for (let i = 0; i < 14; i++) chispa(moto.x, moto.y + CONFIG.radioMoto, COLOR.ok);
+  } else if (err < CONFIG.toleranciaMala) {
+    torpes++;
+    const nueva = v * CONFIG.castigoTorpe;
+    moto.vx = Math.cos(pend) * nueva; moto.vy = Math.sin(pend) * nueva;
+    aviso = "TORPE"; avisoT = 0.6; sonTorpe();
+    for (let i = 0; i < 8; i++) chispa(moto.x, moto.y + CONFIG.radioMoto, COLOR.tierraLuz);
+  } else {
+    caidas++;
+    moto.castigo = CONFIG.penalizacionCaida;
+    moto.vx = 0; moto.vy = 0;
+    aviso = "AL SUELO"; avisoT = 1.0; sonCaida();
+    for (let i = 0; i < 22; i++) chispa(moto.x, moto.y, COLOR.mal);
+  }
+  moto.vang = 0;
+  moto.ang = pend;
+}
+
+function tiempoFantasmaEn(x) {
+  const g = fantasma;
+  if (!g || !g.length) return null;
+  if (x <= g[0].x) return g[0].t;
+  let lo = 0, hi = g.length - 1;
+  if (x >= g[hi].x) return null;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (g[mid].x <= x) lo = mid; else hi = mid; }
+  const a = g[lo], b = g[hi];
+  return a.t + (b.t - a.t) * ((x - a.x) / Math.max(1e-6, b.x - a.x));
+}
+
+// ── Dibujo ────────────────────────────────────────────────
+function reloj(s) { return s === null || s === undefined ? "--.---" : s.toFixed(3); }
+function texto(t, x, y, tam, peso, color, alfa, alin) {
+  ctx.globalAlpha = alfa === undefined ? 1 : alfa;
+  ctx.fillStyle = color || COLOR.texto;
+  ctx.font = peso + " " + tam + "px " + F;
+  ctx.textAlign = alin || "center"; ctx.textBaseline = "middle";
+  ctx.fillText(t, x, y); ctx.globalAlpha = 1;
+}
+
+function dibujarMoto(x, y, ang, cuerpo, detalle, alfa) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  ctx.globalAlpha = alfa === undefined ? 1 : alfa;
+  ctx.strokeStyle = "#15121c"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(-13, 6, 10, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc( 14, 6, 10, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle = cuerpo;
+  ctx.beginPath(); ctx.moveTo(-14,2); ctx.lineTo(2,-6); ctx.lineTo(15,0); ctx.lineTo(12,6); ctx.lineTo(-12,7);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = detalle;
+  ctx.beginPath(); ctx.arc(-1, -14, 6, 0, Math.PI*2); ctx.fill();
+  ctx.fillRect(-4, -10, 8, 6);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+function dibujarMundo() {
+  const camX = moto.x - W * 0.32;
+  const camY = moto.y - H * 0.58;
+
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, COLOR.cieloB); g.addColorStop(1, COLOR.cieloA);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  ctx.save(); ctx.translate(-camX, -camY);
+
+  // terreno
+  const x0 = Math.max(0, Math.floor(camX / PASO) - 2);
+  const x1 = Math.min(TERRENO.length - 1, Math.ceil((camX + W) / PASO) + 2);
+  ctx.beginPath();
+  ctx.moveTo(x0 * PASO, camY + H + 400);
+  for (let i = x0; i <= x1; i++) ctx.lineTo(i * PASO, TERRENO[i]);
+  ctx.lineTo(x1 * PASO, camY + H + 400);
+  ctx.closePath();
+  ctx.fillStyle = COLOR.tierra; ctx.fill();
+  ctx.beginPath();
+  for (let i = x0; i <= x1; i++) { i === x0 ? ctx.moveTo(i*PASO, TERRENO[i]) : ctx.lineTo(i*PASO, TERRENO[i]); }
+  ctx.strokeStyle = COLOR.tierraLuz; ctx.lineWidth = 4; ctx.stroke();
+
+  // meta
+  ctx.strokeStyle = COLOR.linea; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(META, alturaEn(META)); ctx.lineTo(META, alturaEn(META) - 150); ctx.stroke();
+  ctx.fillStyle = COLOR.linea;
+  ctx.fillRect(META, alturaEn(META) - 150, 60, 26);
+
+  chispas.forEach(p => {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.vida);
+    ctx.fillStyle = p.color; ctx.fillRect(p.x-2, p.y-2, 4, 4);
+  });
+  ctx.globalAlpha = 1;
+
+  // fantasma
+  if (fantasma && fantasma.length > 1 && estado === "corre") {
+    let i = 0; while (i < fantasma.length - 1 && fantasma[i].t < tiempo) i++;
+    const gx = fantasma[i].x;
+    dibujarMoto(gx, alturaEn(gx) - CONFIG.radioMoto, pendienteEn(gx), COLOR.fantasma, "#bff3ff", 0.38);
+  }
+
+  if (estado !== "menu") dibujarMoto(moto.x, moto.y, moto.ang, COLOR.moto, COLOR.piloto);
+  ctx.restore();
+}
+
+function hud() {
+  const y0 = margenArriba();
+  texto(tiempo.toFixed(3), W/2, y0 + 40, Math.min(46, W*0.115), "900");
+  texto("RÉCORD  " + reloj(mejorTiempo), W/2, y0 + 74, 12, "700", "#9aa1cc");
+  if (deltaVivo !== null && deltaVivo !== undefined) {
+    const mejor = deltaVivo < 0;
+    texto((mejor?"−":"+") + Math.abs(deltaVivo).toFixed(2), W/2, y0 + 104,
+          Math.min(28, W*0.07), "900", mejor ? COLOR.ok : COLOR.mal);
+  }
+  // barra de avance
+  const p = Math.max(0, Math.min(1, moto.x / META));
+  ctx.fillStyle = "rgba(255,255,255,.13)"; ctx.fillRect(24, H - 40, W - 48, 5);
+  ctx.fillStyle = COLOR.linea; ctx.fillRect(24, H - 40, (W - 48) * p, 5);
+  texto("CLAVADOS  " + clavados, W/2, H - 20, 11.5, "800", clavados > 0 ? COLOR.ok : "#7d84b4");
+  if (avisoT > 0) {
+    const col = aviso === "CLAVADO" ? COLOR.ok : aviso === "TORPE" ? "#ffd166" : COLOR.mal;
+    texto(aviso, W/2, H*0.38, Math.min(36, W*0.09), "900", col, Math.min(1, avisoT*2));
+  }
+}
+
+function pantallaMenu() {
+  ctx.fillStyle = "rgba(10,13,22,.72)"; ctx.fillRect(0, 0, W, H);
+  texto("CROSS RUSH", W/2, H*0.32, Math.min(48, W*0.12), "900");
+  texto("El vuelo se paga al aterrizar.", W/2, H*0.32 + 42, 14, "600", "#c0b9d6");
+  texto("RÉCORD  " + reloj(mejorTiempo), W/2, H*0.32 + 78, 13, "700", "#9aa1cc");
+  texto("Derecha: gas. En el aire tumba atrás.", W/2, H*0.56, 13.5, "600", "#9aa1cc");
+  texto("Izquierda: freno. En el aire pica.", W/2, H*0.56 + 22, 13.5, "600", "#9aa1cc");
+  texto("Llega plano a la pendiente y lo clavas.", W/2, H*0.56 + 44, 13.5, "600", "#7d84b4");
+  const pulso = 0.55 + Math.sin(Date.now()/320)*0.25;
+  texto("TOCA PARA SALIR", W/2, H*0.74, 15, "800", "#fff", pulso);
+}
+
+function pantallaFin() {
+  ctx.fillStyle = "rgba(10,13,22,.8)"; ctx.fillRect(0, 0, W, H);
+  texto(fueRecord ? "¡RÉCORD!" : "META", W/2, H*0.33, Math.min(34, W*0.085), "900", fueRecord ? COLOR.ok : "#fff");
+  texto(ultimoT.toFixed(3), W/2, H*0.33 + 58, Math.min(58, W*0.145), "900");
+  texto("RÉCORD  " + reloj(mejorTiempo), W/2, H*0.33 + 100, 13, "700", "#9aa1cc");
+  texto("CLAVADOS  " + clavados + "   ·   TORPES  " + torpes + "   ·   CAÍDAS  " + caidas,
+        W/2, H*0.33 + 130, 12.5, "700", "#c0b9d6");
+  if (finT > 0.4) {
+    const pulso = 0.55 + Math.sin(Date.now()/320)*0.25;
+    texto("OTRA", W/2, H*0.7, 16, "800", "#fff", pulso);
+  }
+}
+
+function dibujar() {
+  dibujarMundo();
+  if (estado === "menu") pantallaMenu();
+  else { hud(); if (estado === "fin") pantallaFin(); }
+}
+
+// ── Bucle, paso fijo: la carrera tiene que ser comparable ──
+moto = nuevaMoto(); tiempo = 0; grabacion = []; chispas = []; aviso = ""; avisoT = 0;
+const PASO_F = 1 / 120;
+let anterior = performance.now(), resto = 0;
+function bucle(ahora) {
+  let dt = (ahora - anterior) / 1000; anterior = ahora;
+  if (dt > 0.25) dt = 0.25;
+  resto += dt;
+  while (resto >= PASO_F) { actualizar(PASO_F); resto -= PASO_F; }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+</body>
+</html>
