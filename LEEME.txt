@@ -2,70 +2,81 @@
   PLAYZONE
 ===========================================
 
-Todos los juegos en un sitio. No hay que
-instalar nada.
-
-Doble clic en index.html y desde ahi se llega
-a todo.
+Todos los juegos en un sitio. Doble clic en
+index.html y desde ahi se llega a todo.
 
 
 -------------------------------------------
-  SON DOS ZONAS
+  EL CATALOGO
 -------------------------------------------
 
-PLAYZONE      -> los minijuegos, partidas
-                 cortas. Es la portada, el
-                 index.html de esta carpeta.
+  001  FLIGHT STRIKE          (en MAX)
+  002  ONE MORE FLOOR
+  003  LAST LIGHT
+  004  APEX PULSE
+  005  NO SECOND SHOT
+  006  CROSS RUSH
+  007  REDLINE: DON'T CHOKE
 
-PLAYZONE MAX  -> los juegos grandes, con
-                 mundos y jefes. Esta en la
-                 carpeta max\, y ahi dentro
-                 esta Strike Flight.
+  Aparte: PLAYZONE RUSH, que no es un juego
+  sino la parte de competir con amigos.
 
-Se entra a MAX desde la portada de PLAYZONE,
-con el boton grande de abajo.
+Los numeros no se reutilizan nunca. El
+siguiente juego que hagamos es el 008.
+
+
+-------------------------------------------
+  LAS DOS ZONAS
+-------------------------------------------
+
+PLAYZONE      -> la portada y el catalogo
+PLAYZONE MAX  -> los juegos grandes, en la
+                 carpeta max\. Ahi vive
+                 Flight Strike.
+
+
+-------------------------------------------
+  OJO CON EL DOBLE CLIC
+-------------------------------------------
+
+Con doble clic funcionan los juegos de un
+solo archivo: 001, 004, 005, 006 y 007.
+
+El 002 y el 003 estan hechos con modulos y
+el navegador no los deja abrir asi. Traen su
+propio servidor:
+
+  002 -> npm start
+  003 -> npm run dev
+
+Subido a GitHub Pages funciona todo sin
+tener que hacer nada de esto.
 
 
 -------------------------------------------
   ANADIR UN JUEGO
 -------------------------------------------
 
-Si es corto  -> mira minijuegos\LEEME.txt
-Si es grande -> abre max\index.html con el
-                Bloc de notas y anade una
-                linea a la lista JUEGOS de
-                arriba del todo.
+Abre index.html con el Bloc de notas. Arriba
+del todo esta la lista CATALOGO. Copias una
+linea, cambias los datos y recargas.
 
-En las dos listas, poner listo:false deja la
-casilla en gris con un "proximamente". Sirve
-para reservar el sitio de un juego que aun no
-existe, sin romper nada.
+Poniendo listo:false la casilla sale en gris
+con un "en construccion". Sirve para reservar
+el hueco sin romper nada.
 
 
 -------------------------------------------
-  LAS IMAGENES DE STRIKE FLIGHT
+  PENDIENTE: FLIGHT STRIKE
 -------------------------------------------
 
-Ojo que Strike Flight ya no esta en la raiz.
-Sus PNG van aqui:
+La version de Flight Strike con las 20
+misiones y el hangar NO esta en GitHub. Esta
+en el PC, en:
 
-  max\strike-flight\art\naves\
-  max\strike-flight\art\enemigos\
+  C:\Users\TeRuLeT\Desktop\PROJECTES SOFTS\JOCS
 
-Lo demas sigue igual, explicado en
-max\strike-flight\LEEME.txt.
-
-
--------------------------------------------
-  PONERLO EN EL IPAD
--------------------------------------------
-
-  1. Sube esta carpeta a GitHub Pages
-  2. Abre el enlace en Safari
-  3. Compartir -> Anadir a pantalla de inicio
-
-Se pueden poner los dos iconos por separado:
-PLAYZONE desde la portada, y PLAYZONE MAX
-abriendo antes la carpeta max\.
-
-Funcionan sin internet.
+Lo que hay ahora en max\001-flight-strike\ es
+la mejor version que habia subida, que no
+lleva ni misiones ni hangar. Hay que subir la
+buena a una rama y sustituirla.
