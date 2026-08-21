@@ -124,7 +124,7 @@ Precision lives exactly where precision matters. Sensitivity at the brink:
 mm per ms = W · γ · (1−pe)^(γ−1) · 1000 / chargeMs
 ```
 
-which lands at 0.10 – 0.35 mm/ms across all surfaces and all `pe` (verified in
+which lands at 0.15 – 0.36 mm/ms across all surfaces and all `pe` (verified in
 `tests/challenge.test.js` and reported by the harness).
 
 ### Why the power meter is linear in time

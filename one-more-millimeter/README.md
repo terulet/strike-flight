@@ -137,8 +137,8 @@ exactly that resting place. So:
 - a challenge is just `pe`, the power that lands exactly on the brink — expressed
   physically as **how far back the object starts**, which you can see before you throw.
 
-Difficulty lands at **0.10 – 0.35 mm of result per millisecond of hold**, so ten
-milliseconds of human slop costs one to three and a half millimetres.
+Difficulty lands at **0.15 – 0.36 mm of result per millisecond of hold**, so ten
+milliseconds of human slop costs one and a half to three and a half millimetres.
 
 ---
 
@@ -152,12 +152,12 @@ Current numbers, mixed pool:
 
 | Player | Falls | Median | p90 | < 10 mm | < 1 mm |
 |---|---|---|---|---|---|
-| NEW | 5% | 27 mm | 62 mm | 14% | 0.4% |
-| LEARNING | 4% | 12.5 mm | 30 mm | 38% | 2% |
-| GOOD | 7% | 5.5 mm | 14 mm | 80% | 6% |
-| EXPERT | 14% | 2.2 mm | 5.5 mm | 98% | 22% |
+| NEW | 4.8% | 26.0 mm | 62 mm | 14% | 0.8% |
+| LEARNING | 5.5% | 12.5 mm | 31 mm | 38% | 2.1% |
+| GOOD | 8.6% | 5.7 mm | 13.5 mm | 79% | 6.4% |
+| EXPERT | 14.6% | 2.3 mm | 5.9 mm | 98% | 21% |
 
-Attempt medians inside a 3-shot run: **12.7 → 7.0 → 5.9 mm**. The third shot really is
+Attempt medians inside a 3-shot run: **12.7 → 7.3 → 5.9 mm**. The third shot really is
 better than the first, which is the entire psychological point of THREE SHOTS.
 
 The harness also sweeps power in fine steps looking for cliffs — travel must be strictly
