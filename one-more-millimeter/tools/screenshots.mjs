@@ -90,7 +90,13 @@ await page.evaluate(async () => {
 });
 await page.waitForFunction(() => !document.getElementById('result').hidden);
 await page.evaluate(() => window.OMM.game.advance());
-await page.evaluate(() => window.OMM.game.fireExact(window.OMM.game.challenge.pe - 0.02));
+// beat the rival for real: solve the power that lands inside their margin
+await page.evaluate(async () => {
+  const g = window.OMM.game;
+  const { powerForMargin } = await import('./src/game/Challenge.js');
+  const target = g.match.target;
+  g.fireExact(powerForMargin(g.challenge, target.marginM * 0.45));
+});
 await page.waitForFunction(() => !document.getElementById('result').hidden);
 await page.waitForTimeout(200);
 await shot('08-rival-beaten');

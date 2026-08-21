@@ -171,6 +171,12 @@ export class Game {
     this.ui.setMeter(0);
     this.ui.setPrompt(t('prompt.hold'));
     this._syncHud();
+
+    // Now or never: a cue you feel rather than read. Nothing about the physics changes.
+    if (this.isFinalShot && (m.modeId === 'three' || m.modeId === 'daily')) {
+      this.audio.play('final');
+      this.haptics.buzz(10);
+    }
   }
 
   get isFinalShot() {
@@ -282,12 +288,20 @@ export class Game {
     });
   }
 
-  /** Result panel button / tap-anywhere. */
+  /**
+   * Result panel primary button, and tap-anywhere. A finished run starts another
+   * one rather than dumping the player back to the menu — the whole game is
+   * "one more", so the default action is always another go.
+   */
   advance() {
     const m = this.match;
     if (!m) return;
     this.ui.hideResult();
-    if (m.finished) { this.quit(); return; }
+    if (m.finished) {
+      this.tel.log(EVENTS.RETRY, { attempt: m.attempt, run: 'new' });
+      this.startMode(m.modeId);
+      return;
+    }
     this.tel.log(EVENTS.RETRY, { attempt: m.attempt });
     this.beginAttempt();
   }
@@ -440,8 +454,9 @@ export class Game {
         cx = lerp(cx, ch.platform.edgeX, 0.45);
       }
       if (this.shotState === SHOT.RESULT && !st.crossedEdge) {
-        // Settle into a readable close-up; the millimetre itself is shown by the loupe.
-        span = Math.min(span, Math.max(obj.width * 2.2, GameConfig.camera.tightSpan));
+        // Recentre on the gap. The zoom already tracks how tight the result was, so
+        // a 9 mm shot keeps its context instead of being shoved into a macro.
+        span = clamp(span, Math.max(obj.width * 2.2, GameConfig.camera.tightSpan), cfg.wideSpan);
         cx = (com + ch.platform.edgeX) / 2;
       }
       if (snap) this.camera.snap(cx, cy, span);

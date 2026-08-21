@@ -32,8 +32,8 @@ export function drawObjectShape(ctx, obj, opts = {}) {
   const body = ghost ? opts.color || '#ffffff' : obj.color;
   const accent = ghost ? opts.color || '#ffffff' : obj.accent;
   // A rim keeps a dark object readable against a dark platform at any zoom.
-  const rim = (path) => {
-    if (!opts.outline || ghost) return;
+  const rim = () => {
+    if (!opts.outline) return;
     ctx.strokeStyle = opts.outlineColor || 'rgba(255,255,255,0.42)';
     ctx.lineWidth = opts.outline;
     ctx.stroke();

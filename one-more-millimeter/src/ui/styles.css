@@ -29,6 +29,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* An author `display:` always beats the UA sheet's [hidden], so state it once, loudly. */
+[hidden] { display: none !important; }
 html, body {
   margin: 0; padding: 0; height: 100%; width: 100%;
   background: var(--bg); color: var(--ink);
@@ -52,12 +54,13 @@ body { position: fixed; inset: 0; overflow: hidden; }
   calc(var(--safe-b) + 14px) calc(var(--safe-l) + 14px);
   justify-content: space-between; }
 .hud-top { display: flex; align-items: flex-start; gap: 10px; }
-.hud-right { margin-left: auto; text-align: right; max-width: 46%; }
+.hud-right { margin-left: auto; text-align: right; max-width: 52%; flex: 0 0 auto; }
 .hud-meta {
   font-size: 11px; font-weight: 800; letter-spacing: 0.14em; color: var(--ink-dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hud-meta.dim { color: var(--ink-faint); margin-top: 3px; font-size: 9.5px; letter-spacing: 0.10em; }
+.hud-meta.mutator { color: var(--warn); margin-top: 2px; font-size: 9px; letter-spacing: 0.20em; }
 
 .icon-btn {
   pointer-events: auto; background: rgba(255,255,255,0.06); color: var(--ink);
@@ -67,10 +70,10 @@ body { position: fixed; inset: 0; overflow: hidden; }
 .icon-btn:active { transform: scale(0.94); }
 
 .target-chip {
-  display: flex; align-items: baseline; gap: 8px; padding: 7px 12px;
+  display: flex; align-items: baseline; gap: 8px; padding: 7px 12px; min-width: 0;
   background: var(--card); border: 1px solid var(--line); border-radius: 999px;
   backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-  max-width: 62%;
+  max-width: 46%;
 }
 .chip-label { font-size: 9px; letter-spacing: 0.18em; color: var(--ink-faint); font-weight: 800; }
 .chip-name { font-size: 12px; font-weight: 900; letter-spacing: 0.08em; color: var(--accent); white-space: nowrap; }
@@ -153,7 +156,7 @@ body { position: fixed; inset: 0; overflow: hidden; }
 .home {
   padding: calc(var(--safe-t) + 26px) calc(var(--safe-r) + 22px)
            calc(var(--safe-b) + 20px) calc(var(--safe-l) + 22px);
-  justify-content: space-between; gap: 14px;
+  justify-content: flex-start; gap: 14px;
   background: radial-gradient(120% 70% at 50% 0%, rgba(56,232,255,0.08), transparent 60%);
 }
 .home-top { padding-top: 6px; }
@@ -167,13 +170,14 @@ body { position: fixed; inset: 0; overflow: hidden; }
 }
 .tagline { margin: 12px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: var(--ink-faint); max-width: 20em; }
 
-.home-stats { display: flex; gap: 12px; }
+.home-stats { display: flex; gap: 12px; margin-top: auto; }
 .stat-block {
   flex: 1; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px;
   background: rgba(255,255,255,0.03);
 }
 .stat-label { font-size: 9px; font-weight: 900; letter-spacing: 0.24em; color: var(--ink-faint); }
 .stat-value { margin-top: 4px; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stat-value .unit { font-size: 0.55em; font-weight: 800; color: var(--ink-faint); margin-left: 3px; letter-spacing: 0.08em; }
 
 .home-actions { display: flex; flex-direction: column; gap: 10px; }
 .mode-row { display: flex; gap: 8px; }
@@ -196,7 +200,7 @@ body { position: fixed; inset: 0; overflow: hidden; }
 .btn-ghost { flex: 0 0 auto; padding: 14px 16px; color: var(--ink-dim); }
 #btn-share { font-size: 18px; padding: 14px 15px; }
 
-.home-foot { display: flex; justify-content: center; gap: 18px; }
+.home-foot { display: flex; justify-content: center; gap: 18px; margin-top: 4px; }
 .link-btn {
   background: none; border: none; color: var(--ink-faint); font-family: var(--font);
   font-size: 10px; font-weight: 800; letter-spacing: 0.2em; padding: 10px 6px; cursor: pointer;

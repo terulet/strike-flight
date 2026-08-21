@@ -272,12 +272,16 @@ export class Renderer {
       ctx.lineTo(g.x, cam.spanY * 0.34);
       ctx.stroke();
       ctx.setLineDash([]);
-      // Their object, resting where they left it
-      if (g.object && !scene.reduceFx) {
+      // Their object, resting where they left it. Past a certain zoom it stops being
+      // a silhouette and becomes a coloured blob, so it bows out.
+      const ghostReadable = g.object && g.object.width * cam.pxPerM < this.w * 0.5;
+      if (g.object && ghostReadable && !scene.reduceFx) {
         ctx.save();
         ctx.translate(g.x - g.object.comOffset, 0);
-        ctx.globalAlpha = (g.alpha ?? 0.85) * 0.22;
-        drawObjectShape(ctx, g.object, { ghost: true, color: g.color });
+        ctx.globalAlpha = (g.alpha ?? 0.85) * 0.16;
+        drawObjectShape(ctx, g.object, {
+          ghost: true, color: g.color, outline: px * 1.6, outlineColor: g.color,
+        });
         ctx.restore();
       }
       ctx.restore();

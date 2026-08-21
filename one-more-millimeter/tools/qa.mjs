@@ -68,6 +68,24 @@ console.log('\n  ONE MORE MILLIMETER — automated QA\n');
   await page.close();
 }
 
+// ------------------------------------- 2b. a finished run starts another run
+{
+  const page = await newPage(BASE + '?mode=three&surface=rubber&object=can');
+  const pe = await page.evaluate(() => window.OMM.game.challenge.pe);
+  for (let i = 0; i < 3; i++) {
+    await shoot(page, pe * 0.8);
+    if (i < 2) await page.evaluate(() => window.OMM.game.advance());
+  }
+  const before = await page.evaluate(() => ({ finished: window.OMM.game.match.finished, id: window.OMM.game.challenge.id }));
+  await page.evaluate(() => window.OMM.game.advance());
+  await page.waitForTimeout(200);
+  const after = await page.evaluate(() => ({ screen: window.OMM.game.screen, attempt: window.OMM.game.match.attempt, id: window.OMM.game.challenge.id }));
+  check('finished run rolls into a fresh run, not the menu',
+    before.finished && after.screen === 'game' && after.attempt === 1 && after.id !== before.id,
+    `${before.id} -> ${after.id}`);
+  await page.close();
+}
+
 // ------------------------------------------------------ 3. falls and near miss
 {
   const page = await newPage(BASE + '?mode=quick&surface=wood&object=puck');
@@ -80,6 +98,11 @@ console.log('\n  ONE MORE MILLIMETER — automated QA\n');
   check('a hair past the brink is a near miss', near.fell && nearMiss, `${near.over.toFixed(3)} mm past`);
   const copy = await page.evaluate(() => document.getElementById('result-sub').textContent);
   check('fall copy names the overshoot', /PAST THE EDGE/.test(copy), copy);
+  const vsHidden = await page.evaluate(() => {
+    const el = document.getElementById('result-versus');
+    return el.hidden && getComputedStyle(el).display === 'none';
+  });
+  check('no stale comparison panel on a fall', vsHidden);
   await page.close();
 }
 

@@ -24,6 +24,7 @@ export class UI {
       meterFill: $('meter-fill'), meterValue: $('meter-value'), meter: $('meter'),
       prompt: $('prompt'), attempt: $('hud-attempt'), setup: $('hud-setup'),
       targetChip: $('hud-target'), targetName: $('hud-target-name'), targetValue: $('hud-target-value'),
+      mutator: $('hud-mutator'),
       targetLabel: $('hud-target-label'), finalShot: $('final-shot'),
       resultZone: $('result-zone'), resultNumber: $('result-number'), resultSub: $('result-sub'),
       resultNote: $('result-note'), resultVersus: $('result-versus'), resultHint: $('result-hint'),
@@ -100,7 +101,9 @@ export class UI {
 
   refreshHome() {
     const d = this.save.data;
-    this.el.homeBest.textContent = d.records.bestM == null ? '--' : `${formatMm(toMm(d.records.bestM))}`;
+    this.el.homeBest.innerHTML = d.records.bestM == null
+      ? '--'
+      : `${formatMm(toMm(d.records.bestM))}<span class="unit">mm</span>`;
     const dayBest = d.records.today && d.records.today.bestM;
     if (dayBest == null) {
       this.el.homeToday.textContent = '--';
@@ -119,7 +122,9 @@ export class UI {
     } else {
       el.attempt.textContent = t(`mode.${info.modeId}`);
     }
-    el.setup.textContent = info.mutatorLabel ? `${info.setupLabel} · ${info.mutatorLabel}` : info.setupLabel;
+    el.setup.textContent = info.setupLabel;
+    el.mutator.hidden = !info.mutatorLabel;
+    el.mutator.textContent = info.mutatorLabel || '';
     el.finalShot.hidden = !info.finalShot;
     if (info.target) {
       el.targetChip.hidden = false;
