@@ -1,0 +1,19 @@
+{
+  "name": "one-more-millimeter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PLAYZONE 008 — stop it as close to the edge as you can.",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server . -p 4321 -c-1 --silent",
+    "serve": "npx --yes http-server . -p 4321 -c-1 --silent",
+    "test": "node --test tests/*.test.js",
+    "harness": "node tools/harness.mjs",
+    "harness:full": "node tools/harness.mjs --shots 4000 --all",
+    "icons": "node tools/icons.mjs",
+    "shots": "node tools/screenshots.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {},
+  "devDependencies": {}
+}
