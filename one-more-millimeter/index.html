@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#07080b" />
+<meta name="description" content="Stop it as close to the edge as you can. One more millimeter." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="One More Millimeter" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./assets/icon-180.png" />
+<link rel="icon" href="./assets/icon-180.png" />
+<link rel="stylesheet" href="./src/ui/styles.css" />
+<title>ONE MORE MILLIMETER</title>
+</head>
+<body>
+<div id="app">
+  <canvas id="stage" aria-label="Game field" role="img"></canvas>
+
+  <!-- ============================ IN-GAME HUD ============================ -->
+  <div id="hud" class="layer hud" hidden>
+    <div class="hud-top">
+      <button id="btn-quit" class="icon-btn" aria-label="Home">&#8592;</button>
+      <div id="hud-target" class="target-chip" hidden>
+        <span class="chip-label" id="hud-target-label">TARGET</span>
+        <span class="chip-name" id="hud-target-name">MARC</span>
+        <span class="chip-value" id="hud-target-value">1.12 mm</span>
+      </div>
+      <div class="hud-right">
+        <div class="hud-meta" id="hud-attempt">ATTEMPT 1/3</div>
+        <div class="hud-meta dim" id="hud-setup">WOOD &middot; PUCK</div>
+      </div>
+    </div>
+
+    <div id="final-shot" class="final-shot" hidden>FINAL SHOT</div>
+
+    <div class="hud-bottom">
+      <div id="prompt" class="prompt">HOLD</div>
+      <div id="meter" class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="meter-track">
+          <div class="meter-fill" id="meter-fill"></div>
+          <div class="meter-edge" id="meter-edge" hidden></div>
+        </div>
+        <div class="meter-value" id="meter-value">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== RESULT =============================== -->
+  <div id="result" class="layer result" hidden>
+    <div class="result-card" id="result-card">
+      <div class="result-zone" id="result-zone">GREAT</div>
+      <div class="result-value" id="result-value"><span id="result-number">0.83</span><span class="unit">mm</span></div>
+      <div class="result-sub" id="result-sub">NEW BEST</div>
+      <div class="result-versus" id="result-versus" hidden>
+        <div class="versus-row"><span class="vs-name" id="vs-you-name">YOU</span><span class="vs-val" id="vs-you-val">0.83</span></div>
+        <div class="versus-row rival"><span class="vs-name" id="vs-rival-name">MARC</span><span class="vs-val" id="vs-rival-val">1.12</span></div>
+      </div>
+      <div class="result-note" id="result-note"></div>
+      <div class="result-actions">
+        <button id="btn-primary" class="btn btn-primary">AGAIN</button>
+        <button id="btn-secondary" class="btn btn-ghost" hidden>HOME</button>
+        <button id="btn-share" class="btn btn-ghost" hidden aria-label="Share">&#8599;</button>
+      </div>
+      <div class="result-hint" id="result-hint"></div>
+    </div>
+  </div>
+
+  <!-- =============================== HOME ================================ -->
+  <div id="home" class="layer home">
+    <div class="home-top">
+      <h1 class="title"><span id="title1">ONE MORE</span><br /><span class="title-accent" id="title2">MILLIMETER</span></h1>
+      <p class="tagline" id="tagline">STOP IT AS CLOSE TO THE EDGE AS YOU CAN.</p>
+    </div>
+
+    <div class="home-stats">
+      <div class="stat-block">
+        <div class="stat-label" id="lbl-best">BEST</div>
+        <div class="stat-value" id="home-best">--</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label" id="lbl-today">TODAY</div>
+        <div class="stat-value" id="home-today">--</div>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <button id="btn-play" class="btn btn-hero">PLAY</button>
+      <div class="mode-row">
+        <button class="btn btn-mode" data-mode="three" id="btn-mode-three">3 SHOTS</button>
+        <button class="btn btn-mode" data-mode="daily" id="btn-mode-daily">DAILY</button>
+        <button class="btn btn-mode" data-mode="beat" id="btn-mode-beat">BEAT THE SCORE</button>
+      </div>
+    </div>
+
+    <div class="home-foot">
+      <button class="link-btn" id="btn-ranking">RANKING</button>
+      <button class="link-btn" id="btn-stats">STATS</button>
+      <button class="link-btn" id="btn-settings">SETTINGS</button>
+    </div>
+  </div>
+
+  <!-- ============================== MODALS =============================== -->
+  <div id="modal" class="layer modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="modal-title">RANKING</h2>
+        <button id="modal-close" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="debug" class="debug" hidden></div>
+  <div id="flash" class="flash" aria-hidden="true"></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
