@@ -1,0 +1,6 @@
+{
+  "_comment": "Overwritten by .github/workflows/deploy-pages.yml at deploy time. This committed copy is what you get when running locally.",
+  "sha": "dev",
+  "ref": "local",
+  "builtAt": null
+}
