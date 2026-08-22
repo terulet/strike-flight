@@ -183,14 +183,30 @@ Other URL parameters: `?surface=ice`, `?object=phone`, `?mode=daily`, `?lang=es`
 
 ---
 
+## Tester build
+
+This branch carries the tester layer: a name, links that inject real rival scores,
+and a copyable telemetry report. Start at **[docs/TESTER_BUILD.md](docs/TESTER_BUILD.md)**
+for the public URL, the one-time Pages setup, the link syntax and how to read the
+results; **[docs/REAL_MOBILE_QA.md](docs/REAL_MOBILE_QA.md)** is the checklist for
+real hardware, which no automated run can substitute for.
+
+```
+?tester=1&challenge=group-a&rival=Marc&score=1.42&target=Marc   hunt a real score
+?tester=1&solo=1&challenge=group-a                              control arm
+?report=1                                                       open the report
+?nocache=1                                                      unstick a cached build
+```
+
 ## Tests and tooling
 
 ```bash
-npm test          # 47 unit tests: physics, scoring, challenges, storage, i18n
-npm run harness   # balance report
-node tools/qa.mjs # 23 checks driving the real build in Chromium
-npm run shots     # regenerate docs/screenshots
-npm run icons     # regenerate app icons
+npm test           # unit tests: physics, scoring, challenges, storage, tester layer
+npm run harness    # balance report
+npm run qa         # browser checks driving the real build in Chromium
+npm run shots      # regenerate docs/screenshots
+npm run icons      # regenerate app icons
+npm run summarize  # aggregate tester reports pasted back over WhatsApp
 ```
 
 `tools/qa.mjs` covers the things unit tests cannot: restart stability, listener leaks,
