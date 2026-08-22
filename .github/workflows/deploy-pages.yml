@@ -1,0 +1,117 @@
+# Publishes the ONE MORE MILLIMETER tester build to GitHub Pages.
+#
+# URL:  https://terulet.github.io/strike-flight/one-more-millimeter/
+#
+# ONE-TIME MANUAL STEP (nobody can do this for you):
+#   GitHub -> repo Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+#   Until that is set, this workflow fails at the deploy step with a Pages error.
+#
+# Triggers: every push to the tester branch that touches the game, plus a manual
+# run from the Actions tab. It deliberately does NOT deploy from other branches.
+#
+# What gets published: ONLY one-more-millimeter/ (tests, tools and docs stripped),
+# plus a redirect at the site root. Flight Strike is NOT published by this workflow
+# and none of its files are touched.
+name: Deploy tester build (Pages)
+
+on:
+  push:
+    branches:
+      - claude/playzone-008-millimeter-obowtc
+    paths:
+      - 'one-more-millimeter/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Assemble site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Zero dependencies, so this is just node running the test files.
+      # A red test never reaches a tester's phone.
+      - name: Unit tests
+        working-directory: one-more-millimeter
+        run: node --test tests/*.test.js
+
+      - name: Assemble _site
+        env:
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/one-more-millimeter
+          cp -R one-more-millimeter/. _site/one-more-millimeter/
+          # Not needed by the browser, and not something testers should download.
+          rm -rf _site/one-more-millimeter/tests \
+                 _site/one-more-millimeter/tools \
+                 _site/one-more-millimeter/docs \
+                 _site/one-more-millimeter/.gitignore
+          # Stamp the build so every tester report names the commit it came from.
+          printf '{\n  "sha": "%s",\n  "ref": "%s",\n  "builtAt": "%s"\n}\n' \
+            "$SHA" "$REF" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > _site/one-more-millimeter/build-info.json
+          # Pages serves this repo at /strike-flight/, so a bare root would 404 for
+          # anyone who trims the link. Send them to the game instead.
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>ONE MORE MILLIMETER</title>
+          <meta http-equiv="refresh" content="0; url=./one-more-millimeter/">
+          <link rel="canonical" href="./one-more-millimeter/">
+          <p style="font:600 14px system-ui;padding:24px">
+            <a href="./one-more-millimeter/">ONE MORE MILLIMETER</a>
+          </p>
+          HTML
+          touch _site/.nojekyll
+
+      - name: Verify payload
+        run: |
+          set -euo pipefail
+          test -f _site/one-more-millimeter/index.html
+          test -f _site/one-more-millimeter/src/main.js
+          test -f _site/one-more-millimeter/manifest.webmanifest
+          test -f _site/one-more-millimeter/sw.js
+          node -e "const b=require('./_site/one-more-millimeter/build-info.json'); if(!b.sha||b.sha==='dev'){throw new Error('build-info.json was not stamped')} console.log('build', b.sha, b.builtAt)"
+          echo "files: $(find _site -type f | wc -l)"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Where it landed
+        run: |
+          echo "Root:  ${{ steps.deployment.outputs.page_url }}"
+          echo "Game:  ${{ steps.deployment.outputs.page_url }}one-more-millimeter/"
