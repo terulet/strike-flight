@@ -10,14 +10,14 @@ import { OBJECTS, getObject } from '../config/objects.js';
 import { createState, launch, step, buildResult, deriveSetup, isSettled, PHASE } from '../physics/Simulation.js';
 import { createChallenge, createDailyChallenge, dailyId, practiceId, launchSpeedFor } from './Challenge.js';
 import { makeResult, isBetter, compareMargins } from './Scoring.js';
-import { rivalsFor, targetRival, rivalsBeatenBy } from './Rivals.js';
+import { rivalsFor, targetRival, rivalsBeatenBy, realRivals, findRival } from './Rivals.js';
 import { buildBoard, playerRank } from './Ranking.js';
 import { Camera } from '../render/Camera.js';
 import { Particles } from '../render/Particles.js';
 import { clamp, clamp01, damp, lerp } from '../core/math.js';
 import { toMm, formatMm, utcDayKey } from '../ui/format.js';
 import { t } from '../ui/i18n.js';
-import { EVENTS } from '../telemetry/Telemetry.js';
+import { EVENTS, classifyResult } from '../telemetry/Telemetry.js';
 import { now } from '../core/Loop.js';
 
 const SHOT = { IDLE: 'idle', CHARGING: 'charging', LIVE: 'live', RESULT: 'result' };
@@ -58,18 +58,28 @@ export class Game {
     this.dustCarry = 0;
     this.paused = false;
     this.forced = { surfaceId: null, objectId: null, rivalMm: null, disableFx: false };
+
+    /** Validated URL config (tester links). Never touches physics. */
+    this.launch = deps.launch || null;
+    /** { rivals, targetName, source } resolved from the link or the JSON config. */
+    this.rivalPlan = deps.rivalPlan || null;
   }
 
   // =================================================================== MODES
   startMode(modeId, opts = {}) {
     const mode = GameConfig.modes[modeId] || GameConfig.modes.quick;
     const challenge = this._challengeForMode(modeId, opts);
-    const rivals = rivalsFor(challenge);
+    const rivals = this._rivalsFor(challenge);
 
     const prevBest = this._storedBest(challenge.id);
     let target = null;
-    if (modeId === 'beat') {
-      target = opts.rival || targetRival(rivals, prevBest) || rivals[0];
+    const named = this.rivalPlan && this.rivalPlan.targetName
+      ? findRival(rivals, this.rivalPlan.targetName)
+      : null;
+    if (named) {
+      target = named;
+    } else if (modeId === 'beat') {
+      target = opts.rival || targetRival(rivals, prevBest) || rivals[0] || null;
     } else {
       target = targetRival(rivals, prevBest);
     }
@@ -91,7 +101,13 @@ export class Game {
     this.challenge = challenge;
     this.screen = 'game';
 
-    this.tel.log(EVENTS.MODE_START, { mode: modeId, challenge: challenge.id });
+    this.tel.setContext({
+      challengeId: challenge.id,
+      mode: modeId,
+      arm: rivals.length ? 'rival' : 'solo',
+      rivals: rivals.map((r) => ({ name: r.name, mm: +r.mm.toFixed(4), real: !!r.real })),
+    });
+    this.tel.log(EVENTS.MODE_START, { mode: modeId, challenge: challenge.id, arm: rivals.length ? 'rival' : 'solo' });
     this.tel.log(EVENTS.CHALLENGE_START, {
       challenge: challenge.id, surface: challenge.surfaceId,
       object: challenge.objectId, mutator: challenge.mutatorId, pe: +challenge.pe.toFixed(4),
@@ -101,12 +117,27 @@ export class Game {
     this.beginAttempt();
   }
 
+  /**
+   * Real tester scores replace the simulated roster; `solo` removes rivals
+   * altogether so the tester round can compare "alone" against "against Marc".
+   */
+  _rivalsFor(challenge) {
+    const plan = this.rivalPlan;
+    if (plan) {
+      if (plan.source === 'solo') return [];
+      if (plan.rivals && plan.rivals.length) return realRivals(challenge, plan.rivals);
+    }
+    return rivalsFor(challenge);
+  }
+
   _challengeForMode(modeId, opts) {
     if (opts.challenge) return opts.challenge;
+    // A tester link pins the setup: everybody on that link plays the same thing.
+    if (this.launch && this.launch.challengeId) {
+      return createChallenge(this.launch.challengeId, this._forcedOverrides());
+    }
     const s = this.save.data;
-    const force = {};
-    if (this.forced.surfaceId) force.surfaceId = this.forced.surfaceId;
-    if (this.forced.objectId) force.objectId = this.forced.objectId;
+    const force = this._forcedOverrides();
 
     if (modeId === 'daily') return createChallenge(dailyId(), force);
     if (modeId === 'beat') {
@@ -123,6 +154,13 @@ export class Game {
     return createChallenge(practiceId(s.practiceIndex || 1), force);
   }
 
+  _forcedOverrides() {
+    const force = {};
+    if (this.forced.surfaceId) force.surfaceId = this.forced.surfaceId;
+    if (this.forced.objectId) force.objectId = this.forced.objectId;
+    return force;
+  }
+
   nextSetup() {
     const s = this.save.data;
     s.practiceIndex = (s.practiceIndex || 1) + 1;
@@ -131,6 +169,8 @@ export class Game {
   }
 
   quit() {
+    // Walking away is data too: the pending result stays uncounted as a retry.
+    this.tel.abandonPending('quit');
     this.audio.stopCharge();
     this.audio.stopSlide();
     this.audio.stopTension();
@@ -297,12 +337,12 @@ export class Game {
     const m = this.match;
     if (!m) return;
     this.ui.hideResult();
+    // One funnel for every retry, so the attribution can never double count.
+    this.tel.noteRetry();
     if (m.finished) {
-      this.tel.log(EVENTS.RETRY, { attempt: m.attempt, run: 'new' });
       this.startMode(m.modeId);
       return;
     }
-    this.tel.log(EVENTS.RETRY, { attempt: m.attempt });
     this.beginAttempt();
   }
 
@@ -540,6 +580,7 @@ export class Game {
 
     // ---- Rival comparison -------------------------------------------------
     let beaten = [];
+    const activeTarget = m.target;
     let target = m.target;
     let stillLeads = null;
     if (res.valid) {
@@ -558,11 +599,54 @@ export class Game {
 
     const isChallengeBest = res.valid && (prevChallengeBest == null || res.marginM < prevChallengeBest - P.tieEpsilon);
     const isAllTimeBest = res.valid && (prevAllTime == null || res.marginM < prevAllTime - P.tieEpsilon);
+    // The very first shot of a profile is not a "NEW BEST" in any sense a player
+    // recognises. Beating something requires there to have been something.
+    const hadPreviousBest = prevAllTime != null || prevChallengeBest != null;
+
+    // ---- Telemetry: classify BEFORE retargeting, so the label matches what the
+    // player just experienced (spec 15/16).
+    const beatTarget = !!(activeTarget && res.valid && res.marginM < activeTarget.marginM);
+    const resultType = classifyResult({
+      fell: res.fell,
+      nearMiss: res.nearMiss,
+      hadTarget: !!activeTarget,
+      beatTarget,
+      isPersonalBest: res.valid && prevChallengeBest != null && res.marginM < prevChallengeBest,
+      hadPreviousBest: prevChallengeBest != null,
+    });
+    this.tel.recordAttempt({
+      attemptNumber: m.attempt,
+      mode: m.modeId,
+      challengeId: ch.id,
+      surface: ch.surfaceId,
+      object: ch.objectId,
+      mutator: ch.mutatorId,
+      holdDurationMs: Math.round(this.shot.holdMs),
+      releasePower: +this.shot.power.toFixed(5),
+      launchSpeed: +this.shot.v0.toFixed(5),
+      // Six decimals, not four: the tie epsilon is 0.0001 mm, so rounding the
+      // record to 4 dp would let a real difference disappear into "0.0000".
+      scoreMm: res.valid ? +res.mm.toFixed(6) : null,
+      pastEdgeMm: res.fell ? +res.overshootMm.toFixed(6) : null,
+      fell: res.fell,
+      nearMiss: !!res.nearMiss,
+      zone: res.zoneId,
+      rivalName: activeTarget ? activeTarget.name : null,
+      rivalScoreMm: activeTarget ? +activeTarget.mm.toFixed(6) : null,
+      beatRival: activeTarget ? beatTarget : null,
+      resultType,
+      timestamp: Date.now(),
+    });
+    this.tel.noteResult(resultType, { mm: res.valid ? +res.mm.toFixed(3) : null, zone: res.zoneId });
+    if (res.nearMiss) this.tel.log(EVENTS.NEAR_MISS, { pastMm: +res.overshootMm.toFixed(3) });
+    if (resultType === 'rival_loss') {
+      this.tel.log(EVENTS.RIVAL_LOSS, { rival: activeTarget.name, gapMm: +(res.mm - activeTarget.mm).toFixed(3) });
+    }
 
     this._commitStats(res, { isChallengeBest, isAllTimeBest, beaten, rank });
 
     // ---- Feedback ---------------------------------------------------------
-    this._resultFeedback(res, { isAllTimeBest, isChallengeBest, beaten, rank });
+    this._resultFeedback(res, { isAllTimeBest: isAllTimeBest && hadPreviousBest, isChallengeBest, beaten, rank });
 
     // Retarget for the next attempt: always somebody left to hunt.
     m.target = targetRival(m.rivals, m.best ? m.best.marginM : null);
@@ -593,7 +677,10 @@ export class Game {
     setTimeout(() => {
       if (this.shotState !== SHOT.RESULT) return;
       this.resultAt = now();
-      this.ui.showResult(this._resultPayload(res, { isAllTimeBest, isChallengeBest, beaten, stillLeads, rank, board }));
+      this.tel.markResultShown();
+      this.ui.showResult(this._resultPayload(res, {
+        isAllTimeBest, isChallengeBest, hadPreviousBest, beaten, stillLeads, rank, board,
+      }));
     }, showAt);
   }
 
@@ -651,6 +738,7 @@ export class Game {
       challenge: this.challenge,
       isAllTimeBest: info.isAllTimeBest,
       isChallengeBest: info.isChallengeBest,
+      hadPreviousBest: info.hadPreviousBest,
       beaten: info.beaten,
       stillLeads: info.stillLeads,
       target,

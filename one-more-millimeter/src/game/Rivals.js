@@ -88,6 +88,45 @@ export function rivalsBeatenBy(rivals, marginM, previousMarginM) {
   return rivals.filter((r) => r.marginM > marginM && r.marginM <= prev);
 }
 
+/** Colours for real testers, assigned by position so a name always looks the same
+ *  within one link. */
+const REAL_COLORS = ['#ff2fd0', '#59c2ff', '#3ddc97', '#ffd166', '#ff8a5b', '#c56bff'];
+
+/**
+ * Real tester scores, injected from a link or the JSON config, turned into board
+ * entries. They replace the simulated roster entirely — mixing invented people
+ * with real ones would poison the only measurement this milestone cares about.
+ *
+ * @param {object} challenge
+ * @param {Array<{name:string, mm:number}>} list already sanitised by LaunchConfig
+ */
+export function realRivals(challenge, list) {
+  return list
+    .map((r, i) => ({
+      id: `real-${r.name.toLowerCase().replace(/[^a-z0-9]/g, '') || i}`,
+      name: r.name.toUpperCase(),
+      rawName: r.name,
+      color: REAL_COLORS[i % REAL_COLORS.length],
+      isRival: true,
+      real: true,
+      marginM: r.mm / 1000,
+      mm: r.mm,
+      // They played this exact challenge, so their ghost throws the same object.
+      objectId: challenge.objectId,
+      power: powerForMargin(challenge, r.mm / 1000),
+      at: 0,
+      challengeId: challenge.id,
+    }))
+    .sort((a, b) => a.marginM - b.marginM);
+}
+
+/** Finds a named rival on a board, case-insensitively. */
+export function findRival(rivals, name) {
+  if (!name) return null;
+  const n = String(name).toLowerCase();
+  return rivals.find((r) => r.name.toLowerCase() === n || (r.rawName || '').toLowerCase() === n) || null;
+}
+
 /** Async-shaped so a real backend can slot straight in. */
 export async function fetchRivals(challenge) {
   return rivalsFor(challenge);
