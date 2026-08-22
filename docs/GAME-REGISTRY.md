@@ -9,15 +9,19 @@ Los números no se reutilizan nunca. El siguiente juego es el **008**.
 
 ## 001 — FLIGHT STRIKE
 
-- **Estado:** jugable, pero **no es la versión buena** — ver «Pendiente»
+- **Estado:** jugable, **versión canónica** (campaña M1–M20 + expansión)
 - **Ruta:** `max/001-flight-strike/`
 - **Zona:** PLAYZONE MAX
 - **Repo:** `terulet/strike-flight`
-- **Origen:** rama `claude/strike-flight-setup-7zx2b7` (`93b3a973`), intacta
-- **Ejecutar:** doble clic en `index.html`
-- **Plataforma:** un solo HTML, cero dependencias, sin conexión
-- **Gancho:** esquivar, disparar y no soltar. Cuatro mundos y naves propias
-- **Assets:** `art/naves/{kali,silvia,yoli}.png` (~650 KB)
+- **Origen:** rama `canonical/flight-strike-m20` (`fa1db20`)
+- **Ejecutar:** necesita servidor HTTP (carga `js/` y `audio/` por ruta relativa)
+- **Plataforma:** HTML + 10 módulos JS, cero dependencias
+- **Gancho:** esquivar, disparar y no soltar. 20 misiones, jefes y hangar
+- **Contenido:** campaña M1–M20, supervivencia, hangar, 5 chasis
+  (VX-9 TALON, AX-4 WARHAWK, CR-7 BULWARK, NX-11 WRAITH, SV-12 SOVEREIGN),
+  skins, emblemas, trails, ADMIN
+- **Assets:** 223 ficheros, ~101 MB (`art/`, `audio/musica/`, `audio/fuentes/`)
+- **Guardado:** `sf_save` y `sf_save_prev` en `localStorage`
 - **Copia, no fuente:** el contenido de `max/001-flight-strike/` lo genera
   `npm run sync-flight-strike` desde el repositorio del juego. No se edita a mano.
   Lo único que PLAYZONE añade es una línea que carga `max/_playzone/overlay.js`
@@ -25,13 +29,7 @@ Los números no se reutilizan nunca. El siguiente juego es el **008**.
 - **Tests:** `npm run verify-flight-strike-sync` compara huella a huella contra
   `build-info.json` y falla si destino y origen se separan.
   `npm run qa-flight-strike` compara el juego suelto y el de PLAYZONE en
-  iPhone, iPad y escritorio (lienzo, resolución interna, dpr y escala ESC).
-- **Pendiente:** la versión con **20 misiones y hangar** sigue sin estar en GitHub. El
-  autor la tiene en `C:\Users\TeRuLeT\Desktop\PROJECTES SOFTS\JOCS\strike-flight-repo`
-  (checkpoint `ffa041c`). Ya no hay que copiar nada a mano: en cuanto ese árbol
-  esté accesible, `npm run sync-flight-strike -- <ruta>` lo instala entero y
-  `verify` certifica que PLAYZONE ejecuta exactamente esa versión.
-  Lo que hay ahora es la mejor versión localizable en GitHub, nada más.
+  iPhone, iPad y escritorio (lienzo, resolución interna, dpr y escala).
 
 ## 002 — ONE MORE FLOOR
 

@@ -93,8 +93,8 @@ edita a mano.**
 
 ## Guardado
 
-El juego guarda en `localStorage` con claves `sf_*` (`sf_record`, `sf_nave`,
-`sf_naves`, `sf_tema`).
+El juego guarda en `localStorage` con claves `sf_*` (`sf_save` y
+`sf_save_prev`, la copia de seguridad de la partida anterior).
 
 `localStorage` va **por origen, no por ruta**. En un mismo dominio, la
 portada de PLAYZONE, el catálogo MAX y el juego comparten el mismo almacén:
@@ -110,8 +110,8 @@ y a `/`. Consecuencias:
 
 ## Audio en iOS
 
-El juego crea el `AudioContext` en el primer `pointerdown` sobre el lienzo,
-que es lo que exige Safari. El overlay de PLAYZONE **no** intercepta ese
+El juego crea el `AudioContext` en el primer gesto del usuario, que es lo
+que exige Safari. El overlay de PLAYZONE **no** intercepta ese
 gesto: escucha en captura pero no llama a `preventDefault` ni corta la
 propagación. Comprobado con la política de autoplay estricta: sin contexto
 antes del gesto, `running` después.

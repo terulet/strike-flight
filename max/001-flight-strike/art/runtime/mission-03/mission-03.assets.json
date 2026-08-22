@@ -1,0 +1,27 @@
+{
+  "mission": "03",
+  "name": "RED DE DEFENSA",
+  "theme": "neon",
+  "mechanics": ["defensas_fijas"],
+  "assets": {
+    "fondo": { "id": "f_neon", "src": "art/fondos/neon.png", "loader": "cargarImagen" },
+    "enemigos": {
+      "normal":        { "id": "e_normal",        "src": "art/enemigos/normal.png" },
+      "francotirador": { "id": "e_francotirador", "src": "art/enemigos/francotirador.png" },
+      "veloz":         { "id": "e_veloz",         "src": "art/enemigos/veloz.png" },
+      "torreta":       { "id": "e_torreta",       "src": "art/enemigos/torreta.png" },
+      "bombardero":    { "id": "e_bombardero",    "src": "art/enemigos/bombardero.png" },
+      "tanque":        { "id": "e_tanque",        "src": "art/enemigos/tanque.png" },
+      "kamikaze":      { "id": "e_kamikaze",      "src": "art/enemigos/kamikaze.png" },
+      "portaescudos":  { "id": "e_portaescudos",  "src": "art/enemigos/portaescudos.png" }
+    },
+    "defensas": {
+      "torreta": { "id": "df_torreta", "src": "art/defensas/torreta_fija.png" },
+      "canon":   { "id": "df_canon",   "src": "art/defensas/canon_fijo.png" }
+    }
+  },
+  "targets": {
+    "asset_404": 0,
+    "fallbacks_active": 0
+  }
+}

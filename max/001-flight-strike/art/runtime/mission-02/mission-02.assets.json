@@ -1,0 +1,24 @@
+{
+  "mission": "02",
+  "name": "CINTURÓN DE ASTEROIDES",
+  "theme": "volcan",
+  "mechanics": ["hazard_asteroid"],
+  "assets": {
+    "fondo": { "id": "f_volcan", "src": "art/fondos/volcan.png", "loader": "cargarImagen" },
+    "enemigos": {
+      "veloz":      { "id": "e_veloz",      "src": "art/enemigos/veloz.png" },
+      "kamikaze":   { "id": "e_kamikaze",   "src": "art/enemigos/kamikaze.png" },
+      "normal":     { "id": "e_normal",     "src": "art/enemigos/normal.png" },
+      "tanque":     { "id": "e_tanque",     "src": "art/enemigos/tanque.png" },
+      "bombardero": { "id": "e_bombardero", "src": "art/enemigos/bombardero.png" }
+    },
+    "hazards": {
+      "asteroide":  { "id": "hz_asteroide",  "src": "art/hazards/asteroide.png" },
+      "asteroide2": { "id": "hz_asteroide2", "src": "art/hazards/asteroide2.png" }
+    }
+  },
+  "targets": {
+    "asset_404": 0,
+    "fallbacks_active": 0
+  }
+}

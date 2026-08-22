@@ -45,11 +45,23 @@ export const EXTENSIONES_FUERA = [
 ];
 
 // LEEME.txt y compañía: documentación en texto plano.
-export const NOMBRES_FUERA = [/^leeme/i, /^readme/i, /^auditoria/i, /^changelog/i, /^licen[cs]e/i];
+export const NOMBRES_FUERA = [/^leeme/i, /^readme/i, /^auditoria/i, /^changelog/i];
+
+// ── Lo que se copia SIEMPRE, gane quien gane ──────────────
+//  Las licencias y atribuciones de terceros viajan con el juego: el
+//  build se publica, y publicar los assets de otros sin su licencia
+//  al lado no es una opción. Esto manda sobre cualquier exclusión,
+//  incluida la de los .md.
+export const SIEMPRE_DENTRO = [
+  /licen[cs]e/i, /licencia/i, /third[_-]?party/i,
+  /attribution/i, /cr[eé]dito?s/i, /credits/i,
+];
 
 export function seExcluye(rel) {
   const partes = rel.split(sep);
   const nombre = partes[partes.length - 1];
+
+  for (const re of SIEMPRE_DENTRO) if (re.test(nombre)) return null;
 
   for (const p of partes.slice(0, -1)) if (CARPETAS_FUERA.has(p)) return `carpeta/${p}`;
   if (CARPETAS_FUERA.has(nombre)) return `carpeta/${nombre}`;

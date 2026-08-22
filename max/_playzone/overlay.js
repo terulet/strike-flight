@@ -34,12 +34,16 @@
     "  position:fixed; z-index:2147483000;",
     "  top:calc(12px + env(safe-area-inset-top));",
     "  left:calc(12px + env(safe-area-inset-left));",
-    "  padding:8px 14px 8px 11px; border-radius:999px;",
+    // Redondo y pequeño a propósito: los juegos pintan su titulo de
+    // pantalla centrado y arriba, y una pastilla con texto se le come
+    // el principio. 38 px en la esquina no le quitan sitio a nada.
+    "  width:38px; height:38px; border-radius:50%;",
+    "  display:flex; align-items:center; justify-content:center;",
     "  border:1px solid rgba(255,255,255,.18);",
     "  background:rgba(8,8,16,.66); color:#d4cfe6;",
     "  text-decoration:none; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);",
-    "  font:700 11.5px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;",
-    "  letter-spacing:.14em; white-space:nowrap;",
+    "  font:700 19px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;",
+    "  padding-bottom:2px;",
     "  -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;",
     "  transition:opacity .22s ease, transform .22s ease;",
     "}",
@@ -54,7 +58,8 @@
   boton.id = "pzVolver";
   boton.href = DESTINO;
   boton.setAttribute("aria-label", "Volver a PLAYZONE MAX");
-  boton.textContent = "‹  PLAYZONE MAX";
+  boton.setAttribute("title", "Volver a PLAYZONE MAX");
+  boton.textContent = "‹";
 
   function montar() {
     document.head.appendChild(css);
