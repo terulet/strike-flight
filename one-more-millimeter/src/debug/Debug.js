@@ -99,25 +99,13 @@ export class Debug {
   }
 }
 
-export function debugEnabled() {
+/**
+ * URL parsing lives in LaunchConfig; this only adds the sticky localStorage flag,
+ * so a tester can be told "type this once" instead of keeping ?debug=1 on the URL.
+ */
+export function debugEnabled(launch) {
+  if (launch && launch.debug) return true;
   try {
-    const q = new URLSearchParams(location.search);
-    if (q.get('debug') === '1' || q.has('debug')) return true;
     return localStorage.getItem('omm.debug') === '1';
   } catch (e) { return false; }
-}
-
-/** URL overrides for reproducing a report: ?surface=ice&object=phone&pe=0.7 */
-export function urlOverrides() {
-  try {
-    const q = new URLSearchParams(location.search);
-    const out = {};
-    if (q.get('surface')) out.surfaceId = q.get('surface');
-    if (q.get('object')) out.objectId = q.get('object');
-    if (q.get('pe')) out.pe = Number(q.get('pe'));
-    if (q.get('challenge')) out.challengeId = q.get('challenge');
-    if (q.get('mode')) out.mode = q.get('mode');
-    if (q.get('lang')) out.lang = q.get('lang');
-    return out;
-  } catch (e) { return {}; }
 }

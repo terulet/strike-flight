@@ -207,6 +207,27 @@ body { position: fixed; inset: 0; overflow: hidden; }
 }
 .link-btn:active { color: var(--ink); }
 
+/* ------------------------------------------------------------ ONBOARDING */
+.onboard {
+  justify-content: center; align-items: center;
+  padding: calc(var(--safe-t) + 24px) calc(var(--safe-r) + 22px)
+           calc(var(--safe-b) + 24px) calc(var(--safe-l) + 22px);
+  background: radial-gradient(120% 70% at 50% 30%, rgba(56,232,255,0.10), rgba(4,5,8,0.92) 70%);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.onboard-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+.onboard-title { margin: 0; font-size: clamp(24px, 8vw, 34px); font-weight: 900; letter-spacing: -0.02em; }
+.onboard-sub { margin: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.2em; color: var(--ink-faint); }
+.onboard-input {
+  width: 100%; min-height: 56px; padding: 14px 18px; border-radius: 16px;
+  background: rgba(255,255,255,0.07); border: 1px solid var(--line); color: var(--ink);
+  font-family: var(--font); font-size: 20px; font-weight: 900; letter-spacing: 0.08em;
+  text-align: center; outline: none;
+}
+.onboard-input::placeholder { color: var(--ink-faint); letter-spacing: 0.2em; font-size: 15px; }
+.onboard-input:focus { border-color: rgba(56,232,255,0.55); background: rgba(56,232,255,0.08); }
+.btn[disabled] { opacity: 0.35; }
+
 /* --------------------------------------------------------------- MODALS */
 .modal { background: rgba(4,5,8,0.72); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   justify-content: center; padding: calc(var(--safe-t) + 20px) 16px calc(var(--safe-b) + 20px); }
@@ -241,6 +262,16 @@ body { position: fixed; inset: 0; overflow: hidden; }
   font-weight: 900; letter-spacing: 0.16em; min-width: 62px; cursor: pointer;
 }
 .toggle.on { background: rgba(56,232,255,0.18); border-color: rgba(56,232,255,0.5); color: var(--accent); }
+
+/* --------------------------------------------------------- TESTER REPORT */
+.report-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.report-actions .btn { width: 100%; }
+.report-fallback {
+  width: 100%; min-height: 120px; margin-top: 10px; padding: 10px; border-radius: 12px;
+  background: rgba(0,0,0,0.5); color: var(--ink-dim); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 10px; resize: vertical;
+  -webkit-user-select: text; user-select: text;
+}
 
 /* ---------------------------------------------------------------- TOAST */
 .toast {

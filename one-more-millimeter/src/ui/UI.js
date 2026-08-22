@@ -9,6 +9,7 @@ import { getObject } from '../config/objects.js';
 import { buildBoard, playerRank } from '../game/Ranking.js';
 import { createChallenge, dailyId } from '../game/Challenge.js';
 import { clamp01 } from '../core/math.js';
+import { NAME_MAX, sanitizeName } from '../game/Player.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,7 +34,11 @@ export class UI {
       btnPrimary: $('btn-primary'), btnSecondary: $('btn-secondary'), btnShare: $('btn-share'),
       homeBest: $('home-best'), homeToday: $('home-today'),
       modalTitle: $('modal-title'), modalBody: $('modal-body'),
+      onboard: $('onboard'), onboardForm: $('onboard-form'), onboardInput: $('onboard-input'),
+      onboardPlay: $('onboard-play'),
     };
+    /** Injected by main: everything the tester report needs. */
+    this.tester = deps.tester || null;
     this._flashTimer = 0;
     this._toastTimer = 0;
     this._resetArmed = false;
@@ -70,9 +75,43 @@ export class UI {
 
   click() { this.audio.unlock(); this.audio.play('ui'); this.haptics.buzz(6); }
 
+  // ------------------------------------------------------------- ONBOARDING
+  /**
+   * Two taps and you are in: type a name, press PLAY. Nothing else is asked, and
+   * nothing else is stored (spec 3/4).
+   */
+  showOnboarding(onDone) {
+    const el = this.el;
+    el.onboardInput.value = '';
+    el.onboardInput.setAttribute('maxlength', String(NAME_MAX));
+    el.onboard.hidden = false;
+    this.el.home.hidden = true;
+    const validate = () => {
+      const ok = !!sanitizeName(el.onboardInput.value);
+      el.onboardPlay.disabled = !ok;
+      return ok;
+    };
+    el.onboardInput.addEventListener('input', validate);
+    el.onboardForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!validate()) return;
+      const name = sanitizeName(el.onboardInput.value);
+      el.onboard.hidden = true;
+      this.el.home.hidden = false;
+      this.click();
+      onDone(name);
+    });
+    validate();
+    setTimeout(() => { try { el.onboardInput.focus(); } catch (e) { /* ignore */ } }, 120);
+  }
+
   applyLanguage() {
     setLanguage(this.save.data.settings.lang);
     document.documentElement.lang = getLanguage();
+    $('onboard-title').textContent = t('onboard.title');
+    $('onboard-sub').textContent = t('onboard.sub');
+    this.el.onboardInput.setAttribute('placeholder', t('onboard.placeholder'));
+    this.el.onboardPlay.textContent = t('onboard.play');
     $('title1').textContent = t('app.title1');
     $('title2').textContent = t('app.title2');
     $('tagline').textContent = t('home.tagline');
@@ -128,6 +167,8 @@ export class UI {
     el.finalShot.hidden = !info.finalShot;
     if (info.target) {
       el.targetChip.hidden = false;
+      // A real person you are hunting gets the imperative: BEAT MARC.
+      el.targetLabel.textContent = info.target.real ? t('hud.beat') : t('hud.target');
       el.targetName.textContent = info.target.name;
       el.targetValue.textContent = `${formatMm(info.target.mm)} mm`;
       el.targetName.style.color = info.target.color;
@@ -365,14 +406,144 @@ export class UI {
         row.append(l, b);
         body.appendChild(row);
       }
+      // Name (spec 3: changeable, but never in the way)
+      const nameRow = document.createElement('div');
+      nameRow.className = 'row';
+      const nl = document.createElement('span'); nl.textContent = t('set.name');
+      const nb = document.createElement('button');
+      nb.className = 'toggle';
+      nb.textContent = (this.save.data.player && this.save.data.player.name) || t('set.change');
+      nb.addEventListener('click', () => {
+        this.click();
+        this.closeModal();
+        this.showOnboarding((name) => {
+          this.actions.nameSet && this.actions.nameSet(name);
+          this.openSettings();
+        });
+      });
+      nameRow.append(nl, nb);
+      body.appendChild(nameRow);
+
+      // Test report — discreet, but always reachable without DevTools (spec 11)
+      const repRow = document.createElement('div');
+      repRow.className = 'row';
+      const rl = document.createElement('span'); rl.textContent = t('set.report');
+      const rb = document.createElement('button');
+      rb.className = 'toggle';
+      rb.textContent = t('report.copy').split(' ')[0];
+      rb.addEventListener('click', () => { this.click(); this.openReport(); });
+      repRow.append(rl, rb);
+      body.appendChild(repRow);
+
       const hint = document.createElement('div');
       hint.className = 'rank-sub';
       hint.style.marginTop = '14px';
-      hint.textContent = `${t('set.keys')} · v${GameConfig.version}`;
+      hint.textContent = this.tester ? this.tester.versionLine() : `${t('set.keys')} · v${GameConfig.version}`;
       body.appendChild(hint);
     });
   }
 }
+
+/** Renders the tester report: summary rows first, then the three actions. */
+UI.prototype.openReport = function openReport() {
+  const api = this.tester;
+  if (!api) return;
+  api.opened();
+  this.openModal(t('report.title'), (body) => {
+    const payload = api.buildReport();
+    const s = payload.currentSummary;
+    const pct = (v) => (v == null ? t('report.na') : `${Math.round(v * 100)}%`);
+    const dur = (ms) => {
+      if (!Number.isFinite(ms)) return t('report.na');
+      const sec = Math.round(ms / 1000);
+      return `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, '0')}s`;
+    };
+
+    const head = document.createElement('div');
+    head.className = 'rank-sub';
+    head.textContent = `${t('report.player')}: ${(payload.player && payload.player.name) || '--'} · ${s ? s.arm.toUpperCase() : '--'}`;
+    body.appendChild(head);
+
+    const rows = s ? [
+      [t('report.duration'), dur(s.durationMs)],
+      [t('report.attempts'), s.attempts],
+      [t('report.falls'), s.falls],
+      [t('report.nearMiss'), s.nearMissFalls],
+      [t('report.best'), s.bestMm == null ? '--' : `${formatMm(s.bestMm)} mm`],
+      [t('report.retryFall'), pct(s.retryAfterFall), true],
+      [t('report.retryRivalLoss'), pct(s.retryAfterRivalLoss), true],
+      [t('report.retryRivalWin'), pct(s.retryAfterRivalWin)],
+      [t('report.retryNormal'), pct(s.retryAfterNormalStop)],
+      [t('report.rivalsBeaten'), s.rivalsBeaten],
+      [t('report.personalBests'), s.personalBests],
+      [t('report.sessions'), payload.aggregate ? payload.aggregate.sessions : 1],
+    ] : [[t('report.thisSession'), t('report.na')]];
+
+    for (const [label, value, hot] of rows) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const l = document.createElement('span'); l.textContent = label;
+      const v = document.createElement('span'); v.className = `val${hot ? ' hot' : ''}`; v.textContent = String(value);
+      row.append(l, v);
+      body.appendChild(row);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'report-actions';
+    const mkBtn = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.className = `btn ${cls}`;
+      b.textContent = label;
+      b.addEventListener('click', () => fn(b));
+      actions.appendChild(b);
+      return b;
+    };
+
+    const fallbackBox = document.createElement('textarea');
+    fallbackBox.className = 'report-fallback';
+    fallbackBox.readOnly = true;
+    fallbackBox.hidden = true;
+
+    const showFallback = (text) => {
+      fallbackBox.value = text;
+      fallbackBox.hidden = false;
+      fallbackBox.focus();
+      fallbackBox.select();
+      this.showToast(t('report.title'), t('report.copyFailed'), 4000);
+    };
+
+    mkBtn(t('report.copy'), 'btn-primary', async (b) => {
+      const res = await api.copyReport(showFallback);
+      if (res === 'clipboard') {
+        b.textContent = t('report.copied');
+        this.showToast(t('report.title'), t('report.copied'), 1600);
+        setTimeout(() => { b.textContent = t('report.copy'); }, 1800);
+      }
+    });
+    if (api.canShare()) mkBtn(t('report.share'), 'btn-ghost', () => api.shareReport());
+    mkBtn(t('report.bug'), 'btn-ghost', async (b) => {
+      const res = await api.copyBugInfo(showFallback);
+      if (res === 'clipboard') this.showToast(t('report.title'), t('report.copied'), 1400);
+    });
+
+    let armed = false;
+    mkBtn(t('report.clear'), 'btn-ghost', (b) => {
+      if (!armed) { armed = true; b.textContent = t('report.clearConfirm'); return; }
+      api.clearTestData();
+      this.closeModal();
+      this.showToast(t('report.title'), t('report.cleared'), 2000);
+    });
+
+    body.appendChild(actions);
+    body.appendChild(fallbackBox);
+
+    const build = document.createElement('div');
+    build.className = 'rank-sub';
+    build.style.marginTop = '12px';
+    build.textContent = api.versionLine();
+    body.appendChild(build);
+  });
+};
 
 function todayKey() {
   const d = new Date();
@@ -408,13 +579,15 @@ export function resultCopy(p) {
   const beatenTarget = target && r.marginM < target.marginM;
   const wasBeaten = p.beaten && p.beaten.length ? p.beaten[0] : null;
 
-  if (p.isAllTimeBest) {
+  // A rival who is still ahead outranks a personal milestone in the copy: that is
+  // the thing the player is actually thinking about.
+  if (p.isAllTimeBest && p.hadPreviousBest) {
     out.sub = t('result.newBest');
     out.subClass = 'best';
   } else if (wasBeaten) {
     out.sub = t('result.beaten', { name: wasBeaten.name, d: formatMm(wasBeaten.mm - r.mm) });
     out.subClass = 'beaten';
-  } else if (p.isChallengeBest) {
+  } else if (p.isChallengeBest && p.hadPreviousBest && !p.stillLeads) {
     out.sub = t('result.newRecord');
     out.subClass = 'best';
   } else if (p.stillLeads) {
