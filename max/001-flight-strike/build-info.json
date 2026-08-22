@@ -1,0 +1,24 @@
+{
+  "_comentario": [
+    "Generado por tools/flight-strike/sync.mjs. NO editar a mano.",
+    "El juego de max/001-flight-strike es una copia del repositorio canónico.",
+    "Para cambiar el juego se cambia el ORIGEN y se vuelve a sincronizar."
+  ],
+  "origen": {
+    "etiqueta": "PROVISIONAL — git terulet/strike-flight@93b3a97 (rama claude/strike-flight-setup-7zx2b7). NO es el build canonico M1-M20 de strike-flight-repo; sustituir en cuanto ese arbol este disponible.",
+    "ruta": "/tmp/claude-0/-home-user-strike-flight/577e12ed-0b78-5e02-9726-daef0334e727/scratchpad/canonico",
+    "commit": "93b3a97308402951473c41ec0372f2ca7f6671e4",
+    "asunto": "Escalar tamaños y velocidades con la pantalla",
+    "arbolSucio": false
+  },
+  "sincronizado": "2026-08-22T21:36:04.067Z",
+  "overlay": "<script src=\"../_playzone/overlay.js\" defer></script>",
+  "indexOrigenSha": "e8c9d0514b077aa29304d0378b04f788143e4dd87a72e5af938d816c265ccdc8",
+  "ficheros": {
+    ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "art/naves/kali.png": "2fad2b37e14c9530bf51835a1c43d035ce983d46077bc29f501f69a658e877f3",
+    "art/naves/silvia.png": "66a1eb2a8d1f787c1fb7b6106c247df39eb7e5a307039cbccafae305cbfb6a4f",
+    "art/naves/yoli.png": "1546015501f144ec8ee45bea0c996e25493219d18c06a6f464f69781c73fbcec",
+    "index.html": "e8c9d0514b077aa29304d0378b04f788143e4dd87a72e5af938d816c265ccdc8"
+  }
+}

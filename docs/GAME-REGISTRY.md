@@ -15,13 +15,22 @@ Los números no se reutilizan nunca. El siguiente juego es el **008**.
 - **Repo:** `terulet/strike-flight`
 - **Origen:** rama `claude/strike-flight-setup-7zx2b7` (`93b3a973`), intacta
 - **Ejecutar:** doble clic en `index.html`
-- **Tests:** ninguno
 - **Plataforma:** un solo HTML, cero dependencias, sin conexión
 - **Gancho:** esquivar, disparar y no soltar. Cuatro mundos y naves propias
-- **Assets:** `art/naves/{kali,silvia,yoli}.png` (~650 KB) y `herramientas/recortar.mjs`
-- **Pendiente:** la versión con **20 misiones y hangar** no está en GitHub. El autor la
-  tiene en `C:\Users\TeRuLeT\Desktop\PROJECTES SOFTS\JOCS`. Hay que subirla a una rama
-  de `strike-flight` y sustituir con ella el contenido de `max/001-flight-strike/`.
+- **Assets:** `art/naves/{kali,silvia,yoli}.png` (~650 KB)
+- **Copia, no fuente:** el contenido de `max/001-flight-strike/` lo genera
+  `npm run sync-flight-strike` desde el repositorio del juego. No se edita a mano.
+  Lo único que PLAYZONE añade es una línea que carga `max/_playzone/overlay.js`
+  (el botón de volver). Ver `docs/FLIGHT-STRIKE-SYNC.md`.
+- **Tests:** `npm run verify-flight-strike-sync` compara huella a huella contra
+  `build-info.json` y falla si destino y origen se separan.
+  `npm run qa-flight-strike` compara el juego suelto y el de PLAYZONE en
+  iPhone, iPad y escritorio (lienzo, resolución interna, dpr y escala ESC).
+- **Pendiente:** la versión con **20 misiones y hangar** sigue sin estar en GitHub. El
+  autor la tiene en `C:\Users\TeRuLeT\Desktop\PROJECTES SOFTS\JOCS\strike-flight-repo`
+  (checkpoint `ffa041c`). Ya no hay que copiar nada a mano: en cuanto ese árbol
+  esté accesible, `npm run sync-flight-strike -- <ruta>` lo instala entero y
+  `verify` certifica que PLAYZONE ejecuta exactamente esa versión.
   Lo que hay ahora es la mejor versión localizable en GitHub, nada más.
 
 ## 002 — ONE MORE FLOOR
