@@ -94,16 +94,18 @@ test('reset wipes everything', () => {
   assert.equal(new Save(mem).data.records.bestM, null);
 });
 
-test('telemetry buffers, rolls up and never throws through a bad sink', () => {
-  const tel = new Telemetry({ max: 5 });
+test('telemetry never throws through a bad sink and caps its own storage', () => {
+  const tel = new Telemetry({ caps: { sessions: 2, events: 5, attempts: 3 } });
   tel.addSink(() => { throw new Error('sink exploded'); });
+  tel.beginSession({ playerName: 'A' });
   for (let i = 0; i < 8; i++) tel.log(EVENTS.SHOT_RELEASE, { i });
-  tel.log(EVENTS.SHOT_FALL, {});
-  assert.equal(tel.buffer.length, 5);
-  const s = tel.summary();
-  assert.equal(s.shots, 8);
-  assert.equal(s.falls, 1);
-  assert.ok(Math.abs(s.fallRate - 1 / 8) < 1e-9);
+  assert.equal(tel.session.events.length, 5);
+  assert.ok(tel.session.droppedEvents > 0);
+  for (let i = 0; i < 6; i++) tel.recordAttempt({ attemptNumber: i, scoreMm: 1, fell: false });
+  assert.equal(tel.session.attempts.length, 3);
+  tel.beginSession({ playerName: 'B' });
+  tel.beginSession({ playerName: 'C' });
+  assert.equal(tel.sessions.length, 2, 'oldest session is dropped');
 });
 
 test('every language is complete', () => {

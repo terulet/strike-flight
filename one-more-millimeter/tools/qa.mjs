@@ -16,15 +16,22 @@ const check = (name, ok, extra = '') => {
 
 const browser = await chromium.launch();
 
+/** Every check that is not ABOUT onboarding skips it with ?name=. */
+function withName(url, name = 'QA') {
+  if (/[?&]name=/.test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'name=' + name;
+}
+
 async function newPage(url = BASE, opts = {}) {
   const page = await browser.newPage({
     viewport: opts.viewport || { width: 393, height: 852 },
     deviceScaleFactor: opts.dsf || 2,
     hasTouch: true, isMobile: true,
+    permissions: opts.permissions,
   });
   page.on('pageerror', (e) => errors.push(`${url} :: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${url} :: console ${m.text()}`); });
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(opts.raw ? url : withName(url), { waitUntil: 'networkidle' });
   await page.waitForTimeout(350);
   return page;
 }
@@ -227,6 +234,228 @@ console.log('\n  ONE MORE MILLIMETER — automated QA\n');
     check(`${s.name} ${s.width}x${s.height}`, m.w === s.width && m.h === s.height && !m.overflow && m.meterW > 100, `canvas ${m.w}x${m.h}`);
     await page.close();
   }
+}
+
+// ============================================================ TESTER BUILD ==
+
+// ------------------------------------------------------ 11. name onboarding
+{
+  const page = await newPage(BASE, { raw: true });
+  const shown = await page.isVisible('#onboard');
+  const disabledBefore = await page.locator('#onboard-play').isDisabled();
+  await page.fill('#onboard-input', '  Eloi <b>  ');
+  const enabled = !(await page.locator('#onboard-play').isDisabled());
+  await page.click('#onboard-play');
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => ({
+    hidden: document.getElementById('onboard').hidden,
+    name: window.OMM.save.data.player.name,
+    id: window.OMM.save.data.player.id,
+  }));
+  check('name onboarding gates the first run', shown && disabledBefore && enabled && after.hidden);
+  check('the name is sanitised on the way in', after.name === 'Eloi b' || !/[<>]/.test(after.name), `stored "${after.name}"`);
+  check('a player id is generated', after.id.length >= 20);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+  const persisted = await page.evaluate(() => ({
+    onboard: document.getElementById('onboard').hidden,
+    name: window.OMM.save.data.player.name,
+  }));
+  check('the name persists and onboarding does not come back', persisted.onboard && !!persisted.name, persisted.name);
+  await page.close();
+}
+
+// --------------------------------------------------- 12. rival from the link
+{
+  const page = await newPage(BASE + '?tester=1&challenge=qa01&rival=Marc&score=1.42&target=Marc');
+  await page.waitForTimeout(400);
+  const st = await page.evaluate(() => {
+    const g = window.OMM.game;
+    return {
+      source: window.OMM.rivalPlan.source,
+      started: g.screen === 'game',
+      target: g.match && g.match.target ? { name: g.match.target.name, mm: g.match.target.mm, real: !!g.match.target.real } : null,
+      challenge: g.challenge.id,
+      arm: window.OMM.telemetry.session.arm,
+      chipName: document.getElementById('hud-target-name').textContent,
+      chipValue: document.getElementById('hud-target-value').textContent,
+      ghosts: g._ghosts().length,
+    };
+  });
+  check('a link injects the real rival and hunts them',
+    st.source === 'link' && st.target && st.target.name === 'MARC' && st.target.mm === 1.42 && st.target.real,
+    `${st.chipName} ${st.chipValue}`);
+  check('the link pins the challenge and starts the game', st.challenge === 'qa01' && st.started);
+  check('the session is tagged as the rival arm', st.arm === 'rival');
+  check('the rival ghost is on the platform', st.ghosts >= 1);
+  await page.close();
+}
+
+// ----------------------------------------------------------- 13. solo arm
+{
+  const page = await newPage(BASE + '?tester=1&solo=1&challenge=qa01&mode=quick');
+  await page.waitForTimeout(300);
+  const st = await page.evaluate(() => ({
+    rivals: window.OMM.game.match.rivals.length,
+    target: window.OMM.game.match.target,
+    arm: window.OMM.telemetry.session.arm,
+    chipHidden: document.getElementById('hud-target').hidden,
+  }));
+  check('solo removes every rival', st.rivals === 0 && !st.target && st.arm === 'solo');
+  await page.close();
+}
+
+// -------------------------------------------- 14. hostile link cannot break it
+{
+  const nasty = BASE + '?challenge=' + encodeURIComponent('<script>alert(1)</script>') +
+    '&rival=' + encodeURIComponent('<img src=x>') + '&score=-99&rivals=' + encodeURIComponent('a'.repeat(400)) +
+    '&mode=' + encodeURIComponent('"><b>') + '&pe=99';
+  const page = await newPage(nasty);
+  await page.waitForTimeout(400);
+  const st = await page.evaluate(() => ({
+    omm: !!window.OMM,
+    challenge: window.OMM.launch.challengeId,
+    rivals: window.OMM.launch.rivals.length,
+    invalid: window.OMM.launch.invalid.slice(),
+    html: document.body.innerHTML.includes('<script>alert'),
+  }));
+  check('a hostile link is neutralised and the game still boots',
+    st.omm && !st.html && st.rivals === 0 && !/[<>]/.test(String(st.challenge)),
+    `rejected: ${st.invalid.join(',')}`);
+  await page.close();
+}
+
+// ------------------------------------------- 15. retry attribution end to end
+{
+  const page = await newPage(BASE + '?tester=1&challenge=qa02&rival=Marc&score=0.30&target=Marc&mode=quick');
+  const pe = await page.evaluate(() => window.OMM.game.challenge.pe);
+  // A shot that loses to Marc, then a retry.
+  await shoot(page, pe * 0.6);
+  await page.evaluate(() => window.OMM.game.advance());
+  await page.waitForTimeout(120);
+  // A fall, then a retry.
+  await shoot(page, 1);
+  await page.evaluate(() => window.OMM.game.advance());
+  await page.waitForTimeout(120);
+  // A loss with no retry: quit instead.
+  await shoot(page, pe * 0.6);
+  await page.evaluate(() => window.OMM.game.quit());
+  await page.waitForTimeout(150);
+  const s = await page.evaluate(() => window.OMM.telemetry.summary());
+  check('retry after rival loss is counted separately from retry after fall',
+    s.results.rival_loss === 2 && s.retries.rival_loss === 1 && s.retryAfterRivalLoss === 0.5 &&
+    s.retries.fall === 1,
+    `rivalLoss ${s.retries.rival_loss}/${s.results.rival_loss}, fall ${s.retries.fall}/${s.results.fall}`);
+  check('quitting is not counted as a retry', s.retryAfterRivalLoss === 0.5);
+  check('every attempt is recorded', s.attempts === 3, `${s.attempts} attempts`);
+  await page.close();
+}
+
+// ------------------------------------------------------- 16. the test report
+{
+  const page = await newPage(BASE + '?tester=1&challenge=qa03&rival=Marc&score=1.0&mode=quick', {
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
+  const pe = await page.evaluate(() => window.OMM.game.challenge.pe);
+  await shoot(page, pe * 0.7);
+  await page.evaluate(() => window.OMM.game.advance());
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.OMM.game.quit());
+  await page.click('#btn-settings');
+  await page.waitForTimeout(200);
+  await page.locator('#modal-body .row', { hasText: 'TEST REPORT' }).locator('button').click();
+  await page.waitForTimeout(250);
+  const rows = (await page.locator('#modal-body .row').allTextContents()).join(' | ');
+  check('the report shows the retry rates by cause',
+    /RETRY AFTER RIVAL LOSS/.test(rows) && /RETRY AFTER FALL/.test(rows), rows.slice(0, 60) + '...');
+  await page.locator('#modal-body .btn-primary').click();
+  await page.waitForTimeout(400);
+  const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => ''));
+  let parsed = null;
+  try { parsed = JSON.parse(clip.split('----- JSON -----')[1].trim()); } catch (e) { /* stays null */ }
+  check('COPY TEST REPORT puts a valid payload on the clipboard',
+    !!parsed && parsed.schemaVersion === 1 && Array.isArray(parsed.sessions) && !!parsed.player.name,
+    `${clip.length} chars`);
+  check('the human summary is on top of the JSON', /^PLAYER:/.test(clip.trim()));
+  await page.close();
+}
+
+// ------------------------------------------------- 17. clipboard fallback path
+{
+  const page = await newPage(BASE + '?tester=1&report=1');
+  // Simulate iOS Safari refusing the clipboard entirely.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    document.execCommand = () => false;
+  });
+  await page.waitForTimeout(200);
+  await page.locator('#modal-body .btn-primary').click();
+  await page.waitForTimeout(300);
+  const fb = await page.evaluate(() => {
+    const ta = document.querySelector('.report-fallback');
+    return { visible: ta && !ta.hidden, len: ta ? ta.value.length : 0 };
+  });
+  check('a blocked clipboard falls back to selectable text, never loses the report',
+    fb.visible && fb.len > 200, `${fb.len} chars in the box`);
+  await page.close();
+}
+
+// -------------------------------------------- 18. clear test data is surgical
+{
+  const page = await newPage(BASE + '?tester=1&mode=quick');
+  const pe = await page.evaluate(() => window.OMM.game.challenge.pe);
+  await shoot(page, pe * 0.7);
+  await page.waitForTimeout(150);
+  const before = await page.evaluate(() => ({
+    best: window.OMM.save.data.records.bestM,
+    sessions: window.OMM.telemetry.sessions.length,
+  }));
+  await page.evaluate(() => window.OMM.tester.clearTestData());
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => ({
+    best: window.OMM.save.data.records.bestM,
+    name: window.OMM.save.data.player.name,
+    sessions: window.OMM.telemetry.sessions.length,
+  }));
+  check('CLEAR TEST DATA wipes telemetry and keeps the record',
+    before.best != null && after.best === before.best && !!after.name && after.sessions === 1,
+    `best ${after.best}, sessions ${after.sessions}`);
+  await page.close();
+}
+
+// ------------------------------------------------ 19. service worker updates
+{
+  const page = await newPage(BASE + '?mode=quick');
+  await page.waitForTimeout(1500);
+  const st = await page.evaluate(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    const keys = await caches.keys();
+    return {
+      registered: regs.length > 0,
+      controller: !!navigator.serviceWorker.controller,
+      caches: keys,
+      sessions: window.OMM.telemetry.sessions.length,
+    };
+  });
+  check('the service worker registers without a reload loop',
+    st.registered && st.controller && st.sessions === 1,
+    `${st.caches.join(',')} | ${st.sessions} session`);
+  check('the cache name is versioned', st.caches.every((k) => /^omm-v/.test(k)), st.caches.join(','));
+  await page.close();
+}
+
+// ------------------------------------------------------- 20. nocache recovery
+{
+  const page = await newPage(BASE);
+  await page.waitForTimeout(1200);
+  await page.goto(withName(BASE + '?nocache=1'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(800);
+  const st = await page.evaluate(async () => ({
+    omm: !!window.OMM,
+    caches: (await caches.keys()).length,
+  }));
+  check('?nocache=1 clears the caches and still boots', st.omm, `${st.caches} caches left`);
+  await page.close();
 }
 
 console.log('');

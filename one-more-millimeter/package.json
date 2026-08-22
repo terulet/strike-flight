@@ -11,7 +11,9 @@
     "harness": "node tools/harness.mjs",
     "harness:full": "node tools/harness.mjs --shots 4000 --all",
     "icons": "node tools/icons.mjs",
-    "shots": "node tools/screenshots.mjs"
+    "shots": "node tools/screenshots.mjs",
+    "qa": "node tools/qa.mjs",
+    "summarize": "node tools/summarize-tester-reports.mjs"
   },
   "engines": { "node": ">=18" },
   "dependencies": {},
