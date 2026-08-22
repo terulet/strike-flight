@@ -5,12 +5,14 @@
  * Every read is defensive: a broken payload must never stop the player from playing.
  */
 const KEY = 'omm.save.v1';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function defaultSave() {
   return {
     version: SAVE_VERSION,
     createdAt: 0,
+    /** Local identity for tester reports. Anonymous by construction. */
+    player: { id: '', name: '', createdAt: 0 },
     settings: {
       lang: 'en',
       sound: true,
@@ -91,6 +93,12 @@ const MIGRATIONS = {
     s.rivals = s.rivals || { beaten: [], seen: [] };
     s.unlocked = Array.isArray(s.unlocked) ? s.unlocked : ['puck'];
     s.version = 3;
+    return s;
+  },
+  3: (s) => {
+    // Tester build: an identity so a copied report can be attributed to a person.
+    if (!s.player || typeof s.player !== 'object') s.player = { id: '', name: '', createdAt: 0 };
+    s.version = 4;
     return s;
   },
 };

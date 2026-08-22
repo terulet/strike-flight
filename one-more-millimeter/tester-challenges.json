@@ -1,0 +1,14 @@
+{
+  "_comment": "Optional. Real tester scores keyed by challenge id, for groups you do not want to re-link every round. A link (?rival=...&score=...) always wins over this file. Delete the entries you do not use — an empty table just means the game uses its simulated rivals.",
+  "version": 1,
+  "challenges": {
+    "example-group": {
+      "label": "EXAMPLE GROUP",
+      "target": "Marc",
+      "rivals": [
+        { "name": "Marc", "scoreMm": 1.42 },
+        { "name": "Yoli", "scoreMm": 0.88 }
+      ]
+    }
+  }
+}
