@@ -230,16 +230,31 @@ function renderOvertake(app: App): HTMLElement | null {
     }),
   );
 
-  return el('div', { class: 'overtake' }, [
-    el('div', { class: 'overtake__title', text: `🔥 ${event.rivalName} TE HA QUITADO EL #1` }),
-    el('div', {
-      class: 'overtake__sub',
-      text: target
-        ? `+${formatScore(event.gap)} · Responde en ${spec?.title ?? ''} ${spec?.gameName ?? ''}: te faltan ${formatScore(
-            target.gap,
-          )}`
-        : `+${formatScore(event.gap)} · Sin intentos para responder hoy.`,
-    }),
+  // Este es el aviso que mas trabajo emocional hace de toda la app, asi que va
+  // en magenta -el color del pique- y con la distancia como cifra grande: el
+  // numero es lo que se queda en la cabeza, no la frase.
+  return el('div', { class: 'overtake', style: { '--emite': 'var(--magenta)' } }, [
+    el('div', { class: 'overtake__cabeza' }, [
+      el('div', { class: 'overtake__icono', text: '🔥' }),
+      el('div', {}, [
+        el('div', { class: 'overtake__title' }, [
+          el('span', { class: 'overtake__quien', text: event.rivalName }),
+          el('span', { text: ' TE HA QUITADO EL #1' }),
+        ]),
+        el('div', {
+          class: 'overtake__sub',
+          text: target
+            ? `Responde en ${spec?.title ?? ''} · ${spec?.gameName ?? ''}`
+            : 'Sin intentos para responder hoy.',
+        }),
+      ]),
+    ]),
+    target
+      ? el('div', { class: 'overtake__cifra' }, [
+          el('span', { class: 'overtake__cifra-num num', text: formatScore(target.gap) }),
+          el('span', { class: 'rotulo', text: 'TE FALTAN' }),
+        ])
+      : null,
     el('div', { class: 'overtake__row' }, actions),
   ]);
 }
@@ -268,13 +283,50 @@ function revengeTargetFor(app: App, rivalId: string, rivalName: string) {
   );
 }
 
+/**
+ * El bloque de evento del dia.
+ *
+ * Antes esto era un titulo con tres chips debajo. El problema no era que fuese
+ * feo: era que no decia lo unico que hace abrir la app, que es EN QUE PUESTO
+ * VAS y CUANTO TE FALTA. Ahora el puesto es el dato grande y la distancia al de
+ * arriba va al lado, porque "te faltan 148" es una frase que se puede accionar
+ * y "vas #5" no.
+ */
 function renderHero(app: App, board: Leaderboard): HTMLElement {
-  return el('div', { class: 'hero' }, [
+  const ahead = rivalAhead(board.standings);
+  const behind = rivalBehind(board.standings);
+  const lider = board.myRank === 1;
+
+  // El estado de una sola frase. Manda la distancia al de arriba; si no hay
+  // nadie arriba, manda la ventaja sobre el de abajo.
+  const estado = ahead
+    ? el('div', { class: 'heroe__estado' }, [
+        el('span', { class: 'heroe__estado-cifra num', text: `+${formatScore(ahead.gap)}` }),
+        el('span', { class: 'heroe__estado-texto', text: `PARA PASAR A ${ahead.entry.name}` }),
+      ])
+    : behind
+      ? el('div', { class: 'heroe__estado heroe__estado--oro' }, [
+          el('span', { class: 'heroe__estado-cifra num', text: formatScore(behind.gap) }),
+          el('span', { class: 'heroe__estado-texto', text: 'DE VENTAJA. AGUANTA.' }),
+        ])
+      : el('div', { class: 'heroe__estado' }, [
+          el('span', { class: 'heroe__estado-texto', text: 'JUEGA EL PRIMER RETO PARA ENTRAR' }),
+        ]);
+
+  return el('div', { class: 'hero heroe' }, [
+    el('div', { class: 'heroe__fila' }, [
+      el('span', { class: 'chip chip--vivo', style: { '--emite': 'var(--cian)' } }, [
+        el('span', { text: dayLabel(app.dayKey, app.clock.realDayKey()) }),
+      ]),
+      el('span', { class: 'rotulo', text: `${app.plan.challenges.length} RETOS · 3 INTENTOS` }),
+    ]),
     el('h1', { class: 'hero__title', html: 'RUSH <em>DE HOY</em>' }),
-    el('div', { class: 'hero__sub' }, [
-      el('span', { class: 'chip chip--brand', text: dayLabel(app.dayKey, app.clock.realDayKey()) }),
-      el('span', { class: 'chip chip--gold', text: `VAS #${board.myRank}` }),
-      el('span', { text: `${app.plan.challenges.length} RETOS · 3 INTENTOS` }),
+    el('div', { class: 'heroe__marcador' }, [
+      el('div', { class: `heroe__puesto${lider ? ' heroe__puesto--oro' : ''}` }, [
+        el('div', { class: 'rotulo', text: 'VAS' }),
+        el('div', { class: 'heroe__puesto-cifra num', text: `#${board.myRank}` }),
+      ]),
+      estado,
     ]),
   ]);
 }
@@ -284,32 +336,56 @@ function renderSocial(app: App, board: Leaderboard): HTMLElement {
   const leader = board.leader;
   const lines: HTMLElement[] = [];
 
+  // Quien manda: oro, siempre. El oro solo se usa para el primer puesto, asi
+  // que verlo ya dice de que va la linea antes de leerla.
   lines.push(
-    el('div', { class: 'social__line' }, [
-      el('span', { text: '👑' }),
-      leader.isMe
-        ? el('span', {}, [el('span', { class: 'em', text: 'VAS PRIMERO' }), el('span', { text: ' HOY. AGUANTA.' })])
-        : el('span', {}, [
-            el('span', { class: 'em', text: leader.name }),
-            el('span', { text: ` MANDA HOY CON ${formatScore(leader.total)}.` }),
-          ]),
-    ]),
+    banner({
+      emite: 'var(--oro)',
+      icono: '👑',
+      quien: leader.isMe ? 'VAS PRIMERO' : leader.name,
+      resto: leader.isMe ? ' HOY. AGUANTA.' : ` MANDA HOY CON ${formatScore(leader.total)}.`,
+    }),
   );
 
   if (streak.holderName && streak.days > 0) {
     const mine = streak.holderId === 'me';
     lines.push(
-      el('div', { class: 'social__line' }, [
-        el('span', { text: '🔥' }),
-        el('span', {}, [
-          el('span', { class: 'em', text: mine ? 'LLEVAS' : `${streak.holderName} LLEVA` }),
-          el('span', { text: ` ${streak.days} ${streak.days === 1 ? 'DIA' : 'DIAS'} GANANDO.` }),
-        ]),
-      ]),
+      banner({
+        emite: 'var(--magenta)',
+        icono: '🔥',
+        quien: mine ? 'LLEVAS' : `${streak.holderName} LLEVA`,
+        resto: ` ${streak.days} ${streak.days === 1 ? 'DIA' : 'DIAS'} GANANDO.`,
+      }),
     );
   }
 
   return el('div', { class: 'social' }, lines);
+}
+
+/**
+ * El aviso social, en una sola pieza.
+ *
+ * `quien` va destacado en el color del banner y `resto` en texto normal: el ojo
+ * engancha el nombre del rival antes de leer la frase entera, que es justo el
+ * orden en el que esto funciona.
+ */
+function banner(options: {
+  emite: string;
+  icono: string;
+  quien: string;
+  resto: string;
+  sub?: string;
+}): HTMLElement {
+  return el('div', { class: 'banner', style: { '--emite': options.emite } }, [
+    el('div', { class: 'banner__icono', text: options.icono }),
+    el('div', {}, [
+      el('div', { class: 'banner__texto' }, [
+        el('span', { class: 'banner__quien', text: options.quien }),
+        el('span', { text: options.resto }),
+      ]),
+      options.sub ? el('div', { class: 'banner__sub', text: options.sub }) : null,
+    ]),
+  ]);
 }
 
 function mutatorChips(ids: string[]): HTMLElement | null {
@@ -491,8 +567,16 @@ function renderBoard(app: App, board: Leaderboard): HTMLElement {
         ? `+${formatScore(diff)}`
         : `-${formatScore(Math.abs(diff))}`;
 
+    // La insignia de puesto hace el trabajo que antes hacia un numero suelto:
+    // oro para el #1, cian para ti, cristal para el resto. Se lee el podio de
+    // un vistazo sin tener que comparar cifras.
+    const puesto = el('div', {
+      class: `puesto${index === 0 ? ' puesto--oro' : entry.isMe ? ' puesto--yo' : ''}`,
+      text: String(index + 1),
+    });
+
     const row = el('div', { class: `row${entry.isMe ? ' row--me' : ''}` }, [
-      el('div', { class: 'row__pos num', text: String(index + 1) }),
+      puesto,
       el('div', { class: 'row__dot', style: { background: entry.color } }),
       el('div', { class: 'row__name' }, [
         el('span', { text: entry.name }),

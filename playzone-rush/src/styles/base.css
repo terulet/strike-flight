@@ -19,9 +19,14 @@ html {
 }
 
 body {
+  /* Tres auroras muy bajas en vez de un negro plano. El cian arriba (energia),
+     el violeta al fondo (profundidad) y una brasa magenta muy tenue al pie: el
+     suelo deja de ser una superficie y pasa a ser un espacio. Con alfas por
+     debajo de 0.2 no ensucian ni compiten con el contenido. */
   background:
-    radial-gradient(120% 60% at 50% -10%, rgba(255, 47, 109, 0.18), transparent 60%),
-    radial-gradient(90% 50% at 100% 100%, rgba(34, 211, 238, 0.1), transparent 60%),
+    radial-gradient(125% 62% at 50% -12%, rgba(34, 211, 238, 0.13), transparent 62%),
+    radial-gradient(105% 58% at 6% 22%, rgba(139, 92, 246, 0.13), transparent 60%),
+    radial-gradient(115% 55% at 92% 100%, rgba(255, 47, 109, 0.11), transparent 62%),
     var(--bg);
   color: var(--text);
   font-family: var(--font);

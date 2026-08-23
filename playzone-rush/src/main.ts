@@ -6,6 +6,8 @@
  */
 import './styles/tokens.css';
 import './styles/base.css';
+// Antes que las pantallas: el sistema define, las pantallas afinan.
+import './styles/components.css';
 import './styles/shell.css';
 import './styles/home.css';
 import './styles/play.css';

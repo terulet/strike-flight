@@ -28,15 +28,15 @@
   letter-spacing: 0.08em;
 }
 
+/* Los avisos sociales van sueltos sobre el fondo. Antes iban dentro de una
+   caja con su propio borde y salia caja-dentro-de-caja: dos marcos para el
+   mismo contenido, y encima empujaban los retos por debajo del pliegue. Los
+   retos son el motivo de abrir la app; el estado social los acompana. */
 .social {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 10px 0 14px;
-  padding: 11px 13px;
-  border-radius: var(--radius);
-  background: linear-gradient(120deg, rgba(255, 210, 63, 0.1), rgba(255, 47, 109, 0.06));
-  border: 1px solid rgba(255, 210, 63, 0.18);
+  gap: 7px;
+  margin: 12px 0 4px;
 }
 
 .social__line {
@@ -582,6 +582,206 @@
 .scroller > *:nth-child(3) { animation-delay: 95ms; }
 .scroller > *:nth-child(4) { animation-delay: 130ms; }
 .scroller > *:nth-child(n + 5) { animation-delay: 160ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scroller > * {
+    animation: none;
+  }
+}
+
+/* ==================================================================== */
+/* PORTADA REDISENADA — bloque de evento, ranking vivo, tarjetas         */
+/* ==================================================================== */
+
+/* ---------- El bloque de evento ---------- */
+
+.heroe__fila {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+/**
+ * El marcador: puesto grande a la izquierda, distancia accionable a la derecha.
+ * Es la unica parte de la portada que responde a "por que abro esto ahora".
+ */
+.heroe__marcador {
+  margin-top: 13px;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.heroe__puesto {
+  flex: none;
+  min-width: 78px;
+  padding: 9px 13px 10px;
+  border-radius: var(--radius);
+  background: var(--capa-2);
+  border: 1px solid rgba(34, 211, 238, 0.26);
+  box-shadow: var(--luz-borde), 0 0 26px rgba(34, 211, 238, 0.1);
+  text-align: center;
+}
+
+.heroe__puesto--oro {
+  border-color: rgba(255, 210, 63, 0.42);
+  box-shadow: var(--luz-borde-fuerte), 0 0 30px rgba(255, 210, 63, 0.2);
+}
+
+.heroe__puesto-cifra {
+  margin-top: 1px;
+  font-size: 28px;
+  font-weight: 900;
+  font-stretch: 82%;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--cian);
+}
+
+.heroe__puesto--oro .heroe__puesto-cifra {
+  color: var(--oro);
+}
+
+.heroe__estado {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+}
+
+.heroe__estado-cifra {
+  font-size: 21px;
+  font-weight: 900;
+  font-stretch: 86%;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.heroe__estado--oro .heroe__estado-cifra {
+  color: var(--oro);
+}
+
+.heroe__estado-texto {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  color: var(--text-dim);
+}
+
+/* ---------- El aviso de adelantamiento ---------- */
+
+.overtake__cabeza {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.overtake__icono {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--magenta-suave);
+  border: 1px solid rgba(255, 47, 109, 0.36);
+  font-size: 17px;
+}
+
+.overtake__quien {
+  color: #ff89ab;
+}
+
+/* La distancia como cifra grande: el numero se queda, la frase no. */
+.overtake__cifra {
+  margin-top: 11px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.overtake__cifra-num {
+  font-size: 30px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--magenta);
+  filter: drop-shadow(0 0 18px rgba(255, 47, 109, 0.45));
+}
+
+/* ---------- Ranking ---------- */
+
+/* La fila propia se ilumina en cian: es TU color en todo el sistema, y asi el
+   oro se reserva entero para el primer puesto. */
+.row--me {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.15), rgba(34, 211, 238, 0.02) 60%, transparent);
+  box-shadow: inset 3px 0 0 var(--cian), inset 0 0 30px rgba(34, 211, 238, 0.06);
+}
+
+.row--me .row__score {
+  color: #b8f4ff;
+}
+
+/* ---------- Tarjetas de reto ---------- */
+
+/**
+ * La tarjeta tiene que parecer un evento y no un boton con texto. Lo que la
+ * convierte en evento es que emite el color de SU juego: la franja lateral, el
+ * icono y el boton salen todos del mismo acento, asi que tres tarjetas seguidas
+ * se leen como tres cosas distintas y no como una lista.
+ */
+.card {
+  position: relative;
+  isolation: isolate;
+}
+
+.card::after {
+  /* Un resplandor del color del juego en la esquina superior derecha, muy bajo.
+     Da la sensacion de que la tarjeta tiene luz propia por dentro. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    76% 60% at 100% 0%,
+    color-mix(in srgb, var(--accent, var(--cian)) 13%, transparent),
+    transparent 68%
+  );
+  pointer-events: none;
+}
+
+/* El boton de la tarjeta hereda el acento del juego, asi que JUGAR es del color
+   del reto que vas a jugar. */
+.card .btn--accent {
+  box-shadow:
+    var(--luz-borde-fuerte),
+    0 6px 22px color-mix(in srgb, var(--accent, var(--cian)) 30%, transparent);
+}
+
+/* ---------- Entrada ---------- */
+
+/* La portada se construye de arriba abajo. Se acaba en 420 ms y nada espera a
+   la animacion: los botones ya responden desde el primer fotograma. */
+.scroller > * {
+  animation: sube var(--dur-lento) var(--ease-entrada) both;
+}
+
+.scroller > *:nth-child(1) { animation-delay: 0ms; }
+.scroller > *:nth-child(2) { animation-delay: var(--escalon); }
+.scroller > *:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.scroller > *:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+.scroller > *:nth-child(n + 5) { animation-delay: calc(var(--escalon) * 4); }
 
 @media (prefers-reduced-motion: reduce) {
   .scroller > * {

@@ -106,21 +106,6 @@
   box-shadow: var(--luz-borde);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
 .chip--brand {
   background: var(--brand-soft);
   border-color: rgba(255, 47, 109, 0.35);

@@ -1,0 +1,350 @@
+/**
+ * Sistema de componentes.
+ *
+ * Todo lo que se repite en mas de una pantalla vive aqui, para que la portada,
+ * el resultado, el reveal y el HUD no sean cuatro dialectos distintos. Si algo
+ * solo aparece en una pantalla, se queda en el CSS de esa pantalla.
+ *
+ * Regla de uso del cristal: se aplica a lo que FLOTA (paneles, banners,
+ * overlays). Lo que esta pegado al fondo no lleva desenfoque, porque cada capa
+ * con backdrop-filter cuesta, y encima del canvas cuesta el doble.
+ */
+
+/* ==================================================================== */
+/* Superficies                                                          */
+/* ==================================================================== */
+
+.panel {
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--luz-borde), var(--shadow-card);
+}
+
+/* Cristal de verdad: solo donde flota sobre algo que merece verse borroso. */
+.panel--vidrio {
+  -webkit-backdrop-filter: var(--vidrio);
+  backdrop-filter: var(--vidrio);
+  background: var(--capa-2);
+}
+
+/* Un panel que emite. `--emite` es el color; por defecto el cian. */
+.panel--vivo {
+  border-color: color-mix(in srgb, var(--emite, var(--cian)) 34%, transparent);
+  box-shadow:
+    var(--luz-borde-fuerte),
+    0 0 30px color-mix(in srgb, var(--emite, var(--cian)) 16%, transparent),
+    var(--shadow-card);
+}
+
+/* ==================================================================== */
+/* Rotulos                                                              */
+/* ==================================================================== */
+
+/* El rotulo pequenito con mucho tracking. Aparece por toda la app y tenerlo
+   suelto en seis sitios era la razon de que no midieran todos igual. */
+.rotulo {
+  font-size: var(--t-micro);
+  font-weight: 900;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.rotulo--vivo {
+  color: color-mix(in srgb, var(--emite, var(--cian)) 78%, white);
+}
+
+/* ==================================================================== */
+/* Cifras                                                               */
+/* ==================================================================== */
+
+/* La cifra grande con material propio. Es el gesto que convierte un numero en
+   un trofeo: degradado sobre el texto y un halo por debajo. */
+.cifra-heroe {
+  font-size: var(--t-heroe);
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 44%, #c7cbe4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 24px rgba(255, 255, 255, 0.15));
+}
+
+/* ==================================================================== */
+/* Chips y badges                                                       */
+/* ==================================================================== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--capa-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Chip tenido. `--emite` decide el color; asi un solo componente sirve para
+   mutadores, estado social y racha sin multiplicar clases. */
+.chip--vivo {
+  background: color-mix(in srgb, var(--emite, var(--cian)) 15%, transparent);
+  border-color: color-mix(in srgb, var(--emite, var(--cian)) 38%, transparent);
+  color: color-mix(in srgb, var(--emite, var(--cian)) 72%, white);
+}
+
+/* La insignia de posicion: #1 va en oro y el resto en cristal. */
+.puesto {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--capa-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.puesto--oro {
+  background: linear-gradient(180deg, rgba(255, 210, 63, 0.28), rgba(255, 210, 63, 0.1));
+  border-color: rgba(255, 210, 63, 0.5);
+  color: #ffe89a;
+  box-shadow: var(--luz-borde-fuerte), 0 0 18px rgba(255, 210, 63, 0.22);
+}
+
+.puesto--yo {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.26), rgba(34, 211, 238, 0.08));
+  border-color: rgba(34, 211, 238, 0.48);
+  color: #b8f4ff;
+}
+
+/* ==================================================================== */
+/* Barra de distancia                                                   */
+/* ==================================================================== */
+
+/**
+ * "Te han faltado 42 puntos" dicho como imagen y no solo como frase. La barra
+ * llena hasta donde llegaste sobre la marca del rival: 42 puntos de 3.000 se
+ * ven como casi lleno, y 42 de 100 como medio. La misma frase, dos sensaciones
+ * distintas, y la segunda es la que hace pulsar REVANCHA.
+ */
+.distancia {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--capa-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.distancia__mio {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cian-hondo), var(--cian));
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.5);
+  transform-origin: left center;
+  /* Se anima el ancho al entrar: la barra CRECE hasta tu marca, no aparece
+     puesta. Ver como se queda corta es la mitad del golpe. */
+  animation: distancia-crece var(--dur-lento) var(--ease-entrada) both;
+}
+
+.distancia--cerca .distancia__mio {
+  background: linear-gradient(90deg, #b45309, var(--oro));
+  box-shadow: 0 0 16px rgba(255, 210, 63, 0.55);
+}
+
+.distancia--gana .distancia__mio {
+  background: linear-gradient(90deg, var(--violeta-hondo), var(--magenta));
+  box-shadow: 0 0 18px rgba(255, 47, 109, 0.5);
+}
+
+@keyframes distancia-crece {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* La marca del rival, clavada encima de la barra. */
+.distancia__rival {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+}
+
+/* ==================================================================== */
+/* Banners sociales                                                     */
+/* ==================================================================== */
+
+/**
+ * El aviso social. Es la pieza con mas trabajo emocional de la app: "MARC TE HA
+ * QUITADO EL #1" tiene que doler un poco al verlo. Lleva una franja de color a
+ * la izquierda, el fondo tenido y el nombre del rival destacado.
+ */
+.banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 13px 9px 15px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--emite, var(--magenta)) 17%, transparent), transparent 72%),
+    var(--capa-1);
+  border: 1px solid color-mix(in srgb, var(--emite, var(--magenta)) 26%, transparent);
+  box-shadow: var(--luz-borde), 0 8px 26px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.banner::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--emite, var(--magenta));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--emite, var(--magenta)) 70%, transparent);
+}
+
+.banner__icono {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--emite, var(--magenta)) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--emite, var(--magenta)) 34%, transparent);
+  font-size: 13px;
+}
+
+.banner__texto {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.banner__quien {
+  color: color-mix(in srgb, var(--emite, var(--magenta)) 60%, white);
+  /* Un pelo de aire despues del nombre: el salto de color ya separa, pero sin
+     este margen "YOLI MANDA" se lee pegado. */
+  margin-right: 2px;
+}
+
+.banner__sub {
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+/* ==================================================================== */
+/* Ficha de jugador                                                     */
+/* ==================================================================== */
+
+.ficha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid transparent;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+
+.ficha--yo {
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.02) 62%, transparent),
+    var(--capa-2);
+  border-color: rgba(34, 211, 238, 0.28);
+  box-shadow: inset 3px 0 0 var(--cian), var(--luz-borde);
+}
+
+.ficha__nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ficha__puntos {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ==================================================================== */
+/* Entradas escalonadas                                                 */
+/* ==================================================================== */
+
+/**
+ * La pantalla se construye en vez de aparecer puesta. Medio segundo bien
+ * repartido se percibe como cuidado; mas que eso se percibe como lentitud, asi
+ * que a partir del septimo hermano ya no se acumula retardo.
+ */
+@keyframes sube {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.escalona > * {
+  animation: sube var(--dur-lento) var(--ease-entrada) both;
+}
+
+.escalona > *:nth-child(1) { animation-delay: 0ms; }
+.escalona > *:nth-child(2) { animation-delay: var(--escalon); }
+.escalona > *:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.escalona > *:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+.escalona > *:nth-child(5) { animation-delay: calc(var(--escalon) * 4); }
+.escalona > *:nth-child(6) { animation-delay: calc(var(--escalon) * 5); }
+.escalona > *:nth-child(n + 7) { animation-delay: calc(var(--escalon) * 6); }
+
+/* Latido para lo que reclama atencion sin moverse de sitio. */
+@keyframes latido {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+
+/* Golpe elastico: se reserva para recompensa (record, adelantamiento, x2). */
+@keyframes golpe {
+  0% { transform: scale(0.82); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.golpea {
+  animation: golpe var(--dur) var(--ease-elastico) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .escalona > *,
+  .golpea,
+  .distancia__mio {
+    animation: none;
+  }
+}
