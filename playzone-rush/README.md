@@ -99,6 +99,85 @@ Para probar la build real: `npm run build`, luego `npm run server` y
 
 ---
 
+## Dirección visual: ARCADE SOCIAL PREMIUM
+
+La idea es una sola: **el juego pasa dentro de una máquina, y la máquina es
+cristal oscuro con luz por dentro.** De ahí sale todo lo demás.
+
+### El reparto del color
+
+Esto es lo que evita el ruido: cada tono tiene un trabajo, y solo uno. Si el
+mismo acento sirve para pulsar y para ganar, deja de significar nada.
+
+| Color | Trabajo | Dónde sale |
+|---|---|---|
+| **Cian** `#22d3ee` | Energía, acción, «esto se pulsa» | CTA, tu fila del ranking, tu puesto, el código del grupo |
+| **Violeta** `#8b5cf6` | Profundidad, superficie | Aurora de fondo, CHAOS |
+| **Oro** `#ffd23f` | **Solo el primer puesto**, corona y racha | Insignia del #1, «te faltan 42» cuando quedaste cerca |
+| **Magenta** `#ff2f6d` | Calor social: rivalidad y adelantamientos | «Te ha quitado el #1», la marca |
+| **Lima** `#d7ff3e` | Acento agudo, en gotas | Poco y contado |
+| **Rojo** `#ff4d6d` | Pérdida. Nunca decorativo | Fallo, apuesta perdida |
+
+El oro es escaso a propósito: si sale en cinco sitios deja de querer decir
+*primero*. Y el magenta —que antes pintaba media interfaz— pasa a estar al
+servicio del pique en vez de decorar.
+
+### Tipografía
+
+**Archivo variable**, auto-alojada en `public/fonts/archivo.woff2` (88 kB, pesos
+100–900 y ejes de anchura). Auto-alojada porque es una PWA que tiene que abrir
+sin cobertura; con `font-display: swap` y pila del sistema de reserva, si el
+fichero no llega el juego se lee igual.
+
+Seis tamaños y ni uno más (`--t-heroe` … `--t-micro`). Los números llevan
+`.num`: peso 900, más cerrados y con cifras de ancho fijo para que no bailen al
+contar.
+
+### Motion
+
+**La interfaz nunca espera a la animación.** Nada pulsable tarda más de 240 ms
+en estar disponible y las entradas completas se acaban antes de medio segundo.
+
+- `--dur-tap: 90ms` · `--dur-fast: 150ms` · `--dur: 240ms` · `--dur-lento: 420ms`
+- `--ease-elastico` se reserva para **recompensa** (récord, adelantamiento, ×2).
+  Usarlo en todo hace que la interfaz parezca de goma.
+- Todo lo animado tiene salida por `prefers-reduced-motion`.
+
+### Componentes
+
+`src/styles/components.css` es el sistema: lo que se repite en más de una
+pantalla vive ahí, para que portada, resultado, sorteo y HUD no sean cuatro
+dialectos. Panel y cristal, rótulos, `cifra-heroe`, chips teñidos, insignia de
+puesto, banner social, ficha de jugador, barra de distancia y entradas
+escalonadas.
+
+Muchos aceptan `--emite` como color, así que **un solo componente sirve para
+todos los estados** sin multiplicar clases:
+
+```html
+<div class="banner" style="--emite: var(--oro)">…</div>
+```
+
+**Regla del cristal:** `backdrop-filter` solo en lo que **flota** (paneles,
+banners, overlays). Cada capa con desenfoque cuesta, y encima del canvas cuesta
+el doble.
+
+### El sorteo de los retos del día
+
+`src/ui/reveal.ts`. Tres columnas que giran y **paran una a una** revelando los
+retos. Se toma prestado el *ritmo* de la tragaperras —la espera entre parada y
+parada es donde está la tensión— pero no su estética: lo que gira son las marcas
+de los propios juegos, cada una en su color.
+
+- 2,2 s hasta la última parada. Se salta tocando, y saltarlo deja los tres
+  retos puestos.
+- Se ve **una vez al día** (`DayRecord.revealVisto`). Una animación que se
+  repite en cada apertura deja de ser un momento y pasa a ser un peaje.
+- **No decide nada**: el sorteo del día ya lo hizo la semilla antes de pintarse.
+  Esto solo lo cuenta.
+
+---
+
 ## Estructura
 
 ```
