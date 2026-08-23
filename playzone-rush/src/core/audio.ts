@@ -28,6 +28,7 @@ type Ctor = typeof AudioContext;
 export class AudioBus {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private musicGain: GainNode | null = null;
   private _muted = false;
   private comboStep = 0;
   private lastPlay = new Map<SoundName, number>();
@@ -73,6 +74,24 @@ export class AudioBus {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Canal propio para el motor de musica, colgado del master.
+   *
+   * Cuelga del master a proposito: asi el boton de silencio sigue apagandolo
+   * todo de una vez, sin que musica y efectos se puedan desincronizar. Va algo
+   * mas bajo que los efectos porque la musica acompana, no manda.
+   */
+  musicChannel(): { ctx: AudioContext; out: GainNode } | null {
+    const ctx = this.ensure();
+    if (!ctx || !this.master) return null;
+    if (!this.musicGain) {
+      this.musicGain = ctx.createGain();
+      this.musicGain.gain.value = 0.42;
+      this.musicGain.connect(this.master);
+    }
+    return { ctx, out: this.musicGain };
   }
 
   private tone(
