@@ -16,7 +16,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameDefinition, GameMeta, GameServices, GameConfig } from '../../game/contract';
-import { backdropGrid, glowCircle, hexToRgba, label } from '../../game/draw';
+import { backdropWaves, glowCircle, hexToRgba, label } from '../../game/draw';
 
 const ACCENT = '#d7ff3e';
 const LANE_A = '#22d3ee';
@@ -248,7 +248,7 @@ class RitmoGame extends BaseMiniGame {
 
     ctx.fillStyle = '#07070d';
     ctx.fillRect(0, 0, this.width, this.height);
-    backdropGrid(ctx, this.width, this.height, hexToRgba(ACCENT, 0.05));
+    backdropWaves(ctx, this.width, this.height, ACCENT, this.elapsedSeconds, this.services.music.intensity);
 
     const linea = this.lineaY;
     const centro = this.width / 2;

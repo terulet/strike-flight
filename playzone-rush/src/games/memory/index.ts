@@ -9,7 +9,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameConfig, GameDefinition, GameMeta, GameServices } from '../../game/contract';
-import { backdropGrid, hexToRgba, label, roundRect } from '../../game/draw';
+import { backdropLab, hexToRgba, label, roundRect } from '../../game/draw';
 
 const ACCENT = '#c084fc';
 const GOOD = '#7cf3c0';
@@ -295,7 +295,7 @@ class MemoryGame extends BaseMiniGame {
 
   protected draw(): void {
     const ctx = this.ctx;
-    backdropGrid(ctx, this.width, this.height, ACCENT, 0, 58);
+    backdropLab(ctx, this.width, this.height, ACCENT);
 
     const scale = Math.max(0.55, Math.min(1, this.mut.sizeMultiplier));
     for (let i = 0; i < this.cells.length; i++) {

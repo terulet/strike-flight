@@ -9,7 +9,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameConfig, GameDefinition, GameMeta, GameServices } from '../../game/contract';
-import { backdropGrid, hexToRgba, label } from '../../game/draw';
+import { backdropScope, hexToRgba, label } from '../../game/draw';
 
 const ACCENT = '#facc15';
 const PERFECT = '#7cf3c0';
@@ -257,7 +257,7 @@ class SnapGame extends BaseMiniGame {
 
   protected draw(): void {
     const ctx = this.ctx;
-    backdropGrid(ctx, this.width, this.height, ACCENT, 0, 52);
+    backdropScope(ctx, this.width, this.height, ACCENT);
 
     // Marcas de disparos anteriores
     for (const shot of this.shots) {

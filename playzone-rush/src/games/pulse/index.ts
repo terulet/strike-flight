@@ -9,7 +9,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameDefinition, GameMeta, GameServices, GameConfig } from '../../game/contract';
-import { backdropGrid, glowCircle, hexToRgba, label, ringArc } from '../../game/draw';
+import { backdropRadial, glowCircle, hexToRgba, label, ringArc } from '../../game/draw';
 
 const ACCENT = '#22d3ee';
 const MINE = '#ff2d55';
@@ -222,7 +222,7 @@ class PulseGame extends BaseMiniGame {
 
   protected draw(): void {
     const ctx = this.ctx;
-    backdropGrid(ctx, this.width, this.height, ACCENT, this.time * 12, this.width / 3);
+    backdropRadial(ctx, this.width, this.height, ACCENT, this.time);
 
     // Celdas guia (muy tenues): dan estructura y explican el mapeo de teclado.
     ctx.save();

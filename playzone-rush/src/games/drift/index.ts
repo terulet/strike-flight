@@ -9,7 +9,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameConfig, GameDefinition, GameMeta, GameServices } from '../../game/contract';
-import { backdropGrid, hexToRgba, label, roundRect } from '../../game/draw';
+import { backdropSpeed, hexToRgba, label, roundRect } from '../../game/draw';
 import { GHOST_SAMPLE_MS, sampleAt } from '../../net/ghost';
 
 const ACCENT = '#a78bfa';
@@ -310,7 +310,7 @@ class DriftGame extends BaseMiniGame {
 
   protected draw(): void {
     const ctx = this.ctx;
-    backdropGrid(ctx, this.width, this.height, ACCENT, -this.scroll, 44);
+    backdropSpeed(ctx, this.width, this.height, ACCENT, this.scroll);
 
     // Muros
     for (const wall of this.walls) {

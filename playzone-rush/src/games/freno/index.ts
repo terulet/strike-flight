@@ -16,7 +16,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameDefinition, GameMeta, GameServices, GameConfig } from '../../game/contract';
-import { backdropGrid, glowCircle, hexToRgba, label, roundRect } from '../../game/draw';
+import { backdropWarning, glowCircle, hexToRgba, label, roundRect } from '../../game/draw';
 
 const ACCENT = '#ffd23f';
 const AZUL = '#22d3ee';
@@ -248,7 +248,7 @@ class FrenoGame extends BaseMiniGame {
     const ctx = this.ctx;
     ctx.fillStyle = '#07070d';
     ctx.fillRect(0, 0, this.width, this.height);
-    backdropGrid(ctx, this.width, this.height, hexToRgba(ACCENT, 0.05));
+    backdropWarning(ctx, this.width, this.height, ACCENT, this.elapsedSeconds * 14);
 
     for (const f of this.fichas) {
       const color = f.color === 'azul' ? AZUL : ROSA;

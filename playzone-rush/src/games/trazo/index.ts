@@ -14,7 +14,7 @@
  */
 import { BaseMiniGame } from '../../game/base';
 import type { GameDefinition, GameMeta, GameServices, GameConfig } from '../../game/contract';
-import { backdropGrid, glowCircle, hexToRgba, label } from '../../game/draw';
+import { backdropBlueprint, glowCircle, hexToRgba, label } from '../../game/draw';
 
 const ACCENT = '#a78bfa';
 const HECHO = '#7cf3c0';
@@ -218,7 +218,7 @@ class TrazoGame extends BaseMiniGame {
     const ctx = this.ctx;
     ctx.fillStyle = '#07070d';
     ctx.fillRect(0, 0, this.width, this.height);
-    backdropGrid(ctx, this.width, this.height, hexToRgba(ACCENT, 0.05));
+    backdropBlueprint(ctx, this.width, this.height, ACCENT);
 
     const figura = this.figura;
     if (!figura) return;
