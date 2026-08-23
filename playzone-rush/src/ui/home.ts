@@ -11,7 +11,7 @@ import { describeMutators } from '../game/mutators';
 import { listGames, requireGame } from '../game/registry';
 import { attemptsDisplay } from '../meta/attempts';
 import { formatDuration, type ChallengeSpec } from '../meta/daily';
-import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
+import { formatScore, repartoDelPodio, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
@@ -410,9 +410,14 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
   // Con el contexto: en grupo el objetivo es una persona, no un bot.
   const target = targetForChallenge(app.plan, spec, app.save, app.rankingContext);
 
-  const playBtn = button(left > 0 ? 'JUGAR' : 'SIN INTENTOS', 'btn btn--accent', () => app.startChallenge(spec), {
-    disabled: left === 0,
-  });
+  // La tarjeta se pasa a si misma: es la que crece hasta convertirse en el
+  // juego, asi que hay que medirla antes de que la portada desaparezca.
+  const playBtn = button(
+    left > 0 ? 'JUGAR' : 'SIN INTENTOS',
+    'btn btn--accent',
+    () => app.startChallenge(spec, { desde: card }),
+    { disabled: left === 0 },
+  );
 
   const card = el(
     'div',
@@ -510,7 +515,7 @@ function renderSecretCard(app: App): HTMLElement {
   }
 
   const left = app.attemptsLeft(spec);
-  return el('div', { class: 'card', style: { '--accent': '#ffd23f' } }, [
+  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': '#ffd23f' } }, [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon' }, [marca('llave')]),
       el('div', { class: 'card__titles' }, [
@@ -534,6 +539,7 @@ function renderSecretCard(app: App): HTMLElement {
       }),
     ]),
   ]);
+  return card;
 }
 
 function renderChaosCard(app: App): HTMLElement {
@@ -542,7 +548,7 @@ function renderChaosCard(app: App): HTMLElement {
   const left = app.attemptsLeft(spec);
   const best = app.save.get().records.bestChaos;
 
-  return el('div', { class: 'card', style: { '--accent': '#a78bfa' } }, [
+  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': '#a78bfa' } }, [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon' }, [marca('chaos')]),
       el('div', { class: 'card__titles' }, [
@@ -558,67 +564,159 @@ function renderChaosCard(app: App): HTMLElement {
         el('div', { class: 'card__best-label', text: 'RECORD CHAOS' }),
         el('div', { class: 'card__best-value num', text: best > 0 ? formatScore(best) : '—' }),
       ]),
-      button(left > 0 ? 'ENTRAR' : 'USADO', 'btn btn--accent', () => app.startChallenge(spec), {
+      button(left > 0 ? 'ENTRAR' : 'USADO', 'btn btn--accent', () => app.startChallenge(spec, { desde: card }), {
         disabled: left === 0,
       }),
     ]),
   ]);
+  return card;
 }
 
+/**
+ * El ranking, con podio.
+ *
+ * Tres alturas de lectura y no una lista plana:
+ *
+ *   #1        tarjeta grande con corona. Es el sitio que todo el mundo mira.
+ *   #2 y #3   dos modulos pequenos al lado, en una fila.
+ *   #4 y mas  filas compactas, como antes.
+ *
+ * Mobile-first de verdad: el podio ocupa unos 190 px en total, no tres columnas
+ * enormes. Si el podio se comiera la pantalla, los retos -que son el motivo de
+ * abrir la app- quedarian debajo del pliegue, y eso seria cambiar claridad por
+ * decoracion.
+ *
+ * REGLA QUE NO SE ROMPE: tu fila siempre se encuentra. Si estas fuera del podio
+ * y fuera de lo que se ve, se pinta igualmente al final, separada y marcada.
+ * Nadie tiene que buscarse a si mismo en su propio juego.
+ */
 function renderBoard(app: App, board: Leaderboard): HTMLElement {
   const leaderTotal = board.leader.total;
-  const rows = board.standings.map((entry, index) => {
+  const orden = board.standings;
+
+  const diferencia = (entry: (typeof orden)[number], index: number): string => {
     const diff = entry.total - board.me.total;
-    const gapText = entry.isMe
-      ? index === 0
-        ? 'LIDER'
-        : `-${formatScore(leaderTotal - entry.total)}`
-      : diff > 0
-        ? `+${formatScore(diff)}`
-        : `-${formatScore(Math.abs(diff))}`;
+    if (entry.isMe) return index === 0 ? 'LIDER' : `-${formatScore(leaderTotal - entry.total)}`;
+    return diff > 0 ? `+${formatScore(diff)}` : `-${formatScore(Math.abs(diff))}`;
+  };
 
-    // La insignia de puesto hace el trabajo que antes hacia un numero suelto:
-    // oro para el #1, cian para ti, cristal para el resto. Se lee el podio de
-    // un vistazo sin tener que comparar cifras.
-    const puesto = el('div', {
-      class: `puesto${index === 0 ? ' puesto--oro' : entry.isMe ? ' puesto--yo' : ''}`,
-      text: String(index + 1),
-    });
-
-    const row = el('div', { class: `row${entry.isMe ? ' row--me' : ''}` }, [
-      puesto,
-      el('div', { class: 'row__dot', style: { background: entry.color } }),
-      el('div', { class: 'row__name' }, [
-        el('span', { text: entry.name }),
-        entry.isMe ? el('span', { class: 'tag', text: 'TU' }) : null,
-        index === 0 ? el('span', { text: '👑' }) : null,
-        // Quien se la jugo lleva marca, para bien o para mal. Es media gracia
-        // del sistema: que se vea en el ranking quien tuvo agallas.
-        entry.apuesta === 'doblo'
-          ? el('span', { class: 'tag tag--doblo', text: '🔥 DOBLO' })
-          : entry.apuesta === 'cayo'
-            ? el('span', { class: 'tag tag--cayo', text: '💀 CAYO' })
-            : null,
-        !entry.isMe && entry.played ? el('span', { class: 'tag', text: 'HA JUGADO' }) : null,
-      ]),
-      el('div', { class: 'row__score num', text: formatScore(entry.total) }),
-      el('div', { class: 'row__gap num', text: gapText }),
-    ]);
-
-    if (entry.isMe) {
-      row.addEventListener('click', () => {
-        promptText({
-          title: 'TU NOMBRE EN EL GRUPO',
-          value: entry.name,
-          maxLength: 16,
-          onAccept: (value) => app.setName(value),
-        });
+  const editarNombre = (nodo: HTMLElement, nombre: string) => {
+    nodo.addEventListener('click', () => {
+      promptText({
+        title: 'TU NOMBRE EN EL GRUPO',
+        value: nombre,
+        maxLength: 16,
+        onAccept: (value) => app.setName(value),
       });
-    }
-    return row;
-  });
+    });
+  };
 
-  return el('div', { class: 'board' }, rows);
+  const piezas: HTMLElement[] = [];
+
+  /* ---------- #1 ---------- */
+  const primero = orden[0];
+  if (primero) {
+    const hero = el(
+      'div',
+      { class: `podio__hero${primero.isMe ? ' podio__hero--yo' : ''}` },
+      [
+        el('div', { class: 'podio__corona', text: '👑' }),
+        el('div', { class: 'podio__hero-datos' }, [
+          el('div', { class: 'rotulo', text: primero.isMe ? 'MANDAS TU' : 'MANDA' }),
+          el('div', { class: 'podio__hero-nombre' }, [
+            el('span', { text: primero.name }),
+            primero.isMe ? el('span', { class: 'tag', text: 'TU' }) : null,
+            marcaApuesta(primero.apuesta),
+          ]),
+        ]),
+        el('div', { class: 'podio__hero-puntos num', text: formatScore(primero.total) }),
+      ],
+    );
+    if (primero.isMe) editarNombre(hero, primero.name);
+    piezas.push(hero);
+  }
+
+  /* ---------- #2 y #3 ---------- */
+  const secundarios = orden.slice(1, 3);
+  if (secundarios.length > 0) {
+    piezas.push(
+      el(
+        'div',
+        { class: 'podio__pareja' },
+        secundarios.map((entry, i) => {
+          const nodo = el('div', { class: `podio__mini${entry.isMe ? ' podio__mini--yo' : ''}` }, [
+            el('div', { class: 'podio__mini-cabeza' }, [
+              el('span', { class: 'puesto', text: String(i + 2) }),
+              el('span', { class: 'podio__mini-nombre', text: entry.name }),
+            ]),
+            el('div', { class: 'podio__mini-puntos num', text: formatScore(entry.total) }),
+            el('div', { class: 'podio__mini-gap num', text: diferencia(entry, i + 1) }),
+          ]);
+          if (entry.isMe) editarNombre(nodo, entry.name);
+          return nodo;
+        }),
+      ),
+    );
+  }
+
+  /* ---------- del cuarto en adelante ---------- */
+  const resto = orden.slice(3);
+  if (resto.length > 0) {
+    piezas.push(
+      el(
+        'div',
+        { class: 'board board--resto' },
+        resto.map((entry, i) => filaRanking(entry, i + 4, diferencia(entry, i + 3), editarNombre)),
+      ),
+    );
+  }
+
+  /* ---------- tu fila, pase lo que pase ---------- */
+  // Si estas entre los tres primeros ya se te ve; si no, y ademas la lista es
+  // larga, se repite tu fila al final para no obligarte a buscarte.
+  const miIndice = orden.findIndex((e) => e.isMe);
+  if (repartoDelPodio(orden.length, miIndice).repetirMiFila) {
+    const yo = orden[miIndice];
+    if (yo) {
+      piezas.push(
+        el('div', { class: 'board board--yo-fijo' }, [
+          filaRanking(yo, miIndice + 1, diferencia(yo, miIndice), editarNombre),
+        ]),
+      );
+    }
+  }
+
+  return el('div', { class: 'podio' }, piezas);
+}
+
+/** 🔥 o 💀 al lado del nombre: se ve en el ranking quien tuvo agallas. */
+function marcaApuesta(apuesta: 'doblo' | 'cayo' | null | undefined): HTMLElement | null {
+  if (apuesta === 'doblo') return el('span', { class: 'tag tag--doblo', text: '🔥 DOBLO' });
+  if (apuesta === 'cayo') return el('span', { class: 'tag tag--cayo', text: '💀 CAYO' });
+  return null;
+}
+
+/** Una fila compacta del ranking. */
+function filaRanking(
+  entry: Leaderboard['standings'][number],
+  puesto: number,
+  gapText: string,
+  editarNombre: (nodo: HTMLElement, nombre: string) => void,
+): HTMLElement {
+  const row = el('div', { class: `row${entry.isMe ? ' row--me' : ''}` }, [
+    el('div', { class: `puesto${entry.isMe ? ' puesto--yo' : ''}`, text: String(puesto) }),
+    el('div', { class: 'row__dot', style: { background: entry.color } }),
+    el('div', { class: 'row__name' }, [
+      el('span', { text: entry.name }),
+      entry.isMe ? el('span', { class: 'tag', text: 'TU' }) : null,
+      marcaApuesta(entry.apuesta),
+      !entry.isMe && entry.played ? el('span', { class: 'tag', text: 'HA JUGADO' }) : null,
+    ]),
+    el('div', { class: 'row__score num', text: formatScore(entry.total) }),
+    el('div', { class: 'row__gap num', text: gapText }),
+  ]);
+  if (entry.isMe) editarNombre(row, entry.name);
+  return row;
 }
 
 /** Records personales: la otra mitad de la motivacion, competir contra ti. */

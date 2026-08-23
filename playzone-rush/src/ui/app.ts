@@ -35,6 +35,7 @@ import { watchForUpdate } from '../core/updateWatcher';
 import { renderHome } from './home';
 import { duracionBoot } from './boot';
 import { mostrarSorteo } from './reveal';
+import { expandirTarjeta } from './transicion';
 import { renderOnboarding } from './onboarding';
 import { PlayScreen } from './play';
 import { Toaster } from './toast';
@@ -410,7 +411,13 @@ export class App {
   /** Punto de entrada unico para jugar un reto. */
   startChallenge(
     spec: ChallengeSpec,
-    options: { quick?: boolean; ignoreAttempts?: boolean; revenge?: boolean } = {},
+    options: {
+      quick?: boolean;
+      ignoreAttempts?: boolean;
+      revenge?: boolean;
+      /** La tarjeta pulsada, para que crezca hasta convertirse en el juego. */
+      desde?: HTMLElement | null;
+    } = {},
   ): void {
     this.audio.unlock();
     if (spec.kind === 'secret' && !this.secretUnlocked && !options.ignoreAttempts) {
@@ -432,15 +439,29 @@ export class App {
       meta: { challengeId: spec.id, revenge: options.revenge === true },
     });
 
-    if (!this.play) {
-      this.play = new PlayScreen(this, spec, config);
-      this.play.mount();
-      document.body.classList.add('is-playing');
-    } else {
-      this.play.reconfigure(spec, config);
-    }
-    this.play.beginRun({ quick: options.quick ?? false });
-    this.notify();
+    const arrancar = () => {
+      if (!this.play) {
+        this.play = new PlayScreen(this, spec, config);
+        this.play.mount();
+        document.body.classList.add('is-playing');
+      } else {
+        this.play.reconfigure(spec, config);
+      }
+      this.play.beginRun({ quick: options.quick ?? false });
+      this.notify();
+    };
+
+    // La tarjeta crece hasta llenar la pantalla, pero la partida arranca DENTRO
+    // de expandirTarjeta y no despues: la animacion acompana, no retiene.
+    expandirTarjeta(
+      options.desde ?? null,
+      {
+        acento: requireGame(spec.gameId).meta.accent,
+        titulo: spec.gameName,
+        reducedMotion: this.save.get().prefs.reducedMotion,
+      },
+      arrancar,
+    );
   }
 
   /** Aplica el override de mutadores del panel de debug, si lo hay. */
@@ -660,6 +681,37 @@ export class App {
     this.reloadDay();
     this.renderHome();
     if (this.isGroup) void this.sync.refresh();
+  }
+
+  /**
+   * El siguiente reto del dia que todavia se puede jugar, si queda alguno.
+   *
+   * Se usa para encadenar sin pasar por la portada: al acabar un reto, lo
+   * natural es meterse en el siguiente, y obligar a volver a la lista rompe
+   * ese impulso. La portada sigue estando a un boton de distancia.
+   */
+  siguienteReto(desde: ChallengeSpec): ChallengeSpec | null {
+    const orden = this.plan.challenges;
+    const indice = orden.findIndex((c) => c.id === desde.id);
+    if (indice < 0) return null;
+    // Se busca hacia delante y luego se da la vuelta: si acabas el tercero y el
+    // primero sigue teniendo intentos, ese es el siguiente.
+    for (let i = 1; i <= orden.length; i++) {
+      const candidato = orden[(indice + i) % orden.length];
+      if (candidato && candidato.id !== desde.id && this.canPlay(candidato)) return candidato;
+    }
+    return null;
+  }
+
+  /**
+   * Encadena con otro reto sin desmontar la pantalla de partida.
+   *
+   * PlayScreen ya sabe reconfigurarse, asi que no hay que crear nada: se
+   * reaprovecha el lienzo, el HUD y el audio ya arrancado. Por eso no hay
+   * fundido a negro por medio.
+   */
+  encadenar(spec: ChallengeSpec): void {
+    this.startChallenge(spec);
   }
 
   get playScreen(): PlayScreen | null {

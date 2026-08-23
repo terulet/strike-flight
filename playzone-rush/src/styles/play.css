@@ -317,3 +317,89 @@
   background: rgba(5, 6, 14, 0.86);
   box-shadow: var(--luz-borde);
 }
+
+/* ==================================================================== */
+/* LA TARJETA QUE SE CONVIERTE EN EL JUEGO                               */
+/* ==================================================================== */
+
+/**
+ * La capa que crece desde la tarjeta pulsada hasta llenar la pantalla.
+ *
+ * z-index 41: justo por encima de la partida (40) y por debajo de los avisos
+ * (60), asi que cubre el arranque del juego pero nunca un mensaje.
+ *
+ * pointer-events: none es obligatorio. Esta capa existe durante 420 ms encima
+ * de un juego que ya esta corriendo; si capturara toques, se comeria el primer
+ * toque de la partida, que en un juego de reflejos es media puntuacion.
+ */
+.morph {
+  position: fixed;
+  z-index: 41;
+  pointer-events: none;
+  transform-origin: center center;
+  border-radius: 22px;
+  background: linear-gradient(168deg, #16161f 0%, var(--surface) 58%);
+  border: 1px solid color-mix(in srgb, var(--acento, var(--cian)) 45%, transparent);
+  box-shadow:
+    var(--luz-borde-fuerte),
+    0 0 44px color-mix(in srgb, var(--acento, var(--cian)) 30%, transparent);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  /* Se avisa al navegador de que esto se va a mover: se promociona a su propia
+     capa y el crecimiento no obliga a repintar lo que hay debajo. */
+  will-change: transform, opacity;
+}
+
+/**
+ * El nombre del juego se queda quieto mientras la caja crece.
+ *
+ * La contraescala es lo que lo consigue: la capa se estira hasta 6 o 7 veces
+ * su tamano, y sin esto el texto se deformaria hasta ser ilegible. Asi el
+ * nombre parece flotar en su sitio mientras la tarjeta se abre a su
+ * alrededor, que es exactamente la sensacion que se busca.
+ */
+.morph__titulo {
+  font-size: 22px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--acento, var(--cian)) 70%, white);
+  animation: morph-titulo var(--dur-lento, 420ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes morph-titulo {
+  0% { transform: scale(1); opacity: 1; }
+  58% { transform: scale(0.62); opacity: 1; }
+  100% { transform: scale(0.42); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .morph {
+    display: none;
+  }
+}
+
+/**
+ * Con el resultado en pantalla, la arena baja de intensidad pero NO se va.
+ *
+ * Es lo que da continuidad: el juego sigue ahi detras del panel, asi que se
+ * percibe que el resultado ha salido de la partida y no que ha cargado otra
+ * pantalla.
+ */
+.play--resultado .stage {
+  filter: brightness(0.45) saturate(0.7);
+  transition: filter 320ms var(--ease-out);
+}
+
+.play--resultado .hud {
+  opacity: 0.28;
+  transition: opacity 320ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play--resultado .stage,
+  .play--resultado .hud {
+    transition: none;
+  }
+}

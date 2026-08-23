@@ -14,6 +14,7 @@ import type { ScoreOutcome } from '../meta/scoring';
 import type { App } from './app';
 import { button, el } from './dom';
 import { iconButton } from './icons';
+import { emergerResultado } from './transicion';
 import { celebrate, renderResult } from './result';
 import { renderDecision } from './apuesta';
 
@@ -149,6 +150,7 @@ export class PlayScreen {
   beginRun(options: { quick?: boolean } = {}): void {
     this.clearTimers();
     this.clearOverlay();
+    this.root.classList.remove('play--resultado');
     this.finished = false;
     this.ghostPassed = false;
     this.targetPassed = false;
@@ -381,6 +383,7 @@ export class PlayScreen {
     }
 
     const racha = this.app.streak;
+    const siguiente = this.app.siguienteReto(this.spec);
     const node = renderResult(
       this.spec,
       outcome,
@@ -394,6 +397,16 @@ export class PlayScreen {
           this.app.audio.play('back');
           this.app.exitToHome();
         },
+        // Encadenar sin pasar por la portada: al acabar un reto lo natural es
+        // meterse en el siguiente, y obligar a volver a la lista rompe ese
+        // impulso. La pantalla de partida se reconfigura, no se remonta.
+        onSiguiente: siguiente
+          ? () => {
+              this.app.audio.play('select');
+              this.app.encadenar(siguiente);
+            }
+          : null,
+        siguienteNombre: siguiente?.gameName ?? null,
       },
       {
         group: this.app.isGroup,
@@ -412,6 +425,11 @@ export class PlayScreen {
     );
     this.overlay = node;
     this.root.appendChild(node);
+    // El resultado sube desde el propio HUD en vez de aparecer de golpe: la
+    // arena se queda debajo perdiendo intensidad y la cifra no parpadea entre
+    // una pantalla y otra.
+    emergerResultado(node, this.app.save.get().prefs.reducedMotion);
+    this.root.classList.add('play--resultado');
   }
 
   /**
@@ -534,6 +552,7 @@ export class PlayScreen {
   destroy(): void {
     this.clearTimers();
     this.clearOverlay();
+    this.root.classList.remove('play--resultado');
     this.insetObserver?.disconnect();
     this.host.destroy();
     this.root.remove();

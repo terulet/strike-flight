@@ -230,3 +230,30 @@ export function formatScore(value: number): string {
   }
   return sign + out;
 }
+
+/**
+ * Como se reparte el ranking entre podio, lista y tu fila repetida.
+ *
+ * Es una funcion aparte y no una condicion suelta dentro del render porque es
+ * justo la clase de regla que se rompe sin que nadie se entere: con seis
+ * jugadores todo cabe y no se nota, y con ocho -el maximo de un grupo- alguien
+ * se queda sin encontrarse. Aqui se puede probar sin montar un DOM.
+ *
+ * REGLA: tu fila se repite al final solo si NO estas en el podio y ademas la
+ * lista de debajo es lo bastante larga como para que tengas que buscarte. Si
+ * cabe todo de un vistazo, repetirla seria ruido.
+ */
+export function repartoDelPodio(total: number, miIndice: number): {
+  podio: number;
+  resto: number;
+  repetirMiFila: boolean;
+} {
+  const podio = Math.min(3, total);
+  const resto = Math.max(0, total - podio);
+  const estoyEnPodio = miIndice >= 0 && miIndice < podio;
+  return {
+    podio,
+    resto,
+    repetirMiFila: !estoyEnPodio && miIndice >= 0 && resto > 4,
+  };
+}

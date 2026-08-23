@@ -855,3 +855,164 @@
 .card__best-value .num {
   font-stretch: 88%;
 }
+
+/* ==================================================================== */
+/* PODIO                                                                 */
+/* ==================================================================== */
+
+/**
+ * Tres alturas de lectura: el #1 grande, el #2 y el #3 en una fila de dos, y
+ * del cuarto en adelante filas compactas.
+ *
+ * El podio entero mide unos 190 px. Con tres columnas al estilo de un podio de
+ * verdad ocuparia el doble y empujaria los retos por debajo del pliegue, y los
+ * retos son el motivo de abrir la app.
+ */
+.podio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- El #1 ---------- */
+
+.podio__hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(100deg, rgba(255, 210, 63, 0.17), rgba(255, 210, 63, 0.03) 58%, transparent),
+    var(--capa-2);
+  border: 1px solid rgba(255, 210, 63, 0.34);
+  box-shadow: var(--luz-borde-fuerte), 0 0 34px rgba(255, 210, 63, 0.12);
+}
+
+/* Si el #1 eres tu, ademas del oro entra tu cian: las dos cosas a la vez, que
+   es exactamente lo que esta pasando. */
+.podio__hero--yo {
+  box-shadow:
+    var(--luz-borde-fuerte),
+    inset 3px 0 0 var(--cian),
+    0 0 34px rgba(255, 210, 63, 0.16);
+}
+
+.podio__corona {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 210, 63, 0.14);
+  border: 1px solid rgba(255, 210, 63, 0.32);
+  font-size: 20px;
+}
+
+.podio__hero-datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.podio__hero-nombre {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 19px;
+  font-weight: 900;
+  font-stretch: 88%;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.podio__hero-nombre > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podio__hero-puntos {
+  flex: none;
+  font-size: 26px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.035em;
+  color: #ffe89a;
+}
+
+/* ---------- #2 y #3 ---------- */
+
+.podio__pareja {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.podio__mini {
+  padding: 10px 12px 11px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+  min-width: 0;
+}
+
+.podio__mini--yo {
+  background:
+    linear-gradient(100deg, rgba(34, 211, 238, 0.14), transparent 70%),
+    var(--capa-2);
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: var(--luz-borde), inset 3px 0 0 var(--cian);
+}
+
+.podio__mini-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.podio__mini-nombre {
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podio__mini-puntos {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: 900;
+  font-stretch: 86%;
+  letter-spacing: -0.03em;
+}
+
+.podio__mini-gap {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-faint);
+}
+
+/* ---------- Del cuarto en adelante ---------- */
+
+.board--resto {
+  margin-top: 2px;
+}
+
+/**
+ * Tu fila repetida al final cuando estas lejos.
+ *
+ * El separador de puntos dice que esto no es la continuacion de la lista sino
+ * un recordatorio: sin el, un #7 pegado detras de un #6 pareceria que la lista
+ * sigue y confundiria mas que ayudar.
+ */
+.board--yo-fijo {
+  margin-top: 4px;
+  border-top: 2px dotted var(--line-strong);
+  padding-top: 6px;
+}

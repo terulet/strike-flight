@@ -8,6 +8,7 @@ import {
   rivalAhead,
   rivalBehind,
   rivalTotals,
+  repartoDelPodio,
 } from '../src/meta/ranking';
 import { RIVALS, rivalScore, rivalSurvivalMs } from '../src/meta/rivals';
 import { DAY, ensureGames, freshSave } from './helpers';
@@ -125,5 +126,43 @@ describe('ranking del dia', () => {
     expect(formatScore(14590)).toBe('14.590');
     expect(formatScore(1234567)).toBe('1.234.567');
     expect(formatScore(0)).toBe('0');
+  });
+});
+
+/**
+ * El reparto del podio.
+ *
+ * Vigila la regla que mas facil se rompe sin que nadie se entere: con seis
+ * jugadores todo cabe en pantalla y no se nota nada, y con ocho -el maximo de
+ * un grupo- alguien se queda sin poder encontrarse.
+ */
+describe('reparto del podio', () => {
+  it('el podio son tres, o menos si no hay tanta gente', () => {
+    expect(repartoDelPodio(8, 0).podio).toBe(3);
+    expect(repartoDelPodio(2, 0).podio).toBe(2);
+    expect(repartoDelPodio(1, 0).podio).toBe(1);
+  });
+
+  it('estando en el podio no se repite nada', () => {
+    for (const i of [0, 1, 2]) {
+      expect(repartoDelPodio(8, i).repetirMiFila, `puesto ${i + 1}`).toBe(false);
+    }
+  });
+
+  it('con el grupo lleno y fuera del podio, mi fila se repite', () => {
+    // Ocho es el maximo de un grupo: cinco filas debajo del podio ya obligan a
+    // buscarse, y es justo el caso en el que esto importa.
+    expect(repartoDelPodio(8, 7).repetirMiFila).toBe(true);
+    expect(repartoDelPodio(8, 3).repetirMiFila).toBe(true);
+  });
+
+  it('si cabe todo de un vistazo, no se repite', () => {
+    // Seis jugadores: tres en el podio y tres filas. Repetir seria ruido.
+    expect(repartoDelPodio(6, 4).repetirMiFila).toBe(false);
+    expect(repartoDelPodio(5, 4).repetirMiFila).toBe(false);
+  });
+
+  it('sin estar en la lista no se inventa una fila', () => {
+    expect(repartoDelPodio(8, -1).repetirMiFila).toBe(false);
   });
 });

@@ -18,6 +18,10 @@ import { button, el } from './dom';
 export interface ResultHandlers {
   onRematch: () => void;
   onContinue: () => void;
+  /** Encadenar con el siguiente reto del dia, si queda alguno. */
+  onSiguiente?: (() => void) | null;
+  /** Nombre del reto siguiente, para poder decirlo en el boton. */
+  siguienteNombre?: string | null;
 }
 
 export interface ResultOptions {
@@ -85,9 +89,20 @@ export function renderResult(
     // Si has ganado, lo natural es continuar; si has perdido, volver a entrar.
     won
       ? el('div', { class: 'result__actions' }, [
-          button('CONTINUAR', 'btn btn--play btn--lg btn--block', handlers.onContinue),
+          // Ganando, lo natural es seguir jugando: el siguiente reto manda
+          // sobre volver a la lista. Volver sigue estando a un toque.
+          handlers.onSiguiente
+            ? button(
+                handlers.siguienteNombre ? `SIGUIENTE: ${handlers.siguienteNombre}` : 'SIGUIENTE RETO',
+                'btn btn--play btn--lg btn--block',
+                handlers.onSiguiente,
+              )
+            : button('CONTINUAR', 'btn btn--play btn--lg btn--block', handlers.onContinue),
           canRematch
             ? button('OTRO INTENTO', 'btn btn--ghost btn--block', handlers.onRematch)
+            : null,
+          handlers.onSiguiente
+            ? button('VER RANKING', 'btn btn--ghost btn--block', handlers.onContinue)
             : null,
         ])
       : el('div', { class: 'result__actions' }, [
@@ -97,7 +112,14 @@ export function renderResult(
             handlers.onRematch,
             { disabled: !canRematch },
           ),
-          button('CONTINUAR', 'btn btn--ghost btn--block', handlers.onContinue),
+          handlers.onSiguiente
+            ? button(
+                handlers.siguienteNombre ? `SIGUIENTE: ${handlers.siguienteNombre}` : 'SIGUIENTE RETO',
+                'btn btn--ghost btn--block',
+                handlers.onSiguiente,
+              )
+            : null,
+          button('VER RANKING', 'btn btn--ghost btn--block', handlers.onContinue),
         ]),
     // Compartir va DESPUES de los botones de jugar. Delante competiria con
     // REVANCHA, que es el boton que sostiene el juego; y solo aparece cuando
