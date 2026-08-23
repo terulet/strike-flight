@@ -144,6 +144,11 @@ export const THEMES: Record<string, MusicTheme> = {
   },
 };
 
+/** Si existe tema para ese nombre. El host prefiere silencio a un tema ajeno. */
+export function hasTheme(name: string): boolean {
+  return name in THEMES;
+}
+
 /** MIDI a hercios. */
 function hz(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
@@ -183,6 +188,18 @@ export class MusicEngine {
 
   get playing(): boolean {
     return this.timer !== null;
+  }
+
+  /**
+   * Reloj de audio, que es el unico fiable para juzgar el ritmo.
+   *
+   * performance.now() y el reloj del bucle de render van por su cuenta y se
+   * desvian del audio; comparar un toque contra el compas usando otra cosa
+   * que no sea esto da fallos que el jugador no entiende. Devuelve -1 si no
+   * hay contexto (todavia sin gesto del usuario, o navegador sin WebAudio).
+   */
+  get now(): number {
+    return this.bus.musicChannel()?.ctx.currentTime ?? -1;
   }
 
   get bpm(): number {

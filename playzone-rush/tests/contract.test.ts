@@ -10,6 +10,7 @@ import { AudioBus } from '../src/core/audio';
 import { FxSystem } from '../src/core/fx';
 import { Haptics } from '../src/core/haptics';
 import { InputManager } from '../src/core/input';
+import { MusicEngine } from '../src/core/music';
 
 const META: GameMeta = {
   id: 'fake',
@@ -72,6 +73,7 @@ function makeServices(): GameServices {
     height: 700,
     insets: { top: 90, bottom: 20 },
     input: new InputManager(),
+    music: new MusicEngine(new AudioBus(true)),
     audio: new AudioBus(true),
     haptics: new Haptics(false),
     fx: new FxSystem(),

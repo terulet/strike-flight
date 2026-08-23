@@ -8,6 +8,7 @@ import {
   formatDuration,
 } from '../src/meta/daily';
 import { resolveMutators } from '../src/game/mutators';
+import { requireGame } from '../src/game/registry';
 import { DAY, ensureGames } from './helpers';
 
 beforeAll(ensureGames);
@@ -44,9 +45,32 @@ describe('rotacion diaria', () => {
     const [c1, c2, c3] = plan.challenges;
     expect(c1!.difficulty).toBeLessThan(c2!.difficulty);
     expect(c2!.difficulty).toBeLessThan(c3!.difficulty);
+
+    // El primero siempre va limpio, y a partir de ahi se piden mas mutadores.
+    // Se comprueban topes y no cantidades exactas a proposito: un juego puede
+    // declarar que mutadores admite (RITMO no acepta invertir controles, por
+    // ejemplo), asi que el reto puede quedarse con menos de los pedidos. Fijar
+    // el numero exacto ataba el test al catalogo de juegos de ese momento.
     expect(c1!.mutatorIds).toHaveLength(0);
-    expect(c2!.mutatorIds).toHaveLength(1);
-    expect(c3!.mutatorIds).toHaveLength(2);
+    expect(c2!.mutatorIds.length).toBeLessThanOrEqual(1);
+    expect(c3!.mutatorIds.length).toBeLessThanOrEqual(2);
+    expect(c3!.mutatorIds.length).toBeGreaterThanOrEqual(c2!.mutatorIds.length);
+  });
+
+  it('ningun reto recibe un mutador que su juego no admita', () => {
+    // La comprobacion que de verdad importa, y que no depende del dia.
+    for (const dia of ['2026-08-19', '2026-09-02', '2026-11-30', '2027-01-15']) {
+      const plan = buildDailyPlan(dia);
+      const retos = [...plan.challenges, plan.secret, plan.chaos];
+      for (const reto of retos) {
+        const juego = requireGame(reto.gameId);
+        const admitidos = juego.meta.supportedMutators;
+        if (!admitidos) continue;
+        for (const id of reto.mutatorIds) {
+          expect(admitidos, `${dia} ${reto.id} ${juego.meta.name}`).toContain(id);
+        }
+      }
+    }
   });
 
   it('los mutadores del dia no se repiten entre retos', () => {

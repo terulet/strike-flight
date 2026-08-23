@@ -21,6 +21,7 @@
  */
 import type { Emitter } from '../core/emitter';
 import type { AudioBus } from '../core/audio';
+import type { MusicEngine } from '../core/music';
 import type { FxSystem } from '../core/fx';
 import type { Haptics } from '../core/haptics';
 import type { InputManager } from '../core/input';
@@ -28,7 +29,7 @@ import type { MutatorState } from './mutators';
 
 export type GameState = 'idle' | 'ready' | 'playing' | 'paused' | 'finished' | 'destroyed';
 
-export type SkillKind = 'reflejos' | 'supervivencia' | 'precision' | 'memoria';
+export type SkillKind = 'reflejos' | 'supervivencia' | 'precision' | 'memoria' | 'ritmo';
 
 export type EndReason = 'time' | 'death' | 'aborted';
 
@@ -111,6 +112,12 @@ export interface GameServices {
   insets: ScreenInsets;
   input: InputManager;
   audio: AudioBus;
+  /**
+   * Musica de la partida. La mayoria de juegos no la tocan (el host ya pone
+   * el tema que toca), pero un juego de ritmo la necesita para juzgar los
+   * toques contra el compas de verdad.
+   */
+  music: MusicEngine;
   haptics: Haptics;
   fx: FxSystem;
 }

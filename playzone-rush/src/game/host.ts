@@ -12,6 +12,7 @@ import { FxSystem } from '../core/fx';
 import { Haptics } from '../core/haptics';
 import { InputManager } from '../core/input';
 import { Ticker } from '../core/loop';
+import { MusicEngine, hasTheme } from '../core/music';
 import type {
   GameConfig,
   GameDefinition,
@@ -44,6 +45,7 @@ export class GameHost {
   readonly input = new InputManager();
   readonly fx = new FxSystem();
   readonly audio: AudioBus;
+  readonly music: MusicEngine;
   readonly haptics: Haptics;
 
   private container: HTMLElement;
@@ -63,6 +65,7 @@ export class GameHost {
   constructor(options: HostOptions) {
     this.container = options.container;
     this.audio = options.audio;
+    this.music = new MusicEngine(options.audio);
     this.haptics = options.haptics;
     this.callbacks = options;
     this.fx.reducedMotion = options.reducedMotion ?? false;
@@ -130,6 +133,7 @@ export class GameHost {
         insets: this.insets,
         input: this.input,
         audio: this.audio,
+        music: this.music,
         haptics: this.haptics,
         fx: this.fx,
       },
@@ -146,17 +150,37 @@ export class GameHost {
     if (!this.current) return;
     this.input.reset();
     this.current.start();
+    this.startMusic();
     this.ticker.start();
+  }
+
+  /**
+   * Pone el tema del juego que toca. Cada juego tiene el suyo por id, y si no
+   * lo tiene se queda sin musica en vez de sonar el de otro: mejor silencio
+   * que un tema que no pega. El evento CHAOS manda sobre el tema del juego.
+   */
+  private startMusic(): void {
+    const id = this.currentDef?.meta.id;
+    if (!id) return;
+    const chaos = this.current?.config.mutatorIds.includes('chaos') ?? false;
+    const theme = chaos ? 'chaos' : id;
+    if (!hasTheme(theme)) {
+      this.music.stop();
+      return;
+    }
+    this.music.start(theme, { intensity: 0.5 });
   }
 
   pause(): void {
     this.current?.pause();
+    this.music.stop();
   }
 
   resume(): void {
     if (!this.current) return;
     this.input.reset();
     this.current.resume();
+    this.startMusic();
     if (!this.ticker.isRunning) this.ticker.start();
   }
 
@@ -166,6 +190,7 @@ export class GameHost {
     this.input.reset();
     this.fx.clear();
     this.current.restart();
+    this.startMusic();
     if (!this.ticker.isRunning) this.ticker.start();
   }
 
@@ -177,6 +202,7 @@ export class GameHost {
 
   unload(): void {
     this.ticker.stop();
+    this.music.stop();
     for (const off of this.offs) off();
     this.offs = [];
     this.current?.destroy();
