@@ -171,6 +171,33 @@ export async function playTrazo(page, ms = 60000, quality = 1) {
   }
 }
 
+/**
+ * FRENO: toca solo las fichas que la regla marca como validas.
+ *
+ * El juego ya resuelve la regla en debugInfo (`vale`), asi que el bot no
+ * interpreta el texto: aqui no se prueba si un bot sabe leer, se prueba si el
+ * juego puntua bien lo que toca y penaliza lo que no.
+ *
+ * Con menos calidad el bot toca ADEMAS fichas prohibidas, que es exactamente
+ * como falla una persona en este juego: no por lentitud, sino por no frenar.
+ */
+export async function playFreno(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  let tick = 0;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.fichas) break;
+    for (const ficha of state.fichas) {
+      if (ficha.vale) {
+        await page.mouse.click(ficha.x, ficha.y);
+      } else if (quality < 1 && tick++ % Math.max(2, Math.round(1 / (1 - quality))) === 0) {
+        await page.mouse.click(ficha.x, ficha.y);
+      }
+    }
+    await page.waitForTimeout(45);
+  }
+}
+
 export const BOTS = {
   pulse: playPulse,
   drift: playDrift,
@@ -178,6 +205,7 @@ export const BOTS = {
   memory: playMemory,
   ritmo: playRitmo,
   trazo: playTrazo,
+  freno: playFreno,
 };
 
 /**
