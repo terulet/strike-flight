@@ -137,10 +137,12 @@
   transform: translateX(-50%);
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(5, 6, 14, 0.7);
+  /* Fondo solido en vez de desenfoque: esto flota sobre un lienzo que se
+     repinta 60 veces por segundo, y cada capa con backdrop-filter obliga al
+     compositor a releer lo de debajo en cada fotograma. Con la opacidad
+     subida se lee igual de bien y no cuesta nada. */
+  background: rgba(5, 6, 14, 0.88);
   border: 1px solid rgba(255, 210, 63, 0.34);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
   font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.14em;
@@ -174,8 +176,6 @@
   letter-spacing: 0.06em;
   color: var(--text-dim);
   pointer-events: none;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
 }
 
 .hud__ghost.is-passed {
@@ -198,9 +198,10 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  background: rgba(7, 7, 13, 0.86);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
+  /* A 0.86 de opacidad un desenfoque de 3 px no se ve, y en cambio es una capa
+     a pantalla completa sobre el lienzo: la peor colocacion posible. Se sube
+     la opacidad y fuera. */
+  background: rgba(7, 7, 13, 0.93);
   padding: 24px;
   text-align: center;
 }
@@ -307,11 +308,12 @@
   border-radius: 999px;
 }
 
-/* El aviso de "has pasado al rival" y el objetivo, con cristal para que se
-   lean sobre cualquier fondo de juego. */
+/* El aviso de "has pasado al rival" y el objetivo. Se leen sobre cualquier
+   fondo de juego por opacidad, no por desenfoque: encima del lienzo vivo el
+   desenfoque se recalcula en cada fotograma y aqui no aporta nada que no de
+   un fondo mas opaco. */
 .hud__ghost,
 .hud__target {
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: rgba(5, 6, 14, 0.86);
   box-shadow: var(--luz-borde);
 }
