@@ -33,6 +33,8 @@ import { SyncEngine, type NetStatus } from '../net/sync';
 import type { GroupSnapshot } from '../net/types';
 import { watchForUpdate } from '../core/updateWatcher';
 import { renderHome } from './home';
+import { duracionBoot } from './boot';
+import { mostrarSorteo } from './reveal';
 import { renderOnboarding } from './onboarding';
 import { PlayScreen } from './play';
 import { Toaster } from './toast';
@@ -210,6 +212,44 @@ export class App {
     if (this.mode === 'group') this.sync.start();
     this.telemetry.track('app_open');
     this.renderHome();
+    this.quizaSortear();
+  }
+
+  /**
+   * El sorteo de los retos del dia, la primera vez que se abre cada dia.
+   *
+   * Se pinta ENCIMA de la portada, no en vez de ella: si alguien lo salta al
+   * instante se encuentra la pantalla ya montada debajo, sin un fotograma en
+   * blanco. La marca se guarda antes de ensenarlo y no despues, para que
+   * cerrar la app a medias no lo repita en la siguiente apertura.
+   */
+  private quizaSortear(): void {
+    if (this.save.get().days[this.dayKey]?.revealVisto) return;
+    const retos = this.plan.challenges;
+    if (retos.length === 0) return;
+
+    // save.day() crea el registro si no existe. Leyendo data.days[clave] a
+    // pelo, el primer dia -que es justo cuando el sorteo importa- no habria
+    // registro todavia, la marca se perderia y el sorteo saldria en cada
+    // apertura.
+    this.save.update(() => {
+      this.save.day(this.dayKey).revealVisto = true;
+    });
+    this.save.flush();
+
+    const quieto = this.save.get().prefs.reducedMotion;
+    // Se espera a que se quite la marca de apertura. Los dos son overlays que
+    // no bloquean, asi que arrancando juntos el sorteo giraba por debajo.
+    setTimeout(() => {
+      // Si en ese segundo el jugador ya ha entrado a un reto, el sorteo no
+      // aparece: nada se cuela encima de una partida empezada.
+      if (this.screen !== 'home' || this.play) return;
+      mostrarSorteo(retos, () => this.renderHome(), {
+        audio: this.audio,
+        haptics: this.haptics,
+        reducedMotion: quieto,
+      });
+    }, duracionBoot(quieto) + 120);
   }
 
   /** Recalcula el plan del dia (tras cambiar el dia virtual o al arrancar). */

@@ -5,6 +5,7 @@ import {
   SAVE_VERSION,
   SaveManager,
   defaultSave,
+  emptyDayRecord,
   loadSaveFrom,
   normalizeSave,
 } from '../src/core/save';
@@ -108,5 +109,43 @@ describe('persistencia', () => {
     });
     expect(save.flush()).toBe(false);
     expect(save.get().profile.name).toBe('KALI');
+  });
+});
+
+/**
+ * normalizeDay() reconstruye el registro del dia campo a campo, asi que un
+ * campo nuevo que se anada al tipo pero se olvide alli se pierde en silencio
+ * en cada carga. Paso de verdad con revealVisto: el sorteo del dia se guardaba,
+ * la recarga lo borraba, y el sorteo volvia a salir en cada apertura. El tipo
+ * no protege de esto porque normalizeDay construye un objeto nuevo.
+ */
+describe('el dia sobrevive entero a la normalizacion', () => {
+  it('ningun campo del registro del dia se pierde al recargar', () => {
+    const dia = emptyDayRecord();
+    // Se marcan todos los booleanos: si alguno se cae, vuelve a false y salta.
+    const guardado: Record<string, unknown> = { ...dia };
+    for (const [clave, valor] of Object.entries(guardado)) {
+      if (typeof valor === 'boolean') guardado[clave] = true;
+    }
+
+    const recargado = normalizeSave({ version: SAVE_VERSION, days: { '2026-08-23': guardado } })
+      .days['2026-08-23'];
+
+    for (const clave of Object.keys(dia)) {
+      expect(recargado, `falta "${clave}" tras normalizar`).toHaveProperty(clave);
+    }
+    for (const [clave, valor] of Object.entries(guardado)) {
+      if (typeof valor === 'boolean') {
+        expect(recargado?.[clave as keyof typeof recargado], `"${clave}" no sobrevive`).toBe(true);
+      }
+    }
+  });
+
+  it('revealVisto sobrevive, que es el caso que fallo', () => {
+    const cargado = normalizeSave({
+      version: SAVE_VERSION,
+      days: { '2026-08-23': { ...emptyDayRecord(), revealVisto: true } },
+    });
+    expect(cargado.days['2026-08-23']?.revealVisto).toBe(true);
   });
 });

@@ -22,6 +22,19 @@ import type { AudioBus } from '../core/audio';
 
 const DURACION_MS = 1250;
 
+/**
+ * Cuanto ocupa la secuencia en pantalla.
+ *
+ * Se exporta porque hay cosas que tienen que esperar a que termine. El sorteo
+ * de los retos del dia es una: los dos son overlays que no bloquean, asi que
+ * arrancando a la vez el sorteo giraba DEBAJO de la marca y su mejor parte
+ * -el giro y la primera parada- no la veia nadie.
+ */
+export function duracionBoot(reducedMotion?: boolean): number {
+  const quieto = reducedMotion ?? prefiereMenosMovimiento();
+  return quieto ? 700 : DURACION_MS;
+}
+
 export interface BootOptions {
   audio?: AudioBus;
   reducedMotion?: boolean;

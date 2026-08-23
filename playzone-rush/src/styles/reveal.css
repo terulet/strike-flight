@@ -1,0 +1,269 @@
+/**
+ * EL SORTEO.
+ *
+ * Cristal oscuro y luz por dentro. Lo unico que se toma prestado de la
+ * tragaperras es el ritmo -giro, freno, golpe- porque el ritmo es lo que
+ * produce la tension; el aspecto es el de la propia app, solo que a oscuras y
+ * con las columnas encendidas.
+ */
+
+.sorteo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 20px) 18px calc(var(--safe-bottom) + 20px);
+  background:
+    radial-gradient(90% 55% at 50% 40%, rgba(34, 211, 238, 0.12), transparent 62%),
+    rgba(4, 5, 11, 0.96);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: sorteo-entra 220ms var(--ease-out) both;
+}
+
+.sorteo--fuera {
+  animation: sorteo-sale 240ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes sorteo-entra {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sorteo-sale {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.04); }
+}
+
+.sorteo__caja {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Haz de luz por detras de las columnas. Sin esto son tres cajas oscuras sobre
+   un fondo oscuro; con esto el bloque parece una maquina encendida. */
+.sorteo__caja::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 118%;
+  height: 230px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(34, 211, 238, 0.2),
+    rgba(139, 92, 246, 0.11) 45%,
+    transparent 72%
+  );
+  pointer-events: none;
+  animation: sorteo-haz 2.4s var(--ease-out) both;
+}
+
+@keyframes sorteo-haz {
+  0% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+.sorteo__titulo {
+  font-size: 30px;
+  font-weight: 900;
+  font-stretch: 78%;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  background: linear-gradient(178deg, #ffffff 0%, #b9bdd4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  word-spacing: 0.16em;
+}
+
+.sorteo__rotulo {
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: var(--cian);
+}
+
+.sorteo__reels {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.sorteo__pista {
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  color: var(--text-faint);
+}
+
+/* ---------- Una columna ---------- */
+
+.reel {
+  --alto: 118px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: center;
+}
+
+/* La ventana recorta la tira: solo se ve una casilla, como en la maquina. */
+.reel__ventana {
+  position: relative;
+  width: 100%;
+  height: var(--alto);
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--capa-2);
+  border: 1px solid color-mix(in srgb, var(--accent, var(--cian)) 26%, transparent);
+  box-shadow:
+    var(--luz-borde),
+    inset 0 -14px 22px rgba(0, 0, 0, 0.5),
+    inset 0 14px 22px rgba(0, 0, 0, 0.5);
+}
+
+/* Sombra arriba y abajo dentro de la ventana: da la sensacion de cilindro y
+   no de lista plana deslizandose. Es lo que hace que parezca un tambor. */
+.reel__ventana::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(4, 5, 11, 0.85) 0%,
+    transparent 32%,
+    transparent 68%,
+    rgba(4, 5, 11, 0.85) 100%
+  );
+}
+
+.reel__tira {
+  display: flex;
+  flex-direction: column;
+  /* En reposo la tira ensena su ULTIMA casilla, que es el juego de verdad.
+     El numero de casillas lo pone reveal.ts en --casillas: si algun dia la
+     tira crece, aqui no hay que tocar nada. */
+  transform: translateY(calc(var(--alto) * (var(--casillas) - 1) * -1));
+}
+
+.reel__casilla {
+  flex: none;
+  height: var(--alto);
+  display: grid;
+  place-items: center;
+}
+
+.reel__marca {
+  color: var(--accent, var(--cian));
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent, var(--cian)) 65%, transparent));
+  font-size: 30px;
+  font-weight: 900;
+}
+
+/* ---------- Giro ---------- */
+
+/**
+ * El giro es una sola animacion que recorre la tira entera en bucle. Se mueve
+ * un transform, asi que va por composicion: ni layout ni pintado en cada
+ * fotograma, y las tres columnas juntas siguen a 60.
+ */
+.reel--gira .reel__tira {
+  animation: reel-gira var(--vuelta, 200ms) linear infinite;
+}
+
+@keyframes reel-gira {
+  from { transform: translateY(calc(var(--alto) * (var(--casillas) - 1) * -1)); }
+  to { transform: translateY(0); }
+}
+
+/* Al parar, la tira vuelve a su sitio con un frenazo decelerado. */
+.reel--parada .reel__tira {
+  animation: none;
+  transform: translateY(calc(var(--alto) * (var(--casillas) - 1) * -1));
+  transition: transform 300ms var(--ease-out);
+}
+
+/* El golpe de la parada: la ventana se comprime un pelo y suelta luz. Es el
+   "clac" visual, y es lo que hace que parar se sienta en vez de solo verse. */
+.reel--golpe .reel__ventana {
+  animation: reel-golpe 340ms var(--ease-elastico);
+}
+
+@keyframes reel-golpe {
+  0% {
+    transform: scaleY(0.9);
+    box-shadow:
+      var(--luz-borde-fuerte),
+      0 0 34px color-mix(in srgb, var(--accent, var(--cian)) 75%, transparent);
+  }
+  100% {
+    transform: scaleY(1);
+    box-shadow:
+      var(--luz-borde),
+      inset 0 -14px 22px rgba(0, 0, 0, 0.5),
+      inset 0 14px 22px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ---------- El pie: que reto y que juego ---------- */
+
+.reel__pie {
+  text-align: center;
+  /* El nombre no existe hasta que la columna para: leerlo antes seria saber el
+     resultado antes del sorteo. */
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.reel--parada .reel__pie {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reel__reto {
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+}
+
+.reel__nombre {
+  margin-top: 1px;
+  font-size: 15.5px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.01em;
+  color: var(--accent, var(--cian));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sorteo,
+  .sorteo--fuera,
+  .reel--gira .reel__tira,
+  .reel--golpe .reel__ventana {
+    animation: none;
+  }
+
+  .reel__pie {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+.sorteo__cabecera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}

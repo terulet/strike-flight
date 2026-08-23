@@ -98,6 +98,53 @@ export function renderResult(
 }
 
 /**
+ * La distancia al rival, como imagen.
+ *
+ * "Te han faltado 42 puntos" es una frase; esto es la misma informacion pero
+ * sentida. La barra crece hasta tu marca sobre la escala del rival, asi que 42
+ * puntos de 3.000 se ven como casi lleno y 42 de 100 como medio camino. La
+ * frase seria identica en los dos casos y la sensacion no lo es, y es la
+ * sensacion la que hace pulsar REVANCHA.
+ *
+ * Al ganar la barra pasa de largo la marca del rival y se tine de magenta: el
+ * mismo componente cuenta las dos historias.
+ */
+function renderDistancia(mio: number, rival: number, gana: boolean): HTMLElement {
+  const tope = Math.max(mio, rival, 1);
+  const anchoMio = Math.max(2, Math.min(100, (mio / tope) * 100));
+  const anchoRival = Math.max(0, Math.min(100, (rival / tope) * 100));
+  // "Por poco" tiene su propio color: el oro dice "lo tenias". Es el estado
+  // que mas revanchas produce, asi que se distingue del resto.
+  const cerca = !gana && rival > 0 && mio >= rival * 0.85;
+
+  const relleno = el('div', { class: 'distancia__mio', style: { width: `${anchoMio}%` } });
+  const barra = el('div', {
+    class: `distancia${gana ? ' distancia--gana' : cerca ? ' distancia--cerca' : ''}`,
+  }, [
+    relleno,
+    rival > 0 ? el('div', { class: 'distancia__rival', style: { left: `${anchoRival}%` } }) : null,
+  ]);
+  return barra;
+}
+
+/** El bloque "cuanto te ha faltado", con la cifra como protagonista. */
+function renderBrecha(options: {
+  cifra: string;
+  rotulo: string;
+  tono: 'gana' | 'cerca' | 'lejos';
+  mio: number;
+  rival: number;
+}): HTMLElement {
+  return el('div', { class: `brecha brecha--${options.tono}` }, [
+    el('div', { class: 'brecha__cabeza' }, [
+      el('div', { class: 'brecha__cifra num', text: options.cifra }),
+      el('div', { class: 'brecha__rotulo', text: options.rotulo }),
+    ]),
+    renderDistancia(options.mio, options.rival, options.tono === 'gana'),
+  ]);
+}
+
+/**
  * Estadisticas de la partida. Las genericas salen del contrato; las propias de
  * cada juego salen de result.metrics, asi que un juego nuevo puede aportar las
  * suyas sin tocar esta pantalla.
@@ -154,7 +201,16 @@ function renderDelta(outcome: ScoreOutcome): HTMLElement {
  */
 function renderComparison(outcome: ScoreOutcome, rivalName: string, myName: string): HTMLElement {
   const improvement = outcome.gainVsBest;
+  const rival = outcome.challengeTarget?.entry.total ?? 0;
   return el('div', { class: 'result__pique' }, [
+    // La barra primero: se ve la distancia antes de leer los dos numeros.
+    renderBrecha({
+      cifra: formatScore(outcome.challengeTarget?.gap ?? 0),
+      rotulo: `TE FALTAN PARA ${rivalName}`,
+      tono: 'lejos',
+      mio: outcome.score,
+      rival,
+    }),
     el('div', { class: 'compare' }, [
       el('div', { class: 'compare__row compare__row--rival' }, [
         el('span', { class: 'compare__name', text: rivalName }),
@@ -181,14 +237,31 @@ function renderPique(outcome: ScoreOutcome): HTMLElement {
 
   if (outcome.overtook.length > 0) {
     const names = joinNames(outcome.overtook.map((s) => s.name));
+    const pasado = outcome.overtook[0];
     lines.push(el('div', { class: 'result__pique-title', text: `HAS SUPERADO A ${names}` }));
+    if (pasado) {
+      lines.push(
+        renderBrecha({
+          cifra: `+${formatScore(Math.max(0, outcome.score - pasado.total))}`,
+          rotulo: `POR ENCIMA DE ${pasado.name}`,
+          tono: 'gana',
+          mio: outcome.score,
+          rival: pasado.total,
+        }),
+      );
+    }
     lines.push(el('div', { class: 'result__rank', text: `AHORA ERES #${outcome.rankAfter}` }));
   } else if (outcome.challengeTarget && !outcome.challengeTarget.entry.isMe) {
     const { entry, gap } = outcome.challengeTarget;
+    // Este es el caso que mas revanchas produce: quedarse cerca. La cifra que
+    // falta va grande y la barra ensena lo cerca que fue.
     lines.push(
-      el('div', {
-        class: 'result__pique-title',
-        text: `TE HAN FALTADO ${formatScore(gap)} PUNTOS PARA SUPERAR A ${entry.name}`,
+      renderBrecha({
+        cifra: formatScore(gap),
+        rotulo: `TE FALTAN PARA ${entry.name}`,
+        tono: 'cerca',
+        mio: outcome.score,
+        rival: entry.total,
       }),
     );
     lines.push(

@@ -14,7 +14,7 @@ import { createStore, type KeyValueStore } from './storage';
 
 export const SAVE_KEY = 'playzone.rush.save';
 export const SAVE_BACKUP_KEY = 'playzone.rush.save.broken';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Como acabo la apuesta en este reto, si es que se uso aqui. */
 export type ApuestaResultado = 'doblo' | 'cayo';
@@ -47,6 +47,13 @@ export interface DayRecord {
   secretUnlocked: boolean;
   chaosEnabled: boolean;
   resolvedWinner: string | null;
+  /**
+   * Si ya se ha visto el sorteo de los retos de hoy. Vive en el dia porque el
+   * sorteo es del dia: se ensena una vez al abrir y despues no vuelve a salir,
+   * ni al recargar ni al volver de una partida. Una animacion que se repite en
+   * cada apertura deja de ser un momento y pasa a ser un peaje.
+   */
+  revealVisto?: boolean;
 }
 
 /** Como esta jugando este movil: aun sin decidir, en solitario o en grupo. */
@@ -132,6 +139,7 @@ export function emptyDayRecord(): DayRecord {
     secretUnlocked: false,
     chaosEnabled: false,
     resolvedWinner: null,
+    revealVisto: false,
   };
 }
 
@@ -205,6 +213,7 @@ function normalizeDay(raw: unknown): DayRecord {
     secretUnlocked: bool(r.secretUnlocked, false),
     chaosEnabled: bool(r.chaosEnabled, false),
     resolvedWinner: typeof r.resolvedWinner === 'string' ? r.resolvedWinner : null,
+    revealVisto: bool(r.revealVisto, false),
   };
 }
 
@@ -398,6 +407,10 @@ export const migrations: Record<number, Migration> = {
   // encuentra sin gastar, que es lo correcto: no se le quita nada ni se le
   // regala una marca doblada de un dia que jugo sin conocer el sistema.
   3: (data) => ({ ...data, version: 4 }),
+  // v4 -> v5: aparece revealVisto en cada dia. No hace falta rellenarlo: al
+  // ser opcional, un dia viejo sin la marca simplemente ensena el sorteo una
+  // vez y se acabo.
+  4: (data) => ({ ...data, version: 5 }),
 };
 
 export interface LoadReport {

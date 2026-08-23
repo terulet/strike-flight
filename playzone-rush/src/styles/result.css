@@ -497,3 +497,74 @@
     animation: none;
   }
 }
+
+/* ==================================================================== */
+/* La brecha: cuanto te ha faltado, dicho como imagen                    */
+/* ==================================================================== */
+
+/**
+ * El bloque que decide si vuelves a darle. La cifra que falta va grande porque
+ * es la unica que importa aqui: no cuanto has hecho, sino cuanto te queda.
+ */
+.brecha {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 15px 15px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+}
+
+.brecha__cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.brecha__cifra {
+  font-size: 34px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.brecha__rotulo {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+}
+
+/* Por poco: oro. Es el estado que mas revanchas produce, asi que tiene color
+   propio y no comparte el del fracaso. "Lo tenias" no es "has perdido". */
+.brecha--cerca {
+  border-color: rgba(255, 210, 63, 0.3);
+  box-shadow: var(--luz-borde), 0 0 30px rgba(255, 210, 63, 0.1);
+}
+
+.brecha--cerca .brecha__cifra {
+  color: var(--oro);
+  filter: drop-shadow(0 0 20px rgba(255, 210, 63, 0.4));
+}
+
+/* Por mucho: sin drama. Se informa, no se restriega. */
+.brecha--lejos .brecha__cifra {
+  color: var(--text-dim);
+}
+
+/* Ganando: magenta, el color del pique ganado. */
+.brecha--gana {
+  border-color: rgba(255, 47, 109, 0.3);
+  box-shadow: var(--luz-borde), 0 0 30px rgba(255, 47, 109, 0.12);
+}
+
+.brecha--gana .brecha__cifra {
+  color: var(--magenta);
+  filter: drop-shadow(0 0 20px rgba(255, 47, 109, 0.45));
+}
