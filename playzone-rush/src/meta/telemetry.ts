@@ -27,7 +27,14 @@ export type EventType =
   | 'daily_all_games_completed'
   | 'secret_unlocked'
   | 'sync_dropped'
-  | 'app_update_applied';
+  | 'app_update_applied'
+  // DOBLE O NADA: se miran juntos. Cuantos se atreven, cuantos lo clavan, y
+  // sobre todo si la gente la usa: una ficha que nadie gasta es una ficha mal
+  // disenada.
+  | 'bet_offered'
+  | 'bet_taken'
+  | 'bet_won'
+  | 'bet_lost';
 
 export interface TrackOptions {
   gameId?: string | null;

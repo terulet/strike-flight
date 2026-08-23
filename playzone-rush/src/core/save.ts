@@ -14,7 +14,10 @@ import { createStore, type KeyValueStore } from './storage';
 
 export const SAVE_KEY = 'playzone.rush.save';
 export const SAVE_BACKUP_KEY = 'playzone.rush.save.broken';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+
+/** Como acabo la apuesta en este reto, si es que se uso aqui. */
+export type ApuestaResultado = 'doblo' | 'cayo';
 
 export interface ChallengeProgress {
   attemptsUsed: number;
@@ -22,10 +25,22 @@ export interface ChallengeProgress {
   lastScore: number;
   plays: number;
   history: number[];
+  /**
+   * Si el jugador gasto aqui su ficha del dia, y como acabo. null = no la uso
+   * en este reto. Se guarda por reto (y no solo en el dia) porque el ranking
+   * tiene que poder ensenar 🔥 o 💀 justo al lado de la marca afectada.
+   */
+  apuesta?: ApuestaResultado | null;
 }
 
 export interface DayRecord {
   challenges: Record<string, ChallengeProgress>;
+  /**
+   * La ficha de DOBLE O NADA: una por jugador y dia. Se consume tanto si gana
+   * como si pierde. Vive en el dia y no en el reto porque es del dia entero:
+   * se puede gastar en cualquiera de los tres, pero solo en uno.
+   */
+  apuestaGastada?: boolean;
   rivalsPlayed: string[];
   /** Puntos extra que el panel de debug regala a un rival ese dia. */
   rivalBoosts: Record<string, number>;
@@ -106,7 +121,7 @@ export interface SaveData {
 }
 
 export function emptyChallengeProgress(): ChallengeProgress {
-  return { attemptsUsed: 0, bestScore: 0, lastScore: 0, plays: 0, history: [] };
+  return { attemptsUsed: 0, bestScore: 0, lastScore: 0, plays: 0, history: [], apuesta: null };
 }
 
 export function emptyDayRecord(): DayRecord {
@@ -158,6 +173,9 @@ function normalizeChallenge(raw: unknown): ChallengeProgress {
     ? r.history.filter((n): n is number => typeof n === 'number' && Number.isFinite(n)).slice(-20)
     : [];
   return {
+    // Solo se aceptan los dos valores validos: un save manipulado no puede
+    // colar una marca de apuesta inventada.
+    apuesta: r.apuesta === 'doblo' || r.apuesta === 'cayo' ? r.apuesta : null,
     attemptsUsed: Math.max(0, Math.round(num(r.attemptsUsed, 0))),
     bestScore: Math.max(0, Math.round(num(r.bestScore, 0))),
     lastScore: Math.max(0, Math.round(num(r.lastScore, 0))),
@@ -179,6 +197,7 @@ function normalizeDay(raw: unknown): DayRecord {
 
   return {
     challenges,
+    apuestaGastada: bool(r.apuestaGastada, false),
     rivalBoosts,
     rivalsPlayed: Array.isArray(r.rivalsPlayed)
       ? Array.from(new Set(r.rivalsPlayed.filter((v): v is string => typeof v === 'string')))
@@ -375,6 +394,10 @@ export const migrations: Record<number, Migration> = {
   // con sus valores por defecto, asi que aqui solo se marca la version: nada
   // de lo que ya habia jugado el jugador se toca.
   2: (data) => ({ ...data, version: 3 }),
+  // v3 -> v4: aparece la ficha de DOBLE O NADA. Quien ya venia jugando la
+  // encuentra sin gastar, que es lo correcto: no se le quita nada ni se le
+  // regala una marca doblada de un dia que jugo sin conocer el sistema.
+  3: (data) => ({ ...data, version: 4 }),
 };
 
 export interface LoadReport {

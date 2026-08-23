@@ -22,6 +22,8 @@ export interface ResultOptions {
   /** Si el rival es una persona del grupo (cambia el tono de los mensajes). */
   group: boolean;
   myName: string;
+  /** Panel de DOBLE O NADA, si el jugador aun tiene su ficha del dia. */
+  apuesta?: HTMLElement | null;
 }
 
 export function renderResult(
@@ -53,6 +55,9 @@ export function renderResult(
     heavyLoss && target
       ? renderComparison(outcome, target.entry.name, options.myName)
       : renderPique(outcome),
+    // La apuesta va aqui: despues de ver tu marca y antes de los botones de
+    // salir. Ese es el orden en el que se decide de verdad.
+    options.apuesta ?? null,
     el(
       'div',
       { class: 'result__stats' },

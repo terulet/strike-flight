@@ -190,3 +190,252 @@
 .result__empty {
   color: var(--bad);
 }
+
+/* ---------- DOBLE O NADA: la decision ---------- */
+.apuesta {
+  margin-top: 14px;
+  padding: 15px 14px 13px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 210, 63, 0.4);
+  background: linear-gradient(160deg, rgba(255, 210, 63, 0.14), var(--surface));
+  box-shadow: 0 12px 40px rgba(255, 210, 63, 0.12);
+  animation: overtake-in 340ms var(--ease-out);
+}
+
+.apuesta__ficha {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--gold);
+}
+
+.apuesta__icono {
+  font-size: 14px;
+}
+
+.apuesta__titulo {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.apuesta__cuentas {
+  margin-top: 11px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.apuesta__cuenta {
+  border-radius: var(--radius);
+  padding: 9px 6px;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.apuesta__cuenta--gana {
+  border-color: rgba(124, 243, 192, 0.4);
+}
+
+.apuesta__cuenta--pierde {
+  border-color: rgba(255, 77, 109, 0.4);
+}
+
+.apuesta__cuenta-label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+}
+
+.apuesta__cuenta--gana .apuesta__cuenta-valor {
+  color: var(--good);
+}
+
+.apuesta__cuenta--pierde .apuesta__cuenta-valor {
+  color: var(--bad);
+}
+
+.apuesta__cuenta-valor {
+  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.apuesta__aviso {
+  margin-top: 9px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.apuesta__botones {
+  margin-top: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.apuesta__jugar {
+  background: linear-gradient(135deg, var(--gold), #ff8a3d);
+  color: #1a1200;
+  box-shadow: 0 10px 28px rgba(255, 210, 63, 0.32);
+}
+
+/* ---------- DOBLE O NADA: el microdesafio ---------- */
+.reto {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 22px;
+  background: radial-gradient(circle at 50% 45%, #1a1408 0%, #07070d 68%);
+  animation: reto-entra 220ms var(--ease-out);
+}
+
+@keyframes reto-entra {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.reto__titulo {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+
+.reto__barra {
+  position: relative;
+  width: 100%;
+  max-width: 330px;
+  height: 76px;
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.reto__zona {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(124, 243, 192, 0.32), rgba(124, 243, 192, 0.14));
+  border-left: 2px solid var(--good);
+  border-right: 2px solid var(--good);
+}
+
+.reto__aguja {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 5px;
+  margin-left: -2.5px;
+  border-radius: 3px;
+  background: var(--text);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
+}
+
+.reto__aguja--dentro {
+  background: var(--good);
+  box-shadow: 0 0 22px var(--good);
+}
+
+.reto__aguja--parada {
+  width: 7px;
+  margin-left: -3.5px;
+}
+
+.reto__cuenta {
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.reto__pista {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+
+.reto--gana {
+  background: radial-gradient(circle at 50% 45%, rgba(124, 243, 192, 0.24) 0%, #07070d 68%);
+}
+
+.reto--pierde {
+  background: radial-gradient(circle at 50% 45%, rgba(255, 77, 109, 0.22) 0%, #07070d 68%);
+}
+
+/* Quien pide menos movimiento no se queda sin jugar: solo sin la entrada. */
+@media (prefers-reduced-motion: reduce) {
+  .reto,
+  .apuesta {
+    animation: none;
+  }
+}
+
+/* ---------- DOBLE O NADA: el desenlace ---------- */
+.apuesta__desenlace {
+  text-align: center;
+  padding: 6px 0 2px;
+  animation: overtake-in 300ms var(--ease-out);
+}
+
+.apuesta__desenlace-icono {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.apuesta__desenlace-titulo {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.apuesta__desenlace--gana .apuesta__desenlace-titulo {
+  color: var(--good);
+}
+
+.apuesta__desenlace--pierde .apuesta__desenlace-titulo {
+  color: var(--bad);
+}
+
+.apuesta__desenlace-marca {
+  margin-top: 4px;
+  font-size: 38px;
+  font-weight: 900;
+}
+
+.apuesta__desenlace-delta {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.apuesta__desenlace--gana .apuesta__desenlace-delta {
+  color: var(--good);
+}
+
+.apuesta__desenlace--pierde .apuesta__desenlace-delta {
+  color: var(--bad);
+}

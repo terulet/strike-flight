@@ -14,6 +14,7 @@ import type { ScoreOutcome } from '../meta/scoring';
 import type { App } from './app';
 import { button, el } from './dom';
 import { celebrate, renderResult } from './result';
+import { renderDecision } from './apuesta';
 
 interface Hud {
   score: HTMLElement;
@@ -324,6 +325,42 @@ export class PlayScreen {
       this.app.offerRevenge(`result:${this.spec.id}:${outcome.score}`, gap, rival, this.spec.gameId);
     }
 
+    // DOBLE O NADA: solo si le queda la ficha del dia y el reto cuenta.
+    let apuesta: HTMLElement | null = null;
+    if (this.app.puedeApostar(this.spec, outcome)) {
+      this.app.telemetry.track('bet_offered', {
+        gameId: this.spec.gameId,
+        value: outcome.score,
+        meta: { challengeId: this.spec.id },
+      });
+      apuesta = renderDecision(
+        { puntuacion: outcome.score, audio: this.app.audio, haptics: this.app.haptics },
+        {
+          onGuardar: () => {
+            // Guardar tambien es una decision: se quita el panel para que
+            // quede claro que ya esta tomada, pero la ficha NO se gasta.
+            apuesta?.remove();
+          },
+          onResuelta: (resultado) => {
+            this.app.telemetry.track('bet_taken', {
+              gameId: this.spec.gameId,
+              meta: { challengeId: this.spec.id },
+            });
+            // El puesto ANTES de aplicar la apuesta: es la referencia para
+            // saber a quien has adelantado o quien te ha pasado.
+            const antes = this.app.leaderboard().standings.findIndex((e) => e.isMe) + 1;
+            this.app.resolverApuesta(this.spec, resultado.gana, resultado.puntuacionFinal);
+            this.mostrarDesenlaceApuesta(
+              resultado.gana,
+              resultado.puntuacionFinal,
+              resultado.diferencia,
+              antes,
+            );
+          },
+        },
+      );
+    }
+
     const node = renderResult(
       this.spec,
       outcome,
@@ -338,10 +375,75 @@ export class PlayScreen {
           this.app.exitToHome();
         },
       },
-      { group: this.app.isGroup, myName: this.app.save.get().profile.name },
+      { group: this.app.isGroup, myName: this.app.save.get().profile.name, apuesta },
     );
     this.overlay = node;
     this.root.appendChild(node);
+  }
+
+  /**
+   * Lo que se ve al volver del microdesafio. Tiene que doler o celebrar de
+   * verdad: si ganar y perder se sienten igual, la apuesta no significa nada.
+   */
+  private mostrarDesenlaceApuesta(
+    gana: boolean,
+    puntuacion: number,
+    diferencia: number,
+    puestoAnterior: number | null,
+  ): void {
+    const panel = this.overlay?.querySelector('.apuesta');
+    if (!panel) return;
+    const signo = diferencia >= 0 ? '+' : '';
+    panel.replaceChildren(
+      el('div', { class: `apuesta__desenlace apuesta__desenlace--${gana ? 'gana' : 'pierde'}` }, [
+        el('div', { class: 'apuesta__desenlace-icono', text: gana ? '🔥' : '💀' }),
+        el('div', {
+          class: 'apuesta__desenlace-titulo',
+          text: gana ? 'DOBLADO' : 'TE LA JUGASTE Y CAYO',
+        }),
+        el('div', { class: 'apuesta__desenlace-marca num', text: formatScore(puntuacion) }),
+        el('div', { class: 'apuesta__desenlace-delta', text: `${signo}${formatScore(diferencia)}` }),
+      ]),
+    );
+    // Los mensajes miran el ranking DESPUES de aplicar la apuesta: lo que
+    // importa no es haber doblado, es a quien has adelantado (o quien te ha
+    // pasado). Sin esto seria un numero mas; con esto hay historia que contar.
+    const board = this.app.leaderboard();
+    const yo = board.standings.findIndex((e) => e.isMe);
+    const puesto = yo + 1;
+
+    if (gana) {
+      this.app.audio.play('victory');
+      this.app.audio.play('record');
+      this.app.haptics.fire('success');
+      const adelantados = puestoAnterior !== null ? puestoAnterior - puesto : 0;
+      if (adelantados > 0 && puesto === 1) {
+        const segundo = board.standings[1];
+        this.app.toaster.show(
+          `🔥 TE LA JUGASTE Y LE ROBASTE EL #1 A ${segundo?.name ?? 'TODOS'}`,
+          'gold',
+          3600,
+        );
+      } else if (adelantados > 0) {
+        this.app.toaster.show(`🔥 DOBLASTE Y ADELANTASTE A ${adelantados}`, 'gold', 3200);
+      } else {
+        this.app.toaster.show('🔥 HAS DOBLADO', 'gold', 2600);
+      }
+    } else {
+      this.app.haptics.fire('error');
+      // Perder el liderato por haber apostado tiene que doler mas que perder
+      // sin mas: era tuyo y lo arriesgaste tu.
+      if (puestoAnterior === 1 && puesto > 1) {
+        const lider = board.standings[0];
+        this.app.toaster.show(
+          `💀 ARRIESGASTE EL LIDERATO. ${lider?.name ?? 'ALGUIEN'} ACABA DE PASARTE.`,
+          'bad',
+          4000,
+        );
+      } else {
+        this.app.toaster.show('💀 SE TE HA IDO LA MITAD', 'bad', 2600);
+      }
+    }
   }
 
   pause(): void {

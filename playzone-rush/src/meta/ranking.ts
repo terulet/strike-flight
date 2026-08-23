@@ -21,6 +21,8 @@ export interface Standing {
   /** Solo en grupo real: conectado ahora / ha abierto la app hoy. */
   online?: boolean;
   activeToday?: boolean;
+  /** Gasto hoy su ficha de DOBLE O NADA, y como le fue. Va al lado del nombre. */
+  apuesta?: 'doblo' | 'cayo' | null;
 }
 
 /**
@@ -110,6 +112,10 @@ export function buildLeaderboard(
     total: mine.total,
     perChallenge: mine.perChallenge,
     played: mine.played,
+    // Si gaste la ficha hoy, en cualquiera de los retos: es del dia entero,
+    // asi que basta con que aparezca en uno.
+    apuesta:
+      Object.values(data.days[plan.dayKey]?.challenges ?? {}).find((c) => c.apuesta)?.apuesta ?? null,
   };
 
   const others = context.others ?? botStandings(plan, save, secretUnlocked);

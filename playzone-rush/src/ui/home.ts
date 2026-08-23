@@ -474,6 +474,13 @@ function renderBoard(app: App, board: Leaderboard): HTMLElement {
         el('span', { text: entry.name }),
         entry.isMe ? el('span', { class: 'tag', text: 'TU' }) : null,
         index === 0 ? el('span', { text: '👑' }) : null,
+        // Quien se la jugo lleva marca, para bien o para mal. Es media gracia
+        // del sistema: que se vea en el ranking quien tuvo agallas.
+        entry.apuesta === 'doblo'
+          ? el('span', { class: 'tag tag--doblo', text: '🔥 DOBLO' })
+          : entry.apuesta === 'cayo'
+            ? el('span', { class: 'tag tag--cayo', text: '💀 CAYO' })
+            : null,
         !entry.isMe && entry.played ? el('span', { class: 'tag', text: 'HA JUGADO' }) : null,
       ]),
       el('div', { class: 'row__score num', text: formatScore(entry.total) }),

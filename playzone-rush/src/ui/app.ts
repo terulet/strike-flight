@@ -441,6 +441,81 @@ export class App {
     this.startChallenge(spec, { quick: true, ignoreAttempts: true });
   }
 
+  /* ---------------- doble o nada ---------------- */
+
+  /**
+   * Si le queda la ficha del dia. Una por jugador y dia, se gaste como se
+   * gaste: gane o pierda, se consume.
+   */
+  get tieneFicha(): boolean {
+    return !this.save.get().days[this.dayKey]?.apuestaGastada;
+  }
+
+  /**
+   * Se puede apostar en un reto si queda ficha y ese reto cuenta para el
+   * ranking. En el CHAOS no: puntua aparte, doblar alli no cambia nada de lo
+   * que importa y solo confundiria.
+   */
+  puedeApostar(spec: ChallengeSpec, outcome: ScoreOutcome): boolean {
+    if (!this.tieneFicha) return false;
+    if (spec.countsForRanking === false) return false;
+    // Sin puntos no hay nada que doblar ni que perder.
+    return outcome.score > 0;
+  }
+
+  /**
+   * Resuelve la apuesta sobre la marca de ESE reto. No toca los otros dos.
+   *
+   * La ficha se marca gastada pase lo que pase: es lo que hace que la decision
+   * pese. Si solo se consumiera al perder, apostar seria gratis.
+   */
+  resolverApuesta(spec: ChallengeSpec, gana: boolean, puntuacionFinal: number): void {
+    this.save.update((data) => {
+      const dia = this.save.day(this.dayKey);
+      dia.apuestaGastada = true;
+      const progreso = this.save.challenge(this.dayKey, spec.id);
+      progreso.apuesta = gana ? 'doblo' : 'cayo';
+      // La marca del reto pasa a ser la apostada, para bien o para mal. Se
+      // asigna en vez de usar Math.max a proposito: perder tiene que doler de
+      // verdad, y si el mejor de antes sobreviviera no habria riesgo ninguno.
+      progreso.bestScore = puntuacionFinal;
+      progreso.lastScore = puntuacionFinal;
+      // Y se cierra el reto. Esto NO es un detalle: commitResult guarda el
+      // mejor de los intentos, asi que si quedaran intentos bastaria con
+      // volver a jugar para borrar una apuesta perdida. Apostar seria gratis y
+      // no habria riesgo ninguno. Cerrando el reto, la decision pesa: doblas
+      // esta marca o sigues intentando mejorarla, pero no las dos cosas.
+      progreso.attemptsUsed = spec.attempts;
+      void data;
+    });
+    this.telemetry.track(gana ? 'bet_won' : 'bet_lost', {
+      gameId: spec.gameId,
+      value: puntuacionFinal,
+      meta: { challengeId: spec.id },
+    });
+    this.save.flush();
+    if (this.isGroup) this.reenviarMarca(spec, puntuacionFinal);
+    this.notify();
+  }
+
+  /** Sube la marca ya apostada al grupo, para que el ranking la refleje. */
+  private reenviarMarca(spec: ChallengeSpec, puntuacion: number): void {
+    const progreso = this.save.get().days[this.dayKey]?.challenges[spec.id];
+    this.sync.queueScore({
+      attemptId: `${this.sync.playerId ?? 'anon'}-${spec.id}-apuesta-${Date.now().toString(36)}`,
+      day: this.dayKey,
+      challengeId: spec.id,
+      gameId: spec.gameId,
+      score: puntuacion,
+      durationMs: 5000,
+      attemptsUsed: progreso?.attemptsUsed ?? 1,
+      countsForRanking: spec.countsForRanking,
+      ghost: null,
+      queuedAt: Date.now(),
+      tries: 0,
+    });
+  }
+
   /** Revancha: mismo reto, cero menus. */
   rematch(spec: ChallengeSpec, context: { gap?: number; rival?: string } = {}): void {
     if (!this.canPlay(spec)) {
