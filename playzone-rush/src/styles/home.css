@@ -788,3 +788,70 @@
     animation: none;
   }
 }
+
+/* ==================================================================== */
+/* INVITAR: el codigo del grupo como pieza                               */
+/* ==================================================================== */
+
+/**
+ * Este bloque solo tiene un trabajo: que alguien pase el codigo a otra persona.
+ * Antes era una linea de texto pequena junto a dos botones y se leia como un
+ * dato de configuracion. Ahora el codigo es lo mas grande del panel, con los
+ * caracteres separados uno a uno -que es como se dictan y como se leen desde
+ * el otro lado de una mesa- y las acciones debajo, sin competir con el.
+ */
+.invita {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 14px 14px;
+  text-align: center;
+}
+
+.invita__codigo {
+  display: flex;
+  gap: 7px;
+}
+
+.invita__letra {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  padding: 9px 4px 11px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.04));
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  box-shadow: var(--luz-borde-fuerte), 0 0 22px rgba(34, 211, 238, 0.12);
+  font-size: 27px;
+  font-weight: 900;
+  font-stretch: 86%;
+  line-height: 1;
+  color: #ccf7ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.invita__pista {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.invita__acciones {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+}
+
+.invita__acciones .group__mini {
+  flex: 1;
+}
+
+/* Cuando no hay marca que batir, el hueco lleva texto y no cifra: el
+   tratamiento de numero (muy cerrado, peso 900) hace ilegible una frase. */
+.card__best-value .num {
+  font-stretch: 88%;
+}

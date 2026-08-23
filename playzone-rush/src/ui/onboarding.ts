@@ -6,6 +6,8 @@
  */
 import { ApiError, NetworkError } from '../net/client';
 import type { App } from './app';
+import { compartirTexto } from './compartir';
+import { textoInvitacion } from '../meta/compartir';
 import { button, el } from './dom';
 
 type Step = 'welcome' | 'create' | 'join' | 'code';
@@ -150,27 +152,18 @@ export function renderOnboarding(app: App): HTMLElement {
     });
 
     const share = button('COMPARTIR', 'btn btn--block', async () => {
-      const nav = navigator as Navigator & {
-        share?: (data: { title?: string; text?: string }) => Promise<void>;
-      };
-      if (typeof nav.share === 'function') {
-        try {
-          await nav.share({
-            title: 'PLAYZONE RUSH',
-            text: `Entra en mi grupo de PLAYZONE RUSH con el codigo ${code}`,
-          });
-        } catch {
-          /* el usuario ha cancelado el menu de compartir */
-        }
-      } else {
-        const ok = await copyToClipboard(code);
-        feedback.textContent = ok ? 'Codigo copiado.' : code;
-      }
+      // Mismo texto que en la portada: se invita igual desde los dos sitios.
+      const que = await compartirTexto(textoInvitacion(code));
+      if (que === 'copiado') feedback.textContent = 'Invitacion copiada.';
     });
 
     return el('div', { class: 'onboarding__panel' }, [
       el('div', { class: 'onboarding__kicker', text: 'TU GRUPO' }),
-      el('div', { class: 'onboarding__code num', text: code }),
+      el(
+        'div',
+        { class: 'invita__codigo onboarding__code' },
+        code.split('').map((letra) => el('span', { class: 'invita__letra', text: letra })),
+      ),
       el('div', { class: 'onboarding__hint', text: 'COMPARTELO CON TUS AMIGOS' }),
       el('div', { class: 'onboarding__row' }, [copy, share]),
       feedback,

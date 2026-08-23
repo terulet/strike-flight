@@ -15,6 +15,8 @@ import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
+import { compartirTexto } from './compartir';
+import { textoInvitacion } from '../meta/compartir';
 import { hayMarca, iconButton, marca } from './icons';
 import { promptText } from './modal';
 
@@ -146,31 +148,28 @@ function renderGroup(app: App): HTMLElement | null {
   });
 
   const share = button('COMPARTIR', 'group__mini', async () => {
-    const nav = navigator as Navigator & {
-      share?: (data: { title?: string; text?: string }) => Promise<void>;
-    };
-    if (typeof nav.share !== 'function') {
-      await navigator.clipboard?.writeText?.(snapshot.group.code).catch(() => undefined);
-      app.toaster.show('CODIGO COPIADO', 'good', 1600);
-      return;
-    }
-    try {
-      await nav.share({
-        title: 'PLAYZONE RUSH',
-        text: `Entra en mi grupo de PLAYZONE RUSH con el codigo ${snapshot.group.code}`,
-      });
-    } catch {
-      /* cancelado */
-    }
+    // El texto de la invitacion vive en un solo sitio: aqui y en el onboarding
+    // se invita igual, y antes eran dos frases distintas escritas a mano.
+    const que = await compartirTexto(textoInvitacion(snapshot.group.code));
+    if (que === 'copiado') app.toaster.show('INVITACION COPIADA', 'good', 2000);
   });
 
+  // El codigo es la pieza que se ensena a otra persona, muchas veces girando el
+  // movil o leyendolo en voz alta. Va grande, con las letras separadas y una
+  // por una: cuatro caracteres sueltos se dictan sin equivocarse y se leen de
+  // lejos. Antes era una linea pequena al lado de dos botones.
+  const codigo = el(
+    'div',
+    { class: 'invita__codigo' },
+    snapshot.group.code.split('').map((letra) => el('span', { class: 'invita__letra', text: letra })),
+  );
+
   return el('div', { class: 'group' }, [
-    el('div', { class: 'group__head' }, [
-      el('div', {}, [
-        el('div', { class: 'group__label', text: 'TU GRUPO' }),
-        el('div', { class: 'group__code', text: snapshot.group.code }),
-      ]),
-      el('div', { class: 'group__actions' }, [copy, share]),
+    el('div', { class: 'invita' }, [
+      el('div', { class: 'rotulo', text: 'CODIGO DEL GRUPO' }),
+      codigo,
+      el('div', { class: 'invita__pista', text: 'QUIEN LO TENGA, ENTRA' }),
+      el('div', { class: 'group__actions invita__acciones' }, [copy, share]),
     ]),
     el(
       'div',
@@ -444,15 +443,26 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
           }),
         ]),
         el('div', { class: 'card__best' }, [
-          el('div', { class: 'card__best-label', text: best > 0 ? 'TU MEJOR' : 'A BATIR' }),
+          el('div', {
+            class: 'card__best-label',
+            // Un rival con 0 no es un objetivo: "A BATIR 0 MARC" se lee como
+            // un dato sin terminar. Si nadie ha marcado todavia, lo que hay
+            // que decir es que el sitio esta libre.
+            text: best > 0 ? 'TU MEJOR' : target && target.entry.total > 0 ? 'A BATIR' : 'NADIE HA JUGADO',
+          }),
           // La cifra y el nombre en piezas distintas: juntos en un solo texto
           // el nombre heredaba el tratamiento de numero y se leia "2.750SILVIA".
           el('div', { class: 'card__best-value' }, [
             el('span', {
               class: 'num',
-              text: best > 0 ? formatScore(best) : target ? formatScore(target.entry.total) : '—',
+              text:
+                best > 0
+                  ? formatScore(best)
+                  : target && target.entry.total > 0
+                    ? formatScore(target.entry.total)
+                    : 'SE EL PRIMERO',
             }),
-            best === 0 && target
+            best === 0 && target && target.entry.total > 0
               ? el('span', { class: 'card__best-who', text: target.entry.name })
               : null,
           ]),

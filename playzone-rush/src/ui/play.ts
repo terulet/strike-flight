@@ -389,7 +389,14 @@ export class PlayScreen {
           this.app.exitToHome();
         },
       },
-      { group: this.app.isGroup, myName: this.app.save.get().profile.name, apuesta },
+      {
+        group: this.app.isGroup,
+        myName: this.app.save.get().profile.name,
+        apuesta,
+        apuestaResultado:
+          this.app.save.get().days[this.app.dayKey]?.challenges[this.spec.id]?.apuesta ?? null,
+        onAviso: (texto) => this.app.toaster.show(texto, 'good', 2200),
+      },
     );
     this.overlay = node;
     this.root.appendChild(node);

@@ -11,6 +11,8 @@ import type { ChallengeSpec } from '../meta/daily';
 import { formatScore } from '../meta/ranking';
 import { headlineFor, type ScoreOutcome } from '../meta/scoring';
 import type { App } from './app';
+import { botonCompartir } from './compartir';
+import { momentoDe } from '../meta/compartir';
 import { button, el } from './dom';
 
 export interface ResultHandlers {
@@ -24,6 +26,10 @@ export interface ResultOptions {
   myName: string;
   /** Panel de DOBLE O NADA, si el jugador aun tiene su ficha del dia. */
   apuesta?: HTMLElement | null;
+  /** Como acabo la ficha del dia, si se gasto en este reto. */
+  apuestaResultado?: 'doblo' | 'cayo' | null;
+  /** Para avisar de que el texto se ha copiado. */
+  onAviso?: (texto: string) => void;
 }
 
 export function renderResult(
@@ -78,13 +84,17 @@ export function renderResult(
         ])
       : el('div', { class: 'result__actions' }, [
           button(
-            canRematch ? (heavyLoss ? 'OTRO INTENTO' : 'REVANCHA') : 'SIN INTENTOS',
+            canRematch ? etiquetaReintento(outcome, heavyLoss) : 'SIN INTENTOS',
             'btn btn--play btn--lg btn--block',
             handlers.onRematch,
             { disabled: !canRematch },
           ),
           button('CONTINUAR', 'btn btn--ghost btn--block', handlers.onContinue),
         ]),
+    // Compartir va DESPUES de los botones de jugar. Delante competiria con
+    // REVANCHA, que es el boton que sostiene el juego; y solo aparece cuando
+    // ha pasado algo que a otra persona le importa (ver momentoDe).
+    momentoCompartible(spec, outcome, options),
     el('div', { class: `result__attempts${canRematch ? '' : ' result__empty'}` }, [
       el('span', { text: 'INTENTOS ' }),
       el('span', {
@@ -95,6 +105,42 @@ export function renderResult(
   ]);
 
   return el('div', { class: 'result' }, [inner]);
+}
+
+/**
+ * Como se llama el boton de volver a jugar.
+ *
+ * "REVANCHA" solo cuando hay alguien a quien alcanzar. Si ya mandas en el reto
+ * la palabra no significa nada -no hay nada que vengar- y se veia raro: la
+ * pantalla decia "MANDAS EN ESTE RETO" y debajo ofrecia revancha. Perder por
+ * mucho tampoco es revancha: ahi lo honesto es otro intento.
+ */
+function etiquetaReintento(outcome: ScoreOutcome, heavyLoss: boolean): string {
+  const hayAQuienAlcanzar = Boolean(outcome.challengeTarget && !outcome.challengeTarget.entry.isMe);
+  if (!hayAQuienAlcanzar || heavyLoss) return 'OTRO INTENTO';
+  return 'REVANCHA';
+}
+
+/** El boton de contarlo, si esta partida ha dado para contarse. */
+function momentoCompartible(
+  spec: ChallengeSpec,
+  outcome: ScoreOutcome,
+  options: ResultOptions,
+): HTMLElement | null {
+  const momento = momentoDe({
+    yo: options.myName,
+    reto: spec.title,
+    juego: spec.gameName,
+    puntuacion: outcome.score,
+    adelantados: outcome.overtook.map((s) => s.name),
+    lider: outcome.becameLeader,
+    record: outcome.isPersonalRecord,
+    apuesta: options.apuestaResultado ?? null,
+  });
+  if (!momento) return null;
+  return botonCompartir(momento, (aviso) => {
+    if (aviso) options.onAviso?.(aviso);
+  });
 }
 
 /**
