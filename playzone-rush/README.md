@@ -178,6 +178,71 @@ de los propios juegos, cada una en su color.
 
 ---
 
+## Compartir: momentos y mini-póster
+
+Un share que sale siempre no significa nada. Solo se ofrece cuando ha pasado
+algo que **a otra persona le cambia el día**.
+
+**Tres capas separadas** — `meta/compartir.ts` decide y describe (funciones
+puras, sin DOM), `ui/poster.ts` dibuja, `ui/compartir.ts` envía. El renderer no
+consulta el estado del juego: recibe una estructura plana y pinta. Por eso un
+póster de prueba con datos inventados sale idéntico al de verdad, y los casos
+raros (nombre largo, seis cifras, empate, sin rival) se comprueban sin
+provocarlos jugando.
+
+**Ocho momentos**, en orden de fuerza social y no deportiva:
+
+| | Cuándo | Remate |
+|---|---|---|
+| 🔥 Robar el #1 | te pones primero quitándoselo a alguien | ¿ME LO QUITAS? |
+| Por los pelos | ganas por ≤ 60 puntos | ESO HA DOLIDO. |
+| 🔥 Doblar | ganas el DOBLE O NADA | NO HA SIDO SUERTE. |
+| 💀 Caer | lo pierdes | DOLIÓ. |
+| 👑 Racha | 3+ días mandando | HOY MANDO YO. |
+| 👻 Ghost | superas la marca del rival | A VER SI PUEDES. |
+| 🔓 Secreto | el grupo lo desbloquea | UN INTENTO. A OSCURAS. |
+| Récord | tu mejor marca | +X SOBRE MI MARCA |
+
+Jugársela se cuenta **antes** que un récord porque es lo que más conversación
+genera. Y ganar por 18 puntos se cuenta antes que ganar por 900: el margen *es*
+la historia.
+
+**El póster**: 1080×1350 (4:5), Canvas 2D, sin dependencias, determinista.
+JPEG al 0,92, entre 79 y 131 kB. PNG daba 1.563 kB para el mismo póster — el
+fondo son degradados suaves, justo lo que peor comprime PNG — y no se distingue
+a la vista. WebP baja a 51 kB pero WhatsApp lo trata como pegatina en algunas
+plataformas.
+
+Se dibuja **al pulsar**, no al terminar la partida: cuesta unos milisegundos y
+no tiene por qué gastarlos quien no va a compartir.
+
+**Cuatro caminos de envío, ninguno silencioso**: fichero por el menú del
+sistema → solo texto → guardar imagen y copiar texto *diciéndolo* → aviso de
+fallo. Cancelar el menú no es un fallo y no dispara nada por detrás.
+
+---
+
+## Transiciones
+
+**La tarjeta se convierte en el juego.** Se mide la tarjeta pulsada, se clona su
+aspecto en una capa fija y esa capa crece hasta llenar la pantalla mientras se
+disuelve, con el nombre del juego flotando en el centro.
+
+Lo que hace que no sea un adorno: **la partida se monta dentro de la llamada, no
+al terminar la animación**. Medido en página: del toque al primer fotograma de
+juego, 45–98 ms; la capa termina de irse a los 520 ms. La animación acompaña el
+arranque en vez de retenerlo, y lleva `pointer-events: none` porque durante esos
+420 ms hay un juego corriendo debajo.
+
+**La vuelta**: el resultado sube desde el propio HUD y la arena se queda detrás
+bajando de intensidad en vez de desaparecer.
+
+**Encadenar**: al acabar un reto el botón principal ofrece el siguiente.
+`PlayScreen` se reconfigura sin remontarse, así que se reaprovecha el lienzo y
+el audio ya arrancado. VER RANKING sigue a un toque.
+
+---
+
 ## Estructura
 
 ```
