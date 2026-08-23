@@ -11,6 +11,7 @@ import { definition as drift } from './drift/index';
 import { definition as snap } from './snap/index';
 import { definition as memory } from './memory/index';
 import { definition as ritmo } from './ritmo/index';
+import { definition as trazo } from './trazo/index';
 
 export function registerAllGames(): void {
   registerGame(pulse);
@@ -18,6 +19,7 @@ export function registerAllGames(): void {
   registerGame(snap);
   registerGame(memory);
   registerGame(ritmo);
+  registerGame(trazo);
 }
 
-export const GAME_IDS = [pulse.meta.id, drift.meta.id, snap.meta.id, memory.meta.id, ritmo.meta.id];
+export const GAME_IDS = [pulse.meta.id, drift.meta.id, snap.meta.id, memory.meta.id, ritmo.meta.id, trazo.meta.id];
