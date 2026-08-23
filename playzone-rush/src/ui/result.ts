@@ -28,6 +28,14 @@ export interface ResultOptions {
   apuesta?: HTMLElement | null;
   /** Como acabo la ficha del dia, si se gasto en este reto. */
   apuestaResultado?: 'doblo' | 'cayo' | null;
+  /** Puntuacion antes de aplicar la apuesta, para poder ensenar "814 -> 1.628". */
+  apuestaAntes?: number | null;
+  /** Dias seguidos mandando, si la racha es de este jugador. */
+  racha?: number;
+  /** Nombre del rival cuyo fantasma se ha superado. */
+  ghostRival?: string | null;
+  /** Codigo del grupo, para la puerta de entrada del poster. */
+  codigoGrupo?: string | null;
   /** Para avisar de que el texto se ha copiado. */
   onAviso?: (texto: string) => void;
 }
@@ -131,15 +139,26 @@ function momentoCompartible(
     yo: options.myName,
     reto: spec.title,
     juego: spec.gameName,
+    color: getGame(spec.gameId)?.meta.accent ?? '#22d3ee',
     puntuacion: outcome.score,
-    adelantados: outcome.overtook.map((s) => s.name),
+    // Con el total de cada uno, no solo el nombre: el poster ensena los dos
+    // numeros, que es lo que lo hace entendible para quien no ha jugado.
+    adelantados: outcome.overtook.map((s) => ({ nombre: s.name, total: s.total })),
     lider: outcome.becameLeader,
+    robaLiderato: outcome.becameLeader && outcome.overtook.length > 0,
     record: outcome.isPersonalRecord,
+    mejora: outcome.gainVsBest,
+    racha: options.racha ?? 0,
     apuesta: options.apuestaResultado ?? null,
+    apuestaAntes: options.apuestaAntes ?? null,
+    ghostSuperado: outcome.ghostPassed,
+    ghostRival: options.ghostRival ?? null,
+    codigoGrupo: options.codigoGrupo ?? null,
   });
   if (!momento) return null;
-  return botonCompartir(momento, (aviso) => {
-    if (aviso) options.onAviso?.(aviso);
+  return botonCompartir(momento, {
+    codigoGrupo: options.codigoGrupo ?? null,
+    onAviso: (aviso) => options.onAviso?.(aviso),
   });
 }
 

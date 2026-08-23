@@ -45,6 +45,8 @@ export class PlayScreen {
   private targetPassed = false;
   private timers: ReturnType<typeof setTimeout>[] = [];
   private lastScore = 0;
+  /** Puntuacion previa a la apuesta, si se gasto la ficha en este reto. */
+  private apuestaAntes: number | null = null;
   private finished = false;
   private startedAt = 0;
 
@@ -363,6 +365,9 @@ export class PlayScreen {
             // El puesto ANTES de aplicar la apuesta: es la referencia para
             // saber a quien has adelantado o quien te ha pasado.
             const antes = this.app.leaderboard().standings.findIndex((e) => e.isMe) + 1;
+            // La marca ANTES de la apuesta, para que el poster pueda contar la
+            // historia entera ("814 -> 1.628") y no solo el desenlace.
+            this.apuestaAntes = outcome.score;
             this.app.resolverApuesta(this.spec, resultado.gana, resultado.puntuacionFinal);
             this.mostrarDesenlaceApuesta(
               resultado.gana,
@@ -375,6 +380,7 @@ export class PlayScreen {
       );
     }
 
+    const racha = this.app.streak;
     const node = renderResult(
       this.spec,
       outcome,
@@ -395,6 +401,12 @@ export class PlayScreen {
         apuesta,
         apuestaResultado:
           this.app.save.get().days[this.app.dayKey]?.challenges[this.spec.id]?.apuesta ?? null,
+        apuestaAntes: this.apuestaAntes,
+        // Solo si la racha es SUYA: presumir de la racha de otro no tiene
+        // ninguna gracia.
+        racha: racha.holderId === 'me' ? racha.days : 0,
+        ghostRival: this.config.ghost?.rivalName ?? null,
+        codigoGrupo: this.app.save.get().account.groupCode,
         onAviso: (texto) => this.app.toaster.show(texto, 'good', 2200),
       },
     );
