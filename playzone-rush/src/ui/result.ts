@@ -97,13 +97,15 @@ export function renderResult(
                 'btn btn--play btn--lg btn--block',
                 handlers.onSiguiente,
               )
-            : button('CONTINUAR', 'btn btn--play btn--lg btn--block', handlers.onContinue),
-          canRematch
-            ? button('OTRO INTENTO', 'btn btn--ghost btn--block', handlers.onRematch)
-            : null,
-          handlers.onSiguiente
-            ? button('VER RANKING', 'btn btn--ghost btn--block', handlers.onContinue)
-            : null,
+            : button('CONTINUAR', 'btn btn--play btn--lg btn--block salir-resultado', handlers.onContinue),
+          // Los dos secundarios en una fila: apilados hacian una pared de
+          // cuatro botones iguales donde no se distinguia nada.
+          el('div', { class: 'result__fila' }, [
+            canRematch ? button('OTRO INTENTO', 'btn btn--ghost', handlers.onRematch) : null,
+            handlers.onSiguiente
+              ? button('VER RANKING', 'btn btn--ghost salir-resultado', handlers.onContinue)
+              : null,
+          ]),
         ])
       : el('div', { class: 'result__actions' }, [
           button(
@@ -112,14 +114,16 @@ export function renderResult(
             handlers.onRematch,
             { disabled: !canRematch },
           ),
-          handlers.onSiguiente
-            ? button(
-                handlers.siguienteNombre ? `SIGUIENTE: ${handlers.siguienteNombre}` : 'SIGUIENTE RETO',
-                'btn btn--ghost btn--block',
-                handlers.onSiguiente,
-              )
-            : null,
-          button('VER RANKING', 'btn btn--ghost btn--block', handlers.onContinue),
+          el('div', { class: 'result__fila' }, [
+            handlers.onSiguiente
+              ? button(
+                  handlers.siguienteNombre ? `SIGUIENTE: ${handlers.siguienteNombre}` : 'SIGUIENTE',
+                  'btn btn--ghost',
+                  handlers.onSiguiente,
+                )
+              : null,
+            button('VER RANKING', 'btn btn--ghost salir-resultado', handlers.onContinue),
+          ]),
         ]),
     // Compartir va DESPUES de los botones de jugar. Delante competiria con
     // REVANCHA, que es el boton que sostiene el juego; y solo aparece cuando

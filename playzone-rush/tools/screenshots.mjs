@@ -5,7 +5,7 @@
  *   node tools/screenshots.mjs
  */
 import { launchBrowser } from './browser.mjs';
-import { launchGame, playCurrent, playDrift, playPulse, playSnap } from './bot.mjs';
+import { launchGame, playCurrent, playDrift, playPulse, playSnap, salirDelResultado} from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
@@ -35,11 +35,9 @@ async function enterSolo(page) {
   }
 }
 
-/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+/** Salir del resultado: por clase, no por texto (ver bot.mjs). */
 async function leaveResult(page) {
-  await page.getByText('CONTINUAR', { exact: true }).click();
-  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
-  await page.waitForSelector('.card');
+  await salirDelResultado(page);
 }
 
 

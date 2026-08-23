@@ -5,7 +5,7 @@
  * Deja las capturas en shots/.
  */
 import { launchBrowser } from './browser.mjs';
-import { launchGame, playCurrent, playDrift, playPulse, isOver, readState } from './bot.mjs';
+import { launchGame, playCurrent, playDrift, playPulse, isOver, readState, salirDelResultado} from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
@@ -45,11 +45,9 @@ async function enterSolo(page) {
   }
 }
 
-/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+/** Salir del resultado: por clase, no por texto (ver bot.mjs). */
 async function leaveResult(page) {
-  await page.getByText('CONTINUAR', { exact: true }).click();
-  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
-  await page.waitForSelector('.card');
+  await salirDelResultado(page);
 }
 
 
@@ -61,7 +59,16 @@ await page.waitForSelector('.card');
   const text = await homeText();
   check('portada: RUSH DE HOY', text.includes('RUSH') && text.includes('DE HOY'));
   check('portada: 3 retos + secreto', (await page.locator('.card').count()) >= 4);
-  check('portada: clasificacion con 5 jugadores', (await page.locator('.board .row').count()) === 5);
+  // El ranking ya no es una lista plana: el #1 va en tarjeta, el #2 y el #3 en
+  // dos modulos y del cuarto en adelante en filas. Se cuentan los tres sitios,
+  // que es lo que de verdad importa: que esten los cinco jugadores.
+  const enElPodio =
+    (await page.locator('.podio__hero').count()) +
+    (await page.locator('.podio__mini').count()) +
+    (await page.locator('.podio .row').count());
+  check('portada: clasificacion con 5 jugadores', enElPodio === 5, `${enElPodio} sitios`);
+  check('portada: el #1 destaca sobre el resto', (await page.locator('.podio__hero').count()) === 1);
+  check('portada: mi puesto se localiza', (await page.locator('.podio .row--me, .podio__mini--yo, .podio__hero--yo').count()) >= 1);
   check('portada: reto secreto bloqueado', text.includes('RETO SECRETO') && text.includes('BLOQUEADO'));
   check('portada: contexto social (corona)', text.includes('👑'));
   const accents = await page.$$eval('.card', (cards) =>

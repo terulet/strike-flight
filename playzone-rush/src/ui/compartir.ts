@@ -14,7 +14,7 @@
  * se cae al portapapeles por detras, que seria hacer algo que nadie ha pedido.
  */
 import type { Momento } from '../meta/compartir';
-import { nombreDeFichero, posterComoBlob } from './poster';
+import { nombreDeFichero, posterComoBlob, TIPO_MIME } from './poster';
 import { button } from './dom';
 
 type NavegadorConShare = Navigator & {
@@ -47,7 +47,7 @@ export function puedeCompartirFicheros(): boolean {
   try {
     // Un fichero de mentira del mismo tipo: algunos navegadores dicen que si a
     // "share" y que no a ficheros, y solo se sabe preguntando por uno.
-    const prueba = new File([new Blob([''], { type: 'image/png' })], 'p.png', { type: 'image/png' });
+    const prueba = new File([new Blob([''], { type: TIPO_MIME })], `p.${TIPO_MIME.split('/')[1]}`, { type: TIPO_MIME });
     return nav.canShare({ files: [prueba] });
   } catch {
     return false;
@@ -72,7 +72,10 @@ export async function compartirMomento(momento: Momento, codigoGrupo?: string | 
   }
 
   if (blob && puedeCompartirFicheros()) {
-    const fichero = new File([blob], nombreDeFichero(momento), { type: 'image/png' });
+    // El tipo sale de poster.ts y no escrito a mano: el fichero se llamaba
+    // .jpg, llevaba bytes JPEG y se declaraba como image/png. Las apps que
+    // reciben la imagen miran ese tipo, no la extension.
+    const fichero = new File([blob], nombreDeFichero(momento), { type: TIPO_MIME });
     try {
       await nav.share!({ title: 'PLAYZONE RUSH', text: momento.texto, files: [fichero] });
       return 'imagen';
@@ -152,7 +155,7 @@ export function botonCompartir(
   momento: Momento,
   opciones: { codigoGrupo?: string | null; onAviso?: (texto: string) => void },
 ): HTMLElement {
-  const node = button(momento.boton, 'btn btn--ghost btn--block compartir', async () => {
+  const node = button(momento.boton, 'btn btn--block compartir', async () => {
     if (node.dataset.enMarcha === '1') return; // dos toques seguidos no abren dos menus
     node.dataset.enMarcha = '1';
     const original = node.textContent;

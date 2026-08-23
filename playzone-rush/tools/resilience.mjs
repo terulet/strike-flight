@@ -10,7 +10,7 @@
  */
 import { launchBrowser } from './browser.mjs';
 import { fetchWithTimeout as fetch } from './fetch.mjs';
-import { playCurrent, playDrift } from './bot.mjs';
+import { playCurrent, playDrift, salirDelResultado} from './bot.mjs';
 
 // Por defecto contra la build de produccion servida por vite preview: es la
 // unica forma de probar de verdad el service worker (abrir sin conexion).
@@ -94,9 +94,7 @@ async function playChallenge(page, index, playMs) {
     (await page.locator('.result__score').innerText()).replace(/\D/g, ''),
     10,
   );
-  await page.getByText('CONTINUAR', { exact: true }).click();
-  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
-  await page.waitForSelector('.card');
+  await salirDelResultado(page);
   return score;
 }
 

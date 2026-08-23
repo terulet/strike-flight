@@ -10,7 +10,7 @@
  *   node tools/ghost.mjs
  */
 import { launchBrowser } from './browser.mjs';
-import { playDrift } from './bot.mjs';
+import { playDrift, salirDelResultado} from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
@@ -57,9 +57,7 @@ async function joinGroup(page, code, name) {
 }
 
 const leaveResult = async (page) => {
-  await page.getByText('CONTINUAR', { exact: true }).click();
-  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
-  await page.waitForSelector('.card');
+  await salirDelResultado(page);
 };
 
 /* ------------------------------------------------------------------ */

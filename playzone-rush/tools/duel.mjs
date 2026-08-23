@@ -13,7 +13,7 @@
  *   node tools/duel.mjs
  */
 import { launchBrowser } from './browser.mjs';
-import { playCurrent } from './bot.mjs';
+import { playCurrent, salirDelResultado} from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
@@ -58,9 +58,7 @@ const homeText = (page) => page.locator('.screen').innerText();
  * ganas, CONTINUAR pasa a ser el boton principal y REVANCHA el secundario.
  */
 async function backToHome(page) {
-  await page.getByText('CONTINUAR', { exact: true }).click();
-  await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
-  await page.waitForSelector('.card');
+  await salirDelResultado(page);
 }
 
 /* ------------------------------------------------------------------ */

@@ -568,3 +568,33 @@
   color: var(--magenta);
   filter: drop-shadow(0 0 20px rgba(255, 47, 109, 0.45));
 }
+
+/* Los dos botones secundarios, en una fila. Apilados con el principal y el de
+   compartir hacian una pared de cuatro botones iguales. */
+.result__fila {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.result__fila .btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/**
+ * Compartir no es navegacion: es la accion que saca el juego del telefono. Va
+ * tenida del color del momento en vez de gris como los botones de moverse por
+ * la app, para que no se lea como "otra opcion mas".
+ */
+.compartir {
+  margin-top: 4px;
+  background: rgba(255, 47, 109, 0.13);
+  border: 1px solid rgba(255, 47, 109, 0.4);
+  color: #ff89ab;
+  box-shadow: var(--luz-borde);
+}
+
+.compartir:active {
+  background: rgba(255, 47, 109, 0.2);
+}

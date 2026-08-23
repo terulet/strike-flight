@@ -234,3 +234,18 @@ export async function playCurrent(page, ms, quality = 1) {
   }
   await bot(page, ms, quality);
 }
+
+/**
+ * Sale de la pantalla de resultado y vuelve al ranking.
+ *
+ * Por CLASE y no por texto. Las herramientas seleccionaban "CONTINUAR" a mano,
+ * asi que el dia que ese boton paso a llamarse "VER RANKING" -porque ahora el
+ * principal ofrece el siguiente reto- se rompieron seis a la vez. La clase
+ * salir-resultado la pone el propio boton y no depende de como se llame.
+ */
+export async function salirDelResultado(page, timeout = 10000) {
+  const porClase = page.locator('.salir-resultado');
+  if (await porClase.count()) await porClase.first().click();
+  else await page.getByText('CONTINUAR', { exact: true }).click();
+  await page.waitForSelector('.card', { timeout });
+}
