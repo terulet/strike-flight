@@ -191,7 +191,7 @@ class SnapGame extends BaseMiniGame {
     if (ratio > 1) {
       this.accuracySum += 0;
       this.registerMistake(0);
-      this.services.fx.burst(x, y, { count: 8, color: DANGER, speed: 180, size: 3 });
+      this.services.fx.burst(x, y, { count: 8, color: DANGER, speed: 180, size: 3, shape: 'chispa' });
       this.services.fx.float(x, y, 'FUERA', { color: DANGER, size: 20 });
       this.checkAmmo();
       return;
@@ -226,7 +226,7 @@ class SnapGame extends BaseMiniGame {
 
     this.addScore(Math.round(base * multiplier), x, y);
     this.services.fx.float(x, y - 30, text, { color, size: 16 });
-    this.services.fx.burst(this.tx, this.ty, { count: 14, color, speed: 240, size: 4 });
+    this.services.fx.burst(this.tx, this.ty, { count: 14, color, speed: 240, size: 4, shape: 'chispa' });
 
     // La diana salta: nueva posicion lejos de la anterior.
     this.jumpTo();

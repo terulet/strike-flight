@@ -216,7 +216,7 @@ class MemoryGame extends BaseMiniGame {
       if (!this.pattern.has(index)) {
         this.wrong.set(index, 0.45);
         this.registerMistake(0);
-        this.services.fx.burst(cx, cy, { count: 12, color: BAD, speed: 220, size: 4 });
+        this.services.fx.burst(cx, cy, { count: 12, color: BAD, speed: 220, size: 4, shape: 'cuadro' });
         continue;
       }
 
@@ -231,7 +231,7 @@ class MemoryGame extends BaseMiniGame {
       // ronda. Asi el techo lo marca el reloj (rondas posibles en 30 s) y no
       // lo rapido que uno mueva el dedo.
       this.addScore(Math.round((12 + speed * 12) * multiplier), cx, cy);
-      this.services.fx.burst(cx, cy, { count: 8, color: GOOD, speed: 180, size: 3.5 });
+      this.services.fx.burst(cx, cy, { count: 8, color: GOOD, speed: 180, size: 3.5, shape: 'cuadro' });
       this.services.haptics.fire('light');
 
       if (this.found.size === this.pattern.size) this.completeRound();

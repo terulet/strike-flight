@@ -126,6 +126,11 @@ class TrazoGame extends BaseMiniGame {
     const y = this.pointerY();
     this.rastro.push({ x, y });
     if (this.rastro.length > 90) this.rastro.shift();
+    // Estela cada pocos puntos: una por frame saturaria el tope de la capa
+    // de efectos y no se veria mejor.
+    if (this.rastro.length % 6 === 0 && this.rastro.length > 6) {
+      this.services.fx.trail(this.rastro.slice(-14), ACCENT, 6, 0.35);
+    }
 
     const objetivo = figura.puntos[this.siguiente];
     if (!objetivo) return;
@@ -156,7 +161,7 @@ class TrazoGame extends BaseMiniGame {
       this.siguiente++;
       this.services.audio.play('tap');
       this.services.haptics.fire('tick');
-      this.services.fx.burst(destino.x, destino.y, { color: HECHO, count: 6, speed: 120 });
+      this.services.fx.burst(destino.x, destino.y, { color: HECHO, count: 6, speed: 120, shape: 'circulo' });
 
       if (this.siguiente >= figura.puntos.length) this.completar();
     }
@@ -198,13 +203,13 @@ class TrazoGame extends BaseMiniGame {
       this.services.audio.play('record');
       this.services.haptics.fire('success');
       this.services.fx.flash(HECHO, 0.16);
-      this.services.fx.ring(centro.x, centro.y, this.escala * 0.42, HECHO, 5);
+      this.services.fx.shockwave(centro.x, centro.y, this.escala * 0.62, HECHO);
     } else {
       this.aviso = { texto: `${Math.round(precision * 100)}% LIMPIO`, vida: 0.8, tono: ACCENT };
       this.services.audio.play('score');
       this.services.haptics.fire('light');
     }
-    this.services.fx.burst(centro.x, centro.y, { color: ACCENT, count: 18, speed: 240 });
+    this.services.fx.burst(centro.x, centro.y, { color: ACCENT, count: 18, speed: 240, shape: 'circulo' });
 
     this.nuevaFigura();
   }
@@ -244,7 +249,9 @@ class TrazoGame extends BaseMiniGame {
       ctx.stroke();
     }
 
-    // Rastro del dedo.
+    // Rastro del dedo. Se pinta aqui el tramo reciente (nitido) y la capa de
+    // efectos lleva la estela que se apaga: junta, la mano se ve "dejando"
+    // linea en vez de solo estar encima de ella.
     if (this.rastro.length > 1) {
       ctx.strokeStyle = hexToRgba('#ffffff', 0.5);
       ctx.lineWidth = 3;

@@ -218,8 +218,8 @@ class RitmoGame extends BaseMiniGame {
       this.addScore(120 * multiplicador, x, y);
       this.services.audio.play('combo', combo);
       this.services.haptics.fire('medium');
-      this.services.fx.burst(x, y, { color: ACCENT, count: 16, speed: 220 });
-      this.services.fx.ring(x, y, 46, ACCENT, 4);
+      this.services.fx.burst(x, y, { color: ACCENT, count: 16, speed: 220, shape: 'chispa' });
+      this.services.fx.shockwave(x, y, 96, ACCENT);
       this.pulso = 1;
       this.mostrarAviso('PERFECTO', ACCENT);
     } else {
@@ -228,7 +228,7 @@ class RitmoGame extends BaseMiniGame {
       this.addScore(55 * multiplicador, x, y);
       this.services.audio.play('hit');
       this.services.haptics.fire('light');
-      this.services.fx.burst(x, y, { color: carril === 0 ? LANE_A : LANE_B, count: 8, speed: 150 });
+      this.services.fx.burst(x, y, { color: carril === 0 ? LANE_A : LANE_B, count: 8, speed: 150, shape: 'chispa' });
       this.pulso = 0.55;
       this.mostrarAviso('BIEN', carril === 0 ? LANE_A : LANE_B);
     }

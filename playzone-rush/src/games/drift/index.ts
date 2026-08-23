@@ -291,8 +291,8 @@ class DriftGame extends BaseMiniGame {
   }
 
   private crashAt(x: number, y: number): void {
-    this.services.fx.burst(this.playerX, this.playerY, { count: 30, color: DANGER, speed: 340, size: 5 });
-    this.services.fx.burst(x, y, { count: 14, color: '#ffffff', speed: 240, size: 3 });
+    this.services.fx.burst(this.playerX, this.playerY, { count: 30, color: DANGER, speed: 340, size: 5, shape: 'chispa' });
+    this.services.fx.burst(x, y, { count: 14, color: '#ffffff', speed: 240, size: 3, shape: 'chispa' });
     this.services.fx.shake(1.1);
     this.services.fx.flash(DANGER, 0.45);
     this.services.audio.play('hit');

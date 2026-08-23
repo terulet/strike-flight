@@ -4,6 +4,13 @@
  * que reimplementar el feedback, y para poder bajarlo entero con el ajuste de
  * movimiento reducido.
  */
+/**
+ * Forma de las particulas. No es adorno: es la parte mas barata de darle
+ * caracter propio a cada juego sin tocar su mecanica. Un cuadrado se lee frio
+ * y calculado, una chispa alargada se lee rapida, un circulo se lee blando.
+ */
+export type ParticleShape = 'cuadro' | 'circulo' | 'chispa';
+
 export interface BurstOptions {
   count?: number;
   color?: string;
@@ -12,6 +19,7 @@ export interface BurstOptions {
   spread?: number;
   gravity?: number;
   life?: number;
+  shape?: ParticleShape;
 }
 
 export interface FloatOptions {
@@ -32,6 +40,27 @@ interface Particle {
   size: number;
   color: string;
   gravity: number;
+  shape: ParticleShape;
+}
+
+/** Rastro que va dejando algo al moverse. Se dibuja como una linea que se apaga. */
+interface Trail {
+  puntos: { x: number; y: number }[];
+  life: number;
+  maxLife: number;
+  color: string;
+  width: number;
+}
+
+/** Onda de choque: mas lenta y gorda que un anillo, para los momentos gordos. */
+interface Shockwave {
+  x: number;
+  y: number;
+  radius: number;
+  target: number;
+  life: number;
+  maxLife: number;
+  color: string;
 }
 
 interface Floater {
@@ -61,6 +90,8 @@ export class FxSystem {
   private particles: Particle[] = [];
   private floaters: Floater[] = [];
   private rings: Ring[] = [];
+  private trails: Trail[] = [];
+  private shockwaves: Shockwave[] = [];
   private shakePower = 0;
   private shakeX = 0;
   private shakeY = 0;
@@ -91,6 +122,7 @@ export class FxSystem {
         size: (options.size ?? 4) * (0.6 + Math.random() * 0.8),
         color: options.color ?? '#ffffff',
         gravity: options.gravity ?? 260,
+        shape: options.shape ?? 'cuadro',
       });
     }
   }
@@ -116,6 +148,29 @@ export class FxSystem {
     if (this.reducedMotion) return;
     this.rings.push({ x, y, radius: radius * 0.35, target: radius, life: 0.4, maxLife: 0.4, color, width });
     if (this.rings.length > 24) this.rings.shift();
+  }
+
+  /**
+   * Rastro de un movimiento. Se le pasan los puntos ya recorridos y los dibuja
+   * apagandose. Util donde hay desplazamiento continuo (una nave, un dedo):
+   * el movimiento se lee mucho mejor con estela que sin ella.
+   */
+  trail(puntos: { x: number; y: number }[], color = '#ffffff', width = 3, life = 0.45): void {
+    if (this.reducedMotion || puntos.length < 2) return;
+    // Se copia: quien llama suele reutilizar su propio array cada frame.
+    this.trails.push({ puntos: puntos.map((p) => ({ x: p.x, y: p.y })), life, maxLife: life, color, width });
+    if (this.trails.length > 12) this.trails.shift();
+  }
+
+  /**
+   * Onda de choque: como ring() pero mas lenta, mas gorda y con mas recorrido.
+   * Se reserva para lo que de verdad importa (un record, un adelantamiento);
+   * si se usa para todo deja de significar nada.
+   */
+  shockwave(x: number, y: number, radius: number, color = '#ffffff'): void {
+    if (this.reducedMotion) return;
+    this.shockwaves.push({ x, y, radius: radius * 0.12, target: radius, life: 0.75, maxLife: 0.75, color });
+    if (this.shockwaves.length > 6) this.shockwaves.shift();
   }
 
   shake(power: number): void {
@@ -161,6 +216,23 @@ export class FxSystem {
       r.radius += (r.target - r.radius) * Math.min(1, dt * 12);
     }
 
+    for (let i = this.trails.length - 1; i >= 0; i--) {
+      const t = this.trails[i] as Trail;
+      t.life -= dt;
+      if (t.life <= 0) this.trails.splice(i, 1);
+    }
+    for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+      const w = this.shockwaves[i] as Shockwave;
+      w.life -= dt;
+      if (w.life <= 0) {
+        this.shockwaves.splice(i, 1);
+        continue;
+      }
+      // Se abre deprisa al principio y se va frenando: eso es lo que la hace
+      // leerse como un golpe y no como un circulo creciendo sin mas.
+      w.radius += (w.target - w.radius) * Math.min(1, dt * 4.5);
+    }
+
     this.shakePower = Math.max(0, this.shakePower - dt * 3.2);
     const magnitude = this.shakePower * this.shakePower * 16;
     this.shakeX = (Math.random() * 2 - 1) * magnitude;
@@ -175,6 +247,29 @@ export class FxSystem {
   /** Particulas y anillos: van por debajo de la UI del minijuego. */
   render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const w of this.shockwaves) {
+      const t = w.life / w.maxLife;
+      ctx.globalAlpha = Math.max(0, t) * 0.5;
+      ctx.strokeStyle = w.color;
+      ctx.lineWidth = 2 + t * 9;
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (const tr of this.trails) {
+      const t = tr.life / tr.maxLife;
+      ctx.globalAlpha = Math.max(0, t) * 0.6;
+      ctx.strokeStyle = tr.color;
+      ctx.lineWidth = tr.width * t;
+      ctx.beginPath();
+      tr.puntos.forEach((punto, i) => (i === 0 ? ctx.moveTo(punto.x, punto.y) : ctx.lineTo(punto.x, punto.y)));
+      ctx.stroke();
+    }
+
     for (const r of this.rings) {
       const t = r.life / r.maxLife;
       ctx.globalAlpha = Math.max(0, t) * 0.85;
@@ -189,7 +284,22 @@ export class FxSystem {
       ctx.globalAlpha = Math.max(0, Math.min(1, t));
       ctx.fillStyle = p.color;
       const s = p.size * (0.4 + t * 0.6);
-      ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      if (p.shape === 'circulo') {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, s / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === 'chispa') {
+        // Estirada en su direccion de vuelo: se lee como velocidad.
+        const largo = Math.min(18, Math.hypot(p.vx, p.vy) * 0.045);
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(1, s * 0.55);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx * 0.012 * largo, p.y - p.vy * 0.012 * largo);
+        ctx.stroke();
+      } else {
+        ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      }
     }
     ctx.restore();
   }
@@ -225,6 +335,8 @@ export class FxSystem {
     this.particles.length = 0;
     this.floaters.length = 0;
     this.rings.length = 0;
+    this.trails.length = 0;
+    this.shockwaves.length = 0;
     this.shakePower = 0;
     this.flashAlpha = 0;
   }

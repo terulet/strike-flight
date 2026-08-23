@@ -201,7 +201,7 @@ class PulseGame extends BaseMiniGame {
       const node = this.nodes.splice(index, 1)[0] as Node;
       if (node.mine) {
         this.registerMistake(70);
-        this.services.fx.burst(node.x, node.y, { count: 22, color: MINE, speed: 300, size: 5 });
+        this.services.fx.burst(node.x, node.y, { count: 22, color: MINE, speed: 300, size: 5, shape: 'circulo' });
         this.services.fx.float(node.x, node.y, '-70', { color: MINE, size: 26 });
         continue;
       }
@@ -215,7 +215,7 @@ class PulseGame extends BaseMiniGame {
         this.services.fx.ring(node.x, node.y, node.radius * 2.6, ACCENT, 3);
       }
       this.addScore(Math.round(base * multiplier), node.x, node.y);
-      this.services.fx.burst(node.x, node.y, { count: 12, color: ACCENT, speed: 240, size: 4 });
+      this.services.fx.burst(node.x, node.y, { count: 12, color: ACCENT, speed: 240, size: 4, shape: 'circulo' });
       this.services.haptics.fire('light');
     }
   }
