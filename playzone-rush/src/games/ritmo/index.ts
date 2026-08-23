@@ -358,8 +358,11 @@ class RitmoGame extends BaseMiniGame {
   }
 
   debugInfo(): Record<string, unknown> {
+    // `game` no es decorativo: es por donde el bot de las pruebas decide
+    // que estrategia usar. Sin el, playCurrent no sabe a que esta jugando.
     const pendientes = this.notas.filter((n) => !n.resuelta);
     return {
+      game: 'ritmo',
       notasVivas: pendientes.length,
       perfectos: this.perfectos,
       buenos: this.buenos,

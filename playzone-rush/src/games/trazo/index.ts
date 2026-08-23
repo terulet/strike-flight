@@ -308,8 +308,11 @@ class TrazoGame extends BaseMiniGame {
   }
 
   debugInfo(): Record<string, unknown> {
+    // `game` no es decorativo: es por donde el bot de las pruebas decide
+    // que estrategia usar. Sin el, playCurrent no sabe a que esta jugando.
     const figura = this.figura;
     return {
+      game: 'trazo',
       figura: figura?.nombre ?? null,
       siguiente: this.siguiente,
       total: figura?.puntos.length ?? 0,

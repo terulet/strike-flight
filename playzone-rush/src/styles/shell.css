@@ -256,3 +256,96 @@
 .modal__actions .btn {
   flex: 1;
 }
+
+/* ---------- La llegada ---------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, #14141f 0%, var(--bg) 62%);
+  /* Que no bloquee: se puede tocar la interfaz de debajo desde el primer
+     fotograma. Una intro que retrasa al usuario cansa a la segunda vez. */
+  pointer-events: none;
+  transition: opacity 240ms var(--ease-out);
+}
+
+.boot--fuera {
+  opacity: 0;
+}
+
+.boot__marca {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.boot__rayo {
+  /* Sin esto el resplandor se recorta contra el borde del SVG y deja un
+     cuadrado tenue visible alrededor del rayo. Solo se ve en la captura. */
+  overflow: visible;
+}
+
+.boot__rayo path {
+  fill: var(--brand);
+  filter: drop-shadow(0 0 22px rgba(255, 47, 109, 0.65));
+}
+
+.boot:not(.boot--quieto) .boot__rayo {
+  animation: boot-rayo 620ms var(--ease-out) both;
+}
+
+.boot:not(.boot--quieto) .boot__nombre {
+  animation: boot-nombre 460ms var(--ease-out) 320ms both;
+}
+
+.boot__nombre {
+  display: flex;
+  gap: 9px;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+}
+
+.boot__rush {
+  color: var(--brand);
+}
+
+@keyframes boot-rayo {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-12deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes boot-nombre {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+    letter-spacing: 0.42em;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: 0.2em;
+  }
+}
+
+/* Quien pide menos movimiento ve la marca quieta: no es un extra, es que a
+   algunas personas este tipo de animacion les sienta mal de verdad. */
+@media (prefers-reduced-motion: reduce) {
+  .boot__rayo,
+  .boot__nombre {
+    animation: none !important;
+  }
+}

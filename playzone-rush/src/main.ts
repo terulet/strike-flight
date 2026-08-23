@@ -17,6 +17,7 @@ import './styles/dashboard.css';
 import { registerAllGames } from './games/index';
 import { App } from './ui/app';
 import { installErrorReporter } from './core/errorReporter';
+import { playBootSequence } from './ui/boot';
 
 registerAllGames();
 
@@ -25,6 +26,10 @@ if (!root) throw new Error('Falta #app en el documento');
 
 const app = new App(root);
 app.boot();
+
+// La marca en pantalla al abrir. Va despues de boot() a proposito: la app ya
+// esta montada y utilizable por debajo, la secuencia solo se ve encima.
+playBootSequence(document.body, { audio: app.audio });
 
 /**
  * Enganche para herramientas de desarrollo y pruebas automatizadas.

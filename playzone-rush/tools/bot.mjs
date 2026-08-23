@@ -106,7 +106,79 @@ export async function playMemory(page, ms = 60000, quality = 1) {
   }
 }
 
-export const BOTS = { pulse: playPulse, drift: playDrift, snap: playSnap, memory: playMemory };
+/**
+ * RITMO: espera al instante exacto de cada nota y toca su carril.
+ *
+ * La calidad se traduce en desvio temporal, que es como se falla de verdad
+ * aqui: no tocando de menos, sino tocando tarde.
+ */
+export async function playRitmo(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  const desfase = (1 - quality) * 0.13;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.notas) break;
+    const nota = state.notas[0];
+    if (nota) {
+      const esperar = (nota.tiempo + desfase - state.relojAudio) * 1000;
+      if (esperar > 0 && esperar < 1600) {
+        await page.waitForTimeout(esperar);
+        await page.mouse.click(nota.x, state.lineaY);
+        continue;
+      }
+    }
+    await page.waitForTimeout(20);
+  }
+}
+
+/**
+ * TRAZO: recorre la figura punto a punto sin levantar el dedo.
+ *
+ * Se interpola cada tramo en vez de arrastrar de golpe: la precision se mide
+ * frame a frame mientras el dedo esta abajo, asi que un salto directo se la
+ * saltaria entera. Con menos calidad el bot curva el tramo y se despega de la
+ * linea, que es exactamente como pierde precision una persona.
+ */
+export async function playTrazo(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  const bandazo = (1 - quality) * 30;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.puntos?.length) break;
+    const puntos = state.puntos;
+
+    await page.mouse.move(puntos[0].x, puntos[0].y);
+    await page.mouse.down();
+    for (let i = 1; i < puntos.length; i++) {
+      const a = puntos[i - 1];
+      const b = puntos[i];
+      const nx = -(b.y - a.y);
+      const ny = b.x - a.x;
+      const largo = Math.hypot(nx, ny) || 1;
+      for (let k = 1; k <= 6; k++) {
+        const t = k / 6;
+        const curva = Math.sin(t * Math.PI) * bandazo;
+        await page.mouse.move(
+          a.x + (b.x - a.x) * t + (nx / largo) * curva,
+          a.y + (b.y - a.y) * t + (ny / largo) * curva,
+        );
+        await page.waitForTimeout(11);
+      }
+      if (await isOver(page)) break;
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(90);
+  }
+}
+
+export const BOTS = {
+  pulse: playPulse,
+  drift: playDrift,
+  snap: playSnap,
+  memory: playMemory,
+  ritmo: playRitmo,
+  trazo: playTrazo,
+};
 
 /**
  * Juega el reto que este en marcha, sea cual sea el juego.
@@ -121,6 +193,16 @@ export async function playCurrent(page, ms, quality = 1) {
     state = await readState(page);
     if (!state?.game) await page.waitForTimeout(100);
   }
-  const bot = BOTS[state?.game] ?? playPulse;
+  const bot = BOTS[state?.game];
+  if (!bot) {
+    // Antes se caia al bot de PULSE, que toca nodos inexistentes y saca cero
+    // sin quejarse. Eso paso al anadir RITMO y TRAZO: flows.mjs bajo de 33/33
+    // a 30/33 y los fallos apuntaban al pique y al ranking, no al bot, que era
+    // donde estaba el problema. Mejor romper aqui y que se lea el motivo.
+    throw new Error(
+      `No hay bot para el juego "${state?.game}". Anadelo a BOTS en tools/bot.mjs: ` +
+        `sin el, este juego puntua cero y las pruebas fallan en otro sitio.`,
+    );
+  }
   await bot(page, ms, quality);
 }
