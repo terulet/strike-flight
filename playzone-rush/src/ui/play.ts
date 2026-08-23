@@ -78,7 +78,12 @@ export class PlayScreen {
     ]);
 
     this.hudNode = hudNode;
-    this.root = el('div', { class: 'play' }, [
+    // El HUD toma el color del juego que se esta jugando: la puntuacion y la
+    // barra de tiempo salen del acento del reto, asi que PULSE y DRIFT no se
+    // ven igual ni siquiera en la franja de arriba. Es identidad por juego sin
+    // tocar nada del juego.
+    const acento = requireGame(spec.gameId).meta.accent;
+    this.root = el('div', { class: 'play', style: { '--accent': acento } }, [
       this.stage,
       hudNode,
       this.hud.combo,
@@ -98,7 +103,9 @@ export class PlayScreen {
         this.ghostPassed = true;
         this.hud.ghost.classList.add('is-passed');
         this.hud.ghost.textContent = `👻 SUPERADO: ${labelText}`;
-        app.toaster.show(`👻 HAS PASADO A ${labelText}`, 'good', 1800);
+        // Sin la marca de tiempo: la chapa de abajo ya la ensena, y las dos
+        // frases completas a la vez decian lo mismo dos veces.
+        app.toaster.show('👻 HAS PASADO AL RIVAL', 'good', 1800);
       },
       onAutoPause: () => this.showPause(),
     });
@@ -119,6 +126,12 @@ export class PlayScreen {
    */
   private measureInsets(): void {
     const top = Math.round(this.hudNode.getBoundingClientRect().height);
+    // La altura del HUD se publica como variable para que nada se coloque
+    // encima a ojo. El combo iba a "safe-top + 74px" y el toaster a
+    // "safe-top + 12px": los dos numeros eran estimaciones y los dos caian
+    // dentro del HUD, asi que el combo se pintaba sobre la barra de tiempo y
+    // los avisos sobre la puntuacion. Aqui la altura esta MEDIDA.
+    document.documentElement.style.setProperty('--hud-alto', `${top}px`);
     const ghostVisible = this.hud.ghost.style.display !== 'none' && this.hud.ghost.textContent !== '';
     const bottom = ghostVisible ? Math.round(this.hud.ghost.getBoundingClientRect().height) + 26 : 16;
     this.host.setInsets(top + 4, bottom);

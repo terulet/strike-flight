@@ -132,9 +132,16 @@
 .hud__combo {
   position: absolute;
   left: 50%;
-  top: calc(var(--safe-top) + 74px);
+  /* Debajo del HUD medido, nunca encima de la barra de tiempo. */
+  top: calc(var(--hud-alto, 96px) + 8px);
   transform: translateX(-50%);
-  font-size: 15px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(5, 6, 14, 0.7);
+  border: 1px solid rgba(255, 210, 63, 0.34);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.14em;
   color: var(--gold);
@@ -261,4 +268,50 @@
   font-size: 28px;
   font-weight: 900;
   letter-spacing: 0.06em;
+}
+
+/* ==================================================================== */
+/* HUD REDISENADO                                                        */
+/* ==================================================================== */
+
+/**
+ * Regla de esta pantalla: dentro del juego manda la claridad. El HUD gana
+ * material -una franja de cristal en vez de un degradado a nada- porque asi el
+ * texto tiene un fondo propio y deja de competir con lo que se dibuja debajo.
+ * Lo que NO gana es ruido: ni particulas, ni marcos, ni brillos moviendose.
+ */
+.hud {
+  background: linear-gradient(180deg, rgba(5, 6, 14, 0.9) 0%, rgba(5, 6, 14, 0.62) 62%, transparent 100%);
+}
+
+/* La puntuacion, con el color del juego por debajo. El texto se queda blanco
+   -legibilidad primero- y lo que se tine es el halo. */
+.hud__score {
+  font-variant-numeric: tabular-nums;
+  font-stretch: 86%;
+  letter-spacing: -0.04em;
+  text-shadow:
+    0 2px 18px rgba(0, 0, 0, 0.75),
+    0 0 26px color-mix(in srgb, var(--accent, var(--cian)) 45%, transparent);
+}
+
+.hud__time {
+  font-variant-numeric: tabular-nums;
+  font-stretch: 88%;
+}
+
+/* La barra de tiempo tambien va del color del juego mientras hay margen; el
+   rojo del final lo sigue poniendo el propio juego, que es cuando importa. */
+.hud__bar {
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+/* El aviso de "has pasado al rival" y el objetivo, con cristal para que se
+   lean sobre cualquier fondo de juego. */
+.hud__ghost,
+.hud__target {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--luz-borde);
 }

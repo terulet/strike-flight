@@ -147,6 +147,7 @@
   position: fixed;
   left: 50%;
   top: calc(var(--safe-top) + 12px);
+  transition: top var(--dur-fast) var(--ease-out);
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -350,4 +351,10 @@
   .boot__nombre {
     animation: none !important;
   }
+}
+
+/* Jugando, los avisos bajan por debajo del HUD. Arriba se comian la puntuacion
+   y el tiempo justo cuando mas falta hacen. */
+body.is-playing .toaster {
+  top: calc(var(--hud-alto, 96px) + 10px);
 }
