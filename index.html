@@ -42,6 +42,11 @@
 <!-- Guardado. Igual que los otros dos: si falta, el juego arranca y se
      juega, solo que sin recordar nada. Esquema y migraciones dentro. -->
 <script src="js/save.js"></script>
+<!-- Dificultad: EASY / MEDIUM / HIGH. Una tabla de multiplicadores y
+     nada mas. MEDIUM son todos 1, asi que el juego canonico sale de
+     multiplicar por 1 en todas partes. Si faltara, DIF no existiria y
+     el juego no arrancaria: por eso va aqui arriba, con save. -->
+<script src="js/difficulty.js"></script>
 <!-- Efectos visuales. Presupuesto, reservas, capas y sacudida. Si
      faltara, el juego se queda sin partículas pero se juega igual. -->
 <script src="js/vfx.js"></script>
@@ -114,6 +119,12 @@ const OPCIONES = {
   // fila en AJUSTES: está aquí para que se guarde desde ya y ese bloque
   // no tenga que tocar el formato del save ni migrar nada.
   vfx:       "auto",   // "auto" | "alto" | "medio" | "bajo"
+  // La dificultad vive aquí y no en una clave suelta del save por un
+  // motivo concreto: el validador de `opciones` valida contra estos
+  // valores de fábrica, así que un save antiguo —que no trae la clave—
+  // entra en "medium" solo, sin migración y sin perder nada. Y ADMIN,
+  // que escribe en su propio espacio, la tiene por perfil de regalo.
+  dificultad: "medium", // "easy" | "medium" | "high"
 };
 
 // ── Niveles de calidad ────────────────────────────────────
@@ -265,7 +276,7 @@ function actualizarNodosAegis(mb, dt) {
       if (n.hp <= 0) {
         muerte(nx, ny, "#ffcf5c", "defensa");
         sfx("aegis_nodo");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        combo++; comboT = tiempoCombo(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo);
         const pts = Math.round(220 * multCombo());
         score += pts; texto(nx, ny - 20, "+" + pts, T.bala, 13);
@@ -299,7 +310,7 @@ function actualizarSubsOmega(mb, dt) {
         muerte(sx, sy, s.col, "defensa");
         sfx("core_offline");
         texto(sx, sy - 24, s.nombre + " DESTRUIDO", s.col, 13);
-        score += 500; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        score += 500; combo++; comboT = tiempoCombo(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo); hitoCombo();
       }
       break;
@@ -1874,7 +1885,11 @@ const haciaJugador = (e) => Math.atan2(player.y - e.y, player.x - e.x);
 const EBALAS_MAX = 340;
 function eBala(x, y, vx, vy, r, extra) {
   if (eBullets.length >= EBALAS_MAX) return null;
-  const b = { x, y, vx, vy, r: r || 5 };
+  // El unico sitio del juego donde nace una bala enemiga, asi que es el
+  // unico sitio donde hay que tocar su velocidad. En MEDIUM k vale 1 y
+  // esto devuelve exactamente vx y vy.
+  const k = DIF.m("balaEnemiga");
+  const b = { x, y, vx: vx * k, vy: vy * k, r: r || 5 };
   if (extra) Object.assign(b, extra);
   eBullets.push(b);
   return b;
@@ -2466,7 +2481,8 @@ function spawnDefensas(tipo, n) {
   const y = SAFE_TOP + H * 0.09 + rand(-15, 15);
   for (let i = 0; i < n; i++) {
     defensas.push({ tipo, x: sep * (i + 1), y, r: d.r,
-      hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6, flash: 0 });
+      hp: d.hpMax, hpMax: d.hpMax,
+      cd: d.recarga() * 0.6 * DIF.m("cadenciaEnemiga"), flash: 0 });
   }
 }
 
@@ -2478,7 +2494,8 @@ function actualizarDefensas(dt) {
     d.cd -= dt;
     // M9: ALPHA controla las torretas de escenario. Sin él, se quedan de
     // adorno — la barra de vida sigue ahí, pero no disparan.
-    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga(); }
+    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d);
+      d.cd = DEFENSA_TIPOS[d.tipo].recarga() * DIF.m("cadenciaEnemiga"); }
     else if (d.cd <= 0) { d.cd = 0.3; }
     for (let j = bullets.length - 1; j >= 0; j--) {
       const b = bullets[j];
@@ -2490,7 +2507,7 @@ function actualizarDefensas(dt) {
       if (gastada) soltarBala(j);
       if (d.hp <= 0) {
         muerte(d.x, d.y, "#4499ff", "defensa");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        combo++; comboT = tiempoCombo(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo);
         const pts = Math.round(DEFENSA_TIPOS[d.tipo].puntos * multCombo());
         score += pts;
@@ -2972,7 +2989,7 @@ function actualizarSistemas(dt) {
         if (s.id === "alpha") sistemaAlpha = false;
         if (s.id === "beta") sistemaBeta = false;
         if (s.id === "gamma") sistemaGamma = false;
-        score += 400; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        score += 400; combo++; comboT = tiempoCombo(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo); hitoCombo();
       }
       break;
@@ -3293,6 +3310,9 @@ function aplicarGuardado(s) {
     for (const k of Object.keys(OPCIONES)) {
       if (s.opciones[k] !== undefined) OPCIONES[k] = s.opciones[k];
     }
+    // Lo guardado manda, pero DIF valida: cualquier cosa que no sea
+    // easy/medium/high cae en medium.
+    OPCIONES.dificultad = DIF.poner(OPCIONES.dificultad);
   } else {
     T = TEMAS[0];
     NAVES = SHIPS.construir("chassis_01", []);
@@ -3391,7 +3411,19 @@ function armasDeMision() {
   return (m && m.armas) || ["plasma", "laser"];
 }
 function elegirPremioAleatorio() {
-  const r = Math.random();
+  let r = Math.random();
+  // La escalera de premios no se toca: lo que se mueve es DÓNDE cae el
+  // dado. Los defensivos —vida, bomba, escudo— viven en la banda alta
+  // (r > 0.715), así que empujar r hacia arriba los hace más probables
+  // sin reordenar nada ni inventar una tabla por dificultad.
+  //
+  //   r^(1/k)  con k>1 sube r  (FÁCIL: más defensivos)
+  //            con k<1 baja r  (DIFÍCIL: menos)
+  //
+  // Es monótona, así que respeta el orden de la escalera. Y el `if`
+  // deja MEDIUM intacto hasta el bit: ni siquiera entra a calcular.
+  const kd = DIF.m("dropDefensivo");
+  if (kd !== 1) r = Math.pow(r, 1 / kd);
   if (r > 0.945) return "vida";
   if (r > 0.855) return "bomba";
   if (r > 0.715) return "escudo";
@@ -4282,7 +4314,7 @@ function spawnEnemy(tipo, x) {
     y: -r - 12,
     vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
-    cd: d.recarga ? d.recarga() : 0, flash: 0,
+    cd: d.recarga ? d.recarga() * DIF.m("cadenciaEnemiga") : 0, flash: 0,
     recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
   };
   if (d.init) d.init(e);
@@ -4366,7 +4398,7 @@ function golpearCon(b, x, y, victima) {
 
 function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
-  combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+  combo++; comboT = tiempoCombo(); enemiesKilled++;
   maxCombo = Math.max(maxCombo, combo);
   const mult = multCombo();
   const pts = Math.round(d.puntos * mult);
@@ -4473,6 +4505,10 @@ function cerrarMision() {
 
 const HITOS = [5, 10, 25, 50, 100];
 const multCombo = () => (1 + Math.floor(combo / 8)) * (dobleT > 0 ? 2 : 1);
+// Lo que aguanta el combo sin sumar. En MEDIUM es CONFIG.comboTiempo tal
+// cual; FÁCIL perdona más y DIFÍCIL menos. Un solo sitio para los cinco
+// puntos del juego que refrescan el combo.
+const tiempoCombo = () => CONFIG.comboTiempo * DIF.m("comboTiempo");
 function hitoCombo() {
   for (const h of HITOS) {
     if (combo === h && comboHito < h) {
@@ -4593,7 +4629,7 @@ function golpe(fx, fy) {
     texto(player.x, player.y - 34, "ESCUDO ROTO", "#5ce1ff", 15);
     return;
   }
-  lives--; invulnT = CONFIG.invulnerable;
+  lives--; invulnT = CONFIG.invulnerable * DIF.m("invulnerable");
   sinDanio = false;
   arma = Math.max(1, arma - 1);
   combo = 0; comboHito = 0; comboT = 0;
@@ -4998,7 +5034,8 @@ function update(dt) {
       // segundo es toda la diferencia entre esquivar y adivinar.
       if (d.avisa && !e.avisado && e.cd <= d.avisa && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
       if (e.cd <= 0 && e.y > 30) {
-        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1);
+        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1)
+                           * DIF.m("cadenciaEnemiga");
         e.avisado = 0; d.atacar(e);
       }
     }
@@ -6138,14 +6175,31 @@ function irAJefe(idx) {
 }
 
 // ── Campaña ───────────────────────────────────────────────
+// Selector de dificultad compacto. Va en la pantalla de campaña y en la
+// de mundos porque es donde se decide EMPEZAR: elegirla en AJUSTES y
+// volver aquí a ciegas es la manera de arrancar una misión en la que no
+// querías estar. Las tres caben en una fila y no roban sitio a la lista.
+function filaDificultad(y) {
+  const w = Math.min(W - 60, 260), x0 = (W - w) / 2, paso = w / 3;
+  for (let i = 0; i < DIF.IDS.length; i++) {
+    const id = DIF.IDS[i];
+    boton(x0 + i * paso, y, paso - 5, 26, {
+      sel: DIF.id() === id, r: 7, tam: 8.5, esp: 1.2, label: DIF.NOMBRES[id],
+      fn: () => { OPCIONES.dificultad = DIF.poner(id); guardarOpciones(); sfx("ui_sel"); },
+    });
+  }
+  return 34;   // lo que ocupa, para que quien la use baje su contenido
+}
+
 function pantallaCampana() {
   cabecera("CAMPAÑA");
+  const desplaza = filaDificultad(SAFE_TOP + 46);
   const n = MISIONES.length;
   // La lista se reparte sola: con diez misiones son diez tarjetas anchas
   // y con veinte son dos columnas. Antes el alto salía de dividir el
   // hueco entre `n` con un mínimo de 40 px, y con veinte misiones eso se
   // salía de la pantalla en un móvil corto sin avisar.
-  const R = rejilla(n, { y0: SAFE_TOP + 72, reserva: 16, maxFilas: 12,
+  const R = rejilla(n, { y0: SAFE_TOP + 72 + desplaza, reserva: 16, maxFilas: 12,
                          altoMin: 44, altoMax: 78, altoTope: 38 });
   const wCard = R.w, alto = R.alto, cmp = R.compacta;
   const pad = cmp ? 11 : 18;
@@ -6316,7 +6370,8 @@ function filaOpcion(y, etiqueta, valores, campo) {
     const on = OPCIONES[campo] === val;
     boton(bx + i * paso, y - 15, paso - 4, 30, { sel: on, r: 8, tam: 9, esp: 1,
       label: lab, fn: () => { OPCIONES[campo] = val; guardarOpciones();
-        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val]; } });
+        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val];
+        if (campo === "dificultad") DIF.poner(val); } });
   }
 }
 
@@ -6348,6 +6403,16 @@ function pantallaAjustes() {
   filaVolumen(y, "EFECTOS", "volSfx"); y += sep;
   filaVolumen(y, "MÚSICA", "volMusica"); y += sep;
   filaOpcion(y, "SILENCIO", [["NO", false], ["SÍ", true]], "silencio"); y += sep + 16;
+
+  ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("JUEGO", x0, y - 22, 3);
+  ctx.globalAlpha = 1;
+  // NORMAL es el juego de siempre. Se puede cambiar entre misiones sin
+  // penalización: las marcas se guardan por dificultad, así que subir a
+  // DIFÍCIL no borra lo hecho en NORMAL ni al revés.
+  filaOpcion(y, "DIFICULTAD",
+    [["FÁCIL", "easy"], ["NORMAL", "medium"], ["DIFÍCIL", "high"]], "dificultad");
+  y += sep + 16;
 
   ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
   letras("IMAGEN", x0, y - 22, 3);
