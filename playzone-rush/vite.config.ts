@@ -50,7 +50,7 @@ export default defineConfig({
     // /api al backend: ni CORS ni configurar IPs en el telefono.
     proxy: {
       '/api': {
-        target: process.env.PLAYZONE_API ?? 'http://127.0.0.1:8787',
+        target: process.env.PLAYZONE_API ?? 'http://127.0.0.1:8788',
         changeOrigin: true,
       },
     },
@@ -60,7 +60,7 @@ export default defineConfig({
     port: 4173,
     proxy: {
       '/api': {
-        target: process.env.PLAYZONE_API ?? 'http://127.0.0.1:8787',
+        target: process.env.PLAYZONE_API ?? 'http://127.0.0.1:8788',
         changeOrigin: true,
       },
     },

@@ -33,7 +33,7 @@ import { launchBrowser } from './browser.mjs';
 import { fetchWithTimeout as fetch, fetchHeaders } from './fetch.mjs';
 import { playCurrent } from './bot.mjs';
 
-const BASE = process.env.BASE ?? 'http://127.0.0.1:8787';
+const BASE = process.env.BASE ?? 'http://127.0.0.1:8788';
 
 const ok = [];
 const fail = [];
@@ -112,8 +112,12 @@ section('1. UN SOLO PROCESO: JUEGO Y API EN EL MISMO ORIGEN');
  *
  * Un puerto ocupado por otra aplicacion puede contestar {"status":"ok"} y
  * parecer que todo va bien, y entonces esta prueba estaria midiendo un
- * servicio que no es. Paso de verdad: en el Mac Mini el 8787 lo ocupa otra
- * cosa. Si no responde con la forma exacta de PLAYZONE, se para aqui.
+ * servicio que no es. Paso de verdad: esta herramienta apuntaba al 8787, que
+ * en el Mac Mini lo ocupa otra aplicacion del usuario. Si al otro lado no
+ * responde con la forma exacta de PLAYZONE, se para aqui. La comprobacion se
+ * queda aunque el puerto por defecto ya no choque: quien se equivoque de
+ * puerto a mano merece el mismo aviso, y esta herramienta ESCRIBE en la base
+ * de datos.
  */
 const health = await fetch(`${BASE}/api/health`)
   .then((r) => r.json())
@@ -124,7 +128,7 @@ if (!health || health.ok !== true || typeof health.buildId !== 'string' || !heal
   console.error(`  /api/health ha respondido: ${JSON.stringify(health)}`);
   console.error('\n  Puede ser que el servidor no este levantado, o que en ese puerto haya');
   console.error('  otra aplicacion distinta. Arrancalo con "npm run build && npm run server",');
-  console.error('  o indica el sitio correcto:  BASE=http://127.0.0.1:8788 node tools/alfa.mjs');
+  console.error('  o indica el sitio correcto:  BASE=http://127.0.0.1:PUERTO node tools/alfa.mjs');
   await browser.close();
   process.exit(1);
 }

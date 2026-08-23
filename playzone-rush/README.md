@@ -32,7 +32,7 @@ Requiere Node 22 o superior (el servidor usa `node:sqlite`, que llegó en Node 2
 ```bash
 cd playzone-rush
 npm install
-npm run dev:all      # backend (8787) + frontend (5173) en una sola ventana
+npm run dev:all      # backend (8788) + frontend (5173) en una sola ventana
 ```
 
 Abre `http://localhost:5173`. El frontend habla siempre con `/api`, que Vite
@@ -69,7 +69,7 @@ Esta es la prueba que importa en este milestone.
 5. Si cortas la Wi-Fi de un móvil, ese móvil sigue jugando; sus marcas quedan
    como `1 PENDIENTE` arriba a la derecha y suben solas al volver la cobertura.
 Si no carga: es casi siempre el firewall de Windows. Permite Node.js en redes
-privadas, o abre los puertos 5173 y 8787. Comprueba también que la red esté
+privadas, o abre los puertos 5173 y 8788. Comprueba también que la red esté
 marcada como privada y que el router no tenga aislamiento de clientes.
 
 Recomendado: **Compartir → Añadir a pantalla de inicio**. Se abre a pantalla
@@ -470,7 +470,7 @@ Servidor (runtime):
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
-| `PLAYZONE_PORT` | `8787` | Puerto |
+| `PLAYZONE_PORT` | `8788` | Puerto |
 | `PLAYZONE_HOST` | `0.0.0.0` | Interfaz |
 | `PLAYZONE_DB` | `server/data/playzone.db` | Fichero SQLite |
 | `PLAYZONE_TZ` | `Europe/Madrid` | Zona del día competitivo |

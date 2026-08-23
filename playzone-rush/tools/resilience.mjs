@@ -15,7 +15,7 @@ import { playCurrent, playDrift } from './bot.mjs';
 // Por defecto contra la build de produccion servida por vite preview: es la
 // unica forma de probar de verdad el service worker (abrir sin conexion).
 const BASE = process.env.BASE ?? 'http://localhost:4173';
-const API = process.env.API ?? 'http://127.0.0.1:8787';
+const API = process.env.API ?? 'http://127.0.0.1:8788';
 
 const ok = [];
 const fail = [];

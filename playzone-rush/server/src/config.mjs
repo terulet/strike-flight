@@ -4,7 +4,10 @@
  * solo comprueba que lo que recibe es plausible.
  */
 export const config = {
-  port: Number.parseInt(process.env.PLAYZONE_PORT ?? '8787', 10),
+  // 8788 y no 8787: en el Mac Mini que sirve el alfa el 8787 lo ocupa otra
+  // aplicacion del usuario. Un puerto por defecto que pisa a un vecino solo
+  // falla el dia que el vecino esta parado, que es el peor dia para enterarse.
+  port: Number.parseInt(process.env.PLAYZONE_PORT ?? '8788', 10),
   host: process.env.PLAYZONE_HOST ?? '0.0.0.0',
   dbPath: process.env.PLAYZONE_DB ?? new URL('../data/playzone.db', import.meta.url).pathname,
   /** Carpeta de la build del frontend. Si no existe, el servidor solo sirve /api (modo dev). */
