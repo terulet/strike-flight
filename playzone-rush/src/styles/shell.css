@@ -89,6 +89,23 @@
   background: var(--surface-3);
 }
 
+/* El SVG hereda el color del boton, asi que basta con mover `color` para
+   apagarlo o encenderlo. */
+.icon-btn svg {
+  display: block;
+  color: var(--text);
+  transition: color var(--dur-fast), opacity var(--dur-fast);
+}
+
+.icon-btn--off svg {
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+
+.icon-btn {
+  box-shadow: var(--luz-borde);
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

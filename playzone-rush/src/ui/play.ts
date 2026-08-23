@@ -13,6 +13,7 @@ import { formatScore } from '../meta/ranking';
 import type { ScoreOutcome } from '../meta/scoring';
 import type { App } from './app';
 import { button, el } from './dom';
+import { iconButton } from './icons';
 import { celebrate, renderResult } from './result';
 import { renderDecision } from './apuesta';
 
@@ -71,7 +72,7 @@ export class PlayScreen {
           this.hud.time,
           this.hud.lives,
         ]),
-        button('⏸', 'icon-btn hud__exit', () => this.pause()),
+        iconButton('pausa', 'Pausa', 'icon-btn hud__exit', () => this.pause()),
       ]),
       el('div', { class: 'hud__bar' }, [this.hud.bar]),
     ]);

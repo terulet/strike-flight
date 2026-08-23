@@ -6,11 +6,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Casi opaco a proposito: al 0.97 se colaba el HUD congelado de la partida
+     y se leian dos veces la puntuacion y el tiempo, como una mancha. */
   background:
     radial-gradient(120% 60% at 50% 0%, rgba(255, 47, 109, 0.2), transparent 60%),
-    rgba(7, 7, 13, 0.97);
+    rgba(7, 7, 13, 0.995);
   padding: calc(var(--safe-top) + 18px) 20px calc(var(--safe-bottom) + 18px);
   overflow-y: auto;
+}
+
+/* Donde hay desenfoque de fondo se puede dejar entrar la partida: borrosa es
+   profundidad, nitida era un error de dibujo. */
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  .result {
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(255, 47, 109, 0.22), transparent 60%),
+      rgba(7, 7, 13, 0.9);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+    backdrop-filter: blur(22px) saturate(115%);
+  }
 }
 
 .result__inner {
@@ -438,4 +452,48 @@
 
 .apuesta__desenlace--pierde .apuesta__desenlace-delta {
   color: var(--bad);
+}
+
+/* ---------- La marca, tratada como el trofeo que es ---------- */
+.result__score {
+  /* Degradado sobre el texto: el numero deja de ser texto blanco y pasa a
+     tener material propio. Es lo primero que se mira en esta pantalla. */
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 42%, #cfd3e6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 24px rgba(255, 255, 255, 0.16));
+  font-stretch: 84%;
+  letter-spacing: -0.045em;
+}
+
+/* Entrada escalonada: la pantalla se construye en vez de aparecer de golpe.
+   Medio segundo bien repartido hace que se perciba cuidada. */
+.result__inner > * {
+  animation: sube 420ms var(--ease-out) both;
+}
+
+.result__inner > *:nth-child(1) { animation-delay: 20ms; }
+.result__inner > *:nth-child(2) { animation-delay: 70ms; }
+.result__inner > *:nth-child(3) { animation-delay: 120ms; }
+.result__inner > *:nth-child(4) { animation-delay: 165ms; }
+.result__inner > *:nth-child(5) { animation-delay: 205ms; }
+.result__inner > *:nth-child(6) { animation-delay: 240ms; }
+.result__inner > *:nth-child(n + 7) { animation-delay: 270ms; }
+
+@keyframes sube {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result__inner > * {
+    animation: none;
+  }
 }

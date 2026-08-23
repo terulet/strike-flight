@@ -28,9 +28,18 @@
 
   --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
   --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.6);
+  /* Luz de arriba en el borde superior de cada superficie. Es el truco que
+     separa una caja oscura de una superficie con volumen: sin esto todo se ve
+     plano por muy buenos que sean los colores. */
+  --luz-borde: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --luz-marca: 0 0 40px rgba(255, 47, 109, 0.28);
 
-  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  /* Archivo variable, auto-alojada: es una PWA que tiene que abrir sin
+     cobertura, asi que una fuente enlazada de fuera la dejaria coja. 88 KB
+     para los pesos 100-900 y los ejes de anchura. La pila de reserva es la
+     del sistema, por si el fichero no llega: el juego se lee igual. */
+  --font: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

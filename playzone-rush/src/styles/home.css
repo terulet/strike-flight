@@ -130,6 +130,14 @@
   background: color-mix(in srgb, var(--accent, var(--brand)) 18%, transparent);
   border-color: color-mix(in srgb, var(--accent, var(--brand)) 40%, transparent);
   color: var(--accent, var(--brand));
+  box-shadow: var(--luz-borde);
+}
+
+/* La marca se pinta con el acento del juego porque hereda `currentColor` de
+   aqui: un solo dibujo, ocho colores. El brillo la despega del fondo. */
+.card__icon svg {
+  display: block;
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent, var(--brand)) 55%, transparent));
 }
 
 .card__titles {
@@ -259,6 +267,18 @@
 .card__best-value {
   font-size: 16px;
   font-weight: 900;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+/* El nombre del rival acompana a la cifra, no compite con ella: mas fino,
+   mas apagado y con aire por delante. */
+.card__best-who {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
 }
 
 .btn {
@@ -510,4 +530,61 @@
   color: var(--bad);
   border-color: rgba(255, 77, 109, 0.45);
   background: rgba(255, 77, 109, 0.1);
+}
+
+/* ---------- Luz y volumen en las superficies ---------- */
+.card,
+.board,
+.record,
+.group {
+  /* Un filo de luz arriba: es lo que separa una caja oscura de una superficie
+     con volumen. Cuesta una linea y cambia la percepcion de todo. */
+  box-shadow: var(--shadow-card), var(--luz-borde);
+}
+
+.card {
+  background: linear-gradient(168deg, #16161f 0%, var(--surface) 58%);
+}
+
+/* El titular de la portada, con la misma materia que la marca del resultado. */
+.hero__title {
+  background: linear-gradient(178deg, #ffffff 0%, #b9bdd4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-stretch: 78%;
+  letter-spacing: -0.045em;
+  /* Con la letra tan cerrada el espacio de la fuente se queda en 3 px y se lee
+     "RUSHDEHOY". Se compensa aqui: las letras van juntas, las palabras no. */
+  word-spacing: 0.16em;
+}
+
+.hero__title em {
+  /* El acento si es color solido, y ademas emite: contrasta con el titulo
+     metalico y hace de foco. */
+  -webkit-text-fill-color: var(--brand);
+  filter: drop-shadow(0 0 22px rgba(255, 47, 109, 0.55));
+}
+
+/* La fila propia del ranking, iluminada de verdad. */
+.row--me {
+  background: linear-gradient(90deg, rgba(255, 47, 109, 0.2), rgba(255, 47, 109, 0.02) 62%, transparent);
+  box-shadow: inset 3px 0 0 var(--brand), inset 0 0 30px rgba(255, 47, 109, 0.07);
+}
+
+/* La entrada de la portada, escalonada igual que el resultado. */
+.scroller > * {
+  animation: sube 380ms var(--ease-out) both;
+}
+
+.scroller > *:nth-child(1) { animation-delay: 10ms; }
+.scroller > *:nth-child(2) { animation-delay: 55ms; }
+.scroller > *:nth-child(3) { animation-delay: 95ms; }
+.scroller > *:nth-child(4) { animation-delay: 130ms; }
+.scroller > *:nth-child(n + 5) { animation-delay: 160ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scroller > * {
+    animation: none;
+  }
 }

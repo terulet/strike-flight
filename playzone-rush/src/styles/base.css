@@ -89,3 +89,27 @@ p {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Tipografia auto-alojada ---------- */
+@font-face {
+  font-family: 'Archivo';
+  /* Rango completo en un solo fichero: un peso 900 muy cerrado para los
+     numeros grandes y uno ligero para las etiquetas, sin descargar dos veces. */
+  src: url('/fonts/archivo.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  /* swap: el juego se lee con la fuente del sistema mientras carga, en vez de
+     quedarse en blanco. En un movil con mala cobertura eso importa. */
+  font-display: swap;
+}
+
+/* Los numeros son el protagonista de todas las pantallas: van mas cerrados,
+   mas pesados y con las cifras de ancho fijo para que no bailen al contar. */
+.num {
+  font-family: 'Archivo', var(--font);
+  font-weight: 900;
+  font-stretch: 88%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}

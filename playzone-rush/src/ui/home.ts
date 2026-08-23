@@ -15,6 +15,7 @@ import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
+import { hayMarca, iconButton, marca } from './icons';
 import { promptText } from './modal';
 
 export function renderHome(app: App): HTMLElement {
@@ -59,6 +60,15 @@ export function renderHome(app: App): HTMLElement {
   return screen;
 }
 
+/**
+ * El simbolo de la tarjeta. Si el juego todavia no tiene marca dibujada se
+ * cae al caracter que trae su ficha: mejor un glifo suelto que un hueco.
+ */
+function marcaDeJuego(id: string, respaldo: string): HTMLElement {
+  if (hayMarca(id)) return el('div', { class: 'card__icon' }, [marca(id)]);
+  return el('div', { class: 'card__icon', text: respaldo });
+}
+
 function sectionTitle(text: string, right?: string): HTMLElement {
   return el('div', { class: 'section-title' }, [
     el('span', { text }),
@@ -68,11 +78,18 @@ function sectionTitle(text: string, right?: string): HTMLElement {
 
 function renderTopbar(app: App): HTMLElement {
   const muted = app.audio.muted;
-  const muteBtn = button(muted ? '🔇' : '🔊', 'icon-btn', () => {
-    const nowMuted = app.toggleMute();
-    muteBtn.textContent = nowMuted ? '🔇' : '🔊';
-    if (!nowMuted) app.audio.play('tap');
-  });
+  const muteBtn = iconButton(
+    muted ? 'silencio' : 'sonido',
+    muted ? 'Activar sonido' : 'Silenciar',
+    'icon-btn',
+    () => {
+      const nowMuted = app.toggleMute();
+      muteBtn.setIcon(nowMuted ? 'silencio' : 'sonido', nowMuted ? 'Activar sonido' : 'Silenciar');
+      muteBtn.classList.toggle('icon-btn--off', nowMuted);
+      if (!nowMuted) app.audio.play('tap');
+    },
+  );
+  muteBtn.classList.toggle('icon-btn--off', muted);
 
   return el('div', { class: 'topbar' }, [
     el('div', { class: 'brand' }, [
@@ -330,7 +347,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
     },
     [
       el('div', { class: 'card__head' }, [
-        el('div', { class: 'card__icon', text: meta.icon }),
+        marcaDeJuego(meta.id, meta.icon),
         el('div', { class: 'card__titles' }, [
           el('div', { class: 'card__kicker', text: spec.title }),
           el('div', { class: 'card__name' }, [
@@ -352,10 +369,17 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
         ]),
         el('div', { class: 'card__best' }, [
           el('div', { class: 'card__best-label', text: best > 0 ? 'TU MEJOR' : 'A BATIR' }),
-          el('div', {
-            class: 'card__best-value num',
-            text: best > 0 ? formatScore(best) : target ? `${formatScore(target.entry.total)} ${target.entry.name}` : '—',
-          }),
+          // La cifra y el nombre en piezas distintas: juntos en un solo texto
+          // el nombre heredaba el tratamiento de numero y se leia "2.750SILVIA".
+          el('div', { class: 'card__best-value' }, [
+            el('span', {
+              class: 'num',
+              text: best > 0 ? formatScore(best) : target ? formatScore(target.entry.total) : '—',
+            }),
+            best === 0 && target
+              ? el('span', { class: 'card__best-who', text: target.entry.name })
+              : null,
+          ]),
         ]),
         playBtn,
       ]),
@@ -378,7 +402,7 @@ function renderSecretCard(app: App): HTMLElement {
     );
     return el('div', { class: 'card card--locked', style: { '--accent': '#ffd23f' } }, [
       el('div', { class: 'card__head' }, [
-        el('div', { class: 'card__icon', text: '🔒' }),
+        el('div', { class: 'card__icon' }, [marca('secreto')]),
         el('div', { class: 'card__titles' }, [
           el('div', { class: 'card__kicker', text: 'BLOQUEADO' }),
           el('div', { class: 'card__name' }, [el('span', { text: 'RETO SECRETO' })]),
@@ -402,7 +426,7 @@ function renderSecretCard(app: App): HTMLElement {
   const left = app.attemptsLeft(spec);
   return el('div', { class: 'card', style: { '--accent': '#ffd23f' } }, [
     el('div', { class: 'card__head' }, [
-      el('div', { class: 'card__icon', text: '🗝' }),
+      el('div', { class: 'card__icon' }, [marca('llave')]),
       el('div', { class: 'card__titles' }, [
         el('div', { class: 'card__kicker', text: 'RETO SECRETO · 1 INTENTO' }),
         el('div', { class: 'card__name' }, [el('span', { text: meta.name }), el('small', { text: 'A OSCURAS' })]),
@@ -434,7 +458,7 @@ function renderChaosCard(app: App): HTMLElement {
 
   return el('div', { class: 'card', style: { '--accent': '#a78bfa' } }, [
     el('div', { class: 'card__head' }, [
-      el('div', { class: 'card__icon', text: '☣' }),
+      el('div', { class: 'card__icon' }, [marca('chaos')]),
       el('div', { class: 'card__titles' }, [
         el('div', { class: 'card__kicker', text: 'EVENTO · 1 INTENTO' }),
         el('div', { class: 'card__name' }, [el('span', { text: 'CHAOS' }), el('small', { text: meta.name })]),
