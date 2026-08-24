@@ -73,3 +73,59 @@ describe('Ticker', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('Ticker: rawMs sin acotar', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('un fotograma largo de verdad: dt se acota, rawMs no', () => {
+    const vistos: { dt: number; rawMs: number }[] = [];
+    const ticker = new Ticker((dt, _now, rawMs) => vistos.push({ dt, rawMs }));
+
+    let momento = 5000;
+    vi.spyOn(performance, 'now').mockImplementation(() => momento);
+    let callback: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      callback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    ticker.start();
+    momento = 5300; // un GC de 300 ms, no una pestana en segundo plano
+    callback!(5300);
+
+    // dt sigue acotado a 50 ms: el juego no debe saltar de golpe.
+    expect(vistos[0].dt).toBeCloseTo(0.05, 5);
+    // Pero rawMs cuenta la verdad: sin esto, 300 ms y 51 ms se ven identicos.
+    expect(vistos[0].rawMs).toBeCloseTo(300, 0);
+
+    ticker.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('fotograma normal a 60 Hz: rawMs coincide con dt en milisegundos', () => {
+    const vistos: { dt: number; rawMs: number }[] = [];
+    const ticker = new Ticker((dt, _now, rawMs) => vistos.push({ dt, rawMs }));
+
+    let momento = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => momento);
+    let callback: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      callback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    ticker.start();
+    momento = 1016;
+    callback!(1016);
+
+    expect(vistos[0].rawMs).toBeCloseTo(16, 5);
+    expect(vistos[0].dt * 1000).toBeCloseTo(vistos[0].rawMs, 5);
+
+    ticker.stop();
+    vi.unstubAllGlobals();
+  });
+});

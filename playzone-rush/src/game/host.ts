@@ -22,9 +22,31 @@ import type {
   ScreenInsets,
 } from './contract';
 
+/**
+ * Cinco numeros por partida, nada mas: ni un profiler, ni un frame por
+ * fotograma. Sin esto, dentro de una semana un juego con poco enganche y un
+ * juego que microtironea en un movil concreto se ven identicos en los
+ * datos, y "quiza el problema es el rendimiento, no el diseno" deja de ser
+ * una pregunta que se pueda contestar -las partidas de esta semana no
+ * vuelven-.
+ */
+export interface FramePerf {
+  frameCount: number;
+  slowFrames50: number;
+  slowFrames100: number;
+  worstFrameMs: number;
+}
+
+function emptyPerf(): FramePerf {
+  return { frameCount: 0, slowFrames50: 0, slowFrames100: 0, worstFrameMs: 0 };
+}
+
+/** Por encima de esto no es jank: es una pestana que vuelve de segundo plano. */
+const PERF_IGNORE_ABOVE_MS = 1000;
+
 export interface HostCallbacks {
   onHud?: (hud: HudInfo) => void;
-  onFinish?: (result: GameResult, game: MiniGame) => void;
+  onFinish?: (result: GameResult, game: MiniGame, perf: FramePerf) => void;
   onMilestone?: (text: string, tone: 'good' | 'bad') => void;
   onGhostPassed?: (label: string) => void;
   onAutoPause?: () => void;
@@ -58,6 +80,7 @@ export class GameHost {
   private cssWidth = 0;
   private cssHeight = 0;
   private hudFrame = 0;
+  private perf: FramePerf = emptyPerf();
   private visibilityHandler: (() => void) | null = null;
   /** Referencia viva: los juegos la leen cada frame. */
   private insets: ScreenInsets = { top: 0, bottom: 0 };
@@ -78,7 +101,7 @@ export class GameHost {
     this.container.appendChild(this.canvas);
 
     this.input.attach(this.canvas);
-    this.ticker = new Ticker((dt) => this.frame(dt));
+    this.ticker = new Ticker((dt, _now, rawMs) => this.frame(dt, rawMs));
 
     if (typeof ResizeObserver !== 'undefined') {
       this.observer = new ResizeObserver(() => this.resize());
@@ -149,6 +172,7 @@ export class GameHost {
   start(): void {
     if (!this.current) return;
     this.input.reset();
+    this.perf = emptyPerf();
     this.current.start();
     this.startMusic();
     this.ticker.start();
@@ -189,6 +213,7 @@ export class GameHost {
     if (!this.current) return;
     this.input.reset();
     this.fx.clear();
+    this.perf = emptyPerf();
     this.current.restart();
     this.startMusic();
     if (!this.ticker.isRunning) this.ticker.start();
@@ -263,16 +288,31 @@ export class GameHost {
       }),
       game.events.on('finish', ({ result }) => {
         this.ticker.stop();
-        this.callbacks.onFinish?.(result, game);
+        this.callbacks.onFinish?.(result, game, this.perf);
       }),
     );
   }
 
-  private frame(dt: number): void {
+  /** Cuenta el fotograma para las cinco cifras de rendimiento de esta partida. */
+  private trackFrame(rawMs: number): void {
+    if (rawMs > PERF_IGNORE_ABOVE_MS) return; // no es jank: la pestana volvia de segundo plano
+    this.perf.frameCount++;
+    const ms = Math.max(0, rawMs);
+    if (ms > 50) this.perf.slowFrames50++;
+    if (ms > 100) this.perf.slowFrames100++;
+    if (ms > this.perf.worstFrameMs) this.perf.worstFrameMs = Math.round(ms);
+  }
+
+  private frame(dt: number, rawMs: number): void {
     const game = this.current;
     if (!game) return;
 
-    if (game.state === 'playing') game.update(dt);
+    // Solo mientras se juega de verdad: un fotograma en pausa no es jank, es
+    // el reloj del rAF girando en vacio.
+    if (game.state === 'playing') {
+      this.trackFrame(rawMs);
+      game.update(dt);
+    }
     this.fx.update(dt);
 
     const { ctx } = this;

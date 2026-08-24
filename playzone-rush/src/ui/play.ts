@@ -5,7 +5,7 @@
  * reinicia el juego. Por eso la revancha es instantanea.
  */
 import type { GameConfig, GameResult, HudInfo } from '../game/contract';
-import { GameHost } from '../game/host';
+import { GameHost, type FramePerf } from '../game/host';
 import { requireGame } from '../game/registry';
 import { GHOST_SAMPLE_MS, decodeTrace, encodeTrace } from '../net/ghost';
 import type { ChallengeSpec } from '../meta/daily';
@@ -100,7 +100,7 @@ export class PlayScreen {
       haptics: app.haptics,
       reducedMotion: app.quieto,
       onHud: (info) => this.paintHud(info),
-      onFinish: (result) => this.handleFinish(result),
+      onFinish: (result, _game, perf) => this.handleFinish(result, perf),
       onMilestone: (text, tone) => app.toaster.show(text, tone === 'good' ? 'good' : 'bad', 1400),
       onGhostPassed: (labelText) => {
         this.ghostPassed = true;
@@ -325,10 +325,10 @@ export class PlayScreen {
     }
   }
 
-  private handleFinish(result: GameResult): void {
+  private handleFinish(result: GameResult, perf: FramePerf): void {
     if (this.finished) return;
     this.finished = true;
-    const outcome = this.app.finishRun(this.spec, result, this.ghostPassed);
+    const outcome = this.app.finishRun(this.spec, result, this.ghostPassed, perf);
     celebrate(this.app, outcome);
     this.showResult(outcome, result);
   }

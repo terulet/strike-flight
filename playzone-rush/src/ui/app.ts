@@ -12,6 +12,7 @@ import { Haptics } from '../core/haptics';
 import { seedFrom } from '../core/rng';
 import { SaveManager, type PendingScore } from '../core/save';
 import type { GameConfig, GameResult } from '../game/contract';
+import type { FramePerf } from '../game/host';
 import { resolveMutators } from '../game/mutators';
 import { getGame, requireGame } from '../game/registry';
 import { attemptsLeft, beginAttempt, canPlay, refundAttempt } from '../meta/attempts';
@@ -646,7 +647,7 @@ export class App {
     this.exitToHome();
   }
 
-  finishRun(spec: ChallengeSpec, result: GameResult, ghostPassed: boolean): ScoreOutcome {
+  finishRun(spec: ChallengeSpec, result: GameResult, ghostPassed: boolean, perf: FramePerf): ScoreOutcome {
     const outcome = commitResult({
       plan: this.plan,
       spec,
@@ -664,7 +665,20 @@ export class App {
       // si a esta partida le quedaba otra oportunidad, no se puede distinguir
       // "termino y no jugo mas porque no quiso" de "termino y no jugo mas
       // porque ya no podia". Ese matiz no se puede reconstruir a posteriori.
-      meta: { challengeId: spec.id, endedBy: result.endedBy, attemptsLeftAfter: attemptsLeft(this.save, this.dayKey, spec) },
+      //
+      // Las cuatro de perf van en el mismo evento a proposito: son 1 a 1 con
+      // esta partida concreta, y separar "cuanto engancha" de "que tal
+      // rendia" en dos sitios distintos habria hecho mas dificil cruzarlas
+      // luego -que es exactamente para lo que sirven-.
+      meta: {
+        challengeId: spec.id,
+        endedBy: result.endedBy,
+        attemptsLeftAfter: attemptsLeft(this.save, this.dayKey, spec),
+        frameCount: perf.frameCount,
+        slowFrames50: perf.slowFrames50,
+        slowFrames100: perf.slowFrames100,
+        worstFrameMs: perf.worstFrameMs,
+      },
     });
     if (outcome.isChallengeBest) {
       this.telemetry.track('score_improved', { gameId: spec.gameId, value: outcome.gainVsBest });

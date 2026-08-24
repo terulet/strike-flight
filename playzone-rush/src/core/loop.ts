@@ -1,5 +1,13 @@
-/** Bucle de render con dt acotado y medidor de FPS. */
-export type TickFn = (dt: number, now: number) => void;
+/**
+ * Bucle de render con dt acotado y medidor de FPS.
+ *
+ * rawMs es el tercer parametro: cuanto ha tardado el fotograma DE VERDAD, sin
+ * el tope de MAX_DT. dt sigue acotado a proposito -es el que ven los
+ * juegos, y sin tope un GC de 300 ms movería la fisica de golpe-, pero para
+ * medir jank el propio tope es el problema: un fotograma de 300 ms se
+ * reportaria en dt como exactamente 50 ms, indistinguible de uno de 51 ms.
+ */
+export type TickFn = (dt: number, now: number, rawMs: number) => void;
 
 const MAX_DT = 1 / 20; // si la pestana se va a segundo plano no queremos saltos
 
@@ -37,7 +45,8 @@ export class Ticker {
       // no es un dibujo raro: es una excepcion sin capturar que para el bucle
       // de fotogramas entero. Se vio en la practica: PULSE y CUENTA lo tiraban
       // en jugadas normales, sin tocar nada del dispositivo.
-      const dt = Math.max(0, Math.min(MAX_DT, (now - this.last) / 1000));
+      const rawMs = now - this.last;
+      const dt = Math.max(0, Math.min(MAX_DT, rawMs / 1000));
       this.last = now;
       this.frames++;
       this.fpsAccum += dt;
@@ -46,7 +55,7 @@ export class Ticker {
         this.frames = 0;
         this.fpsAccum = 0;
       }
-      this.onTick(dt, now);
+      this.onTick(dt, now, rawMs);
       this.raf = requestAnimationFrame(step);
     };
     this.raf = requestAnimationFrame(step);
