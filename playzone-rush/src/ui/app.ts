@@ -153,7 +153,10 @@ export class App {
       return {
         unlocked: secret.unlocked,
         done: secret.readyCount,
-        total: Math.max(1, secret.activeCount),
+        // Los que HACEN FALTA, no los que hay conectados: con veinticinco
+        // personas "3 de 25" desanima y ademas no es verdad, porque el
+        // secreto se abre con el umbral.
+        total: Math.max(1, secret.neededCount ?? secret.activeCount),
         missing: secret.missing,
         meDone: !secret.missing.includes(this.save.get().profile.name),
       };

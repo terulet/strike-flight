@@ -18,7 +18,20 @@ export const config = {
   backupKeep: Number.parseInt(process.env.PLAYZONE_BACKUP_KEEP ?? '28', 10),
   /** Zona horaria del dia competitivo. El dia lo decide el servidor, no el movil. */
   timezone: process.env.PLAYZONE_TZ ?? 'Europe/Madrid',
-  maxPlayersPerGroup: Number.parseInt(process.env.PLAYZONE_MAX_PLAYERS ?? '8', 10),
+  maxPlayersPerGroup: Number.parseInt(process.env.PLAYZONE_MAX_PLAYERS ?? '25', 10),
+  /**
+   * Cuanta gente tiene que completar el dia para abrir el reto secreto.
+   *
+   * Antes hacian falta TODOS los que hubieran abierto la app hoy. Con cinco
+   * personas eso era un logro de equipo; con veinticinco es imposible, porque
+   * basta uno que juegue dos retos y se vaya para bloquear al grupo entero
+   * todos los dias. Con un umbral, el secreto pasa de espera a carrera: los
+   * primeros que acaban lo abren para todos.
+   *
+   * En grupos pequenos sigue haciendo falta todo el mundo, porque el umbral se
+   * limita al numero de gente activa.
+   */
+  secretUnlockThreshold: Number.parseInt(process.env.PLAYZONE_SECRET_THRESHOLD ?? '5', 10),
   maxNameLength: 16,
   /** Tamano maximo de cuerpo aceptado (los ghosts son lo mas grande). */
   maxBodyBytes: 64 * 1024,

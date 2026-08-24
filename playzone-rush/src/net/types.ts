@@ -45,6 +45,8 @@ export interface GhostSummary {
 export interface SecretState {
   unlocked: boolean;
   activeCount: number;
+  /** Cuantos hacen falta hoy para abrirlo (el umbral, o los activos si son menos). */
+  neededCount?: number;
   readyCount: number;
   missing: string[];
 }

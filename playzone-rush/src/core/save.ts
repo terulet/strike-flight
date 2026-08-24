@@ -14,7 +14,7 @@ import { createStore, type KeyValueStore } from './storage';
 
 export const SAVE_KEY = 'playzone.rush.save';
 export const SAVE_BACKUP_KEY = 'playzone.rush.save.broken';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** Como acabo la apuesta en este reto, si es que se uso aqui. */
 export type ApuestaResultado = 'doblo' | 'cayo';
@@ -411,6 +411,45 @@ export const migrations: Record<number, Migration> = {
   // ser opcional, un dia viejo sin la marca simplemente ensena el sorteo una
   // vez y se acabo.
   4: (data) => ({ ...data, version: 5 }),
+  /**
+   * v5 -> v6: ARRANQUE LIMPIO. Se borra la semana de prueba.
+   *
+   * Esta es la unica migracion del proyecto que TIRA datos, y es a proposito:
+   * la semana de alfa se jugo con cuatro juegos y una interfaz que ya no
+   * existe, y arrastrar esas marcas al lanzamiento mezclaria dos cosas que no
+   * se pueden comparar. Se empieza de cero, todos a la vez.
+   *
+   * La alternativa era pedirle a cada persona que borrara los datos del sitio
+   * desde los ajustes del navegador. Eso es un camino que la mitad no
+   * encuentra y la otra mitad hace mal, y quien lo haga mal se queda sin
+   * nombre y sin preferencias. Asi lo hace la app sola al abrir.
+   *
+   * SE MANTIENE el nombre y las preferencias -sonido, vibracion, movimiento
+   * reducido-, que son ajustes de la persona y no del juego. SE VA todo lo
+   * demas, incluida la identidad de grupo: el grupo viejo ya no existe en el
+   * servidor, y quedarse con un token muerto solo produciria errores de
+   * sincronizacion en bucle.
+   */
+  5: (data) => {
+    const previo = obj(data);
+    const perfil = obj(previo.profile);
+    const prefs = obj(previo.prefs);
+    const limpio = defaultSave();
+    return {
+      ...limpio,
+      profile: {
+        ...limpio.profile,
+        name: typeof perfil.name === 'string' && perfil.name.trim() ? perfil.name : limpio.profile.name,
+        createdAt: num(perfil.createdAt, limpio.profile.createdAt),
+      },
+      prefs: {
+        muted: bool(prefs.muted, limpio.prefs.muted),
+        haptics: bool(prefs.haptics, limpio.prefs.haptics),
+        reducedMotion: bool(prefs.reducedMotion, limpio.prefs.reducedMotion),
+      },
+      version: 6,
+    };
+  },
 };
 
 export interface LoadReport {

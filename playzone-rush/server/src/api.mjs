@@ -138,10 +138,20 @@ export function createApi(store, options = {}) {
 
     // Reto secreto: participan quienes han abierto PLAYZONE hoy. Asi el que
     // entro una vez hace un mes no bloquea al grupo para siempre.
+    //
+    // Y hace falta un UMBRAL, no que acaben todos. Con "todos los activos"
+    // funcionaba en un grupo de cinco, pero en uno de veinticinco basta una
+    // persona que juegue dos retos y se vaya para que el secreto no se abra
+    // nunca. Con umbral, los primeros que acaban lo abren para el grupo: pasa
+    // de ser una espera a ser una carrera.
+    //
+    // El umbral se limita a la gente activa, asi que en grupos pequenos sigue
+    // haciendo falta todo el mundo y no se regala nada.
     const active = members.filter((m) => m.activeToday);
     const ready = active.filter((m) => m.completedDaily);
     const minActive = Math.min(2, members.length);
-    const unlocked = active.length >= minActive && active.length > 0 && ready.length === active.length;
+    const necesarios = Math.min(active.length, config.secretUnlockThreshold);
+    const unlocked = active.length >= minActive && active.length > 0 && ready.length >= necesarios;
 
     return {
       serverTime: ts,
@@ -167,6 +177,9 @@ export function createApi(store, options = {}) {
         unlocked,
         activeCount: active.length,
         readyCount: ready.length,
+        // Cuantos hacen falta hoy. La app lo ensena: "3 de 5" se entiende y
+        // "faltan 22 personas" desanima.
+        neededCount: necesarios,
         missing: active.filter((m) => !m.completedDaily).map((m) => m.name),
       },
       ghosts: ghosts.map((row) => ({

@@ -13,9 +13,36 @@ export interface SecretStatus {
   unlocked: boolean;
   /** Miembros del grupo que ya han jugado hoy (yo incluido). */
   done: number;
+  /**
+   * Cuantos hacen falta para abrirlo.
+   *
+   * En grupos pequenos coincide con la gente activa; en grandes se queda en el
+   * umbral. Es un campo aparte y no "todos los activos" porque en un grupo de
+   * veinticinco decir "faltan 22" desanima, y ademas seria mentira: no hacen
+   * falta 22, hacen falta los que queden hasta el umbral.
+   */
   total: number;
   missing: string[];
   meDone: boolean;
+}
+
+/** Cuantos nombres de los que faltan se dicen antes de resumir. */
+export const MAX_NOMBRES_QUE_FALTAN = 3;
+
+/**
+ * "MARC", "MARC y KALI", "MARC, KALI y 4 mas".
+ *
+ * Con veinticinco personas la lista entera es un muro de texto donde antes
+ * habia una frase. Se dicen los tres primeros y se cuenta el resto.
+ */
+export function resumirQueFaltan(nombres: string[], maximo = MAX_NOMBRES_QUE_FALTAN): string {
+  if (nombres.length === 0) return '';
+  if (nombres.length <= maximo) {
+    if (nombres.length === 1) return nombres[0] as string;
+    return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+  }
+  const restantes = nombres.length - maximo;
+  return `${nombres.slice(0, maximo).join(', ')} y ${restantes} mas`;
 }
 
 /** He jugado los tres retos del dia. */

@@ -239,9 +239,14 @@ export function formatScore(value: number): string {
  * jugadores todo cabe y no se nota, y con ocho -el maximo de un grupo- alguien
  * se queda sin encontrarse. Aqui se puede probar sin montar un DOM.
  *
- * REGLA: tu fila se repite al final solo si NO estas en el podio y ademas la
- * lista de debajo es lo bastante larga como para que tengas que buscarte. Si
- * cabe todo de un vistazo, repetirla seria ruido.
+ * REGLA: tu fila se repite al final solo si NO estas en el podio, la lista de
+ * debajo es lo bastante larga como para que tengas que buscarte, Y ADEMAS no
+ * estas ya al final de ella.
+ *
+ * Esa ultima condicion salio de verlo con 25 personas: siendo el #25 la fila
+ * propia salia dos veces seguidas, una detras de otra, y eso no ayuda a
+ * encontrarse, parece un fallo. Si ya eres de los ultimos, llegar al final de
+ * la lista es encontrarte.
  */
 export function repartoDelPodio(total: number, miIndice: number): {
   podio: number;
@@ -251,9 +256,12 @@ export function repartoDelPodio(total: number, miIndice: number): {
   const podio = Math.min(3, total);
   const resto = Math.max(0, total - podio);
   const estoyEnPodio = miIndice >= 0 && miIndice < podio;
+  // Cuantas filas del final cuentan como "ya se te ve sin buscarte".
+  const COLA = 2;
+  const estoyEnLaCola = miIndice >= total - COLA;
   return {
     podio,
     resto,
-    repetirMiFila: !estoyEnPodio && miIndice >= 0 && resto > 4,
+    repetirMiFila: !estoyEnPodio && !estoyEnLaCola && miIndice >= 0 && resto > 4,
   };
 }

@@ -9,8 +9,7 @@ import {
   markAllRivalsPlayed,
   markRivalPlayed,
   secretStatus,
-  setChaosEnabled,
-} from '../src/meta/secret';
+  setChaosEnabled, resumirQueFaltan} from '../src/meta/secret';
 import { commitResult } from '../src/meta/scoring';
 import { DAY, ensureGames, freshSave, makeResult } from './helpers';
 
@@ -94,3 +93,32 @@ describe('reto secreto', () => {
     expect(isChaosEnabled(save, '2026-08-19')).toBe(false);
   });
 });
+
+/**
+ * La lista de quien falta.
+ *
+ * Con cinco personas caben todos los nombres. Con veinticinco, la lista entera
+ * es un muro de texto donde antes habia una frase.
+ */
+describe('resumen de quien falta', () => {
+  it('sin nadie pendiente no dice nada', () => {
+    expect(resumirQueFaltan([])).toBe('');
+  });
+
+  it('hasta tres se dicen todos', () => {
+    expect(resumirQueFaltan(['MARC'])).toBe('MARC');
+    expect(resumirQueFaltan(['MARC', 'KALI'])).toBe('MARC y KALI');
+    expect(resumirQueFaltan(['MARC', 'KALI', 'YOLI'])).toBe('MARC, KALI y YOLI');
+  });
+
+  it('a partir de cuatro se cuenta el resto', () => {
+    expect(resumirQueFaltan(['MARC', 'KALI', 'YOLI', 'NIL'])).toBe('MARC, KALI, YOLI y 1 mas');
+  });
+
+  it('un grupo lleno no escupe veintitantos nombres', () => {
+    const muchos = Array.from({ length: 22 }, (_, i) => `JUGADOR${i}`);
+    const texto = resumirQueFaltan(muchos);
+    expect(texto).toBe('JUGADOR0, JUGADOR1, JUGADOR2 y 19 mas');
+    expect(texto.length).toBeLessThan(60);
+  });
+})

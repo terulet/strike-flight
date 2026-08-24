@@ -149,11 +149,21 @@ describe('reparto del podio', () => {
     }
   });
 
-  it('con el grupo lleno y fuera del podio, mi fila se repite', () => {
-    // Ocho es el maximo de un grupo: cinco filas debajo del podio ya obligan a
-    // buscarse, y es justo el caso en el que esto importa.
-    expect(repartoDelPodio(8, 7).repetirMiFila).toBe(true);
-    expect(repartoDelPodio(8, 3).repetirMiFila).toBe(true);
+  it('con el grupo lleno y enterrado en medio, mi fila se repite', () => {
+    // 25 personas: quien queda por el medio tiene que recorrer la lista entera
+    // para encontrarse, y es justo el caso en el que esto importa.
+    expect(repartoDelPodio(25, 12).repetirMiFila).toBe(true);
+    expect(repartoDelPodio(25, 3).repetirMiFila).toBe(true);
+  });
+
+  it('siendo de los ultimos NO se repite', () => {
+    // Salio viendolo con 25 personas: siendo el #25 la fila propia aparecia
+    // dos veces seguidas, una debajo de la otra. Eso no ayuda a encontrarse,
+    // parece un fallo. Si ya eres de los ultimos, llegar al final es
+    // encontrarte.
+    expect(repartoDelPodio(25, 24), 'el ultimo').toMatchObject({ repetirMiFila: false });
+    expect(repartoDelPodio(25, 23), 'el penultimo').toMatchObject({ repetirMiFila: false });
+    expect(repartoDelPodio(25, 22), 'el antepenultimo si').toMatchObject({ repetirMiFila: true });
   });
 
   it('si cabe todo de un vistazo, no se repite', () => {

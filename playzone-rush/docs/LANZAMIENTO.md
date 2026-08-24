@@ -1,0 +1,144 @@
+# Lanzamiento de la versión nueva
+
+Cómo pasar del alfa de una semana a la versión de lanzamiento, con arranque
+limpio y grupos de 25.
+
+**Cuándo: después de medianoche (hora de Madrid).** No es una preferencia, es
+un requisito — está explicado abajo.
+
+---
+
+## Por qué después de medianoche
+
+Los retos del día se sortean **barajando el catálogo de juegos** con la semilla
+del día. El alfa tiene 4 juegos y la versión nueva tiene 7, así que la
+combinación del día **cambia** al desplegar.
+
+Y las marcas se guardan por `challengeId` (`c1`, `c2`, `c3`), **no por juego**,
+ni en el móvil ni en el servidor.
+
+Desplegando a media tarde, quien ya jugó hoy tiene un 2.750 guardado en `c1`
+que hizo jugando a SNAP; después del despliegue `c1` es RITMO. Su marca queda
+colgada del juego equivocado y sus intentos ya están gastados. El ranking del
+día se descuadra justo el día que quieres que la gente vea la versión nueva.
+
+El día competitivo rota a medianoche en `Europe/Madrid`. Desplegar después de
+esa hora deja el día anterior cerrado y el nuevo empieza ya con 7 juegos.
+
+---
+
+## Antes de tocar nada: copia de seguridad
+
+```bash
+cd ~/playzone-rush/server/data
+sqlite3 playzone.db "VACUUM INTO 'alfa-semana1-$(date +%Y%m%d).db'"
+ls -lh alfa-semana1-*.db
+```
+
+Esa copia es la única prueba de lo que pasó la primera semana. Guárdala fuera
+del Mac Mini antes de seguir.
+
+---
+
+## Desplegar
+
+```bash
+cd ~/playzone-rush
+git fetch origin
+git checkout claude/playzone-rush-viral-kg1l61
+git pull
+
+npm install          # por si acaso; no hay dependencias nuevas
+npm run build        # OBLIGATORIO: el servidor sirve dist/, no las fuentes
+```
+
+> **El `build` no es opcional.** El servidor informa de su versión leyendo
+> `dist/build-id.txt`. Si haces `pull` sin `build`, sigue sirviendo la build
+> vieja mientras dice que es otra, y todos los móviles se quedan con un aviso
+> de "hay versión nueva" que no se va nunca. Ya pasó una vez.
+
+### Base de datos nueva
+
+El arranque limpio también es del servidor: el grupo de la primera semana
+desaparece.
+
+```bash
+pm2 stop playzone
+mv server/data/playzone.db server/data/playzone-alfa-semana1.db
+pm2 start playzone
+```
+
+El servidor crea la base vacía al arrancar. Comprobar:
+
+```bash
+curl -s http://127.0.0.1:8788/api/health
+```
+
+### Grupos de 25
+
+Ya es el valor por defecto. Para cambiarlo sin tocar código:
+
+```bash
+PLAYZONE_MAX_PLAYERS=25 pm2 restart playzone --update-env
+```
+
+---
+
+## Qué ve la gente
+
+**No tienen que hacer nada.** Ni borrar datos del navegador, ni reinstalar.
+
+Al abrir la app:
+
+1. La versión nueva detecta que su partida guardada es de la semana de prueba
+   y **la limpia sola** (migración v5 → v6).
+2. Se **mantiene** el nombre y las preferencias de sonido, vibración y
+   movimiento reducido — son ajustes de la persona, no del juego.
+3. Se **va** todo lo demás: días jugados, récords, racha, telemetría y la
+   identidad del grupo viejo. Esto último es necesario: el grupo ya no existe
+   en el servidor, y quedarse con un token muerto produce errores de
+   sincronización en bucle.
+4. Aterrizan en la pantalla de bienvenida y entran al grupo nuevo con el
+   código.
+
+Crea el grupo nuevo tú primero y pasa el código.
+
+---
+
+## Comprobación después de desplegar
+
+```bash
+# 1. La versión que se sirve es la que dice servir
+curl -s http://127.0.0.1:8788/api/health | grep buildId
+cat dist/build-id.txt          # tienen que coincidir
+
+# 2. Hay 7 juegos
+grep -c "registerGame(" src/games/index.ts
+
+# 3. Desde fuera, con datos móviles y la Wi-Fi apagada
+#    (no vale desde el propio Mac: MagicDNS resuelve por dentro)
+```
+
+Y en el móvil: abrir, comprobar que sale el **sorteo** de los retos del día,
+que hay **7 juegos** en la rotación y que el ranking tiene **podio**.
+
+---
+
+## Si algo va mal
+
+Volver atrás es cambiar de rama y reconstruir:
+
+```bash
+git checkout claude/playzone-rush-social-kg1l61
+npm run build
+pm2 restart playzone
+```
+
+La base de datos de la semana 1 sigue en `server/data/playzone-alfa-semana1.db`.
+Para recuperarla, parar pm2, renombrarla a `playzone.db` y volver a arrancar.
+
+> Ojo: quien ya haya abierto la versión nueva tiene la partida migrada a v6 y
+> **no vuelve atrás**. La migración es de un solo sentido. Volver a la versión
+> vieja les dejaría con el nombre puesto y sin nada más, que es un estado
+> jugable pero raro. Por eso conviene comprobar el despliegue antes de pasar
+> el código a nadie.

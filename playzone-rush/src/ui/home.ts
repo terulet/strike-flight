@@ -12,6 +12,7 @@ import { listGames, requireGame } from '../game/registry';
 import { attemptsDisplay } from '../meta/attempts';
 import { formatDuration, type ChallengeSpec } from '../meta/daily';
 import { formatScore, repartoDelPodio, rivalAhead, rivalBehind, type Leaderboard } from '../meta/ranking';
+import { resumirQueFaltan } from '../meta/secret';
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
@@ -504,10 +505,10 @@ function renderSecretCard(app: App): HTMLElement {
         text:
           app.mode === 'group'
             ? `${status.done}/${status.total} JUGADORES LISTOS. Se abre cuando todos los que han entrado hoy terminen los tres retos.${
-                status.missing.length > 0 ? ` Faltan: ${status.missing.join(', ')}.` : ''
+                status.missing.length > 0 ? ` Faltan: ${resumirQueFaltan(status.missing)}.` : ''
               }`
             : `Se abre cuando los ${status.total} hayais jugado los tres retos de hoy. Faltan: ${
-                status.missing.join(', ') || '—'
+                resumirQueFaltan(status.missing) || '—'
               }.`,
       }),
       pips,

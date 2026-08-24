@@ -1016,3 +1016,23 @@
   border-top: 2px dotted var(--line-strong);
   padding-top: 6px;
 }
+
+/**
+ * Las etiquetas de la fila no se parten nunca.
+ *
+ * Con nombres largos -ALEJANDRA, BARTOLOMEO- "HA JUGADO" se partia en dos
+ * lineas y esa fila crecia el doble que las demas, rompiendo el ritmo de la
+ * lista. Antes es el nombre el que cede: se recorta con puntos suspensivos,
+ * que se entiende, mientras que una etiqueta partida solo desordena.
+ */
+.row__name .tag {
+  white-space: nowrap;
+  flex: none;
+}
+
+.row__name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
