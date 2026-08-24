@@ -356,3 +356,15 @@
   margin-top: 3px;
   opacity: 0.75;
 }
+
+/* Rendimiento: diagnostico, no enganche -por eso lleva su propia linea,
+   separada de las demas, para que no se lea como una senal mas del compuesto-. */
+.dash-game__detail--perf {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--line);
+}
+
+.dash-game__detail--perf-mala {
+  color: var(--bad);
+}

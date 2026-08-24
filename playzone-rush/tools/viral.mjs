@@ -264,6 +264,37 @@ if (cancelado) {
   check('cancelar NO deja share_completed', hechoTotal === 3, `${hechoTotal} (fichero+texto+descarga)`);
 }
 
+/* ------------------------------------------------------------------ */
+console.log('\n5. RENDIMIENTO: cada partida manda sus cinco numeros');
+/* ------------------------------------------------------------------ */
+// Una partida real, jugada de verdad (no forceFinish() a los 4 fotogramas):
+// frameCount tiene que reflejar los segundos jugados, no salir en cero.
+await page.locator('.salir-resultado').first().click().catch(() => {});
+await page.waitForSelector('.card', { timeout: 10000 });
+await page.evaluate(() => {
+  const a = window.__PZ.app;
+  a.save.update(() => { delete a.save.day(a.dayKey).challenges[a.plan.challenges[0].id]; });
+  a.startChallenge(a.plan.challenges[0], { ignoreAttempts: true });
+});
+await page.waitForSelector('.countdown', { state: 'detached', timeout: 15000 });
+await page.waitForTimeout(300);
+await playCurrent(page, 3000); // ~3 s jugando de verdad, sin forzar el final
+await page.evaluate(() => window.__PZ.app.playScreen.forceFinish());
+await page.waitForSelector('.result', { timeout: 5000 });
+
+const perf = await page.evaluate(() => {
+  const eventos = window.__PZ.app.telemetry.events();
+  const finish = eventos.find((e) => e.type === 'game_finish');
+  return finish?.meta ?? null;
+});
+check('game_finish lleva las cinco cifras de rendimiento', perf !== null, JSON.stringify(perf));
+if (perf) {
+  // ~3 s a 60 Hz son unos 180 fotogramas; con margen amplio por el entorno de pruebas.
+  check('frameCount refleja segundos jugados de verdad, no viene en cero', perf.frameCount > 30, `${perf.frameCount}`);
+  check('slowFrames50/100 y worstFrameMs vienen como numeros, no undefined', typeof perf.slowFrames50 === 'number' && typeof perf.slowFrames100 === 'number' && typeof perf.worstFrameMs === 'number');
+  check('slowFrames100 nunca es mayor que slowFrames50 (100ms implica tambien >50ms)', perf.slowFrames100 <= perf.slowFrames50, `${perf.slowFrames100} <= ${perf.slowFrames50}`);
+}
+
 console.log(`\nRESULTADO: ${ok.length} OK · ${fail.length} fallos`);
 if (fail.length) console.log('FALLOS:\n  ' + fail.join('\n  '));
 console.log(errores.length ? `\nERRORES DE PAGINA:\n  ${errores.join('\n  ')}` : '\nSin errores de pagina.');

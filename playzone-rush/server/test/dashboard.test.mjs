@@ -600,3 +600,68 @@ describe('por juego: senales nuevas', () => {
     expect(m.activity.eventCounts.game_finish).toBeUndefined();
   });
 });
+
+/**
+ * PERF PATCH: las cinco cifras de rendimiento que manda cada partida al
+ * terminar, agregadas por juego. Sin esto, "poco enganche" y "microtirones
+ * en un movil concreto" se leerian igual en el resto de senales.
+ */
+describe('por juego: rendimiento', () => {
+  it('suma frames y fotogramas lentos de todas las partidas terminadas de ese juego', () => {
+    const { player } = newGroup('Eloi');
+    track(player, 'game_finish', {
+      gameId: 'trile',
+      value: 1000,
+      meta: { frameCount: 600, slowFrames50: 12, slowFrames100: 2, worstFrameMs: 180 },
+    });
+    track(player, 'game_finish', {
+      gameId: 'trile',
+      value: 1200,
+      meta: { frameCount: 400, slowFrames50: 4, slowFrames100: 0, worstFrameMs: 90 },
+    });
+
+    const trile = metrics().perGame.games.find((g) => g.gameId === 'trile');
+    expect(trile.framesSampled).toBe(1000);
+    expect(trile.longFrameRate50).toBeCloseTo(16 / 1000, 5);
+    expect(trile.longFrameRate100).toBeCloseTo(2 / 1000, 5);
+    expect(trile.worstFrameMs).toBe(180); // el peor de los dos, no la suma ni la media
+  });
+
+  it('sin datos de rendimiento en ninguna partida, las cifras son null, no cero', () => {
+    const { player } = newGroup('Eloi');
+    // Partidas "de antes de este parche": game_finish sin meta de perf.
+    track(player, 'game_finish', { gameId: 'torre', value: 1000, meta: { challengeId: 'c1' } });
+
+    const torre = metrics().perGame.games.find((g) => g.gameId === 'torre');
+    expect(torre.framesSampled).toBe(0);
+    expect(torre.longFrameRate50).toBeNull();
+    expect(torre.worstFrameMs).toBeNull();
+  });
+
+  it('el rendimiento no entra en el compuesto: es diagnostico, no enganche', () => {
+    const { created, player } = newGroup('Eloi');
+    const rival = join(created.group.code, 'Marc');
+
+    // Mismo enganche en todo, rendimiento opuesto: no debe cambiar el orden.
+    for (let i = 0; i < 10; i++) {
+      track(player, 'game_finish', {
+        gameId: 'carga',
+        value: 1000 + i,
+        meta: { frameCount: 500, slowFrames50: 400, slowFrames100: 300, worstFrameMs: 900 }, // fatal
+      });
+      track(rival, 'game_finish', {
+        gameId: 'freno',
+        value: 1000 + i,
+        meta: { frameCount: 500, slowFrames50: 0, slowFrames100: 0, worstFrameMs: 8 }, // perfecto
+      });
+    }
+
+    const games = metrics().perGame.games;
+    const carga = games.find((g) => g.gameId === 'carga');
+    const freno = games.find((g) => g.gameId === 'freno');
+    // Con exactamente los mismos finishes y ninguna otra senal, el compuesto
+    // tiene que salir igual pese a que el rendimiento es opuesto.
+    expect(carga.composite).toBe(freno.composite);
+    expect(carga.longFrameRate50).toBeGreaterThan(freno.longFrameRate50);
+  });
+});

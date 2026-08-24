@@ -39,7 +39,7 @@ async function jugarVarias(
   token,
   gameId,
   n,
-  { revancha = 0, comparte = 0, oneMore = 0, closeLoss = 0 } = {},
+  { revancha = 0, comparte = 0, oneMore = 0, closeLoss = 0, perfMala = false } = {},
 ) {
   const eventos = [];
   const day = new Date().toISOString().slice(0, 10);
@@ -50,13 +50,18 @@ async function jugarVarias(
     // el mismo juego enseguida: asi el panel tiene algo real que ensenar en
     // "one more" y en "reintento en".
     const conIntento = i < oneMore;
+    // Las cinco cifras del PERF PATCH: una tanda "sana" y otra deliberadamente
+    // con microtirones, para poder ver la linea de aviso en el panel de verdad.
+    const perf = perfMala
+      ? { frameCount: 500, slowFrames50: 90, slowFrames100: 40, worstFrameMs: 640 }
+      : { frameCount: 500, slowFrames50: 2, slowFrames100: 0, worstFrameMs: 28 };
     eventos.push({
       type: 'game_finish',
       day,
       ts: ts++,
       gameId,
       value: 1000 + i,
-      meta: { challengeId: 'c1', endedBy: 'time', attemptsLeftAfter: conIntento ? 1 : 0 },
+      meta: { challengeId: 'c1', endedBy: 'time', attemptsLeftAfter: conIntento ? 1 : 0, ...perf },
     });
     if (conIntento) eventos.push({ type: 'game_start', day, ts: ts++, gameId });
   }
@@ -100,9 +105,9 @@ const token = tokenOf(creado.player);
 // 30 finishes cruza a senal PRELIMINAR (25+): con menos, el panel no marca
 // a nadie como "el mejor" aunque vaya primero, y esa comprobacion es justo
 // la que existe para pillar si esa regla se rompe.
-await jugarVarias(token, 'carga', 30, { revancha: 27, comparte: 18, oneMore: 24, closeLoss: 20 });
+await jugarVarias(token, 'carga', 30, { revancha: 27, comparte: 18, oneMore: 24, closeLoss: 20, perfMala: false });
 await agotarIntentos(code, 'carga', 30);
-await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0, oneMore: 1 });
+await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0, oneMore: 1, perfMala: true });
 await agotarIntentos(code, 'freno', 2); // pocas: que se note tambien en "agota 3/3"
 await jugarVarias(token, 'torre', 3, {}); // por debajo de la muestra minima a proposito
 
@@ -136,6 +141,8 @@ const filas = await page.evaluate(() =>
     pendiente: row.querySelector('.dash-game__fill--pendiente') !== null,
     detalle: row.querySelector('.dash-game__detail')?.textContent ?? '',
     extra: row.querySelector('.dash-game__detail--extra')?.textContent ?? '',
+    perf: row.querySelector('.dash-game__detail--perf')?.textContent ?? '',
+    perfMala: row.querySelector('.dash-game__detail--perf-mala') !== null,
     esTop: row.classList.contains('dash-game--top'),
   })),
 );
@@ -194,6 +201,14 @@ check(
   'la linea extra ensena las senales que NO entran en el compuesto (sigue jugando, reintento, first pick...)',
   /sigue jugando/.test(carga?.extra ?? '') && /reintento en/.test(carga?.extra ?? '') && /elegido/.test(carga?.extra ?? ''),
   carga?.extra,
+);
+check('el detalle de rendimiento de CARGA (sano) esta presente', /fotogramas medidos/.test(carga?.perf ?? ''), carga?.perf);
+check('CARGA, con rendimiento sano, NO lleva el aviso de rendimiento malo', carga?.perfMala === false);
+check('FRENO, con microtirones deliberados, SI lleva el aviso de rendimiento malo', freno?.perfMala === true, freno?.perf);
+check(
+  'el compuesto de CARGA y FRENO no se ve arrastrado por el rendimiento: es diagnostico, no enganche',
+  carga?.valor !== '—' && freno?.valor !== '—',
+  `carga:${carga?.valor} freno:${freno?.valor}`,
 );
 
 await page.waitForSelector('.boot', { state: 'detached', timeout: 5000 }).catch(() => {});

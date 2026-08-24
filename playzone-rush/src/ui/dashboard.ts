@@ -47,6 +47,10 @@ interface GameMetric {
   closeLossReplayRate: number | null;
   firstPicks: number;
   firstPickShare: number | null;
+  framesSampled: number;
+  longFrameRate50: number | null;
+  longFrameRate100: number | null;
+  worstFrameMs: number | null;
   confidence: Confianza;
   insufficient: boolean;
   composite: number | null;
@@ -110,6 +114,21 @@ function pct(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`;
 }
 
+/**
+ * Agrupado con puntos ("1.234"), a mano: toLocaleString('es-ES') no siempre
+ * agrupa segun la ICU del entorno -paso de verdad en este mismo proyecto- y
+ * un panel de metricas es el peor sitio para que un numero mienta.
+ */
+function agrupado(value: number): string {
+  const digits = Math.round(Math.abs(value)).toString();
+  let out = '';
+  for (let i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 === 0) out += '.';
+    out += digits[i];
+  }
+  return value < 0 ? `-${out}` : out;
+}
+
 function num(value: number | null, digits = 1): string {
   return value === null ? '—' : value.toFixed(digits);
 }
@@ -171,6 +190,27 @@ function detalleExtra(g: GameMetric, closeMarginPct: number): string {
   return partes.join(' · ');
 }
 
+/**
+ * Diagnostico de rendimiento, no de enganche: se lee AL LADO del resto, no
+ * mezclado. "poco fun + rendimiento malo" y "poco fun + rendimiento
+ * perfecto" piden arreglos distintos, y esta linea es la que permite
+ * distinguirlos de un vistazo.
+ */
+function detallePerf(g: GameMetric): string {
+  if (g.framesSampled === 0) return 'rendimiento: sin datos todavia';
+  const partes = [
+    `>50ms ${pct(g.longFrameRate50)}`,
+    `>100ms ${pct(g.longFrameRate100)}`,
+    `peor fotograma ${g.worstFrameMs ?? '—'} ms`,
+  ];
+  return `rendimiento: ${partes.join(' · ')} · ${agrupado(g.framesSampled)} fotogramas medidos`;
+}
+
+/** Umbral para pintar la linea de rendimiento en aviso: no es un limite tecnico, es "esto merece mirarse". */
+function rendimientoPreocupante(g: GameMetric): boolean {
+  return (g.longFrameRate50 !== null && g.longFrameRate50 > 0.05) || (g.worstFrameMs !== null && g.worstFrameMs > 500);
+}
+
 function gameRow(g: GameMetric, esTop: boolean, closeMarginPct: number): HTMLElement {
   const valor = g.composite === null ? '—' : `${g.composite}`;
   return el('div', { class: `dash-game${esTop ? ' dash-game--top' : ''}` }, [
@@ -192,6 +232,10 @@ function gameRow(g: GameMetric, esTop: boolean, closeMarginPct: number): HTMLEle
     ]),
     el('div', { class: 'dash-game__detail', text: detalleJuego(g) }),
     el('div', { class: 'dash-game__detail dash-game__detail--extra', text: detalleExtra(g, closeMarginPct) }),
+    el('div', {
+      class: `dash-game__detail dash-game__detail--perf${rendimientoPreocupante(g) ? ' dash-game__detail--perf-mala' : ''}`,
+      text: detallePerf(g),
+    }),
   ]);
 }
 

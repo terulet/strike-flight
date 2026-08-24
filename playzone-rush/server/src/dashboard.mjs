@@ -384,6 +384,16 @@ function activity(presence, events) {
  *                             porque el servidor no guarda que planes
  *                             concretos vio cada uno, asi que es una cuota
  *                             relativa, no una probabilidad.
+ *   longFrameRate50/100,      -> fraccion de fotogramas por encima de 50/100 ms
+ *   worstFrameMs               y el peor fotograma visto, sumados de los cinco
+ *                             numeros que cada partida manda al terminar
+ *                             (GameHost, cliente). Sin esto, un juego con
+ *                             microtirones en un movil concreto y un juego
+ *                             simplemente poco divertido se ven IGUAL en el
+ *                             resto de senales: One More bajo puede ser "el
+ *                             diseno no engancha" o puede ser "no se puede
+ *                             jugar bien en ese telefono", y son arreglos
+ *                             distintos.
  *
  * MUESTRA MINIMA Y NIVELES DE CONFIANZA. Con pocas partidas terminadas
  * cualquier ratio es ruido: un 100% de revancha con n=1 no dice nada, y con
@@ -533,7 +543,8 @@ function perGame(events, scores) {
 function rawMetricsFor(gameId, events, scores, pairs, picks, totalFirstPicks) {
   const ofType = (type) => events.filter((e) => e.type === type && e.game_id === gameId);
   const starts = ofType('game_start').length;
-  const finishes = ofType('game_finish').length;
+  const finishEvents = ofType('game_finish');
+  const finishes = finishEvents.length;
   const abandons = ofType('game_abandon').length;
   const revengeAvailable = ofType('revenge_available');
   const revengeClicked = ofType('revenge_clicked');
@@ -556,6 +567,7 @@ function rawMetricsFor(gameId, events, scores, pairs, picks, totalFirstPicks) {
   const closeAvailable = revengeAvailable.filter((e) => (parseMeta(e.meta).marginPct ?? Infinity) <= CLOSE_MARGIN_PCT);
   const closeClicked = revengeClicked.filter((e) => (parseMeta(e.meta).marginPct ?? Infinity) <= CLOSE_MARGIN_PCT);
 
+  const perf = performanceFor(finishEvents);
   const finishesCount = finishes;
   return {
     gameId,
@@ -586,8 +598,44 @@ function rawMetricsFor(gameId, events, scores, pairs, picks, totalFirstPicks) {
     closeLossReplayRate: closeAvailable.length > 0 ? closeClicked.length / closeAvailable.length : null,
     firstPicks: picks.get(gameId) ?? 0,
     firstPickShare: totalFirstPicks > 0 ? (picks.get(gameId) ?? 0) / totalFirstPicks : null,
+    // Diagnostico, no enganche: se ensena AL LADO del compuesto, nunca dentro.
+    // "poco fun" + "rendimiento malo" y "poco fun" + "rendimiento perfecto"
+    // son dos diagnosticos distintos, y promediarlos en un solo numero
+    // borraria justo la distincion que hace falta ver.
+    framesSampled: perf.framesSampled,
+    longFrameRate50: perf.longFrameRate50,
+    longFrameRate100: perf.longFrameRate100,
+    worstFrameMs: perf.worstFrameMs,
     confidence: confidenceOf(finishesCount),
     insufficient: finishesCount < MIN_FINISHES,
+  };
+}
+
+/**
+ * Cinco numeros por partida (frameCount, slowFrames50, slowFrames100,
+ * worstFrameMs) viajan en el meta de cada game_finish -ver App.finishRun()
+ * en el cliente-, sumados aqui por juego. Sin marca de tiempo por fotograma,
+ * sin profiler: solo agregados que ya llegaron contados desde el propio
+ * bucle de render (GameHost).
+ */
+function performanceFor(finishEvents) {
+  let framesSampled = 0;
+  let slow50 = 0;
+  let slow100 = 0;
+  let worstFrameMs = 0;
+  for (const e of finishEvents) {
+    const meta = parseMeta(e.meta);
+    if (typeof meta.frameCount !== 'number') continue; // partidas de antes de este parche: sin dato, no un cero
+    framesSampled += meta.frameCount;
+    if (typeof meta.slowFrames50 === 'number') slow50 += meta.slowFrames50;
+    if (typeof meta.slowFrames100 === 'number') slow100 += meta.slowFrames100;
+    if (typeof meta.worstFrameMs === 'number') worstFrameMs = Math.max(worstFrameMs, meta.worstFrameMs);
+  }
+  return {
+    framesSampled,
+    longFrameRate50: framesSampled > 0 ? slow50 / framesSampled : null,
+    longFrameRate100: framesSampled > 0 ? slow100 / framesSampled : null,
+    worstFrameMs: framesSampled > 0 ? worstFrameMs : null,
   };
 }
 
