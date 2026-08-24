@@ -89,6 +89,104 @@ const CONFIG = {
 };
 
 // ════════════════════════════════════════════════════════════
+//  DIFICULTAD — EASY / MEDIUM / HIGH
+// ════════════════════════════════════════════════════════════
+//  MEDIUM es el juego de siempre: ni CONFIG ni las tablas de ENEMIGOS
+//  o JEFES pierden un número. EASY y HIGH son multiplicadores que se
+//  aplican en el puñado de sitios donde de verdad se decide la
+//  dificultad —velocidad de bala enemiga, cadencia, ventana de aviso,
+//  invulnerabilidad tras un golpe, tolerancia del combo, calidad de
+//  los drops defensivos y el multiplicador de puntuación final—.
+//  Nunca en la vida de un enemigo ni en su daño de contacto: eso sería
+//  x2 HP disfrazado de "dificultad", que es justo lo que no se quiere.
+//  `eliteFreqMul` y `overdriveAccessMul` están declarados ya para que
+//  los bloques de ÉLITES y OVERDRIVE los lean sin tocar esta tabla.
+const DIFFICULTY_CONFIG = {
+  easy: {
+    label:               "FÁCIL",
+    enemyBulletSpeedMul: 0.90,
+    enemyCadenceMul:     1.15,
+    telegraphMul:        1.20,
+    invulnMul:           1.25,
+    comboToleranceMul:   1.25,
+    defensiveDropMul:    1.20,
+    scoreMul:            1.00,
+    eliteFreqMul:        0.80,
+    overdriveAccessMul:  1.15,
+  },
+  medium: {
+    label:               "NORMAL",
+    enemyBulletSpeedMul: 1,
+    enemyCadenceMul:     1,
+    telegraphMul:        1,
+    invulnMul:           1,
+    comboToleranceMul:   1,
+    defensiveDropMul:    1,
+    scoreMul:            1.25,
+    eliteFreqMul:        1,
+    overdriveAccessMul:  1,
+  },
+  high: {
+    label:               "DIFÍCIL",
+    enemyBulletSpeedMul: 1.10,
+    enemyCadenceMul:     0.87,
+    telegraphMul:        0.85,
+    invulnMul:           0.85,
+    comboToleranceMul:   0.80,
+    defensiveDropMul:    0.80,
+    scoreMul:            1.60,
+    eliteFreqMul:        1.30,
+    overdriveAccessMul:  1,
+  },
+};
+// Resuelta al arrancar y cada vez que AJUSTES cambia `OPCIONES.dificultad`.
+// Vive fuera de OPCIONES.dificultad (que es la ELECCIÓN, un texto que se
+// guarda) para que el resto del juego no repita el lookup en cada sitio.
+let DIF = DIFFICULTY_CONFIG.medium;
+function resolverDificultad() {
+  DIF = DIFFICULTY_CONFIG[OPCIONES.dificultad] || DIFFICULTY_CONFIG.medium;
+}
+// Ventana real del combo: CONFIG.comboTiempo no se toca (es el dato de
+// fábrica, la identidad de MEDIUM), esto es lo que de verdad se compara.
+const comboVentana = () => CONFIG.comboTiempo * DIF.comboToleranceMul;
+
+// ════════════════════════════════════════════════════════════
+//  RHYTHM DIRECTOR — TIME WITHOUT STIMULUS
+// ════════════════════════════════════════════════════════════
+//  No sustituye el guión de las misiones: lo acompaña. Mide cuánto
+//  tiempo real pasa sin que ocurra nada que cuente como estímulo
+//  -enemigo, hazard, aviso, drop, bonus, élite, jefe/miniboss, o el
+//  jugador recibiendo daño-. El objetivo no es rellenar cada segundo
+//  -un descanso puede ser deliberado, "silencio → portal → AVISO →
+//  formación nueva" es sano- sino encontrar los huecos que nadie quiso
+//  dejar: silencio → nada → nada → nada → enemigo suelto.
+//
+//  `marcar()` lo llaman las funciones que YA crean el estímulo
+//  -spawnEnemy, soltarPremio, telegrafo, golpe, spawnMiniboss,
+//  cambiarFase, spawnPozo/Carril/Sistemas/Defensas- así que ningún
+//  sistema futuro (upgrades en 6G, élites en 6E) tiene que acordarse
+//  de avisar dos veces: si crea su entidad con una de estas, ya cuenta.
+const RHYTHM = {
+  ultimo: 0,
+  maxHueco: 0,
+  huecos: [],          // { t, dur } — solo los que superan UMBRAL
+  UMBRAL: 4,            // segundos: por encima de esto, es un hueco real
+  HUECOS_MAX: 200,      // tope duro: una sesión larga no crece sin fin
+  marcar() {
+    if (typeof state === "undefined" || state !== "play" || paused) return;
+    const hueco = elapsed - this.ultimo;
+    if (this.ultimo > 0 && hueco > this.UMBRAL) {
+      this.huecos.push({ t: Math.round(this.ultimo * 10) / 10, dur: Math.round(hueco * 10) / 10 });
+      if (this.huecos.length > this.HUECOS_MAX) this.huecos.shift();
+    }
+    if (hueco > this.maxHueco) this.maxHueco = hueco;
+    this.ultimo = elapsed;
+  },
+  reiniciar() { this.ultimo = elapsed; this.maxHueco = 0; this.huecos.length = 0; },
+  estado() { return { maxHueco: Math.round(this.maxHueco * 10) / 10, huecos: this.huecos.slice() }; },
+};
+
+// ════════════════════════════════════════════════════════════
 //  CAMPO DE JUEGO VERTICAL
 // ════════════════════════════════════════════════════════════
 //  La plataforma es el iPad en vertical. Un monitor de 2048×858 no puede
@@ -114,6 +212,7 @@ const OPCIONES = {
   // fila en AJUSTES: está aquí para que se guarde desde ya y ese bloque
   // no tenga que tocar el formato del save ni migrar nada.
   vfx:       "auto",   // "auto" | "alto" | "medio" | "bajo"
+  dificultad: "medium", // "easy" | "medium" | "high" — ver DIFFICULTY_CONFIG
 };
 
 // ── Niveles de calidad ────────────────────────────────────
@@ -249,7 +348,7 @@ function actualizarNodosAegis(mb, dt) {
     const nx = mb.x + n.ox, ny = mb.y + n.oy;
     n.cd -= dt;
     if (n.cd <= 0) {
-      n.cd = rand(1.7, 2.5);
+      n.cd = rand(1.7, 2.5) * DIF.enemyCadenceMul;
       const a = Math.atan2(player.y - ny, player.x - nx);
       eBala(nx, ny, Math.cos(a) * 220, Math.sin(a) * 220, 5);
       sfx("aegis_lock");
@@ -265,11 +364,8 @@ function actualizarNodosAegis(mb, dt) {
       if (n.hp <= 0) {
         muerte(nx, ny, "#ffcf5c", "defensa");
         sfx("aegis_nodo");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo);
-        const pts = Math.round(220 * multCombo());
-        score += pts; texto(nx, ny - 20, "+" + pts, T.bala, 13);
-        hitoCombo();
+        alMatar({ fuente: "nodoAegis", puntosBase: 220, posicion: { x: nx, y: ny },
+          opciones: { textoOffsetY: -20, textoTam: 13, texto: true } });
         mb.nodos.splice(i, 1);
       }
       break;
@@ -299,8 +395,8 @@ function actualizarSubsOmega(mb, dt) {
         muerte(sx, sy, s.col, "defensa");
         sfx("core_offline");
         texto(sx, sy - 24, s.nombre + " DESTRUIDO", s.col, 13);
-        score += 500; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo); hitoCombo();
+        alMatar({ fuente: "subOmega", puntosBase: 500, posicion: { x: sx, y: sy },
+          opciones: { combo: false, texto: false } });
       }
       break;
     }
@@ -368,7 +464,7 @@ function actualizarMitadesNyx(mb, dt) {
 //  cada fase, así fase 2 alterna más tipos y fase 3 acelera sin tener
 //  tres copias de esta función.
 function actualizarForjaVulcano(mb, dt, cicloSeg, avisoSeg, modoSeg, modosPosibles) {
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
   if (mb.modoForja) {
     mb.modoForjaT -= dt;
     if (mb.modoForjaT <= 0) mb.modoForja = null;
@@ -1872,9 +1968,19 @@ const haciaJugador = (e) => Math.atan2(player.y - e.y, player.x - e.x);
 //  huecos y el patrón se convierte en daño inevitable, que es justo lo
 //  que un bullet hell justo no puede hacer.
 const EBALAS_MAX = 340;
+// Tope de balas del JUGADOR. No existía antes del Bloque 6 -el arma
+// base nunca se acercaba a necesitarlo- pero TRIPLE SHOT + MISSILE
+// SWARM + Overdrive a la vez sí pueden, medido en la peor escena
+// razonable (herramientas/pruebas/estres-bloque6.mjs). El disparo del
+// arma base nunca se recorta por esto; solo las balas EXTRA de 6F/6G.
+const BALAS_MAX = 240;
 function eBala(x, y, vx, vy, r, extra) {
   if (eBullets.length >= EBALAS_MAX) return null;
-  const b = { x, y, vx, vy, r: r || 5 };
+  // Único embudo de toda bala enemiga (patrones, jefes, torretas, nodos):
+  // la velocidad de dificultad se aplica UNA vez, aquí, y no en cada sitio
+  // que dispara.
+  const m = DIF.enemyBulletSpeedMul;
+  const b = { x, y, vx: vx * m, vy: vy * m, r: r || 5 };
   if (extra) Object.assign(b, extra);
   eBullets.push(b);
   return b;
@@ -1959,7 +2065,15 @@ let telegrafos = [];
 function telegrafo(tipo, o) {
   if (telegrafos.length > 24) return null;
   const t = Object.assign({ tipo, t: 0, life: 0.9, col: TIRO_SUYO }, o);
+  // `life` y el `avisa` que decide cuándo dispara el ataque real se
+  // autoran a mano para que coincidan (ver los ~40 sitios que llaman a
+  // esto). Se escalan por el MISMO factor en los dos únicos sitios que
+  // los leen —éste y el bucle de cadencia de cada motor— para que jamás
+  // se desincronicen: un aviso más largo en FÁCIL no puede acabar
+  // desapareciendo antes de que llegue el disparo que anuncia.
+  t.life *= DIF.telegraphMul;
   telegrafos.push(t);
+  RHYTHM.marcar();
   return t;
 }
 function actualizarTelegrafos(dt) {
@@ -2466,8 +2580,9 @@ function spawnDefensas(tipo, n) {
   const y = SAFE_TOP + H * 0.09 + rand(-15, 15);
   for (let i = 0; i < n; i++) {
     defensas.push({ tipo, x: sep * (i + 1), y, r: d.r,
-      hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6, flash: 0 });
+      hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6 * DIF.enemyCadenceMul, flash: 0 });
   }
+  RHYTHM.marcar();
 }
 
 function actualizarDefensas(dt) {
@@ -2478,7 +2593,7 @@ function actualizarDefensas(dt) {
     d.cd -= dt;
     // M9: ALPHA controla las torretas de escenario. Sin él, se quedan de
     // adorno — la barra de vida sigue ahí, pero no disparan.
-    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga(); }
+    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga() * DIF.enemyCadenceMul; }
     else if (d.cd <= 0) { d.cd = 0.3; }
     for (let j = bullets.length - 1; j >= 0; j--) {
       const b = bullets[j];
@@ -2490,13 +2605,8 @@ function actualizarDefensas(dt) {
       if (gastada) soltarBala(j);
       if (d.hp <= 0) {
         muerte(d.x, d.y, "#4499ff", "defensa");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo);
-        const pts = Math.round(DEFENSA_TIPOS[d.tipo].puntos * multCombo());
-        score += pts;
-        texto(d.x, d.y - 30, "+" + pts, T.bala, 15);
-        hitoCombo();
-        if (Math.random() > 0.45) soltarPremio(d.x + rand(-20, 20), d.y, elegirPremioAleatorio());
+        alMatar({ fuente: "defensa", puntosBase: DEFENSA_TIPOS[d.tipo].puntos, posicion: { x: d.x, y: d.y },
+          opciones: { textoOffsetY: -30, textoTam: 15, texto: true, premio: { prob: 0.55, offsetX: [-20, 20] } } });
         defensas.splice(i, 1);
       }
       break;
@@ -2597,6 +2707,7 @@ let pozos = [];
 function spawnPozo(x, y, radio, fuerza, vida) {
   if (pozos.length > 6) return;
   pozos.push({ x, y, r: radio, fuerza, t: 0, fase: 0, vida: vida || 3.5 });
+  RHYTHM.marcar();
 }
 function actualizarPozos(dt) {
   for (let i = pozos.length - 1; i >= 0; i--) {
@@ -2665,6 +2776,7 @@ let carriles = [];
 function spawnCarril(y, h, vida) {
   if (carriles.length > 5) return;
   carriles.push({ y, h: h || 70, t: 0, fase: 0, vida: vida || 2.2, damageCd: 0 });
+  RHYTHM.marcar();
 }
 function actualizarCarriles(dt) {
   for (let i = carriles.length - 1; i >= 0; i--) {
@@ -2946,6 +3058,7 @@ function spawnSistemas() {
   ];
   for (const s of specs) sistemas.push(Object.assign({ y, r: 26, hpMax: s.hp, flash: 0, vivo: true }, s));
   sfx("reactor");   // el núcleo de M9 arrancando: subgrave, sin melodía
+  RHYTHM.marcar();
 }
 function actualizarSistemas(dt) {
   if (sistemaGamma && sistemas.some(s => s.vivo) && state === "play" && !paused) {
@@ -2972,8 +3085,8 @@ function actualizarSistemas(dt) {
         if (s.id === "alpha") sistemaAlpha = false;
         if (s.id === "beta") sistemaBeta = false;
         if (s.id === "gamma") sistemaGamma = false;
-        score += 400; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo); hitoCombo();
+        alMatar({ fuente: "sistema", tipo: s.id, puntosBase: 400, posicion: { x: s.x, y: s.y },
+          opciones: { combo: false, texto: false } });
       }
       break;
     }
@@ -3139,7 +3252,11 @@ let state = "menu";
 let player, bullets, eBullets, enemies, premios, bg, flotantes;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, flash;
-let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0;
+let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0, sinDanioBoss = true;
+// Contadores de la misión EN CURSO, para RANK y el resumen de
+// resultados (bloque 6I). Se acumulan aparte de `skillEventos` (que
+// ya existía, 6E) para no repetir sumas cada vez que se piden.
+let vidasPerdidas = 0, elitesMuertos = 0, jackpotsCount = 0, overdrivesActivados = 0;
 // Estado visual del jugador. Nada de esto toca el juego: son relojes
 // de dibujo. `escudoRoto`/`escudoAng` orientan el destello del escudo,
 // `danoT`/`danoAng` el fogonazo de daño, `respawnT` la materialización.
@@ -3309,6 +3426,7 @@ function aplicarGuardado(s) {
   if (OPCIONES.volMaster <= 0) OPCIONES.volMaster = 0.9;
   if (OPCIONES.volSfx <= 0) OPCIONES.volSfx = 0.9;
   if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
+  resolverDificultad();
 }
 
 function crearFondo() {
@@ -3334,6 +3452,16 @@ function reset() {
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
+  RHYTHM.reiniciar();
+  bonusEvento = null; rhythmDirectorCooldownT = 0; descansoDeliberado = false;
+  olas.clear(); cadenaTiempos.length = 0; eliteChainT = -99;
+  shards.length = 0;
+  skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
+  overdrive = 0; overdriveActivo = 0; overdriveDuracionActual = OVERDRIVE_DURACION;
+  upgradesJugador = {}; upgradesOfrecidos = null; upgradesElegidos = 0;
+  shieldReactorT = 0; missileSwarmT = 0;
+  evoluciones = {}; evoNovaT = 0; evoRayoT = 0; evoPulsoT = 0;
+  vidasPerdidas = 0; elitesMuertos = 0; jackpotsCount = 0; overdrivesActivados = 0;
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3342,7 +3470,7 @@ function reset() {
   paused = false; warningT = 0; dragging = false;
   efectos.length = 0; hitStop = 0;
   telegrafos.length = 0; estallidos.length = 0; rayos.length = 0;
-  sinDanio = true; comboHito = 0; bombaT = 0; dobleT = 0; imanT = 0;
+  sinDanio = true; sinDanioBoss = true; comboHito = 0; bombaT = 0; dobleT = 0; imanT = 0;
   escudoRoto = 0; danoT = 0; respawnT = 0;
   UI.reiniciarCifras(); UI.limpiarAvisos();
   comandosVivos = 0; sistemaAlpha = true; sistemaBeta = true; sistemaGamma = true;
@@ -3374,11 +3502,641 @@ function iniciarMision(idx) {
   misionIniT = 2.6;
 }
 
-function spawnFormacion(tipo, n, patron) {
+function spawnFormacion(tipo, n, patron, marca, olaGen) {
   const fn = FORMACIONES[patron] || FORMACIONES.linea;
   const poss = fn(n);
   for (const p of poss) {
-    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d });
+    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d, marca, olaGen });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  BONUS EVENTS — eventos cortos reutilizables
+// ════════════════════════════════════════════════════════════
+//  No son una misión aparte: son un paréntesis de 9-16 s dentro de la
+//  que ya se está jugando. Uno cada vez, con banner, objetivo y reloj
+//  visibles, y un final claro -LOGRADO o FALLIDO-, nunca ambiguo. El
+//  RHYTHM DIRECTOR los dispara cuando ve que se acerca un hueco (ver
+//  `rhythmDirectorTick()`); una misión también puede pedirlos a mano
+//  con `procesarEvento({ fn: "bonus", tipo: "..." })`.
+const BONUS_EVENTOS = {
+  bonus_wave:  { nombre: "BONUS WAVE",        duracion: 14, objetivo: 8, premio: 900,  color: "#ffd700", escapeFalla: false },
+  convoy:      { nombre: "TREASURE CONVOY",   duracion: 16, objetivo: 5, premio: 1200, color: "#7effc4", escapeFalla: true  },
+  dorado:      { nombre: "GOLDEN TARGET",     duracion: 9,  objetivo: 1, premio: 1500, color: "#ffb800", escapeFalla: true  },
+  formacion:   { nombre: "PERFECT FORMATION", duracion: 12, objetivo: 0, premio: 1100, color: "#7df9ff", escapeFalla: true  },
+  riesgo:      { nombre: "RISK GATE",         duracion: 10, objetivo: 0, premio: 1600, color: "#ff5c8a", escapeFalla: false },
+};
+let bonusEvento = null;
+let bonusEventoGen = 0;
+
+function iniciarBonusEvento(tipo, opciones) {
+  if (bonusEvento && bonusEvento.estado === "activo") return null;   // uno cada vez: no se solapan
+  const d = BONUS_EVENTOS[tipo];
+  if (!d || state !== "play") return null;
+  opciones = opciones || {};
+  bonusEventoGen++;
+  bonusEvento = {
+    tipo, nombre: d.nombre, color: d.color, premio: d.premio, escapeFalla: d.escapeFalla,
+    gen: bonusEventoGen, t: 0, duracion: d.duracion,
+    objetivo: opciones.objetivo != null ? opciones.objetivo : d.objetivo,
+    progreso: 0, estado: "activo", finT: 0,
+  };
+  UI.desbloqueo({ tipo: "bonus", titulo: d.nombre, desc: opciones.desc || "", color: d.color });
+  sfx("aviso");
+  RHYTHM.marcar();
+
+  if (tipo === "bonus_wave") {
+    spawnFormacion(opciones.enemigo || "veloz", bonusEvento.objetivo, opciones.patron || "ola", bonusEventoGen);
+  } else if (tipo === "convoy") {
+    const n = bonusEvento.objetivo;
+    for (let i = 0; i < n; i++) {
+      const e = spawnEnemy("tanque", W * (0.2 + 0.6 * i / Math.max(1, n - 1)));
+      e.esConvoy = true; e.bonusGen = bonusEventoGen;
+    }
+  } else if (tipo === "dorado") {
+    const e = spawnEnemy(opciones.enemigo || "kamikaze", W / 2);
+    e.dorado = true; e.bonusGen = bonusEventoGen;
+  } else if (tipo === "formacion") {
+    const n = opciones.n || 6;
+    bonusEvento.objetivo = n;
+    spawnFormacion(opciones.enemigo || "normal", n, opciones.patron || "V", bonusEventoGen);
+  } else if (tipo === "riesgo") {
+    bonusEvento.hazardPrevio = hazardEnabled;
+    hazardEnabled = true;
+  }
+  return bonusEvento;
+}
+
+// Un enemigo marcado (`e.bonusGen`) ha muerto: cuenta para el evento
+// activo si sigue siendo el mismo (un evento viejo no puede sumarle
+// progreso a uno nuevo que ya empezó).
+function bonusEventoMuerte(e) {
+  if (!bonusEvento || bonusEvento.estado !== "activo" || e.bonusGen !== bonusEvento.gen) return;
+  bonusEvento.progreso++;
+  if (bonusEvento.progreso >= bonusEvento.objetivo) finalizarBonusEvento(true);
+}
+// Un enemigo marcado se ha ido de pantalla vivo: para los tipos donde
+// escapar es fallo (convoy, dorado, formación), se acabó ahí mismo.
+function bonusEventoEscape(e) {
+  if (!bonusEvento || bonusEvento.estado !== "activo" || e.bonusGen !== bonusEvento.gen) return;
+  if (bonusEvento.escapeFalla) finalizarBonusEvento(false);
+}
+function finalizarBonusEvento(exito) {
+  if (!bonusEvento || bonusEvento.estado !== "activo") return;
+  bonusEvento.estado = exito ? "exito" : "fallo";
+  bonusEvento.finT = 1.8;
+  if (bonusEvento.tipo === "riesgo" && hazardEnabled && !bonusEvento.hazardPrevio) hazardEnabled = false;
+  if (exito) {
+    const premio = Math.round(bonusEvento.premio * DIF.scoreMul);
+    score += premio;
+    texto(W / 2, H * 0.4, bonusEvento.nombre + " ¡LOGRADO! +" + premio, bonusEvento.color, 18, { prioridad: 2 });
+    onda(W / 2, H * 0.4, bonusEvento.color, 140, 0.5);
+    sfx("combo", { tono: 1.3 });
+    cargarOverdrive(15);
+    // PERFECT FORMATION es el disparador de jackpot que pide el encargo
+    // -las otras cuatro ya tienen su propio premio arriba y no lo necesitan-.
+    if (bonusEvento.tipo === "formacion") jackpot(W / 2, H * 0.34);
+  } else {
+    texto(W / 2, H * 0.4, bonusEvento.nombre + " FALLIDO", "#8a8a9a", 15, { prioridad: 1 });
+    sfx("ui_no");
+  }
+  RHYTHM.marcar();
+}
+// Tick del propio evento: caducidad, cierre de RISK GATE por tiempo
+// cumplido (aquí SÍ es éxito: sobrevivir la ventana es el objetivo) y
+// limpieza del banner una vez mostrado el resultado.
+function actualizarBonusEvento(dt) {
+  if (!bonusEvento || state !== "play" || paused) return;
+  bonusEvento.t += dt;
+  if (bonusEvento.estado === "activo") {
+    if (bonusEvento.tipo === "riesgo" && bonusEvento.t >= bonusEvento.duracion) finalizarBonusEvento(true);
+    else if (bonusEvento.t >= bonusEvento.duracion) finalizarBonusEvento(false);
+  } else if (bonusEvento.finT > 0) {
+    bonusEvento.finT -= dt;
+    if (bonusEvento.finT <= 0) bonusEvento = null;
+  }
+}
+
+// ── El Director en vivo ────────────────────────────────────
+//  No decide el guión de la misión: lo vigila. Si el hueco actual ya
+//  lleva el 70 % del umbral de RHYTHM y la pantalla está VACÍA de
+//  verdad -sin enemigos, sin nada en camino, sin jefe- interviene ANTES
+//  de que el hueco se note, con un Bonus Event al azar. Un enfriamiento
+//  largo evita que dos salgan pegados: eso seguiría siendo relleno, no
+//  ritmo.
+let rhythmDirectorCooldownT = 0;
+// Ventana que una misión puede abrir con `{ fn: "descansoOn" }` cuando el
+// guión deja un silencio LARGO A PROPÓSITO antes de un aviso de jefe -hay
+// siete en la campaña, ver AUDITORIA-BLOQUE6.md-. Sin esto, el Director
+// rellenaría exactamente el silencio que el guión quiso dejar. No hace
+// falta un "descansoOff": en cuanto `miniboss` existe, ese guardián ya
+// bloquea al Director por su cuenta.
+let descansoDeliberado = false;
+function rhythmDirectorTick(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  if (rhythmDirectorCooldownT > 0) rhythmDirectorCooldownT -= dt;
+  if (bonusEvento || miniboss || rhythmDirectorCooldownT > 0 || descansoDeliberado) return;
+  if (elapsed < 8 || enemies.length > 0 || spawnQueue.length > 0) return;
+  const hueco = elapsed - RHYTHM.ultimo;
+  if (hueco <= RHYTHM.UMBRAL * 0.7) return;
+  const tipos = Object.keys(BONUS_EVENTOS);
+  const tipo = tipos[(Math.random() * tipos.length) | 0];
+  if (iniciarBonusEvento(tipo)) rhythmDirectorCooldownT = 45;
+}
+
+// ════════════════════════════════════════════════════════════
+//  SKILL EVENTS — reconocer que has hecho algo bien
+// ════════════════════════════════════════════════════════════
+//  Cinco, no más: CLOSE CALL, PERFECT WAVE, CHAIN KILL, FAST BREAK,
+//  NO HIT BOSS. Cada uno da score, cuenta para el combo/Overdrive
+//  (Overdrive llega en 6F; el contador ya vive aquí para que ese
+//  bloque no tenga que tocar este) y feedback audiovisual — nunca
+//  ELOI directo grande, según el encargo del bloque.
+const SKILL_EVENTOS = {
+  cierre:       { nombre: "CLOSE CALL",   premio: 60,  color: "#7effc4" },
+  ola_perfecta: { nombre: "PERFECT WAVE", premio: 250, color: "#7df9ff" },
+  cadena:       { nombre: "CHAIN KILL",   premio: 150, color: "#ffd700" },
+  fulminante:   { nombre: "FAST BREAK",   premio: 200, color: "#ff8a1f" },
+  sin_golpe:    { nombre: "NO HIT BOSS",  premio: 800, color: "#ffcf5c" },
+};
+let skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
+// CLOSE CALL: anillo alrededor del radio real de impacto. 1 = tocar,
+// así que esto es "pasar a un pelo" sin llegar a rozar.
+const CERCA_MULT = 1.8;
+function skillEvent(tipo, x, y) {
+  const d = SKILL_EVENTOS[tipo];
+  if (!d) return;
+  skillEventos[tipo] = (skillEventos[tipo] || 0) + 1;
+  const premio = Math.round(d.premio * DIF.scoreMul);
+  score += premio;
+  const px = x != null ? x : player.x, py = y != null ? y : player.y - 40;
+  texto(px, py, d.nombre, d.color, 15, { prioridad: 2 });
+  onda(px, py, d.color, 60, 0.3);
+  sfx("combo", { tono: 1.15 });
+  RHYTHM.marcar();
+  cargarOverdrive(10);
+  return skillEventos[tipo];
+}
+
+// ── CHAIN KILL / cadena de élites ──────────────────────────
+//  Ventanas móviles de timestamps: si N muertes caen dentro de la
+//  ventana, se dispara. Vive aquí, no en `alMatar()`, para que ese
+//  embudo siga siendo solo score/combo y esto sea un consumidor más.
+const CADENA_VENTANA = 1.0, CADENA_OBJETIVO = 4;
+let cadenaTiempos = [];
+const ELITE_CADENA_VENTANA = 4.0;
+let eliteChainT = -99;
+
+// ── FAST BREAK / PERFECT WAVE: seguimiento de oleadas ──────
+//  Cada `{ fn:"ola" }` del guión (procesarEvento) abre una entrada
+//  aquí con cuántos enemigos trae y cuándo nació el primero. matar()
+//  y la fuga por abajo de pantalla la cierran. Si se cierra sola —sin
+//  que nadie escapara— y rápido, FAST BREAK; si se cierra sin que el
+//  jugador recibiera un golpe mientras tanto, PERFECT WAVE. Las dos
+//  cosas a la vez cuentan como FAST BREAK, que es la más exigente.
+const FAST_BREAK_UMBRAL = 6;
+const OLAS_MAX = 30;   // tope defensivo: nunca debería hacer falta, pero no crece sin límite
+let olaGenSeq = 0;
+let olas = new Map();
+function abrirOla(n) {
+  const gen = ++olaGenSeq;
+  olas.set(gen, { restantes: n, t0: elapsed, sinDanio: true, escapo: false });
+  if (olas.size > OLAS_MAX) olas.delete(olas.keys().next().value);
+  return gen;
+}
+function cerrarOla(gen, x, y, escapo) {
+  const w = olas.get(gen);
+  if (!w) return;
+  w.restantes--;
+  // Basta con que UNO de la ola escape para que ninguno de los dos
+  // eventos cuente, aunque el que cierra la ola a cero sea otro que sí
+  // se mató: `w.escapo` recuerda toda la vida de la ola, no solo esta
+  // llamada.
+  if (escapo) w.escapo = true;
+  if (w.restantes > 0) return;
+  olas.delete(gen);
+  if (w.escapo) return;
+  const dur = elapsed - w.t0;
+  if (dur <= FAST_BREAK_UMBRAL) skillEvent("fulminante", x, y);
+  else if (w.sinDanio) skillEvent("ola_perfecta", x, y);
+}
+
+// ════════════════════════════════════════════════════════════
+//  JACKPOT
+// ════════════════════════════════════════════════════════════
+//  Momentos raros: hito de combo alto, PERFECT FORMATION, cadena de
+//  élites, romper una pieza de jefe. No relleno — "no abusar" es
+//  literal en el encargo, así que cada disparador vive donde ya
+//  ocurre su condición, no en un temporizador propio.
+function jackpot(x, y) {
+  jackpotsCount++;
+  const premio = Math.round(1200 * DIF.scoreMul);
+  score += premio;
+  texto(x, y, "JACKPOT +" + premio, "#ffd700", 24, { prioridad: 2 });
+  onda(x, y, "#ffd700", 160, 0.6);
+  sacudir("tiny");
+  sfx("combo", { tono: 1.5 });
+  lluviaShards(x, y, "miniboss");
+  RHYTHM.marcar();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DROPS FÍSICOS — shards
+// ════════════════════════════════════════════════════════════
+//  Distintos de PREMIOS (power-ups, elección estratégica, raros):
+//  los shards son la lluvia visible de recompensa, pooled y con tope
+//  duro propio -PREMIOS no lo tenía y no hacía falta con su volumen;
+//  aquí sí, porque un jefe puede soltar veinte de golpe-. El imán
+//  reutiliza el mismo alcance/velocidad que ya usan los premios.
+const SHARDS_MAX = 60;
+let shards = [];
+let shardsLibres = [];
+function soltarShard(x, y, tipo) {
+  if (shards.length >= SHARDS_MAX) return;
+  const s = shardsLibres.pop() || {};
+  if (shards.indexOf(s) < 0) shards.push(s);
+  s.x = x + rand(-14, 14); s.y = y + rand(-10, 10);
+  s.vx = rand(-40, 40); s.vy = rand(-90, -30);
+  s.tipo = tipo; s.t = 0; s.vida = 3.2; s.r = tipo === "energia" ? 5 : 4;
+}
+// Jerarquía de la lluvia: cuántos shards y de qué tipo según lo que ha
+// muerto. `energia` está reservado para Overdrive (6F) — hoy ya
+// premia con score, así que soltarlos desde ya no espera a ese bloque.
+const LLUVIA_SHARDS = {
+  normal:   [2, 0],
+  elite:    [4, 1],
+  miniboss: [10, 3],
+  boss:     [22, 8],
+};
+function lluviaShards(x, y, nivel) {
+  const [nScore, nEnergia] = LLUVIA_SHARDS[nivel] || LLUVIA_SHARDS.normal;
+  for (let i = 0; i < nScore; i++) soltarShard(x, y, "score");
+  for (let i = 0; i < nEnergia; i++) soltarShard(x, y, "energia");
+}
+function cogerShard(s) {
+  const premio = Math.round((s.tipo === "energia" ? 8 : 6) * DIF.scoreMul);
+  score += premio;
+  sfx("pickup", { vol: 0.5 });
+  vfx("chispa", s.x, s.y, 30, 0.18);
+}
+function actualizarShards(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  for (let i = shards.length - 1; i >= 0; i--) {
+    const s = shards[i];
+    s.t += dt;
+    const dx = player.x - s.x, dy = player.y - s.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const magnetUp = upgradesJugador.magnet_field || 0;
+    const alcance = imanT > 0 ? 520 : 140 + magnetUp * 80;
+    if (d < alcance) {
+      const vel = imanT > 0 ? 500 : (300 + magnetUp * 80);
+      s.x += (dx / d) * vel * dt; s.y += (dy / d) * vel * dt;
+    } else {
+      s.vy += 220 * dt; s.vx *= Math.max(0, 1 - dt * 1.5);
+      s.x += s.vx * dt; s.y += s.vy * dt;
+    }
+    if (d < 20) { cogerShard(s); shardsLibres.push(s); shards.splice(i, 1); continue; }
+    if (s.t >= s.vida || s.y > H + 30) { shardsLibres.push(s); shards.splice(i, 1); }
+  }
+}
+function dibujarShards() {
+  for (const s of shards) {
+    const col = s.tipo === "energia" ? "#5cc8ff" : "#ffd700";
+    const alfa = Math.min(1, (s.vida - s.t) * 2);
+    ctx.save();
+    ctx.globalAlpha = alfa;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  OVERDRIVE
+// ════════════════════════════════════════════════════════════
+//  Se carga con kills, combo, skill events, élites, boss break y
+//  bonus events -todo pasa por `cargarOverdrive()`, un único sitio,
+//  igual que el resto del bloque-. El daño recibido la reduce: en
+//  carga, de golpe; ya activa, le recorta segundos en vez de matarla
+//  del todo, porque cortar en seco un momento que el jugador acaba de
+//  activar a mano se siente peor que acortarlo.
+//
+//  NO es invencibilidad: las balas enemigas siguen matando igual que
+//  siempre (nada aquí toca `golpe()` ni `hitR()`) y se siguen viendo
+//  igual de claras -el aura de la nave no las tapa, ver dibujarJugador()-.
+const OVERDRIVE_MAX = 100;
+const OVERDRIVE_DURACION = 13.5;   // dentro de la horquilla de 12-15s del encargo
+let overdrive = 0;
+let overdriveActivo = 0;          // segundos que quedan; 0 = inactiva
+let overdriveDuracionActual = OVERDRIVE_DURACION;   // para dibujar la barra: OVERDRIVE BOOST la alarga
+
+function cargarOverdrive(cantidad) {
+  if (overdriveActivo > 0 || state !== "play") return;
+  const antes = overdrive;
+  // OVERDRIVE BOOST: +25%/nivel a TODA carga, del origen que sea.
+  const boostUp = 1 + (upgradesJugador.overdrive_boost || 0) * 0.25;
+  overdrive = clamp(overdrive + cantidad * DIF.overdriveAccessMul * boostUp, 0, OVERDRIVE_MAX);
+  if (antes < OVERDRIVE_MAX && overdrive >= OVERDRIVE_MAX) {
+    texto(player.x, player.y - 55, "OVERDRIVE READY", "#ff2fbd", 15, { prioridad: 2 });
+    sfx("aviso", { tono: 1.4 });
+    RHYTHM.marcar();
+  }
+}
+// Activación manual. Devuelve false si no estaba llena o ya estaba
+// activa -así ADMIN y el botón del HUD pueden usar el mismo camino
+// sin duplicar la comprobación.
+function activarOverdrive() {
+  if (overdrive < OVERDRIVE_MAX || overdriveActivo > 0 || state !== "play") return false;
+  overdrive = 0;
+  overdrivesActivados++;
+  // OVERDRIVE BOOST: +2s de duración por nivel.
+  overdriveDuracionActual = OVERDRIVE_DURACION + (upgradesJugador.overdrive_boost || 0) * 2;
+  overdriveActivo = overdriveDuracionActual;
+  sacudir("medium"); hitstop(0.06);
+  onda(player.x, player.y, "#ff2fbd", 130, 0.5);
+  texto(player.x, player.y - 55, "¡OVERDRIVE!", "#ff2fbd", 22, { prioridad: 2 });
+  sfx("ultimate", { tono: 1.2 });
+  RHYTHM.marcar();
+  return true;
+}
+// Ganchos de ADMIN/depuración -mismo nombre que pide el encargo-, para
+// probar el bloque sin tener que ganárselo jugando cada vez.
+function fillOverdrive() { overdrive = OVERDRIVE_MAX; }
+function activateOverdrive() { return activarOverdrive(); }
+
+// ════════════════════════════════════════════════════════════
+//  UPGRADES DURANTE PARTIDA
+// ════════════════════════════════════════════════════════════
+//  Build TEMPORAL: vive en `upgradesJugador` (id -> nivel), no en el
+//  save — se pierde al terminar la misión, a propósito, es la misma
+//  razón por la que un roguelite funciona. Cada upgrade es un dato,
+//  no una clase: `efecto` se lee en el puñado de chokepoints que ya
+//  existían (disparar(), nuevaBala(), golpe(), alMatar()...) en vez de
+//  inventar un sistema de proyectiles nuevo por cada uno.
+const UPGRADES = {
+  triple_shot:     { nombre: "TRIPLE SHOT",     desc: "+2 disparos laterales.",              rareza: "comun", maxNivel: 2, tags: ["ofensivo", "lateral"],  peso: 10 },
+  rapid_core:      { nombre: "RAPID CORE",      desc: "Cadencia bastante más rápida.",       rareza: "comun", maxNivel: 2, tags: ["ofensivo"],             peso: 10 },
+  heavy_core:      { nombre: "HEAVY CORE",      desc: "Más daño por disparo.",                rareza: "comun", maxNivel: 2, tags: ["ofensivo"],             peso: 10 },
+  chain_lightning: { nombre: "CHAIN LIGHTNING", desc: "El disparo salta a otro enemigo.",     rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "cadena"],   peso: 7 },
+  missile_swarm:   { nombre: "MISSILE SWARM",   desc: "6 misiles cada 8 s.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "autonomo"], peso: 7 },
+  plasma_burst:    { nombre: "PLASMA BURST",    desc: "Explosión al matar.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "area"],     peso: 6 },
+  shield_reactor:  { nombre: "SHIELD REACTOR",  desc: "El escudo se regenera solo.",          rareza: "raro",  maxNivel: 2, tags: ["defensivo"],            peso: 8 },
+  magnet_field:    { nombre: "MAGNET FIELD",    desc: "Imán permanente, más alcance.",        rareza: "comun", maxNivel: 2, tags: ["utilidad"],             peso: 9 },
+  overdrive_boost: { nombre: "OVERDRIVE BOOST", desc: "Overdrive carga más rápido y dura más.", rareza: "raro", maxNivel: 2, tags: ["overdrive"],            peso: 7 },
+};
+// Incompatibilidades declaradas y vacías a propósito: en la primera
+// versión CUALQUIER par puede convivir -hace falta que puedan, para
+// que 6H (evoluciones) tenga con qué fundir-. El campo se deja puesto
+// para cuando el balance de una fase futura pida lo contrario.
+for (const k in UPGRADES) UPGRADES[k].incompatibles = UPGRADES[k].incompatibles || [];
+
+let upgradesJugador = {};      // id -> nivel actual
+let upgradesOfrecidos = null;  // { opciones: [id,id,id] } mientras hay tarjetas en pantalla
+let upgradesElegidos = 0;      // cuántas veces ha elegido YA esta partida
+// Hitos por muertes acumuladas: el primero cae pronto a propósito -el
+// encargo es explícito, una partida cuyo primer upgrade llega a los 4
+// minutos ha fallado- y el resto reparte 2-4 elecciones en una misión
+// larga sin convertirlo en una cada 20s.
+const UPGRADE_HITOS = [8, 24, 45, 70];
+
+function upgradesDisponibles() {
+  return Object.keys(UPGRADES).filter(id => (upgradesJugador[id] || 0) < UPGRADES[id].maxNivel);
+}
+function elegirTresUpgrades() {
+  const pool = upgradesDisponibles().map(id => ({ id, peso: UPGRADES[id].peso }));
+  const elegidos = [];
+  while (elegidos.length < 3 && pool.length) {
+    const total = pool.reduce((a, o) => a + o.peso, 0);
+    let r = Math.random() * total, idx = 0;
+    for (; idx < pool.length; idx++) { r -= pool[idx].peso; if (r <= 0) break; }
+    elegidos.push(pool[idx].id);
+    pool.splice(idx, 1);
+  }
+  return elegidos;
+}
+function comprobarUpgradeOfrecido() {
+  if (upgradesOfrecidos || state !== "play") return;
+  if (upgradesElegidos >= UPGRADE_HITOS.length) return;
+  if (enemiesKilled < UPGRADE_HITOS[upgradesElegidos]) return;
+  const opciones = elegirTresUpgrades();
+  if (!opciones.length) return;   // todo maximado: no hay nada que ofrecer
+  upgradesOfrecidos = { opciones };
+  sfx("aviso", { tono: 1.2 });
+  RHYTHM.marcar();
+}
+function elegirUpgrade(id) {
+  if (!upgradesOfrecidos) return;
+  upgradesJugador[id] = (upgradesJugador[id] || 0) + 1;
+  upgradesElegidos++;
+  upgradesOfrecidos = null;
+  const d = UPGRADES[id];
+  texto(player.x, player.y - 50, d.nombre + " ×" + upgradesJugador[id], "#7df9ff", 15, { prioridad: 2 });
+  sfx("mejora"); flash = Math.max(flash, 0.18);
+  // Si esta elección completa una pareja de nivel II declarada en
+  // EVOLUCIONES, se funde en un arma nueva aquí mismo.
+  comprobarEvolucion();
+}
+const RAREZA_COLOR = { comun: "#7df9ff", raro: "#ffd700" };
+function dibujarUpgrades() {
+  if (!upgradesOfrecidos) return;
+  botones.length = 0;
+  ctx.fillStyle = "rgba(3,4,10,0.88)";
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.055, 18, 24)) + "px " + F;
+  ctx.fillStyle = "#ff2fbd";
+  letras("UPGRADE READY", W / 2, SAFE_TOP + 70, 2.4, "center");
+
+  const opciones = upgradesOfrecidos.opciones;
+  const anchoP = Math.min(W - 48, 340);
+  const cH = 108, sep = 16;
+  const totalH = opciones.length * cH + (opciones.length - 1) * sep;
+  let y0 = Math.max(SAFE_TOP + 110, (H - totalH) / 2);
+  const x0 = (W - anchoP) / 2;
+  for (const id of opciones) {
+    const d = UPGRADES[id];
+    const col = RAREZA_COLOR[d.rareza] || "#fff";
+    panel(x0, y0, anchoP, cH, 16, 0.82);
+    filo(x0, y0, anchoP, cH, 16, col, 0.55);
+    ctx.textAlign = "left";
+    ctx.font = "800 14px " + F; ctx.fillStyle = col;
+    letras(d.nombre + (upgradesJugador[id] ? " ×" + (upgradesJugador[id] + 1) : ""), x0 + 20, y0 + 28, 1.6);
+    ctx.font = "700 9px " + F; ctx.fillStyle = col; ctx.globalAlpha = 0.75;
+    letras(d.rareza.toUpperCase(), x0 + 20, y0 + 46, 2);
+    ctx.globalAlpha = 1;
+    ctx.font = "700 12px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.85;
+    letras(d.desc, x0 + 20, y0 + 78, 0.4);
+    ctx.globalAlpha = 1;
+    botones.push({ x: x0, y: y0, w: anchoP, h: cH, fn: () => elegirUpgrade(id) });
+    y0 += cH + sep;
+  }
+  ctx.textAlign = "center";
+}
+
+// ════════════════════════════════════════════════════════════
+//  EVOLUTIONS / SYNERGIES
+// ════════════════════════════════════════════════════════════
+//  Fundir DOS upgrades de nivel II en un arma nueva. 4 -dentro de las
+//  3-5 pedidas-, no las 5 de ejemplo del encargo porque el pool real
+//  tiene 9 upgrades, no 10 (sin DRONE WING): STRIKE FLEET se funde con
+//  HEAVY CORE en su lugar. OVERDRIVE BOOST se queda sin pareja a
+//  propósito -ya se combina con TODO por su cuenta vía la barra- en
+//  vez de forzar un quinto par que no aportara nada nuevo.
+//
+//  El efecto de cada una es un timer propio que reutiliza funciones
+//  que YA EXISTÍAN -danioArea(), cadenaElectrica()/rayos, el propio
+//  MISSILE SWARM, el propio SHIELD REACTOR- para que "fundirse" se
+//  note MÁS fuerte, no distinto de cero. Ninguna borra un jefe sola:
+//  todas están calibradas para pesar menos que un jugador que apunta.
+const EVOLUCIONES = [
+  { id: "supernova_cannon", nombre: "SUPERNOVA CANNON", requiere: ["triple_shot", "plasma_burst"],
+    desc: "Nova de área cada 2,5 s.", color: "#ff8a1f" },
+  { id: "thunderstorm", nombre: "THUNDERSTORM", requiere: ["chain_lightning", "rapid_core"],
+    desc: "Cadena de tres rayos cada 1,6 s.", color: "#ffd700" },
+  { id: "strike_fleet", nombre: "STRIKE FLEET", requiere: ["missile_swarm", "heavy_core"],
+    desc: "Enjambre más grande y más seguido.", color: "#ff6b3d" },
+  { id: "gravity_aegis", nombre: "GRAVITY AEGIS", requiere: ["shield_reactor", "magnet_field"],
+    desc: "Escudo más rápido + pulso de gravedad.", color: "#5ce1ff" },
+];
+let evoluciones = {};   // id -> true una vez fundida (esta partida)
+let evolucionesTotal = 0;
+function comprobarEvolucion() {
+  for (const ev of EVOLUCIONES) {
+    if (evoluciones[ev.id]) continue;
+    if (ev.requiere.every(id => (upgradesJugador[id] || 0) >= 2)) fundirEvolucion(ev);
+  }
+}
+function fundirEvolucion(ev) {
+  evoluciones[ev.id] = true;
+  evolucionesTotal++;   // se guarda en cerrarMision() (bloque 6I), junto al resto de stats de la sesión
+  UI.desbloqueo({ tipo: "evolucion", titulo: "EVOLUTION! · " + ev.nombre, desc: ev.desc, color: ev.color });
+  onda(player.x, player.y, ev.color, 170, 0.6);
+  sacudir("medium"); hitstop(0.09);   // el "pequeño slowdown visual" que pide el encargo
+  sfx("ultimate", { tono: 0.8 });
+  RHYTHM.marcar();
+}
+let evoNovaT = 0, evoRayoT = 0, evoPulsoT = 0;
+function actualizarEvoluciones(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  if (evoluciones.supernova_cannon) {
+    evoNovaT += dt;
+    if (evoNovaT >= 2.5) {
+      evoNovaT = 0;
+      const y = player.y - 60;
+      danioArea(player.x, y, 150, 14, null);
+      vfx("exp_media", player.x, y, 200, 0.4);
+      onda(player.x, y, "#ff8a1f", 150, 0.4);
+      sacudir("tiny");
+      sfx("ultimate", { tono: 1.4, vol: 0.5 });
+    }
+  }
+  if (evoluciones.thunderstorm) {
+    evoRayoT += dt;
+    if (evoRayoT >= 1.6) {
+      evoRayoT = 0;
+      // Set completo de visitados, no solo el último salto: con
+      // enemigoMasCerca() excluyendo uno solo, el tercer salto podía
+      // volver sobre el primero en vez de llegar a un tercer enemigo
+      // -encontrado con una prueba, no a ojo-.
+      let origen = { x: player.x, y: player.y - 30 };
+      const visitados = new Set();
+      for (let i = 0; i < 3; i++) {
+        let o = null, md = 260 * 260;
+        for (const e of enemies) {
+          if (visitados.has(e) || e.hp <= 0) continue;
+          const dx = e.x - origen.x, dy = e.y - origen.y, d = dx * dx + dy * dy;
+          if (d < md) { md = d; o = e; }
+        }
+        if (!o) break;
+        o.hp -= 8; o.flash = 0.1;
+        rayos.push({ x1: origen.x, y1: origen.y, x2: o.x, y2: o.y, col: "#ffd700", t: 0, life: 0.15 });
+        impacto(o.x, o.y, "ligero", "#ffd700");
+        origen = { x: o.x, y: o.y }; visitados.add(o);
+      }
+    }
+  }
+  if (evoluciones.gravity_aegis) {
+    evoPulsoT += dt;
+    if (evoPulsoT >= 6) {
+      evoPulsoT = 0;
+      danioArea(player.x, player.y, 130, 6, null);
+      onda(player.x, player.y, "#5ce1ff", 140, 0.5);
+      sfx("escudo_on", { vol: 0.5 });
+    }
+  }
+}
+
+// ── Efectos pasivos (SHIELD REACTOR, MISSILE SWARM) ────────
+//  Los dos necesitan un reloj propio: no pasan por ningún chokepoint
+//  que ya exista, así que viven en su propia función de tick.
+let shieldReactorT = 0, missileSwarmT = 0;
+function dispararMissileSwarm() {
+  const a = ARMAS.misil;   // reutiliza el arma de misiles entera: guiado, área, sonido, sprite
+  // STRIKE FLEET (6H): el enjambre crece de 6 a 10.
+  const n = Math.min(evoluciones.strike_fleet ? 10 : 6, Math.max(0, BALAS_MAX - bullets.length));
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (i - (n - 1) / 2) * 0.16;
+    bullets.push(nuevaBala(player.x, player.y - player.r, Math.cos(ang) * a.vel * 0.4, Math.sin(ang) * a.vel, a));
+  }
+  bulletsFiredo += n;
+  sfx(a.snd, { vol: 0.6 });
+}
+function actualizarUpgradesPasivos(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  if (upgradesJugador.shield_reactor && escudo <= 0) {
+    shieldReactorT += dt;
+    // Nivel 2: regenera más rápido. GRAVITY AEGIS (6H) lo acelera aparte.
+    let umbral = 19 - upgradesJugador.shield_reactor * 4;
+    if (evoluciones.gravity_aegis) umbral *= 0.5;
+    if (shieldReactorT >= umbral) {
+      escudo = 1; shieldReactorT = 0;
+      texto(player.x, player.y - 40, "ESCUDO REGENERADO", "#5ce1ff", 12);
+      sfx("escudo_on");
+    }
+  } else shieldReactorT = 0;
+
+  if (upgradesJugador.missile_swarm) {
+    missileSwarmT += dt;
+    let intervalo = 8 - (upgradesJugador.missile_swarm - 1) * 2;   // nivel 2: cada 6s
+    if (evoluciones.strike_fleet) intervalo *= 0.7;                 // 6H: más seguido, además de más grande
+    if (missileSwarmT >= intervalo) { missileSwarmT = 0; dispararMissileSwarm(); }
+  }
+}
+function actualizarOverdrive(dt) {
+  if (state !== "play" || paused || overdriveActivo <= 0) return;
+  overdriveActivo = Math.max(0, overdriveActivo - dt);
+  if (overdriveActivo === 0) {
+    texto(player.x, player.y - 40, "overdrive apagada", "#8a8a9a", 11);
+    sfx("ui_no", { vol: 0.4 });
+  }
+}
+function barraOverdrive() {
+  if (state !== "play") return;
+  const bW = Math.min(W - 60, 200), bH = 8;
+  const bX = (W - bW) / 2, bY = H - SAFE_BOTTOM - 34;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(bX - 2, bY - 2, bW + 4, bH + 4);
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(bX, bY, bW, bH);
+  if (overdriveActivo > 0) {
+    ctx.fillStyle = "#ff2fbd";
+    ctx.fillRect(bX, bY, bW * (overdriveActivo / overdriveDuracionActual), bH);
+  } else {
+    const lleno = overdrive >= OVERDRIVE_MAX;
+    ctx.fillStyle = lleno ? "#ffd700" : "#ff2fbd";
+    ctx.globalAlpha = lleno ? (0.7 + 0.3 * Math.sin(performance.now() / 160)) : 1;
+    ctx.fillRect(bX, bY, bW * (overdrive / OVERDRIVE_MAX), bH);
+    ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = "center"; ctx.font = "800 8px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.7;
+  letras(overdriveActivo > 0 ? "OVERDRIVE" : (overdrive >= OVERDRIVE_MAX ? "OVERDRIVE LISTA — TOCA AQUÍ" : "OVERDRIVE"), W / 2, bY - 9, 1.6, "center");
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  if (overdrive >= OVERDRIVE_MAX && overdriveActivo <= 0) {
+    botones.push({ x: bX - 10, y: bY - 20, w: bW + 20, h: bH + 30, fn: activarOverdrive });
   }
 }
 
@@ -3390,7 +4148,7 @@ function armasDeMision() {
   const m = modo === "campana" && MISIONES[misionIdx];
   return (m && m.armas) || ["plasma", "laser"];
 }
-function elegirPremioAleatorio() {
+function elegirPremioBase() {
   const r = Math.random();
   if (r > 0.945) return "vida";
   if (r > 0.855) return "bomba";
@@ -3404,10 +4162,28 @@ function elegirPremioAleatorio() {
   }
   return "arma";
 }
+// Envoltorio de dificultad: en MEDIUM `defensiveDropMul` vale 1 y esta
+// función es un simple paso a través de `elegirPremioBase()`, byte a
+// byte igual que antes de este bloque. En FÁCIL empuja SUAVEMENTE hacia
+// escudo/vida; en DIFÍCIL, al revés. No se toca la escalera de
+// probabilidades base — eso rompería el ajuste fino que ya tiene.
+function elegirPremioAleatorio() {
+  const t = elegirPremioBase();
+  const mul = DIF.defensiveDropMul;
+  if (mul === 1) return t;
+  const defensivo = t === "vida" || t === "escudo";
+  if (!defensivo && mul > 1 && Math.random() < (mul - 1) * 0.4) {
+    return Math.random() < 0.5 ? "escudo" : "vida";
+  }
+  if (defensivo && mul < 1 && Math.random() < (1 - mul) * 0.4) {
+    return elegirPremioBase();
+  }
+  return t;
+}
 
 function procesarEvento(ev) {
   if (ev.fn === "ola") {
-    spawnFormacion(ev.tipo, ev.n, ev.patron || "linea");
+    spawnFormacion(ev.tipo, ev.n, ev.patron || "linea", null, abrirOla(ev.n));
     // La nave de mando es la mecánica firma de M6: si aparece sin que
     // suene nada, la jugadora se entera cuando ya la tiene encima.
     if (ev.tipo === "comando") sfx("alarma_flota");
@@ -3432,6 +4208,12 @@ function procesarEvento(ev) {
     spawnCarril(H * (ev.y || 0.5), ev.h || 74, ev.vida || 2.0);
   } else if (ev.fn === "sistemas") {
     spawnSistemas();
+  } else if (ev.fn === "bonus") {
+    iniciarBonusEvento(ev.tipo, ev);
+  } else if (ev.fn === "descansoOn") {
+    descansoDeliberado = true;
+  } else if (ev.fn === "descansoOff") {
+    descansoDeliberado = false;
   } else if (ev.fn === "zonaCol") {
     venomZona(ev.col != null ? ev.col : (Math.random() * 3) | 0);
   } else if (ev.fn === "columna") {
@@ -3465,6 +4247,8 @@ function spawnMiniboss(tipo, mult) {
   eBullets.length = 0;
   sfx("boss_llega");
   sacudir("medium");
+  RHYTHM.marcar();
+  sinDanioBoss = true;
   // OMEGA SOVEREIGN y AXIOMA tienen pista propia de jefe épico
   // ("jefe_final"/"final2" — distintas entre sí, ver `pistaJefe` de
   // JEFES.axioma). Los cuatro jefes completos de la expansión
@@ -3487,8 +4271,9 @@ function cambiarFase(mb, n) {
   const f = d.fases[n];
   if (!f) return;
   mb.fase = n; mb.faseT = 0;
-  mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6);
+  mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6 * DIF.enemyCadenceMul);
   mb.avisados = null;
+  RHYTHM.marcar();
   if (f.alEntrar) f.alEntrar(mb);
   // Subida de intensidad de la música por fase. Las pistas son mezclas
   // planas y no traen capas sueltas, así que la subida se hace abriendo
@@ -3686,10 +4471,10 @@ function actualizarMiniboss(dt) {
     const a = f.ataques[i];
     mb.cds[i] -= dt;
     if (a.avisa && !mb.avisados) mb.avisados = {};
-    if (a.avisa && mb.cds[i] <= a.avisa && !mb.avisados[i]) { mb.avisados[i] = 1; a.telegrafo(mb); }
+    if (a.avisa && mb.cds[i] <= a.avisa * DIF.telegraphMul && !mb.avisados[i]) { mb.avisados[i] = 1; a.telegrafo(mb); }
     if (mb.cds[i] <= 0) {
       a.fn(mb);
-      mb.cds[i] = rand(a.cd[0], a.cd[1]);
+      mb.cds[i] = rand(a.cd[0], a.cd[1]) * DIF.enemyCadenceMul;
       if (mb.avisados) mb.avisados[i] = 0;
     }
   }
@@ -3739,6 +4524,8 @@ function matarMiniboss() {
   telegrafos.length = 0;
   hitstop(0.1);
   sacudir("heavy");
+  lluviaShards(mb.x, mb.y, d.epico ? "boss" : "miniboss");
+  if (sinDanioBoss) skillEvent("sin_golpe", mb.x, mb.y);
   // El primer estallido del jefe. Era exp_grande, que es lo mismo que
   // suena al morir cualquier enemigo pesado: el golpe que abre la muerte
   // del jefe no puede ser el sonido más repetido de la misión.
@@ -3914,6 +4701,29 @@ function dibujarMiniboss() {
 
 // La barra va aparte del jefe: es HUD, no mundo, y no debe temblar con
 // la sacudida de cámara ni quedar tapada por una explosión.
+// Banner + barra de tiempo del bonus event activo. Mismo lenguaje visual
+// que barraJefe() pero más pequeño y más arriba: los dos no van a la vez
+// -no hay bonus events durante un jefe- así que no compiten por sitio.
+function barraBonus() {
+  if (!bonusEvento || bonusEvento.estado !== "activo") return;
+  const bW = Math.min(W - 60, 320), bH = 6;
+  const bX = (W - bW) / 2, bY = SAFE_TOP + 118;
+  ctx.save();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.04, 13, 16)) + "px " + F;
+  ctx.fillStyle = bonusEvento.color;
+  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
+  const marcador = bonusEvento.objetivo > 1 ? "  " + bonusEvento.progreso + "/" + bonusEvento.objetivo : "";
+  letras(bonusEvento.nombre + marcador, W / 2, bY - 14, 2, "center");
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(bX - 2, bY - 2, bW + 4, bH + 4);
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(bX, bY, bW, bH);
+  const k = clamp(1 - bonusEvento.t / bonusEvento.duracion, 0, 1);
+  ctx.fillStyle = bonusEvento.color;
+  ctx.fillRect(bX, bY, bW * k, bH);
+  ctx.restore();
+}
+
 function barraJefe() {
   if (!miniboss || miniboss.est === "aviso") return;
   const mb = miniboss, d = JEFES[mb.tipo];
@@ -4256,8 +5066,64 @@ function hitstop(s) { hitStop = Math.max(hitStop, s * OPCIONES.hitstop); }
 function onda(x, y, color, rMax, dur, grosor) {
   VFX.onda(x, y, color, rMax, dur, grosor);
 }
-function texto(x, y, txt, color, tam) {
-  flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9, tam: tam || 16 });
+// ── Score flotante ──────────────────────────────────────────
+//  Antes: `flotantes.push()` sin pool ni tope. Con una limpieza de
+//  pantalla entera, eso son cientos de objetos nuevos en un fotograma
+//  y —porque el desplazamiento vertical crecía con `flotantes.length`
+//  sin límite— textos naciendo fuera de la pantalla.
+//
+//  Ahora: reciclados (nunca se tira uno al `splice`, vuelve a la cola
+//  de libres), con tope duro, y los números CERCANOS EN ESPACIO Y
+//  TIEMPO se funden en uno solo. Ocho "+50" seguidos de la misma
+//  limpieza no se leen mejor que un "+400"; un "COMBO ×25" nunca se
+//  funde con nada, es el que manda.
+const FLOTANTES_MAX = 40;
+const FUSION_RADIO = 46, FUSION_VENTANA = 0.12;
+let flotantesLibres = [];
+const esNumerico = (txt) => /^[+-]?\d/.test(txt);
+
+function texto(x, y, txt, color, tam, opciones) {
+  const prioridad = (opciones && opciones.prioridad) || 0;
+  const numerico = esNumerico(txt);
+  // Fusión: solo números recién nacidos, del mismo color, a un golpe de
+  // vista. Fundir un nombre ("JACKPOT", "COMBO ×25") sería basura.
+  if (numerico) {
+    for (let i = flotantes.length - 1; i >= 0; i--) {
+      const f = flotantes[i];
+      if (!f.numerico || f.color !== color || f.t > FUSION_VENTANA) continue;
+      const dx = f.x - x, dy = f.y - y;
+      if (dx * dx + dy * dy > FUSION_RADIO * FUSION_RADIO) continue;
+      const suma = (parseInt(f.txt, 10) || 0) + (parseInt(txt, 10) || 0);
+      f.txt = (suma >= 0 ? "+" : "") + suma;
+      f.t = 0;                                   // recién nacido: vive su `life` entero otra vez
+      f.tam = Math.min((f.tam || 16) + 1, 28);    // crece un poco: se nota que ha fundido más de uno
+      f.prioridad = Math.max(f.prioridad, prioridad);
+      return f;
+    }
+  }
+  let f;
+  if (flotantes.length >= FLOTANTES_MAX) {
+    // Sin hueco libre: cede el de menor prioridad y, entre iguales, el
+    // más viejo. Un hito de combo o un jackpot no se pisan por un "+10".
+    let peor = 0;
+    for (let i = 1; i < flotantes.length; i++) {
+      const a = flotantes[i], b = flotantes[peor];
+      if (a.prioridad < b.prioridad || (a.prioridad === b.prioridad && a.t > b.t)) peor = i;
+    }
+    if (flotantes[peor].prioridad > prioridad) return null;   // ni sitio para él: se descarta en silencio
+    f = flotantes[peor];
+  } else if (flotantesLibres.length) {
+    f = flotantesLibres.pop();
+    flotantes.push(f);
+  } else {
+    f = {};
+    flotantes.push(f);
+  }
+  f.x = clamp(x, 30, W - 30);
+  f.y = clamp(y - (flotantes.length % 6) * 10, 30, H - 30);
+  f.txt = txt; f.color = color; f.t = 0; f.life = 0.9; f.tam = tam || 16;
+  f.numerico = numerico; f.prioridad = prioridad;
+  return f;
 }
 
 // ── Enemigos ──────────────────────────────────────────────
@@ -4272,21 +5138,35 @@ function elegirTipo() {
   return "normal";
 }
 
+// Probabilidad BASE de que un enemigo cualquiera nazca élite, en
+// MEDIUM. `DIF.eliteFreqMul` (bloque 6B, sin usar hasta ahora) la
+// escala por dificultad.
+const ELITE_PROB_BASE = 0.05;
+
 function spawnEnemy(tipo, x) {
   const k = tipo || elegirTipo();
   const d = ENEMIGOS[k];
   asegurarSpriteEnemigo(k);
+  const r = d.r * ESC;   // el tamaño de la tabla es "a 414 px de ancho"
+  // Élite: variante del mismo enemigo, nunca uno "grande" (jefes en
+  // miniatura) ni de mando (ya son especiales por su cuenta). Vida y
+  // cadencia se mueven poco -no es un x2 HP disfrazado-; lo que cambia
+  // de verdad es el aura, el score y el drop.
+  const elite = !d.grande && !d.esComando &&
+    Math.random() < ELITE_PROB_BASE * DIF.eliteFreqMul;
+  const hpMul = elite ? 1.4 : 1;
   const e = {
-    tipo: k, r, hp: d.hp, hpMax: d.hp,
+    tipo: k, r, hp: d.hp * hpMul, hpMax: d.hp * hpMul,
     x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
     y: -r - 12,
     vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
-    cd: d.recarga ? d.recarga() : 0, flash: 0,
-    recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
+    cd: d.recarga ? d.recarga() * DIF.enemyCadenceMul * (elite ? 0.85 : 1) : 0, flash: 0,
+    recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0, elite,
   };
   if (d.init) d.init(e);
   enemies.push(e);
+  RHYTHM.marcar();
   return e;
 }
 
@@ -4311,6 +5191,7 @@ function soltarPremio(x, y, tipo) {
   const d = premio(tipo);
   VFX.materializar(x, y, 8, d.color, 46);
   onda(x, y, d.color, 42, 0.32, 3);
+  RHYTHM.marcar();
 }
 
 // ── Daño ──────────────────────────────────────────────────
@@ -4364,19 +5245,100 @@ function golpearCon(b, x, y, victima) {
   return true;
 }
 
-function matar(e, i) {
-  const d = ENEMIGOS[e.tipo];
-  combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+// ════════════════════════════════════════════════════════════
+//  KILL FUNNEL — alMatar()
+// ════════════════════════════════════════════════════════════
+//  Había cinco sitios que subían combo/score por su cuenta: matar(),
+//  los nodos de AEGIS, los subsistemas de OMEGA, las torretas de
+//  escenario y ALPHA/BETA/GAMMA de M9. Cualquier sistema futuro que
+//  necesite enterarse de "algo ha muerto" —Overdrive, skill events,
+//  élites, jackpot, boss break— tenía que engancharse a los cinco por
+//  separado, o se le olvidaba uno. Éste es el único embudo desde
+//  ahora: combo, comboT, multCombo, el score y el texto flotante
+//  pasan todos por aquí. Cada sitio sigue soltando su propio efecto de
+//  muerte, su propio premio o su propio texto con nombre —eso no es
+//  un dato de kill, es suyo— y pasa por `enemigos.splice`/`.vivo =
+//  false`/lo que le toque, que tampoco es cosa de este embudo.
+//
+//  `opciones.combo` decide si `puntosBase` se multiplica por el combo
+//  (matar(), nodos, torretas: sí) o va a secas (subsistemas de OMEGA y
+//  M9, que hoy dan 500/400 fijos). NO se ha igualado el criterio:
+//  igualarlo sería tocar el balance, y esto es una migración, no un
+//  rebalanceo — los cinco sitios dan EXACTAMENTE lo que daban antes.
+function alMatar(o) {
+  const opciones = o.opciones || {};
+  const cuentaCombo = opciones.combo !== false;
+  combo++; comboT = comboVentana(); enemiesKilled++;
   maxCombo = Math.max(maxCombo, combo);
   const mult = multCombo();
-  const pts = Math.round(d.puntos * mult);
+  const base = Math.round(o.puntosBase * (cuentaCombo ? mult : 1));
+  // El multiplicador de DIFICULTAD se aplica AQUÍ, en el único embudo, y
+  // no en las tablas de puntos de ENEMIGOS/DEFENSA_TIPOS (no se tocan):
+  // así FÁCIL/NORMAL/DIFÍCIL premian sin desequilibrar el ELOI, que sale
+  // de los extras de `cerrarMision()` — no de aquí — y no se mueve.
+  // El bono de OVERDRIVE va en el mismo sitio: activa, TODO kill vale más.
+  const pts = Math.round(base * DIF.scoreMul * (overdriveActivo > 0 ? 1.5 : 1));
   score += pts;
-  muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
-  if (mult > 1) texto(e.x, e.y - e.r, "+" + pts, T.bala, 13 + Math.min(8, mult));
   hitoCombo();
+  // BOSS BREAK carga más que un kill normal: es un momento más raro.
+  const esRomperJefe = o.fuente === "nodoAegis" || o.fuente === "subOmega" || o.fuente === "sistema";
+  cargarOverdrive(esRomperJefe ? 6 : 2.2);
 
-  const p = CONFIG.probPremio * (d.premio || 1);
-  if (Math.random() < p) soltarPremio(e.x, e.y, elegirPremioAleatorio());
+  const mostrar = opciones.texto === true ? true : opciones.texto === false ? false : mult > 1;
+  if (mostrar) {
+    texto(o.posicion.x, o.posicion.y + (opciones.textoOffsetY || 0),
+      "+" + pts, opciones.textoColor || T.bala, opciones.textoTam || (13 + Math.min(8, mult)));
+  }
+  if (opciones.premio && Math.random() < opciones.premio.prob) {
+    const rango = opciones.premio.offsetX;
+    const ox = rango ? rand(rango[0], rango[1]) : 0;
+    soltarPremio(o.posicion.x + ox, o.posicion.y, elegirPremioAleatorio());
+  }
+
+  // CHAIN KILL: cuenta CUALQUIER muerte que pase por este embudo, no
+  // solo enemigos — un AEGIS y dos torretas seguidas también son una
+  // cadena. `=== CADENA_OBJETIVO` y no `>=`: dispara una vez por
+  // racha, no en cada muerte mientras la racha sigue viva.
+  cadenaTiempos.push(elapsed);
+  cadenaTiempos = cadenaTiempos.filter(t => elapsed - t <= CADENA_VENTANA);
+  if (cadenaTiempos.length === CADENA_OBJETIVO) skillEvent("cadena", o.posicion.x, o.posicion.y);
+
+  // BOSS BREAK: romper una pieza de jefe (nodo de AEGIS, subsistema de
+  // OMEGA, ALPHA/BETA/GAMMA de M9) es ya un momento fuerte por su
+  // cuenta. No todas -"no abusar"- así que es una tirada, no un
+  // disparo garantizado.
+  if (esRomperJefe && Math.random() < 0.3) jackpot(o.posicion.x, o.posicion.y);
+
+  // PLASMA BURST: explosión propia al matar, escalada por nivel. Daño
+  // aparte del de la bala que mató -no lo dobla, lo complementa-.
+  if (upgradesJugador.plasma_burst) {
+    const n = upgradesJugador.plasma_burst;
+    danioArea(o.posicion.x, o.posicion.y, 60 + n * 18, 6 + n * 4, null);
+    vfx("exp_media", o.posicion.x, o.posicion.y, 40 + n * 10, 0.3);
+  }
+  comprobarUpgradeOfrecido();
+  return { pts, mult, combo };
+}
+
+function matar(e, i) {
+  const d = ENEMIGOS[e.tipo];
+  muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
+  alMatar({
+    fuente: "enemigo", tipo: e.tipo, puntosBase: d.puntos * (e.elite ? 2.2 : 1), posicion: { x: e.x, y: e.y },
+    opciones: { textoOffsetY: -e.r, premio: { prob: e.elite ? 1 : CONFIG.probPremio * (d.premio || 1) } },
+  });
+  lluviaShards(e.x, e.y, e.elite ? "elite" : "normal");
+  if (e.elite) {
+    elitesMuertos++;
+    cargarOverdrive(6);
+    // Cadena de élites: dos dentro de la ventana disparan un jackpot.
+    // No hace falta contar más de dos — la ventana ya se corta sola si
+    // el jugador tarda.
+    if (elapsed - eliteChainT <= ELITE_CADENA_VENTANA) jackpot(e.x, e.y);
+    eliteChainT = elapsed;
+  }
+  if (e.bonusGen) bonusEventoMuerte(e);
+  if (e.olaGen) cerrarOla(e.olaGen, e.x, e.y, false);
   enemies.splice(i, 1);
   // Gancho GENÉRICO y opcional: un enemigo que deja algo detrás al morir
   // (crisol, bloque 5E) declara `alMorir(e)`. Va DESPUÉS del splice,
@@ -4396,6 +5358,33 @@ function matar(e, i) {
 //  puntuación subir en tramos con nombre es lo que convierte terminar
 //  una misión en un premio y no en una pantalla de carga.
 let resultado = null;
+// ════════════════════════════════════════════════════════════
+//  RANK
+// ════════════════════════════════════════════════════════════
+//  No solo score: score/segundo (normaliza misiones cortas y largas),
+//  combo, cuánto daño se ha evitado, skill events, élites, si el jefe
+//  cayó sin un golpe, y la dificultad elegida -jugar en DIFÍCIL da
+//  hasta 10 puntos de margen que FÁCIL no da, así que un S+ en DIFÍCIL
+//  pesa de verdad-. 100 puntos de la partida + 10 de dificultad = 110.
+const RANK_UMBRALES = [["S+", 95], ["S", 80], ["A", 60], ["B", 35], ["C", 0]];
+const RANK_NUMERO = { "C": 0, "B": 1, "A": 2, "S": 3, "S+": 4 };
+const RANK_COLOR = { "C": "#8fa0b8", "B": "#7df9ff", "A": "#8fffb0", "S": "#ffd700", "S+": "#ff2fbd" };
+const totalSkillEventos = () => Object.keys(skillEventos).reduce((a, k) => a + skillEventos[k], 0);
+function calcularRank() {
+  const dur = Math.max(1, elapsed);
+  const pScore = clamp((score / dur) / 15, 0, 1) * 35;
+  const pCombo = clamp(maxCombo / 60, 0, 1) * 20;
+  const pLimpio = clamp(1 - vidasPerdidas / 3, 0, 1) * 15;
+  const pSkills = clamp(totalSkillEventos() / 6, 0, 1) * 15;
+  const pElites = clamp(elitesMuertos / 4, 0, 1) * 10;
+  const pBoss = sinDanioBoss ? 5 : 0;
+  const pDificultad = { easy: 0, medium: 5, high: 10 }[OPCIONES.dificultad] || 0;
+  const puntos = pScore + pCombo + pLimpio + pSkills + pElites + pBoss + pDificultad;
+  let letra = "C";
+  for (const [l, umbral] of RANK_UMBRALES) { if (puntos >= umbral) { letra = l; break; } }
+  return { letra, numero: RANK_NUMERO[letra], puntos: Math.round(puntos) };
+}
+
 function cerrarMision() {
   const prec = bulletsFiredo > 0 ? Math.round(bulletsHit / bulletsFiredo * 100) : 0;
   const extras = [
@@ -4408,6 +5397,16 @@ function cerrarMision() {
   const total = extras.reduce((a, b) => a + b[1], 0);
   score += total;
   resultado = { extras, total, base: score - total, prec };
+  // RANK y el resumen de la partida (bloque 6I) — se calculan con el
+  // score YA final, que es el número que el jugador ve en pantalla.
+  resultado.rank = calcularRank();
+  resultado.maxCombo = maxCombo;
+  resultado.skillEventos = totalSkillEventos();
+  resultado.elites = elitesMuertos;
+  resultado.overdrives = overdrivesActivados;
+  resultado.jackpots = jackpotsCount;
+  resultado.evoluciones = evolucionesTotal;
+  resultado.dificultad = DIF.label;
   misionCompletaT = 6.5;
   // Los contadores animados empiezan de cero en cada misión: si no, el
   // total de la anterior se quedaría en pantalla como punto de partida.
@@ -4422,6 +5421,15 @@ function cerrarMision() {
     // se escribe en el acto, sin esperar al freno del autoguardado.
     if (SAVE.subirRecord(score)) best = score;
     resultado.recordMision = SAVE.subirRecordMision(misionIdx, score);
+    // Bloque 6I: récord de score Y de rank, cada uno por su lado, los
+    // dos por misión Y por dificultad — no tienen por qué caer juntos.
+    resultado.recordDif = SAVE.subirRecordDif(misionIdx, OPCIONES.dificultad, score);
+    resultado.rankRecordDif = SAVE.subirRankDif(misionIdx, OPCIONES.dificultad, resultado.rank.numero);
+    SAVE.sumar("perfil.closeCalls", skillEventos.cierre);
+    SAVE.sumar("perfil.elitesDerrotados", elitesMuertos);
+    SAVE.sumar("perfil.jackpots", jackpotsCount);
+    SAVE.sumar("perfil.evolucionesDescubiertas", evolucionesTotal);
+    SAVE.sumar("perfil.overdrivesUsados", overdrivesActivados);
     // El máximo desbloqueado SOLO sube. Rejugar la M1 con diez abiertas
     // no puede volver a cerrarlas: esta línea es el arreglo del bug.
     misionMax = SAVE.subirMision(Math.min(misionIdx + 1, MISIONES.length - 1));
@@ -4477,10 +5485,12 @@ function hitoCombo() {
   for (const h of HITOS) {
     if (combo === h && comboHito < h) {
       comboHito = h;
-      texto(W / 2, H * 0.62, "COMBO ×" + h, h >= 50 ? "#ffd700" : T.bala, 22 + h / 10);
+      texto(W / 2, H * 0.62, "COMBO ×" + h, h >= 50 ? "#ffd700" : T.bala, 22 + h / 10, { prioridad: 2 });
       vfx("chispa", W / 2, H * 0.62, 90 + h, 0.4);
       sfx("combo", { tono: 1 + HITOS.indexOf(h) * 0.12 });
       if (h >= 25) sacudir("tiny");
+      cargarOverdrive(h * 0.3);
+      if (h >= 50) jackpot(W / 2, H * 0.48);
     }
   }
 }
@@ -4593,7 +5603,16 @@ function golpe(fx, fy) {
     texto(player.x, player.y - 34, "ESCUDO ROTO", "#5ce1ff", 15);
     return;
   }
-  lives--; invulnT = CONFIG.invulnerable;
+  lives--; invulnT = CONFIG.invulnerable * DIF.invulnMul; vidasPerdidas++;
+  RHYTHM.marcar();
+  if (bonusEvento && bonusEvento.tipo === "riesgo" && bonusEvento.estado === "activo") finalizarBonusEvento(false);
+  // OVERDRIVE: en carga, un golpe le cuesta un buen mordisco. Ya activa,
+  // NO se apaga en seco -eso castigaría doblemente un golpe que ya duele-
+  // sino que se le recortan unos segundos.
+  if (overdriveActivo > 0) overdriveActivo = Math.max(0, overdriveActivo - 3);
+  else overdrive = Math.max(0, overdrive - 20);
+  for (const w of olas.values()) w.sinDanio = false;
+  sinDanioBoss = false;
   sinDanio = false;
   arma = Math.max(1, arma - 1);
   combo = 0; comboHito = 0; comboT = 0;
@@ -4656,10 +5675,17 @@ const libresBala = [];
 function nuevaBala(x, y, vx, vy, a) {
   const b = libresBala.pop() || {};
   b.x = x; b.y = y; b.vx = vx; b.vy = vy;
-  b.r = a.r; b.dmg = a.dmg * (naveActual().dmg || 1);
+  // HEAVY CORE: +20%/nivel, multiplicativo sobre lo que ya pone la nave.
+  const dmgUp = 1 + (upgradesJugador.heavy_core || 0) * 0.2;
+  b.r = a.r; b.dmg = a.dmg * (naveActual().dmg || 1) * dmgUp;
   b.col = a.col; b.sp = SPRITES[a.sp]; b.largo = a.largo;
   b.pierce = a.pierce || 0; b.area = a.area || 0;
-  b.cadena = a.cadena || 0; b.lento = a.lento || 0;
+  // CHAIN LIGHTNING: si el arma no trae salto propio, el upgrade se lo
+  // presta -reutiliza cadenaElectrica(), que ya existe para las armas
+  // eléctricas-. El nivel decide cuánto pega el salto, no cuántos saltos.
+  const nvCadena = upgradesJugador.chain_lightning || 0;
+  b.cadena = a.cadena || (nvCadena ? b.dmg * (0.3 + nvCadena * 0.15) : 0);
+  b.lento = a.lento || 0;
   b.guia = a.guia || 0; b.vida = a.vida || 0;
   b.imp = a.imp; b.estela = a.estela || 0;
   b.t = 0; b.cd = 0; b.ang = Math.atan2(vy, vx) + Math.PI / 2;
@@ -4684,6 +5710,30 @@ function disparar() {
   player.retro = Math.min(6, a.dmg * 1.6);
   sfx(a.snd);
   if (a.sac) sacudir(a.sac);
+  // Presupuesto de las balas EXTRA del Bloque 6 (Overdrive, TRIPLE
+  // SHOT, MISSILE SWARM): las del arma base de siempre nunca se
+  // recortan -eso sería tocar el juego de antes-, pero un build a
+  // tope (upgrades + evolución + Overdrive a la vez) no debe crecer
+  // sin límite. Medido en la peor escena razonable del bloque.
+  if (bullets.length < BALAS_MAX) {
+    if (overdriveActivo > 0) {
+      // Dos disparos laterales EXTRA, siempre, con el arma que sea: es el
+      // bloque el que se pone bruto, no el arma que llevas puesta.
+      bullets.push(nuevaBala(player.x - player.r * 0.75, y, -260, -a.vel * 0.85, a));
+      bullets.push(nuevaBala(player.x + player.r * 0.75, y, 260, -a.vel * 0.85, a));
+      bulletsFiredo += 2;
+    }
+    // TRIPLE SHOT: +2 disparos laterales por nivel, sumados a lo que ya
+    // sale por overdrive/arma. Van más pegados al centro que los de
+    // Overdrive para que se lean como del PILOTO, no del bloque.
+    const nvTriple = upgradesJugador.triple_shot || 0;
+    for (let i = 0; i < nvTriple && bullets.length < BALAS_MAX; i++) {
+      const dx = (i + 1) * player.r * 0.55;
+      bullets.push(nuevaBala(player.x - dx, y, -140, -a.vel * 0.95, a));
+      bullets.push(nuevaBala(player.x + dx, y, 140, -a.vel * 0.95, a));
+      bulletsFiredo += 2;
+    }
+  }
 }
 
 // Cambiar de familia conserva el nivel: subir el arma seis veces y perderlo
@@ -4710,9 +5760,15 @@ function update(dt) {
     // un solo recorrido.
     VFX.actualizar(dt);
     actualizarEfectos(dt);
+    actualizarBonusEvento(dt);
+    rhythmDirectorTick(dt);
+    actualizarShards(dt);
+    actualizarOverdrive(dt);
+    actualizarUpgradesPasivos(dt);
+    actualizarEvoluciones(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
-      if (f.t >= f.life) flotantes.splice(i, 1);
+      if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
     }
     if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
     if (escudoRoto > 0) escudoRoto = Math.max(0, escudoRoto - dt);
@@ -4728,7 +5784,7 @@ function update(dt) {
     if (warningT > 0) warningT -= dt;
     if (misionIniT > 0) misionIniT -= dt;
   }
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
 
   elapsed += dt;
   if (invulnT > 0) invulnT -= dt;
@@ -4774,7 +5830,11 @@ function update(dt) {
   }
 
   const armaAct = ARMAS[armaId] || ARMAS.cannon;
-  const cad = armaAct.cad * nv.cad * (turbo > 0 ? 0.55 : 1);
+  // RAPID CORE: -12%/nivel, multiplicativo y aparte del boost de
+  // turbo/Overdrive -los tres se pueden pisar sin romper el tope de
+  // disparos por fotograma de más abajo-.
+  const cadUp = 1 - (upgradesJugador.rapid_core || 0) * 0.12;
+  const cad = armaAct.cad * nv.cad * cadUp * ((turbo > 0 || overdriveActivo > 0) ? 0.55 : 1);
   shootAcc += dt * 1000;
   let disparos = 0;
   while (shootAcc >= cad && disparos < 4) { shootAcc -= cad; disparar(); disparos++; }
@@ -4825,10 +5885,17 @@ function update(dt) {
     if (b.bomba && b.y >= b.explotaY) { estallido(b.x, b.y, b.bomba); eBullets.splice(i, 1); continue; }
     if (b.y > H + 24 || b.y < -140 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
     const dx = b.x - player.x, dy = b.y - player.y;
-    if (dx * dx + dy * dy < (b.r + hitR()) ** 2) {
+    const d2 = dx * dx + dy * dy;
+    if (d2 < (b.r + hitR()) ** 2) {
       if (b.bomba) estallido(b.x, b.y, b.bomba);
       eBullets.splice(i, 1); golpe(b.x, b.y);
       if (state !== "play") return;
+    } else if (!b.cerca) {
+      // CLOSE CALL: pasa cerca sin tocar. Una vez por bala -`b.cerca`
+      // se apaga en cuanto entra en el anillo- para que no dispare cada
+      // fotograma mientras ronda por ahí.
+      const rCerca = (b.r + hitR()) * CERCA_MULT;
+      if (d2 < rCerca * rCerca) { b.cerca = true; skillEvent("cierre", b.x, b.y); }
     }
   }
   for (let i = estallidos.length - 1; i >= 0; i--) {
@@ -4852,6 +5919,8 @@ function update(dt) {
       if (elapsed >= q.at) {
         const e = spawnEnemy(q.tipo, q.x);
         if (q.y !== undefined) e.y = q.y;
+        if (q.marca) e.bonusGen = q.marca;
+        if (q.olaGen) e.olaGen = q.olaGen;
         spawnQueue.splice(i, 1);
       }
     }
@@ -4983,7 +6052,11 @@ function update(dt) {
     // Congelado: se mueve y recarga a la mitad. Frenar es hacer daño.
     const edt = e.lentoT > 0 ? dt * 0.5 : dt;
     d.mover(e, edt);
-    if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
+    if (e.y - e.r > H + 20) {
+      if (e.bonusGen) bonusEventoEscape(e);
+      if (e.olaGen) cerrarOla(e.olaGen, e.x, e.y, true);
+      enemies.splice(i, 1); continue;
+    }
 
     if (e.recoil > 0) e.recoil = Math.max(0, e.recoil - dt * 48);
     if (e.escFlash > 0) e.escFlash -= dt;
@@ -4996,9 +6069,9 @@ function update(dt) {
       e.cd -= edt;
       // El aviso sale ANTES del ataque, no con él. Esa fracción de
       // segundo es toda la diferencia entre esquivar y adivinar.
-      if (d.avisa && !e.avisado && e.cd <= d.avisa && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
+      if (d.avisa && !e.avisado && e.cd <= d.avisa * DIF.telegraphMul && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
       if (e.cd <= 0 && e.y > 30) {
-        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1);
+        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1) * DIF.enemyCadenceMul;
         e.avisado = 0; d.atacar(e);
       }
     }
@@ -5048,8 +6121,12 @@ function update(dt) {
     p.f += dt * 4; p.t += dt; p.giro += dt * 1.1;
     const dx = player.x - p.x, dy = player.y - p.y;
     const d = Math.hypot(dx, dy);
-    const alcance = imanT > 0 ? 520 : 165;
-    if (d < alcance) { p.x += (dx / d) * (imanT > 0 ? 460 : 260) * dt; p.y += (dy / d) * (imanT > 0 ? 460 : 260) * dt; }
+    // MAGNET FIELD: imán permanente, más discreto que el power-up
+    // temporal -si igualara a imanT dejaría de sentirse especial-.
+    const magnetUp = upgradesJugador.magnet_field || 0;
+    const alcance = imanT > 0 ? 520 : 165 + magnetUp * 90;
+    const velIman = imanT > 0 ? 460 : (260 + magnetUp * 90);
+    if (d < alcance) { p.x += (dx / d) * velIman * dt; p.y += (dy / d) * velIman * dt; }
     else p.y += p.vy * dt;
     if (Math.random() < 0.35) {
       VFX.estela(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), rand(-12, 12), rand(-30, -8),
@@ -5383,6 +6460,28 @@ function dibujarJugador() {
     ctx.stroke();
   }
 
+  // Aura de OVERDRIVE. Más grande y más rápida que la de invulnerabilidad
+  // -tienen que distinguirse a un vistazo- y NO tapa la nave ni sube el
+  // radio real de impacto: es lectura, no un escudo disfrazado.
+  if (overdriveActivo > 0) {
+    const gira = performance.now() / 340;
+    ctx.globalAlpha = 0.55 + 0.25 * Math.sin(performance.now() / 70);
+    ctx.strokeStyle = "#ff2fbd";
+    ctx.lineWidth = 2.6;
+    for (let i = 0; i < 3; i++) {
+      const a0 = gira + i * TAU / 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 2.7, a0, a0 + TAU / 3 * 0.55);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.16;
+    const go = ctx.createRadialGradient(0, 0, r * 1.4, 0, 0, r * 3.2);
+    go.addColorStop(0, "rgba(0,0,0,0)");
+    go.addColorStop(1, "#ff2fbd");
+    ctx.fillStyle = go;
+    ctx.beginPath(); ctx.arc(0, 0, r * 3.2, 0, TAU); ctx.fill();
+  }
+
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1;
   ctx.restore();
@@ -5472,6 +6571,19 @@ function dibujarEnemigo(e) {
     ctx.fill();
   }
   ctx.restore();
+
+  if (e.elite) {
+    const pulso = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 220));
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "#ffcf5c";
+    ctx.globalAlpha = 0.5 * pulso; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.35, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 0.85 * pulso; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.55, 0, TAU); ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
 
   if (e.hpMax > 3 && e.hp < e.hpMax) {
     const w = e.r * 2;
@@ -5711,7 +6823,7 @@ function hud() {
     // Con jefe en pantalla el centro lo ocupa su barra: el combo se
     // aparta al lado en vez de superponerse.
     const cy = top + 84, cx = miniboss ? W - 40 : W / 2;
-    const k = clamp(comboT / CONFIG.comboTiempo, 0, 1);
+    const k = clamp(comboT / comboVentana(), 0, 1);
     ctx.globalAlpha = Math.min(1, comboT * 2.5);
     ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(cx, cy, 20, 0, TAU); ctx.stroke();
@@ -6316,7 +7428,8 @@ function filaOpcion(y, etiqueta, valores, campo) {
     const on = OPCIONES[campo] === val;
     boton(bx + i * paso, y - 15, paso - 4, 30, { sel: on, r: 8, tam: 9, esp: 1,
       label: lab, fn: () => { OPCIONES[campo] = val; guardarOpciones();
-        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val]; } });
+        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val];
+        if (campo === "dificultad") resolverDificultad(); } });
   }
 }
 
@@ -6336,9 +7449,10 @@ function pantallaAjustes() {
   // cualquier número fijo se queda corto la mitad de las veces.
   const altoSonido = sep * 4 + 16;          // 3 volúmenes + silencio
   const altoImagen = sep * 5 + 16;          // calidad, sacudida, impacto, núcleo, efectos
+  const altoDificultad = sep + 16;          // fácil / normal / difícil
   const altoBoton = 48;
   const altoAyuda = audioListo ? 30 : 68;   // el aviso naranja ocupa 38 más
-  const altoTotal = 44 + altoSonido + altoImagen + altoBoton + altoAyuda + 14;
+  const altoTotal = 44 + altoSonido + altoImagen + altoDificultad + altoBoton + altoAyuda + 14;
   panel(x0 - 18, y - 44, anchoP + 36, altoTotal, 18, 0.72);
   filo(x0 - 18, y - 44, anchoP + 36, altoTotal, 18, T.nave, 0.18);
   ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
@@ -6361,6 +7475,13 @@ function pantallaAjustes() {
   // idénticas con significados distintos en la misma pantalla es un
   // error de lectura, no un detalle de estilo.
   filaOpcion(y, "DETALLE", [["AUTO", "auto"], ["ALTO", "alto"], ["MEDIO", "medio"], ["BAJO", "bajo"]], "vfx"); y += sep + 16;
+
+  ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("PARTIDA", x0, y - 22, 3);
+  ctx.globalAlpha = 1;
+  // El multiplicador de puntuación va SOLO en la etiqueta: la cifra exacta
+  // se calibra en el bloque del kill funnel y no hace falta duplicarla aquí.
+  filaOpcion(y, "DIFICULTAD", [["FÁCIL", "easy"], ["NORMAL", "medium"], ["DIFÍCIL", "high"]], "dificultad"); y += sep + 16;
 
   // Prueba de sonido: pasa por el motor real, así que si suena aquí,
   // suena en el juego. Y el propio toque sirve de gesto de desbloqueo.
@@ -6788,6 +7909,7 @@ function render() {
     if (velo) { dibujarOscuridad(); dibujarTelegrafos(); }
 
     for (const p of premios) dibujarPremio(p);
+    dibujarShards();
     dibujarJugador();
 
     // ── CAPA MEDIO ──
@@ -6933,7 +8055,7 @@ function render() {
   if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
 
   if (state === "menu") menu();
-  else { hud(); barraJefe(); }
+  else { hud(); barraJefe(); barraBonus(); barraOverdrive(); dibujarUpgrades(); }
 
   // ── Fin de partida ──
   if (state === "over") {
@@ -7033,6 +8155,33 @@ function render() {
     ctx.font = "800 " + Math.round(clamp(W * 0.085, 26, 40)) + "px " + F;
     letras("COMPLETADA", W / 2, cy, 3, "center");
 
+    // ── RANK ──
+    //  Sello aparte, en su propia esquina: no compite con la lista de
+    //  extras ni con el total, y así se lee de un vistazo aunque el
+    //  jugador ni siga la cuenta de abajo. Entra "golpeando" -grande y
+    //  se asienta- en vez de aparecer hecho.
+    if (resultado.rank && t > 0.4) {
+      const ap = Math.min(1, (t - 0.4) * 4);
+      const golpe = t < 0.75 ? 1.5 - ap * 0.5 : 1;
+      const rx = W - 54, ry = SAFE_TOP + 96;
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.scale(golpe, golpe);
+      ctx.globalAlpha = ap;
+      ctx.strokeStyle = RANK_COLOR[resultado.rank.letra]; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, 0, 34, 0, TAU); ctx.stroke();
+      ctx.font = "800 " + (resultado.rank.letra.length > 1 ? 26 : 32) + "px " + F;
+      ctx.fillStyle = RANK_COLOR[resultado.rank.letra];
+      ctx.fillText(resultado.rank.letra, 0, 2);
+      ctx.restore();
+      if (t > 0.9) {
+        ctx.globalAlpha = Math.min(1, (t - 0.9) * 3) * 0.55;
+        ctx.font = "700 8px " + F; ctx.fillStyle = "#fff";
+        letras("RANK", rx, ry + 46, 2, "center");
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // Los extras entran de uno en uno, con su sonido.
     const anchoP = Math.min(W - 56, 340), x0 = (W - anchoP) / 2;
     let y = cy + 52, sumado = resultado.base;
@@ -7088,6 +8237,23 @@ function render() {
       ctx.font = "800 12px " + F; ctx.fillStyle = UI.COL.oro;
       letras("+" + UI.cifra("misEloi", resultado.eloi) + " ELOI", W / 2,
         y + (resultado.recordMision ? 126 : 92), 2.6, "center");
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Resumen compacto ──
+    //  Una sola línea, pequeña, solo lo que pasó de verdad -"no
+    //  convertir en Excel" es literal en el encargo-. COMBO y
+    //  DIFICULTAD siempre; el resto solo si hubo alguno.
+    if (t > 2.4) {
+      const partes = ["COMBO ×" + resultado.maxCombo];
+      if (resultado.skillEventos) partes.push(resultado.skillEventos + " SKILL");
+      if (resultado.elites) partes.push(resultado.elites + " ÉLITE" + (resultado.elites > 1 ? "S" : ""));
+      if (resultado.overdrives) partes.push(resultado.overdrives + "× OVERDRIVE");
+      partes.push(resultado.dificultad);
+      if (resultado.recordDif || resultado.rankRecordDif) partes.push("★ NUEVO MEJOR");
+      ctx.globalAlpha = Math.min(1, (t - 2.4) * 3) * 0.6;
+      ctx.font = "700 9px " + F; ctx.fillStyle = "#fff";
+      letras(partes.join("   ·   "), W / 2, y + (resultado.recordMision ? 150 : 116), 1, "center");
       ctx.globalAlpha = 1;
     }
 

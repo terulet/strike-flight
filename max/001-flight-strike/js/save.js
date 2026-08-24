@@ -90,6 +90,19 @@ var SAVE = (function () {
     "perfil.misionesCompletadas": { tipo: "entero", def: 0, min: 0, max: 1e9 },
     "perfil.jefesDerrotados":     { tipo: "entero", def: 0, min: 0, max: 1e9 },
     "perfil.tiempoJugado":        { tipo: "numero", def: 0, min: 0, max: 1e9 },
+    // Bloque 6I — estadísticas de por vida de los sistemas del Bloque 6.
+    // Cada una suma lo de ESA misión al cerrarla, no vive por partida.
+    "perfil.closeCalls":              { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    "perfil.elitesDerrotados":        { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    "perfil.jackpots":                { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    "perfil.evolucionesDescubiertas": { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    "perfil.overdrivesUsados":        { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    // bestScore/bestRank POR MISIÓN Y DIFICULTAD: clave compuesta
+    // "misionIdx_dificultad" (p.ej. "3_high"). `campana.records` (de
+    // siempre) sigue siendo el récord por misión SIN distinguir
+    // dificultad — no se toca, es lo que ya lee el resto del juego.
+    "campana.recordsDif":         { tipo: "mapaNum", def: {} },
+    "campana.rankDif":            { tipo: "mapaNum", def: {} },   // 0=C 1=B 2=A 3=S 4=S+
 
     // Lista vacía = ninguna nave bloqueada. Hoy están las cinco
     // disponibles y NO se toca eso: el campo queda preparado para el
@@ -594,6 +607,33 @@ var SAVE = (function () {
 
     recordMision: function (idx) {
       return (datos && datos.campana.records["m" + idx]) || 0;
+    },
+
+    // Bloque 6I — récord de score Y de rank, cada uno por separado,
+    // los DOS por misión Y por dificultad. No tienen por qué caer en la
+    // misma partida: alguien puede sacar su mejor puntuación un día y
+    // su mejor letra otro, y las dos cuentan.
+    subirRecordDif: function (idx, dificultad, score) {
+      if (!datos) return false;
+      var k = "m" + idx + "_" + dificultad;
+      var n = Math.max(0, Math.floor(Number(score) || 0));
+      var prev = datos.campana.recordsDif[k] || 0;
+      if (n > prev) { datos.campana.recordsDif[k] = n; marcar("récord M" + (idx + 1) + " " + dificultad); return true; }
+      return false;
+    },
+    recordDif: function (idx, dificultad) {
+      return (datos && datos.campana.recordsDif["m" + idx + "_" + dificultad]) || 0;
+    },
+    subirRankDif: function (idx, dificultad, rankNum) {
+      if (!datos) return false;
+      var k = "m" + idx + "_" + dificultad;
+      var n = Math.max(0, Math.min(4, Math.floor(Number(rankNum) || 0)));
+      var prev = datos.campana.rankDif[k] || 0;
+      if (n > prev) { datos.campana.rankDif[k] = n; marcar("rank M" + (idx + 1) + " " + dificultad); return true; }
+      return false;
+    },
+    rankDif: function (idx, dificultad) {
+      return (datos && datos.campana.rankDif["m" + idx + "_" + dificultad]) || 0;
     },
 
     // Contadores que solo suman.
