@@ -27,7 +27,17 @@ export class Ticker {
     this.last = performance.now();
     const step = (now: number) => {
       if (!this.running) return;
-      const dt = Math.min(MAX_DT, (now - this.last) / 1000);
+      // Math.max(0, ...) y no solo Math.min(MAX_DT, ...): el primer fotograma
+      // tras start() puede llegar con un timestamp de rAF ANTERIOR al
+      // performance.now() que se guardo al arrancar -es el propio navegador
+      // el que lo da asi, no un reloj mal leido- y sin el suelo, ese primer dt
+      // sale negativo. Un dt negativo no se nota en casi nada porque los
+      // contadores lo absorben, pero cualquiera que acumule con % (como
+      // backdropRadial) puede acabar pidiendo un arco de radio negativo, y eso
+      // no es un dibujo raro: es una excepcion sin capturar que para el bucle
+      // de fotogramas entero. Se vio en la practica: PULSE y CUENTA lo tiraban
+      // en jugadas normales, sin tocar nada del dispositivo.
+      const dt = Math.max(0, Math.min(MAX_DT, (now - this.last) / 1000));
       this.last = now;
       this.frames++;
       this.fpsAccum += dt;

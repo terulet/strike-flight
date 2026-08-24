@@ -96,6 +96,11 @@ export type MarcaName =
   | 'ritmo'
   | 'trazo'
   | 'freno'
+  | 'caza'
+  | 'cuenta'
+  | 'torre'
+  | 'trile'
+  | 'carga'
   | 'secreto'
   | 'llave'
   | 'chaos';
@@ -136,6 +141,41 @@ const MARCAS: Record<MarcaName, string> = {
   freno:
     `<circle cx="12" cy="12" r="8.4" ${T} stroke-width="2"/>` +
     `<path d="M6.1 6.1l11.8 11.8" ${T} stroke-width="2.2"/>`,
+  // Tres flechas mirando igual y una torcida: la partida entera en un icono.
+  caza:
+    `<path d="M4.6 14.2l2.4-3 2.4 3" ${T} stroke-width="1.9" opacity="0.5"/>` +
+    `<path d="M14.6 14.2l2.4-3 2.4 3" ${T} stroke-width="1.9" opacity="0.5"/>` +
+    `<path d="M4.6 21.2l2.4-3 2.4 3" ${T} stroke-width="1.9" opacity="0.5"/>` +
+    `<path d="M13.4 6.6l3.8-.7.6 3.8" ${T} stroke-width="2.3"/>`,
+  // Dos nubes: la de la derecha tiene mas. No hace falta contarlas para verlo.
+  cuenta:
+    '<circle cx="5.4" cy="7.6" r="1.5" fill="currentColor" opacity="0.75"/>' +
+    '<circle cx="9" cy="12" r="1.5" fill="currentColor" opacity="0.75"/>' +
+    '<circle cx="5" cy="16.2" r="1.5" fill="currentColor" opacity="0.75"/>' +
+    `<path d="M12 3.4v17.2" ${T} stroke-width="1.4" opacity="0.35"/>` +
+    '<circle cx="16" cy="6.4" r="1.5" fill="currentColor"/>' +
+    '<circle cx="20" cy="9.4" r="1.5" fill="currentColor"/>' +
+    '<circle cx="15.4" cy="12.4" r="1.5" fill="currentColor"/>' +
+    '<circle cx="19.4" cy="15.4" r="1.5" fill="currentColor"/>' +
+    '<circle cx="15.8" cy="18.4" r="1.5" fill="currentColor"/>',
+  // Bloques que se estrechan segun suben, y el de arriba descolocado.
+  torre:
+    `<rect x="3.6" y="17.4" width="16.8" height="3.4" rx="1" ${T} stroke-width="1.8"/>` +
+    `<rect x="5.2" y="13.2" width="13.6" height="3.4" rx="1" ${T} stroke-width="1.8"/>` +
+    `<rect x="7.4" y="9" width="9.6" height="3.4" rx="1" ${T} stroke-width="1.8"/>` +
+    '<rect x="9.8" y="4.2" width="8" height="3.4" rx="1" fill="currentColor"/>',
+  // Tres discos y el arco del cambiazo por encima.
+  trile:
+    `<path d="M6.6 8.2c2.6-3.4 8.2-3.4 10.8 0" ${T} stroke-width="1.7" opacity="0.55"/>` +
+    `<circle cx="5.4" cy="15.4" r="3.4" ${T} stroke-width="1.9"/>` +
+    '<circle cx="12" cy="15.4" r="3.4" fill="currentColor"/>' +
+    `<circle cx="18.6" cy="15.4" r="3.4" ${T} stroke-width="1.9"/>`,
+  // Anillo a medio cargar con la franja buena marcada.
+  carga:
+    `<circle cx="12" cy="12" r="8.2" ${T} stroke-width="1.6" opacity="0.4"/>` +
+    `<path d="M12 3.8a8.2 8.2 0 0 1 7.1 4.1" ${T} stroke-width="2.6"/>` +
+    `<path d="M19.9 10.4a8.2 8.2 0 0 1-.9 5.4" ${T} stroke-width="2.6" opacity="0.55"/>` +
+    '<circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
   secreto:
     `<rect x="4.4" y="10.4" width="15.2" height="10.2" rx="2.6" ${T} stroke-width="1.9"/>` +
     `<path d="M8 10.4V8a4 4 0 0 1 8 0v2.4" ${T} stroke-width="1.9"/>` +

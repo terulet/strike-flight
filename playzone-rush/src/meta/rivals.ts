@@ -26,7 +26,10 @@ export const RIVALS: Rival[] = [
     id: 'marc',
     name: 'MARC',
     color: '#ff6b6b',
-    skill: { reflejos: 0.82, supervivencia: 0.66, precision: 0.74, memoria: 0.6, ritmo: 0.77, trazo: 0.58, inhibicion: 0.55 },
+    skill: {
+      reflejos: 0.82, supervivencia: 0.66, precision: 0.74, memoria: 0.6, ritmo: 0.77, trazo: 0.58, inhibicion: 0.55,
+      busqueda: 0.68, calculo: 0.71, seguimiento: 0.6,
+    },
     consistency: 0.72,
     vibe: 'Juega a las 8 de la mañana y no lo dice.',
   },
@@ -34,7 +37,10 @@ export const RIVALS: Rival[] = [
     id: 'kali',
     name: 'KALI',
     color: '#22d3ee',
-    skill: { reflejos: 0.63, supervivencia: 0.86, precision: 0.58, memoria: 0.71, ritmo: 0.52, trazo: 0.74, inhibicion: 0.8 },
+    skill: {
+      reflejos: 0.63, supervivencia: 0.86, precision: 0.58, memoria: 0.71, ritmo: 0.52, trazo: 0.74, inhibicion: 0.8,
+      busqueda: 0.75, calculo: 0.57, seguimiento: 0.88,
+    },
     consistency: 0.55,
     vibe: 'O queda primera o queda ultima.',
   },
@@ -42,7 +48,10 @@ export const RIVALS: Rival[] = [
     id: 'yoli',
     name: 'YOLI',
     color: '#f472b6',
-    skill: { reflejos: 0.7, supervivencia: 0.6, precision: 0.83, memoria: 0.88, ritmo: 0.86, trazo: 0.9, inhibicion: 0.72 },
+    skill: {
+      reflejos: 0.7, supervivencia: 0.6, precision: 0.83, memoria: 0.88, ritmo: 0.86, trazo: 0.9, inhibicion: 0.72,
+      busqueda: 0.84, calculo: 0.79, seguimiento: 0.76,
+    },
     consistency: 0.8,
     vibe: 'Nunca falla dos veces la misma diana.',
   },
@@ -50,7 +59,10 @@ export const RIVALS: Rival[] = [
     id: 'silvia',
     name: 'SILVIA',
     color: '#a3e635',
-    skill: { reflejos: 0.58, supervivencia: 0.72, precision: 0.69, memoria: 0.64, ritmo: 0.61, trazo: 0.67, inhibicion: 0.63 },
+    skill: {
+      reflejos: 0.58, supervivencia: 0.72, precision: 0.69, memoria: 0.64, ritmo: 0.61, trazo: 0.67, inhibicion: 0.63,
+      busqueda: 0.6, calculo: 0.66, seguimiento: 0.65,
+    },
     consistency: 0.62,
     vibe: 'Empieza floja y remonta al tercer intento.',
   },
@@ -75,6 +87,19 @@ export const GAME_BASELINES: Record<string, { low: number; high: number }> = {
   drift: { low: 1400, high: 5200 },
   snap: { low: 1300, high: 4100 },
   memory: { low: 1500, high: 4800 },
+  // Calibrados igual, con tools/playtest.mjs, cuando entraron en la rotacion.
+  // Sin esta linea un juego cae en DEFAULT_BASELINE y los rivales sacan la
+  // misma marca en un juego generoso que en uno tacano: se nota enseguida
+  // porque el mismo rival queda primero un dia y ultimo al siguiente sin que
+  // haya pasado nada.
+  ritmo: { low: 1500, high: 4700 },
+  trazo: { low: 1200, high: 3900 },
+  freno: { low: 1300, high: 4300 },
+  caza: { low: 1400, high: 4500 },
+  cuenta: { low: 1600, high: 5000 },
+  torre: { low: 1200, high: 4400 },
+  trile: { low: 1300, high: 4200 },
+  carga: { low: 1500, high: 4900 },
 };
 
 const DEFAULT_BASELINE = { low: 1500, high: 4200 };

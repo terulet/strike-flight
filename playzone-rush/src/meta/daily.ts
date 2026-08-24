@@ -11,6 +11,7 @@ import { Rng, seedFrom } from '../core/rng';
 import type { SkillKind } from '../game/contract';
 import { listGames } from '../game/registry';
 import { DAILY_MUTATOR_POOL, resolveMutators } from '../game/mutators';
+import { juegosDelDia } from './rotacion';
 
 export type ChallengeKind = 'daily' | 'secret' | 'chaos';
 
@@ -59,8 +60,20 @@ export const DAILY_ATTEMPTS = 3;
 export const SECRET_ATTEMPTS = 1;
 export const CHAOS_ATTEMPTS = 1;
 
-/** Mutadores fijos del reto secreto: a oscuras y con puntos dobles. */
-export const SECRET_MUTATORS = ['blackout', 'double'];
+/**
+ * De donde sale la vuelta de tuerca del reto secreto cuando el apagon no vale.
+ *
+ * El apagon es una vineta pegada al dedo, asi que hay juegos donde no es una
+ * dificultad sino una imposibilidad: en CUENTA hay que comparar dos nubes a la
+ * vez y en TRILE hay que vigilar toda la pantalla. Esos juegos lo declaran como
+ * no soportado, y el filtro de supportedFor() lo quitaba en silencio: el reto
+ * secreto se quedaba en "puntos dobles", sin nada de secreto. Pasaba un dia de
+ * cada veintidos, que es justo la frecuencia con la que una cosa asi no se
+ * detecta a mano.
+ *
+ * En orden de preferencia. El primero que el juego entienda, ese.
+ */
+export const SECRET_TWISTS = ['blackout', 'mirror', 'tiny', 'sprint'];
 
 export function catalogFromRegistry(): GameCatalogEntry[] {
   return listGames().map((def) => ({
@@ -112,6 +125,16 @@ function makeChallenge(
   };
 }
 
+/**
+ * Los mutadores del reto secreto para un juego concreto: siempre puntos
+ * dobles, mas la primera vuelta de tuerca de SECRET_TWISTS que ese juego
+ * entienda. Nunca se queda en solo dobles.
+ */
+function torcer(game: GameCatalogEntry): string[] {
+  const twist = SECRET_TWISTS.find((id) => supportedFor(game, [id]).length > 0);
+  return twist ? [twist, 'double'] : ['double'];
+}
+
 const DIFFICULTIES = [0.15, 0.38, 0.62];
 const MUTATOR_COUNTS = [0, 1, 2];
 
@@ -123,9 +146,13 @@ export function buildDailyPlan(dayKey: string, catalog: GameCatalogEntry[] = cat
 
   const seed = seedFrom('day', dayKey);
   const rng = new Rng(seed);
-  const shuffled = rng.shuffle(catalog);
-  const picks: GameCatalogEntry[] = [];
-  for (let i = 0; i < 3; i++) picks.push(shuffled[i % shuffled.length] as GameCatalogEntry);
+
+  // Que juegos tocan hoy no lo decide esta semilla, sino la bolsa: barajar de
+  // cero cada dia repetia el 87% de los dias. Ver meta/rotacion.ts.
+  const porId = new Map(catalog.map((g) => [g.id, g]));
+  const picks = juegosDelDia(dayKey, catalog.map((g) => g.id)).map(
+    (id) => porId.get(id) as GameCatalogEntry,
+  );
 
   // Mutadores del dia: distintos entre si para que los tres retos no rimen.
   const pool = rng.shuffle(DAILY_MUTATOR_POOL);
@@ -151,7 +178,11 @@ export function buildDailyPlan(dayKey: string, catalog: GameCatalogEntry[] = cat
     ),
   );
 
-  const secretGame = rng.pick(picks);
+  // Se prefiere un juego que SI pueda jugarse a oscuras, para que el reto
+  // secreto siga siendo el reto a oscuras casi siempre. Solo si ninguno de los
+  // tres puede, se le busca otra vuelta de tuerca.
+  const aOscuras = picks.filter((g) => supportedFor(g, ['blackout']).length > 0);
+  const secretGame = rng.pick(aOscuras.length > 0 ? aOscuras : picks);
   const secret = makeChallenge(
     dayKey,
     'secret',
@@ -160,7 +191,7 @@ export function buildDailyPlan(dayKey: string, catalog: GameCatalogEntry[] = cat
     'secret',
     secretGame,
     0.7,
-    SECRET_MUTATORS,
+    torcer(secretGame),
     SECRET_ATTEMPTS,
     true,
   );

@@ -199,7 +199,10 @@ export function backdropRadial(
   const maximo = Math.hypot(width, height) / 2;
   const separacion = 78;
   for (let i = 0; i < 7; i++) {
-    const r = ((fase * 24 + i * separacion) % maximo);
+    // Math.max(0, ...): salvaguarda ademas de la correccion en Ticker (ver
+    // core/loop.ts). % en JS seria negativo si 'fase' llegara a serlo, y un
+    // radio negativo en ctx.arc() no pinta nada raro: lanza y para el frame.
+    const r = Math.max(0, (fase * 24 + i * separacion) % maximo);
     ctx.globalAlpha = 0.055 * (1 - r / maximo);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);

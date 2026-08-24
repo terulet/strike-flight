@@ -29,7 +29,7 @@
 import type { AudioBus } from '../core/audio';
 import type { Haptics } from '../core/haptics';
 import type { ChallengeSpec } from '../meta/daily';
-import { requireGame } from '../game/registry';
+import { listGames, requireGame } from '../game/registry';
 import { el } from './dom';
 import { hayMarca, marca } from './icons';
 
@@ -187,10 +187,13 @@ function simbolo(id: string): HTMLElement {
  * aparezca cuatro veces durante el giro: si ya lo has visto pasar, verlo
  * aterrizar no sorprende.
  */
-function simbolosSenuelo(ganador: string, cuantos: number): string[] {
-  const otros = ['pulse', 'drift', 'snap', 'memory', 'ritmo', 'trazo', 'freno'].filter(
-    (id) => id !== ganador && hayMarca(id),
-  );
+export function simbolosSenuelo(ganador: string, cuantos: number): string[] {
+  // Sale del registro, no de una lista escrita a mano: un juego nuevo entra en
+  // el sorteo el mismo dia que entra en el catalogo, sin que nadie se acuerde
+  // de venir a tocar este fichero.
+  const otros = listGames()
+    .map((def) => def.meta.id)
+    .filter((id) => id !== ganador && hayMarca(id));
   const salida: string[] = [];
   for (let i = 0; i < cuantos; i++) salida.push(otros[i % otros.length] ?? ganador);
   return salida;

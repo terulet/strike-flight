@@ -198,6 +198,153 @@ export async function playFreno(page, ms = 60000, quality = 1) {
   }
 }
 
+
+/**
+ * Espera `ms` en pasos cortos, comprobando isOver() entre paso y paso.
+ *
+ * Los bots de reaccion lenta (CAZA, CUENTA, TORRE, TRILE, CARGA) necesitan
+ * esperar cientos de milisegundos antes de tocar -es lo que los hace jugar
+ * como alguien que mira antes de decidir, no como un oraculo-, pero una espera
+ * de un solo bloque deja una ventana larga en la que la partida puede acabar
+ * DURANTE la espera. Si eso pasa y se toca de todos modos, el toque no cae
+ * sobre nada del juego: cae sobre lo que haya debajo en ese momento, que suele
+ * ser el boton de REVANCHA de la pantalla de resultado, y la partida se
+ * reinicia sola. Paso a paso, la ventana se reduce al tamano de un paso.
+ *
+ * Devuelve false si la partida termino durante la espera (no se debe tocar).
+ */
+async function esperar(page, ms) {
+  const paso = 55;
+  let queda = ms;
+  while (queda > 0) {
+    await page.waitForTimeout(Math.min(paso, queda));
+    queda -= paso;
+    if (await isOver(page)) return false;
+  }
+  return true;
+}
+
+/**
+ * CAZA: toca la flecha torcida. debugInfo ya dice cual es.
+ *
+ * EL RETARDO NO ES ADORNO, ES LA CALIBRACION. El bot sabe la respuesta de
+ * antemano, asi que sin esperar juega como un oraculo: resolvia una ronda cada
+ * 200 ms y sacaba 45.371 puntos, diez veces el techo de los demas juegos. Con
+ * ese numero se habrian ajustado mal las marcas de los rivales y el reto con
+ * CAZA habria decidido el dia entero por si solo.
+ *
+ * El retardo simula lo unico que el bot se salta: BUSCAR. Unos 20 ms por
+ * casilla que hay que barrer, mas el tiempo de reaccion. Es una estimacion,
+ * pero es una estimacion declarada, no un cero disimulado.
+ */
+export async function playCaza(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (!state?.rara) { await page.waitForTimeout(60); continue; }
+    const buscar = 350 + (state.casillas ?? 15) * 20;
+    if (!(await esperar(page, buscar * (2 - quality)))) break;
+    const ahora = await readState(page);
+    if (!ahora?.rara) break; // la partida ya no esta en marcha
+    await page.mouse.click(ahora.rara.x, ahora.rara.y);
+    await page.waitForTimeout(60);
+  }
+}
+
+/**
+ * CUENTA: toca el lado bueno. Con menos calidad se equivoca de lado a ratos.
+ *
+ * Mismo retardo declarado que en CAZA y por lo mismo (sacaba 39.200). Aqui lo
+ * que cuesta tiempo es DECIDIR, y decidir cuesta mas cuanto mas parecidas son
+ * las dos nubes: de ahi que la espera dependa de la ratio de la ronda.
+ */
+export async function playCuenta(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  let tick = 0;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const state = await readState(page);
+    if (state?.ganador === undefined) { await page.waitForTimeout(40); continue; }
+    const espera = (350 + (1.9 - (state.ratio ?? 1.5)) * 700) * (2 - quality);
+    if (!(await esperar(page, espera))) break;
+    const ahora = await readState(page);
+    if (ahora?.ganador === undefined) break;
+    let lado = ahora.ganador;
+    if (quality < 1 && tick++ % Math.max(2, Math.round(1 / (1 - quality))) === 0) lado = 1 - lado;
+    await page.mouse.click(lado === 0 ? VIEW.w * 0.25 : VIEW.w * 0.75, VIEW.h * 0.45);
+    await page.waitForTimeout(60);
+  }
+}
+
+/**
+ * TORRE: calcula cuando el bloque estara encima y suelta entonces.
+ *
+ * No sirve el bucle de "mira y toca" de los demas bots: entre leer el estado y
+ * hacer clic pasan decenas de milisegundos y a esa velocidad el bloque ya se ha
+ * ido. Se predice el instante y se espera, igual que en RITMO.
+ *
+ * `adelanto` compensa la latencia del propio Playwright. Con calidad baja se
+ * exagera, que es exactamente como falla una persona: soltando pronto.
+ */
+export async function playTorre(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  const adelanto = 0.035 + (1 - quality) * 0.09;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const s = await readState(page);
+    if (!s || s.velocidad === undefined) { await page.waitForTimeout(40); continue; }
+    const falta = (s.objetivoX - s.movilX) / (s.direccion * s.velocidad);
+    if (falta > 0 && falta < 3) {
+      const esperaMs = (falta - adelanto) * 1000;
+      if (esperaMs > 0 && !(await esperar(page, esperaMs))) break;
+      await page.mouse.click(VIEW.w / 2, VIEW.h * 0.5);
+      await page.waitForTimeout(60);
+      continue;
+    }
+    await page.waitForTimeout(25);
+  }
+}
+
+/** TRILE: espera a la fase de responder y toca el disco bueno. */
+export async function playTrile(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  let tick = 0;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const s = await readState(page);
+    if (s?.fase !== 'respondiendo' || !s.bueno) { await page.waitForTimeout(60); continue; }
+    // Tambien aqui: el bot no pierde de vista el disco nunca, asi que se le
+    // pone el tiempo que tarda una persona en decidirse y senalar.
+    if (!(await esperar(page, 550 * (2 - quality)))) break;
+    if (quality < 1 && tick++ % Math.max(2, Math.round(1 / (1 - quality))) === 0) {
+      // Perder el disco de vista: se toca a un lado, donde suele haber otro.
+      await page.mouse.click(VIEW.w - s.bueno.x, s.bueno.y);
+    } else {
+      await page.mouse.click(s.bueno.x, s.bueno.y);
+    }
+    await page.waitForTimeout(120);
+  }
+}
+
+/**
+ * CARGA: aprieta, calcula cuando la carga llegara al centro de la franja y
+ * suelta ahi. Mismo problema de latencia que TORRE y misma solucion.
+ */
+export async function playCarga(page, ms = 60000, quality = 1) {
+  const t0 = Date.now();
+  const adelanto = 0.03 + (1 - quality) * 0.1;
+  while (!(await isOver(page)) && Date.now() - t0 < ms) {
+    const s = await readState(page);
+    if (!s?.franja) { await page.waitForTimeout(40); continue; }
+    if (s.fase === 'juzgando') { await page.waitForTimeout(60); continue; }
+
+    const centro = (s.franja[0] + s.franja[1]) / 2;
+    await page.mouse.move(VIEW.w / 2, VIEW.h * 0.5);
+    await page.mouse.down();
+    const esperaMs = ((centro - s.carga) / s.velocidad - adelanto) * 1000;
+    if (esperaMs > 0 && !(await esperar(page, esperaMs))) { await page.mouse.up(); break; }
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+  }
+}
+
 export const BOTS = {
   pulse: playPulse,
   drift: playDrift,
@@ -206,6 +353,11 @@ export const BOTS = {
   ritmo: playRitmo,
   trazo: playTrazo,
   freno: playFreno,
+  caza: playCaza,
+  cuenta: playCuenta,
+  torre: playTorre,
+  trile: playTrile,
+  carga: playCarga,
 };
 
 /**

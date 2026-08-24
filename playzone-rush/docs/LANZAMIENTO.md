@@ -10,9 +10,11 @@ un requisito — está explicado abajo.
 
 ## Por qué después de medianoche
 
-Los retos del día se sortean **barajando el catálogo de juegos** con la semilla
-del día. El alfa tiene 4 juegos y la versión nueva tiene 7, así que la
-combinación del día **cambia** al desplegar.
+Los retos del día se sortean con una **bolsa** sobre el catálogo de juegos (ver
+`src/meta/rotacion.ts`): se reparte el catálogo entero antes de repetir
+ninguno, en vez de barajar de cero cada día. El alfa tiene 4 juegos y la
+versión nueva tiene 12, así que la combinación del día **cambia** al
+desplegar.
 
 Y las marcas se guardan por `challengeId` (`c1`, `c2`, `c3`), **no por juego**,
 ni en el móvil ni en el servidor.
@@ -23,7 +25,7 @@ colgada del juego equivocado y sus intentos ya están gastados. El ranking del
 día se descuadra justo el día que quieres que la gente vea la versión nueva.
 
 El día competitivo rota a medianoche en `Europe/Madrid`. Desplegar después de
-esa hora deja el día anterior cerrado y el nuevo empieza ya con 7 juegos.
+esa hora deja el día anterior cerrado y el nuevo empieza ya con los 12 juegos.
 
 ---
 
@@ -116,15 +118,17 @@ Crea el grupo nuevo tú primero y pasa el código.
 curl -s http://127.0.0.1:8788/api/health | grep buildId
 cat dist/build-id.txt          # tienen que coincidir
 
-# 2. Hay 7 juegos
-grep -c "registerGame(" src/games/index.ts
+# 2. Hay 12 juegos
+grep -c "registerGame(" src/games/index.ts   # cuenta tambien la linea del comentario:
+                                               # el numero real esta en GAME_IDS.length
 
 # 3. Desde fuera, con datos móviles y la Wi-Fi apagada
 #    (no vale desde el propio Mac: MagicDNS resuelve por dentro)
 ```
 
 Y en el móvil: abrir, comprobar que sale el **sorteo** de los retos del día,
-que hay **7 juegos** en la rotación y que el ranking tiene **podio**.
+que hay **12 juegos** en la rotación (los 7 que ya se habían probado más CAZA,
+CUENTA, TORRE, TRILE y CARGA) y que el ranking tiene **podio**.
 
 ---
 

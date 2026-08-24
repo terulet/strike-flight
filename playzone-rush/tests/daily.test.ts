@@ -8,7 +8,7 @@ import {
   formatDuration,
 } from '../src/meta/daily';
 import { resolveMutators } from '../src/game/mutators';
-import { requireGame } from '../src/game/registry';
+import { getGame, requireGame } from '../src/game/registry';
 import { DAY, ensureGames } from './helpers';
 
 beforeAll(ensureGames);
@@ -98,11 +98,13 @@ describe('rotacion diaria', () => {
     expect(plan.chaos.attempts).toBe(1);
   });
 
-  it('el reto secreto es a oscuras y con puntos dobles', () => {
+  it('el reto secreto siempre lleva puntos dobles Y una vuelta de tuerca de verdad', () => {
     const plan = buildDailyPlan(DAY);
-    expect(plan.secret.mutatorIds).toContain('blackout');
     expect(plan.secret.mutatorIds).toContain('double');
     expect(plan.secret.scoreMultiplier).toBe(2);
+    // Lo que no puede pasar NUNCA es que se quede en solo dobles: eso es un
+    // reto normal con mas puntos, no un reto secreto.
+    expect(plan.secret.mutatorIds.length).toBeGreaterThan(1);
   });
 
   it('CHAOS no puntua en el ranking diario', () => {
@@ -138,5 +140,51 @@ describe('rotacion diaria', () => {
     ]);
     expect(plan.challenges).toHaveLength(3);
     expect(plan.challenges.every((c) => c.gameId === 'solo')).toBe(true);
+  });
+});
+
+/**
+ * Un ano entero de dias, no uno.
+ *
+ * El fallo que motivo estas comprobaciones aparecia un dia de cada veintidos:
+ * mirando un dia suelto se pasa, y mirando la app un martes cualquiera tambien.
+ */
+describe('el reto secreto, un ano seguido', () => {
+  const dias: string[] = [];
+  {
+    const d = new Date('2026-09-01T00:00:00Z');
+    for (let i = 0; i < 365; i++) {
+      dias.push(d.toISOString().slice(0, 10) as string);
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+
+  it('nunca se queda en solo puntos dobles', () => {
+    for (const k of dias) {
+      const secret = buildDailyPlan(k).secret;
+      expect(secret.mutatorIds.length, `${k}: ${secret.gameId}`).toBeGreaterThan(1);
+      expect(secret.mutatorIds, k).toContain('double');
+    }
+  });
+
+  it('sus mutadores son siempre de los que ese juego entiende', () => {
+    for (const k of dias) {
+      const plan = buildDailyPlan(k);
+      for (const reto of [...plan.challenges, plan.secret, plan.chaos]) {
+        const juego = getGame(reto.gameId);
+        const soportados = juego?.meta.supportedMutators;
+        if (!soportados) continue;
+        for (const m of reto.mutatorIds) {
+          expect(soportados, `${k} ${reto.id} ${reto.gameId}`).toContain(m);
+        }
+      }
+    }
+  });
+
+  it('sale a oscuras la gran mayoria de los dias', () => {
+    const aOscuras = dias.filter((k) => buildDailyPlan(k).secret.mutatorIds.includes('blackout'));
+    // Solo se renuncia al apagon cuando NINGUNO de los tres juegos del dia
+    // puede jugarse a oscuras. Con el catalogo de 12 eso es raro.
+    expect(aOscuras.length / dias.length).toBeGreaterThan(0.9);
   });
 });

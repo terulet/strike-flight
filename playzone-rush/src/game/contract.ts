@@ -29,7 +29,17 @@ import type { MutatorState } from './mutators';
 
 export type GameState = 'idle' | 'ready' | 'playing' | 'paused' | 'finished' | 'destroyed';
 
-export type SkillKind = 'reflejos' | 'supervivencia' | 'precision' | 'memoria' | 'ritmo' | 'trazo' | 'inhibicion';
+export type SkillKind =
+  | 'reflejos'
+  | 'supervivencia'
+  | 'precision'
+  | 'memoria'
+  | 'ritmo'
+  | 'trazo'
+  | 'inhibicion'
+  | 'busqueda'
+  | 'calculo'
+  | 'seguimiento';
 
 export type EndReason = 'time' | 'death' | 'aborted';
 
