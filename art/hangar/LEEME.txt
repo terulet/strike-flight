@@ -1,0 +1,38 @@
+===========================================
+  HANGAR  -  el fondo de la pantalla de naves
+===========================================
+
+  hangar_h.png    fondo APAISADO (el que hay)
+
+Se declara en index.html, junto al resto de
+la precarga:
+
+  cargarImagen("hangar_fondo", [...])
+
+-------------------------------------------
+  POR QUE ES UNA BANDA Y NO EL FONDO ENTERO
+-------------------------------------------
+
+El arte que hay es apaisado (4:3 tumbado) y
+el juego es vertical. Recortarlo a 3:4 se
+come el hangar entero y deja una pared.
+
+Asi que NO se recorta: se coloca como una
+banda a lo ancho, a media opacidad y con
+degradado a negro arriba y abajo, y la nave
+se dibuja encima. La banda ocupa el alto que
+necesita la nave, no la pantalla entera.
+
+-------------------------------------------
+  CUANDO LLEGUE EL VERTICAL
+-------------------------------------------
+
+Dejarlo aqui como hangar_v.png y anadirlo el
+PRIMERO de la lista en cargarImagen(): la
+carga prueba las rutas en orden y se queda
+con la primera que exista, asi que el
+apaisado queda de repuesto automatico.
+
+Ancho recomendado: 1280 px. Se dibuja como
+mucho a 820 px CSS, y de un fondo oscuro y
+desenfocado nadie distingue 1280 de 1640.

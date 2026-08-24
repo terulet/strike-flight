@@ -1,0 +1,19 @@
+node_modules/
+package-lock.json
+package.json
+.DS_Store
+
+# Volcado de arte en bruto (variantes de ChatGPT/image-gen). Se conserva en
+# disco pero no se versiona: las naves finales viven en art/naves/.
+assets/
+
+# Temporal del forjador de audio (WAV intermedios)
+audio/.forja/
+
+# Temporal del preparador de música (WAV intermedios de los stingers)
+audio/.forja-musica/
+
+# Packs de origen de assets/música: se procesan una vez y el resultado
+# real queda versionado en art/ y audio/musica/. El ZIP en sí no se
+# versiona — son paquetes de trabajo, no parte del juego.
+*.zip
