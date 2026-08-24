@@ -211,4 +211,41 @@ comprobaciones) + regresión completa. Verde.
 
 ---
 
-*(Continúa en 6F.)*
+## 6F — Overdrive
+
+**Carga** (`cargarOverdrive(cantidad)`, único embudo, escalado por
+`DIF.overdriveAccessMul` de 6B): kill normal (2.2) · boss break (6,
+vía `alMatar`) · élite (6, extra sobre el kill) · skill event (10) ·
+hito de combo (h×0.3) · bonus event exitoso (15). Tope 100.
+`OVERDRIVE READY` avisa una vez, al cruzar el tope.
+
+**Activación manual** (`activarOverdrive()` / gancho ADMIN
+`activateOverdrive()`): exige la barra llena y ninguna activa ya en
+marcha. Duración 13.5s (dentro de la horquilla 12-15s del encargo).
+`fillOverdrive()` (gancho ADMIN) llena la barra sin jugar.
+
+**Daño recibido reduce carga — nunca invencibilidad.** En carga, un
+golpe le quita 20 puntos de barra. Ya activa, un golpe le RECORTA 3s
+en vez de apagarla en seco (cortar en seco un momento que el jugador
+acaba de activar a mano se siente peor que acortarlo) — y sigue
+perdiendo vidas exactamente igual que sin Overdrive: no toca `golpe()`
+ni `hitR()`, así que las balas enemigas se ven y matan igual que
+siempre.
+
+**Efectos activa:** cadencia ×0.55 (mismo factor que TURBO, sin
+sumarse si coinciden), dos disparos laterales extra por ráfaga con
+cualquier arma equipada, score ×1.5 en `alMatar()`, aura rosa de tres
+arcos girando (mismo patrón que el anillo de invulnerabilidad, en el
+mismo `ctx.save()`, sin sprite nuevo) que NO tapa la nave ni cambia su
+radio de impacto real.
+
+**Audio:** reutilizado en su totalidad — `aviso` (READY), `ultimate`
+(activar, el disparo del arma ANIQUILADOR), `combo`/`ui_no` (fin). No
+hace falta declarar ningún asset SFX nuevo para este bloque.
+
+**Pruebas:** `herramientas/pruebas/overdrive.mjs` (21 comprobaciones)
++ regresión completa. Verde.
+
+---
+
+*(Continúa en 6G.)*

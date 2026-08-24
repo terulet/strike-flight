@@ -3447,6 +3447,7 @@ function reset() {
   olas.clear(); cadenaTiempos.length = 0; eliteChainT = -99;
   shards.length = 0;
   skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
+  overdrive = 0; overdriveActivo = 0;
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3577,6 +3578,7 @@ function finalizarBonusEvento(exito) {
     texto(W / 2, H * 0.4, bonusEvento.nombre + " ¡LOGRADO! +" + premio, bonusEvento.color, 18, { prioridad: 2 });
     onda(W / 2, H * 0.4, bonusEvento.color, 140, 0.5);
     sfx("combo", { tono: 1.3 });
+    cargarOverdrive(15);
     // PERFECT FORMATION es el disparador de jackpot que pide el encargo
     // -las otras cuatro ya tienen su propio premio arriba y no lo necesitan-.
     if (bonusEvento.tipo === "formacion") jackpot(W / 2, H * 0.34);
@@ -3658,6 +3660,7 @@ function skillEvent(tipo, x, y) {
   onda(px, py, d.color, 60, 0.3);
   sfx("combo", { tono: 1.15 });
   RHYTHM.marcar();
+  cargarOverdrive(10);
   return skillEventos[tipo];
 }
 
@@ -3793,6 +3796,86 @@ function dibujarShards() {
     ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     ctx.restore();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  OVERDRIVE
+// ════════════════════════════════════════════════════════════
+//  Se carga con kills, combo, skill events, élites, boss break y
+//  bonus events -todo pasa por `cargarOverdrive()`, un único sitio,
+//  igual que el resto del bloque-. El daño recibido la reduce: en
+//  carga, de golpe; ya activa, le recorta segundos en vez de matarla
+//  del todo, porque cortar en seco un momento que el jugador acaba de
+//  activar a mano se siente peor que acortarlo.
+//
+//  NO es invencibilidad: las balas enemigas siguen matando igual que
+//  siempre (nada aquí toca `golpe()` ni `hitR()`) y se siguen viendo
+//  igual de claras -el aura de la nave no las tapa, ver dibujarJugador()-.
+const OVERDRIVE_MAX = 100;
+const OVERDRIVE_DURACION = 13.5;   // dentro de la horquilla de 12-15s del encargo
+let overdrive = 0;
+let overdriveActivo = 0;   // segundos que quedan; 0 = inactiva
+
+function cargarOverdrive(cantidad) {
+  if (overdriveActivo > 0 || state !== "play") return;
+  const antes = overdrive;
+  overdrive = clamp(overdrive + cantidad * DIF.overdriveAccessMul, 0, OVERDRIVE_MAX);
+  if (antes < OVERDRIVE_MAX && overdrive >= OVERDRIVE_MAX) {
+    texto(player.x, player.y - 55, "OVERDRIVE READY", "#ff2fbd", 15, { prioridad: 2 });
+    sfx("aviso", { tono: 1.4 });
+    RHYTHM.marcar();
+  }
+}
+// Activación manual. Devuelve false si no estaba llena o ya estaba
+// activa -así ADMIN y el botón del HUD pueden usar el mismo camino
+// sin duplicar la comprobación.
+function activarOverdrive() {
+  if (overdrive < OVERDRIVE_MAX || overdriveActivo > 0 || state !== "play") return false;
+  overdrive = 0;
+  overdriveActivo = OVERDRIVE_DURACION;
+  sacudir("medium"); hitstop(0.06);
+  onda(player.x, player.y, "#ff2fbd", 130, 0.5);
+  texto(player.x, player.y - 55, "¡OVERDRIVE!", "#ff2fbd", 22, { prioridad: 2 });
+  sfx("ultimate", { tono: 1.2 });
+  RHYTHM.marcar();
+  return true;
+}
+// Ganchos de ADMIN/depuración -mismo nombre que pide el encargo-, para
+// probar el bloque sin tener que ganárselo jugando cada vez.
+function fillOverdrive() { overdrive = OVERDRIVE_MAX; }
+function activateOverdrive() { return activarOverdrive(); }
+function actualizarOverdrive(dt) {
+  if (state !== "play" || paused || overdriveActivo <= 0) return;
+  overdriveActivo = Math.max(0, overdriveActivo - dt);
+  if (overdriveActivo === 0) {
+    texto(player.x, player.y - 40, "overdrive apagada", "#8a8a9a", 11);
+    sfx("ui_no", { vol: 0.4 });
+  }
+}
+function barraOverdrive() {
+  if (state !== "play") return;
+  const bW = Math.min(W - 60, 200), bH = 8;
+  const bX = (W - bW) / 2, bY = H - SAFE_BOTTOM - 34;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(bX - 2, bY - 2, bW + 4, bH + 4);
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(bX, bY, bW, bH);
+  if (overdriveActivo > 0) {
+    ctx.fillStyle = "#ff2fbd";
+    ctx.fillRect(bX, bY, bW * (overdriveActivo / OVERDRIVE_DURACION), bH);
+  } else {
+    const lleno = overdrive >= OVERDRIVE_MAX;
+    ctx.fillStyle = lleno ? "#ffd700" : "#ff2fbd";
+    ctx.globalAlpha = lleno ? (0.7 + 0.3 * Math.sin(performance.now() / 160)) : 1;
+    ctx.fillRect(bX, bY, bW * (overdrive / OVERDRIVE_MAX), bH);
+    ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = "center"; ctx.font = "800 8px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.7;
+  letras(overdriveActivo > 0 ? "OVERDRIVE" : (overdrive >= OVERDRIVE_MAX ? "OVERDRIVE LISTA — TOCA AQUÍ" : "OVERDRIVE"), W / 2, bY - 9, 1.6, "center");
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  if (overdrive >= OVERDRIVE_MAX && overdriveActivo <= 0) {
+    botones.push({ x: bX - 10, y: bY - 20, w: bW + 20, h: bH + 30, fn: activarOverdrive });
   }
 }
 
@@ -4932,9 +5015,13 @@ function alMatar(o) {
   // no en las tablas de puntos de ENEMIGOS/DEFENSA_TIPOS (no se tocan):
   // así FÁCIL/NORMAL/DIFÍCIL premian sin desequilibrar el ELOI, que sale
   // de los extras de `cerrarMision()` — no de aquí — y no se mueve.
-  const pts = Math.round(base * DIF.scoreMul);
+  // El bono de OVERDRIVE va en el mismo sitio: activa, TODO kill vale más.
+  const pts = Math.round(base * DIF.scoreMul * (overdriveActivo > 0 ? 1.5 : 1));
   score += pts;
   hitoCombo();
+  // BOSS BREAK carga más que un kill normal: es un momento más raro.
+  const esRomperJefe = o.fuente === "nodoAegis" || o.fuente === "subOmega" || o.fuente === "sistema";
+  cargarOverdrive(esRomperJefe ? 6 : 2.2);
 
   const mostrar = opciones.texto === true ? true : opciones.texto === false ? false : mult > 1;
   if (mostrar) {
@@ -4959,9 +5046,7 @@ function alMatar(o) {
   // OMEGA, ALPHA/BETA/GAMMA de M9) es ya un momento fuerte por su
   // cuenta. No todas -"no abusar"- así que es una tirada, no un
   // disparo garantizado.
-  if ((o.fuente === "nodoAegis" || o.fuente === "subOmega" || o.fuente === "sistema") && Math.random() < 0.3) {
-    jackpot(o.posicion.x, o.posicion.y);
-  }
+  if (esRomperJefe && Math.random() < 0.3) jackpot(o.posicion.x, o.posicion.y);
   return { pts, mult, combo };
 }
 
@@ -4974,6 +5059,7 @@ function matar(e, i) {
   });
   lluviaShards(e.x, e.y, e.elite ? "elite" : "normal");
   if (e.elite) {
+    cargarOverdrive(6);
     // Cadena de élites: dos dentro de la ventana disparan un jackpot.
     // No hace falta contar más de dos — la ventana ya se corta sola si
     // el jugador tarda.
@@ -5086,6 +5172,7 @@ function hitoCombo() {
       vfx("chispa", W / 2, H * 0.62, 90 + h, 0.4);
       sfx("combo", { tono: 1 + HITOS.indexOf(h) * 0.12 });
       if (h >= 25) sacudir("tiny");
+      cargarOverdrive(h * 0.3);
       if (h >= 50) jackpot(W / 2, H * 0.48);
     }
   }
@@ -5202,6 +5289,11 @@ function golpe(fx, fy) {
   lives--; invulnT = CONFIG.invulnerable * DIF.invulnMul;
   RHYTHM.marcar();
   if (bonusEvento && bonusEvento.tipo === "riesgo" && bonusEvento.estado === "activo") finalizarBonusEvento(false);
+  // OVERDRIVE: en carga, un golpe le cuesta un buen mordisco. Ya activa,
+  // NO se apaga en seco -eso castigaría doblemente un golpe que ya duele-
+  // sino que se le recortan unos segundos.
+  if (overdriveActivo > 0) overdriveActivo = Math.max(0, overdriveActivo - 3);
+  else overdrive = Math.max(0, overdrive - 20);
   for (const w of olas.values()) w.sinDanio = false;
   sinDanioBoss = false;
   sinDanio = false;
@@ -5294,6 +5386,13 @@ function disparar() {
   player.retro = Math.min(6, a.dmg * 1.6);
   sfx(a.snd);
   if (a.sac) sacudir(a.sac);
+  if (overdriveActivo > 0) {
+    // Dos disparos laterales EXTRA, siempre, con el arma que sea: es el
+    // bloque el que se pone bruto, no el arma que llevas puesta.
+    bullets.push(nuevaBala(player.x - player.r * 0.75, y, -260, -a.vel * 0.85, a));
+    bullets.push(nuevaBala(player.x + player.r * 0.75, y, 260, -a.vel * 0.85, a));
+    bulletsFiredo += 2;
+  }
 }
 
 // Cambiar de familia conserva el nivel: subir el arma seis veces y perderlo
@@ -5323,6 +5422,7 @@ function update(dt) {
     actualizarBonusEvento(dt);
     rhythmDirectorTick(dt);
     actualizarShards(dt);
+    actualizarOverdrive(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
@@ -5387,7 +5487,7 @@ function update(dt) {
   }
 
   const armaAct = ARMAS[armaId] || ARMAS.cannon;
-  const cad = armaAct.cad * nv.cad * (turbo > 0 ? 0.55 : 1);
+  const cad = armaAct.cad * nv.cad * ((turbo > 0 || overdriveActivo > 0) ? 0.55 : 1);
   shootAcc += dt * 1000;
   let disparos = 0;
   while (shootAcc >= cad && disparos < 4) { shootAcc -= cad; disparar(); disparos++; }
@@ -6007,6 +6107,28 @@ function dibujarJugador() {
     ctx.beginPath();
     ctx.arc(0, 0, r * (2 + (1 - k) * 1.2), escudoAng - 0.9 * k, escudoAng + 0.9 * k);
     ctx.stroke();
+  }
+
+  // Aura de OVERDRIVE. Más grande y más rápida que la de invulnerabilidad
+  // -tienen que distinguirse a un vistazo- y NO tapa la nave ni sube el
+  // radio real de impacto: es lectura, no un escudo disfrazado.
+  if (overdriveActivo > 0) {
+    const gira = performance.now() / 340;
+    ctx.globalAlpha = 0.55 + 0.25 * Math.sin(performance.now() / 70);
+    ctx.strokeStyle = "#ff2fbd";
+    ctx.lineWidth = 2.6;
+    for (let i = 0; i < 3; i++) {
+      const a0 = gira + i * TAU / 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 2.7, a0, a0 + TAU / 3 * 0.55);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.16;
+    const go = ctx.createRadialGradient(0, 0, r * 1.4, 0, 0, r * 3.2);
+    go.addColorStop(0, "rgba(0,0,0,0)");
+    go.addColorStop(1, "#ff2fbd");
+    ctx.fillStyle = go;
+    ctx.beginPath(); ctx.arc(0, 0, r * 3.2, 0, TAU); ctx.fill();
   }
 
   ctx.globalCompositeOperation = "source-over";
@@ -7582,7 +7704,7 @@ function render() {
   if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
 
   if (state === "menu") menu();
-  else { hud(); barraJefe(); barraBonus(); }
+  else { hud(); barraJefe(); barraBonus(); barraOverdrive(); }
 
   // ── Fin de partida ──
   if (state === "over") {
