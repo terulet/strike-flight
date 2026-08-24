@@ -260,12 +260,18 @@ export class App {
   /**
    * El sorteo de los retos del dia, la primera vez que se abre cada dia.
    *
+   * Publico (y no privado como el resto de "quiza-algo" de este fichero)
+   * porque `boot()` no es el unico sitio donde alguien puede aterrizar en
+   * home por primera vez en el dia: crear grupo, unirse o "probar solo" desde
+   * el onboarding tambien lo son, y sin esto su primer dia -el que mas
+   * importa enganchar- no tenia sorteo en absoluto.
+   *
    * Se pinta ENCIMA de la portada, no en vez de ella: si alguien lo salta al
    * instante se encuentra la pantalla ya montada debajo, sin un fotograma en
    * blanco. La marca se guarda antes de ensenarlo y no despues, para que
    * cerrar la app a medias no lo repita en la siguiente apertura.
    */
-  private quizaSortear(): void {
+  quizaSortear(): void {
     if (this.save.get().days[this.dayKey]?.revealVisto) return;
     const retos = this.plan.challenges;
     if (retos.length === 0) return;
@@ -352,6 +358,7 @@ export class App {
     // Al unirse se entra directo: no hay codigo que ensenar ni paso extra.
     this.reloadDay();
     this.renderHome();
+    this.quizaSortear();
   }
 
   playSolo(): void {
@@ -359,6 +366,7 @@ export class App {
     this.telemetry.track('app_open');
     this.reloadDay();
     this.renderHome();
+    this.quizaSortear();
   }
 
   leaveGroup(): void {

@@ -268,6 +268,7 @@
 
 /* ---------- Aviso de adelantamiento ---------- */
 .overtake {
+  position: relative;
   border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 47, 109, 0.5);
   background: linear-gradient(160deg, rgba(255, 47, 109, 0.2), var(--surface));
@@ -275,14 +276,21 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: overtake-in 320ms var(--ease-out);
+  animation: overtake-in 420ms var(--ease-elastico);
   box-shadow: 0 12px 40px rgba(255, 47, 109, 0.18);
 }
 
+/* Esto no es un aviso mas: alguien te acaba de quitar el puesto. Entra con
+   mas caida y mas rebote que un banner normal -mismo espiritu que el golpe de
+   .card o el remate del sorteo, aplicado al momento social mas caliente de
+   toda la app-. */
 @keyframes overtake-in {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+    transform: translateY(-22px) scale(0.94);
+  }
+  60% {
+    transform: translateY(3px) scale(1.015);
   }
   to {
     opacity: 1;
@@ -290,11 +298,28 @@
   }
 }
 
-.overtake__title {
-  font-size: 17px;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
+/* Mientras esta en pantalla, el marco respira: es una llamada a reaccionar
+   YA, no una nota informativa que puede esperar. */
+.overtake::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 36px rgba(255, 47, 109, 0.45);
+  opacity: 0.3;
+  pointer-events: none;
+  animation: late-brillo var(--dur-latido) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtake {
+    animation: none;
+  }
+
+  .overtake::after {
+    animation: none;
+  }
 }
 
 .overtake__sub {
@@ -310,6 +335,19 @@
 
 .overtake__row .btn {
   flex: 1;
+}
+
+/* La revancha aqui no es un boton mas: es la unica respuesta a que te hayan
+   quitado el puesto, asi que late -como .apuesta__jugar, reservado para los
+   pocos botones que de verdad son un momento y no un tramite-. */
+.overtake__row .btn--play {
+  animation: jugar-late var(--dur-latido) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtake__row .btn--play {
+    animation: none;
+  }
 }
 
 /* ---------- Objetivo durante la partida ---------- */

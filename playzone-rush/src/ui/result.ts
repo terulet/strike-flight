@@ -60,7 +60,7 @@ export function renderResult(
   // "Por poco" o "por mucho" cambia lo que se enseña: si has perdido por 2.000
   // puntos no hace falta restregarlo, basta con el comparativo.
   const gap = target && !target.entry.isMe ? target.gap : 0;
-  const heavyLoss = !won && gap > 0 && (gap > 1000 || gap > outcome.score * 0.4);
+  const heavyLoss = !won && esDerrotaPorMucho(outcome, gap);
 
   const stats = buildStats(result, getGame(spec.gameId)?.meta.skill === 'supervivencia');
 
@@ -140,7 +140,7 @@ export function renderResult(
     ]),
   ]);
 
-  return el('div', { class: 'result' }, [inner]);
+  return el('div', { class: `result${outcome.becameLeader ? ' result--corona' : ''}` }, [inner]);
 }
 
 /**
@@ -151,6 +151,16 @@ export function renderResult(
  * pantalla decia "MANDAS EN ESTE RETO" y debajo ofrecia revancha. Perder por
  * mucho tampoco es revancha: ahi lo honesto es otro intento.
  */
+/**
+ * Si una distancia es "por mucho": ni la pantalla ni el golpe hacen leña de
+ * eso. Compartida entre el render (color de la brecha) y `celebrate` (que
+ * haptic dispara), para que las dos lecturas del mismo resultado -la que se
+ * ve y la que se siente- coincidan siempre.
+ */
+function esDerrotaPorMucho(outcome: ScoreOutcome, gap: number): boolean {
+  return gap > 0 && (gap > 1000 || gap > outcome.score * 0.4);
+}
+
 function etiquetaReintento(outcome: ScoreOutcome, heavyLoss: boolean): string {
   const hayAQuienAlcanzar = Boolean(outcome.challengeTarget && !outcome.challengeTarget.entry.isMe);
   if (!hayAQuienAlcanzar || heavyLoss) return 'OTRO INTENTO';
@@ -370,7 +380,12 @@ function renderPique(outcome: ScoreOutcome): HTMLElement {
   }
 
   if (outcome.becameLeader) {
-    lines.push(el('div', { class: 'result__rank', text: '👑 TE PONES PRIMERO DEL DIA' }));
+    lines.push(
+      el('div', { class: 'result__corona' }, [
+        el('span', { class: 'result__corona-icono', text: '👑' }),
+        el('span', { text: 'TE PONES PRIMERO DEL DIA' }),
+      ]),
+    );
   }
   if (outcome.chaos) {
     lines.push(el('div', { class: 'result__pique-sub', text: 'El evento CHAOS puntua aparte del ranking diario.' }));
@@ -378,7 +393,11 @@ function renderPique(outcome: ScoreOutcome): HTMLElement {
 
   return el(
     'div',
-    { class: `result__pique${outcome.overtook.length > 0 || outcome.becameLeader ? ' result__pique--hot' : ''}` },
+    {
+      class: `result__pique${
+        outcome.becameLeader ? ' result__pique--corona' : outcome.overtook.length > 0 ? ' result__pique--hot' : ''
+      }`,
+    },
     lines,
   );
 }
@@ -407,4 +426,10 @@ export function celebrate(app: App, outcome: ScoreOutcome): void {
     return;
   }
   app.audio.play('defeat');
+  // Perder por poco pica mas que perder por mucho: el mismo calculo que
+  // decide el color de la brecha en pantalla decide aqui si el golpe se
+  // siente ademas de oirse.
+  const target = outcome.challengeTarget;
+  const gap = target && !target.entry.isMe ? target.gap : 0;
+  if (gap > 0 && !esDerrotaPorMucho(outcome, gap)) app.haptics.fire('medium');
 }

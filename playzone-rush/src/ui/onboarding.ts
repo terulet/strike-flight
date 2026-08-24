@@ -169,6 +169,7 @@ export function renderOnboarding(app: App): HTMLElement {
       feedback,
       button('ENTRAR A PLAYZONE', 'btn btn--play btn--lg btn--block', () => {
         app.renderHome();
+        app.quizaSortear();
       }),
     ]);
   }

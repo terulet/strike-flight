@@ -1,23 +1,33 @@
 /**
- * ARCADE SOCIAL PREMIUM
+ * ARCADE SOCIAL SHOWTIME
  *
- * La direccion es una sola idea: el juego pasa DENTRO de una maquina, y la
- * maquina esta hecha de cristal oscuro con luz por dentro. De ahi sale todo lo
- * demas: el fondo no es negro plano sino grafito azulado con dos auroras muy
- * bajas, los paneles son cristal con luz en el borde de arriba, y el color no
- * decora: significa.
+ * Sigue siendo la misma maquina de cristal oscuro con luz por dentro -eso no
+ * se toca, funcionaba-. Lo que cambia es que la maquina antes estaba apagada
+ * y ahora esta ENCENDIDA: el fondo respira en vez de quedarse quieto, los
+ * momentos importantes interrumpen en vez de aparecer educadamente, y hay una
+ * senal de color reservada para la tension -perder, arriesgar, que quede poco
+ * tiempo- que antes no existia como tal.
+ *
+ * La pregunta que filtra cada cambio de este bloque: ¿esto pone mas nervioso,
+ * mas orgulloso o mas dolido? Si la respuesta es que solo "queda mejor", no
+ * entra. Locura controlada y espectaculo legible, no casino ni ruido.
  *
  * REPARTO DEL COLOR (esto es lo que evita el ruido: cada tono tiene un trabajo
  * y solo uno):
  *
  *   cian    -> energia, accion, "esto se puede pulsar". Es el color del RUSH.
  *   violeta -> profundidad, superficie, lo que sostiene sin pedir atencion.
+ *              Tambien lo especial/secreto: lo raro y deseable vive aqui.
  *   oro     -> el #1, la corona, la racha. Escaso a proposito: si el oro sale
  *              en cinco sitios deja de significar primero.
  *   magenta -> calor social. Rivalidad, adelantamientos, "te han quitado el
  *              #1". Es la marca, y sigue siendo la marca, pero pasa a estar al
  *              servicio del pique en vez de pintar la interfaz entera.
- *   lima    -> acento agudo, en gotas. Records personales y poco mas.
+ *   coral   -> riesgo y tension. NUEVO: antes "casi" y "me la juego" no tenian
+ *              color propio y se apoyaban en el rojo de perder o en el oro del
+ *              #1, que ya tenian trabajo. Cuenta atras apretando, DOBLE O
+ *              NADA, CHAOS subiendo de intensidad: todo eso es coral.
+ *   lima    -> acento agudo, en gotas. Records personales, mutadores buff.
  *   rojo    -> perdida. Nunca decorativo.
  *
  * Lo que NO se hace: saturar todo, poner degradados de casino, o usar el mismo
@@ -56,6 +66,8 @@
   --magenta: #ff2f6d;
   --lima: #d7ff3e;
   --rojo: #ff4d6d;
+  --coral: #ff6a3d;
+  --coral-hondo: #c2340f;
 
   /* Alias heredados: hay codigo y juegos que ya piden estos nombres, y
      renombrarlos a mano en 2.700 lineas de CSS solo aportaria riesgo. */
@@ -68,12 +80,25 @@
   --violet: var(--violeta);
   --lime: var(--lima);
 
+  /* Capa semantica: el nombre dice el ESTADO EMOCIONAL, no el tono. Nuevo
+     codigo deberia pedir "el color del riesgo", no acordarse de que el
+     riesgo es coral -eso es justo lo que se olvida y acaba en rojo de perder
+     puesto donde no toca-. */
+  --emocion-accion: var(--cian);
+  --emocion-rival: var(--magenta);
+  --emocion-riesgo: var(--coral);
+  --emocion-exito: var(--oro);
+  --emocion-casi: var(--oro);
+  --emocion-secreto: var(--violeta);
+  --emocion-perdida: var(--rojo);
+
   /* Versiones apagadas, para fondos y bordes teñidos sin repetir rgba() por
      todo el proyecto. */
   --cian-suave: rgba(34, 211, 238, 0.14);
   --violeta-suave: rgba(139, 92, 246, 0.16);
   --oro-suave: rgba(255, 210, 63, 0.14);
   --magenta-suave: rgba(255, 47, 109, 0.15);
+  --coral-suave: rgba(255, 106, 61, 0.16);
 
   /* ---------- Material ---------- */
   --radius-xl: 26px;
@@ -126,8 +151,18 @@
   --dur-fast: 150ms;
   --dur: 240ms;
   --dur-lento: 420ms;
+  /* Golpe seco: el numero que salta al marcar, el escudo al esquivar. Mas
+     corto que --dur-fast a proposito -un golpe que se demora deja de sentirse
+     como golpe-. */
+  --dur-impacto: 130ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-entrada: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-elastico: cubic-bezier(0.34, 1.56, 0.64, 1);
   --escalon: 45ms; /* retardo entre hermanos en una entrada escalonada */
+
+  /* Latido de tension: el bucle detras de una cuenta atras apretando o un
+     riesgo activo. Un solo ritmo para toda la app -que dos elementos "en
+     tension" a la vez lo hagan en el mismo compas ayuda a que se lea como un
+     estado, no como decoracion suelta-. */
+  --dur-latido: 900ms;
 }

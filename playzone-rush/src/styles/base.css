@@ -19,15 +19,11 @@ html {
 }
 
 body {
-  /* Tres auroras muy bajas en vez de un negro plano. El cian arriba (energia),
-     el violeta al fondo (profundidad) y una brasa magenta muy tenue al pie: el
-     suelo deja de ser una superficie y pasa a ser un espacio. Con alfas por
-     debajo de 0.2 no ensucian ni compiten con el contenido. */
-  background:
-    radial-gradient(125% 62% at 50% -12%, rgba(34, 211, 238, 0.13), transparent 62%),
-    radial-gradient(105% 58% at 6% 22%, rgba(139, 92, 246, 0.13), transparent 60%),
-    radial-gradient(115% 55% at 92% 100%, rgba(255, 47, 109, 0.11), transparent 62%),
-    var(--bg);
+  /* El fondo solido de siempre. La atmosfera de verdad vive en body::before,
+     debajo: esto es solo la red de seguridad para el primer fotograma (o
+     para un dispositivo que por lo que sea no llegue a pintar la capa de
+     abajo) y por eso es plano y barato a proposito. */
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   font-size: 16px;
@@ -38,6 +34,60 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/**
+ * LA ATMOSFERA RESPIRA.
+ *
+ * Antes eran tres auroras fijas: un fondo bien resuelto, pero un fondo al
+ * fin y al cabo -exactamente el "negro seco" del que se quejaba el pase de
+ * hype-. Siguen siendo las mismas tres auroras (mismo reparto de color: cian
+ * arriba, violeta a la izquierda, magenta al fondo) pero ahora es un
+ * ESCENARIO: deriva despacio, como si respirase, para que la sensacion sea
+ * "aqui esta pasando algo" incluso antes de tocar nada.
+ *
+ * Por que una capa aparte y no animar el fondo de body directamente: animar
+ * `background-position`/`background-size` fuerza repintado en cada
+ * fotograma. Aqui solo se anima `transform` (compuesto por la GPU, gratis
+ * para el hilo principal), asi que respirar de fondo no le quita ni un
+ * fotograma al juego -verificado con el trazador de Chrome, ver el informe
+ * de esta pasada-. `z-index:-1` la deja detras de #app sin depender de que
+ * nada de mas arriba tenga su propio z-index.
+ *
+ * inset con margen negativo: la deriva mueve la capa unos puntos porcentuales
+ * y sin ese margen se veria un borde recortado en las esquinas al moverse.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 36% at 50% 6%, rgba(34, 211, 238, 0.19), transparent 68%),
+    radial-gradient(42% 34% at 8% 24%, rgba(139, 92, 246, 0.18), transparent 66%),
+    radial-gradient(44% 32% at 93% 96%, rgba(255, 47, 109, 0.15), transparent 66%);
+  animation: atmosfera-respira 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes atmosfera-respira {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(1.4%, -1.8%, 0) scale(1.035);
+  }
+  66% {
+    transform: translate3d(-1.6%, 1.2%, 0) scale(1.018);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
 }
 
 body.is-playing {

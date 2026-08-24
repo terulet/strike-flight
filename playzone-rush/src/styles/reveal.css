@@ -72,6 +72,50 @@
   100% { opacity: 1; }
 }
 
+/* El flash de cada parada: el color del juego que acaba de aterrizar invade
+   la escena un instante y se apaga. `--flash` lo pone reveal.ts en cada
+   parada, asi que el mismo elemento sirve para las tres. */
+.sorteo__caja::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    color-mix(in srgb, var(--flash, var(--cian)) 55%, transparent),
+    transparent 70%
+  );
+}
+
+.sorteo--flash .sorteo__caja::after {
+  animation: sorteo-flash 480ms ease-out;
+}
+
+@keyframes sorteo-flash {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+/* El remate: cuando para la tercera, no es una parada mas -es "ya esta,
+   estos son los de hoy"-. Toda la caja responde, no solo la ultima columna. */
+.sorteo--remate .sorteo__caja {
+  animation: sorteo-remate 420ms var(--ease-elastico);
+}
+
+@keyframes sorteo-remate {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sorteo__caja::after,
+  .sorteo--remate .sorteo__caja {
+    animation: none;
+  }
+}
+
 .sorteo__titulo {
   font-size: 30px;
   font-weight: 900;
@@ -179,6 +223,31 @@
  */
 .reel--gira .reel__tira {
   animation: reel-gira var(--vuelta, 200ms) linear infinite;
+}
+
+/* El arranque: un golpe corto justo al encenderse, para que el giro no
+   empiece de cero sino que "meta la marcha". La tira en si sigue girando a
+   velocidad constante -eso no se toca, es lo que hace creible el cilindro-;
+   esto es solo la columna entera dandose el primer impulso. */
+.reel--gira {
+  animation: reel-arranca 180ms var(--ease-out) both;
+}
+
+@keyframes reel-arranca {
+  from {
+    transform: scaleY(0.93);
+    opacity: 0.6;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel--gira {
+    animation: none;
+  }
 }
 
 @keyframes reel-gira {

@@ -29,6 +29,29 @@ interface Hud {
   target: HTMLElement;
 }
 
+/**
+ * La cuenta atras aprieta segun baja: "3" es neutro, "1" ya tiñe de coral -el
+ * mismo color de tension que el resto de cuentas atras de la app-, y "¡YA!"
+ * es el impacto, tratado como un trofeo (degradado dorado, no solo color).
+ */
+function claseCuentaAtras(texto: string): string {
+  if (texto === '¡YA!') return ' countdown__num--ya';
+  if (texto === '1') return ' countdown__num--apura';
+  return '';
+}
+
+/**
+ * Secreto y CHAOS tienen su propia puesta en escena durante la partida, no
+ * solo en la tarjeta de portada: un tinte distinto en la franja del HUD para
+ * que "esto es diferente" se siga sintiendo mientras se juega, no solo antes
+ * de entrar.
+ */
+function claseEscena(kind: ChallengeSpec['kind']): string {
+  if (kind === 'chaos') return 'play--chaos';
+  if (kind === 'secret') return 'play--secreto';
+  return '';
+}
+
 export class PlayScreen {
   private app: App;
   private spec: ChallengeSpec;
@@ -86,7 +109,7 @@ export class PlayScreen {
     // ven igual ni siquiera en la franja de arriba. Es identidad por juego sin
     // tocar nada del juego.
     const acento = requireGame(spec.gameId).meta.accent;
-    this.root = el('div', { class: 'play', style: { '--accent': acento } }, [
+    this.root = el('div', { class: `play ${claseEscena(spec.kind)}`.trim(), style: { '--accent': acento } }, [
       this.stage,
       hudNode,
       this.hud.combo,
@@ -144,6 +167,13 @@ export class PlayScreen {
   reconfigure(spec: ChallengeSpec, config: GameConfig): void {
     this.spec = spec;
     this.config = config;
+    // Sin esto, encadenar de un reto a otro se quedaba con el color -y la
+    // puesta en escena de secreto/CHAOS- del reto anterior: el HUD nunca se
+    // reconstruye entero, asi que nadie mas se acuerda de refrescarlo.
+    this.root.style.setProperty('--accent', requireGame(spec.gameId).meta.accent);
+    this.root.classList.remove('play--chaos', 'play--secreto');
+    const clase = claseEscena(spec.kind);
+    if (clase) this.root.classList.add(clase);
   }
 
   /** Arranca un intento. quick = revancha (cuenta atras corta). */
@@ -188,7 +218,10 @@ export class PlayScreen {
   private runCountdown(quick: boolean): void {
     const definition = requireGame(this.spec.gameId);
     const meta = definition.meta;
-    const numberNode = el('div', { class: 'countdown__num', text: quick ? '¡YA!' : '3' });
+    const numberNode = el('div', {
+      class: `countdown__num${claseCuentaAtras(quick ? '¡YA!' : '3')}`,
+      text: quick ? '¡YA!' : '3',
+    });
 
     const overlay = el('div', { class: 'countdown' }, [
       quick
@@ -212,6 +245,13 @@ export class PlayScreen {
     const stepMs = quick ? 380 : 620;
     let index = 0;
     this.app.audio.play(quick ? 'go' : 'countdown');
+    // CHAOS tiene su propio sonido -ya existia en el sintetizador, pero nadie
+    // lo llamaba todavia- y un golpe fisico al entrar: es el unico reto del
+    // dia que dice "solo hay una oportunidad", y eso se anuncia, no se cuenta.
+    if (this.spec.kind === 'chaos') {
+      this.app.audio.play('chaos');
+      this.app.haptics.fire('heavy');
+    }
 
     const advance = () => {
       index++;
@@ -222,7 +262,9 @@ export class PlayScreen {
         this.host.start();
         return;
       }
-      numberNode.textContent = steps[index] as string;
+      const texto = steps[index] as string;
+      numberNode.textContent = texto;
+      numberNode.className = `countdown__num${claseCuentaAtras(texto)}`;
       numberNode.style.animation = 'none';
       void numberNode.offsetWidth;
       numberNode.style.animation = '';
@@ -277,6 +319,9 @@ export class PlayScreen {
     const seconds = info.timeLeftMs / 1000;
     this.hud.time.textContent = seconds >= 10 ? seconds.toFixed(0) : seconds.toFixed(1);
     this.hud.time.classList.toggle('is-low', seconds <= 5);
+    // Los ultimos tres segundos aprietan mas fuerte que los cinco de aviso:
+    // el mismo cambio de ritmo que DOBLE O NADA en su propia cuenta atras.
+    this.hud.time.classList.toggle('is-critical', seconds <= 3);
     this.hud.bar.style.transform = `scaleX(${Math.max(0, info.timeLeftMs / Math.max(1, info.totalMs))})`;
 
     if (info.maxLives !== null && info.maxLives > 0) {
@@ -294,7 +339,18 @@ export class PlayScreen {
     }
 
     if (info.combo >= 2) {
-      this.hud.combo.textContent = `COMBO x${info.combo}`;
+      const texto = `COMBO x${info.combo}`;
+      if (this.hud.combo.textContent !== texto) {
+        // Cada eslabon nuevo golpea, no solo aparece: sin esto pasar de x3 a
+        // x4 era un cambio de texto silencioso dentro de la misma chapa.
+        this.hud.combo.textContent = texto;
+        this.hud.combo.classList.remove('is-punch');
+        void this.hud.combo.offsetWidth;
+        this.hud.combo.classList.add('is-punch');
+        // Tambien existia sin usarse: el "clac" propio de encadenar, aparte
+        // del sonido de cada acierto suelto que ya pone el juego.
+        this.app.audio.play('combo');
+      }
       this.hud.combo.classList.add('is-on');
     } else {
       this.hud.combo.classList.remove('is-on');
@@ -453,6 +509,10 @@ export class PlayScreen {
   ): void {
     const panel = this.overlay?.querySelector('.apuesta');
     if (!panel) return;
+    // El marco se tiñe de coral cuando cae: coral es el color de riesgo/tension
+    // en todo el sistema, y el oro se queda reservado para cuando de verdad
+    // toca celebrar.
+    panel.classList.toggle('apuesta--pierde', !gana);
     const signo = diferencia >= 0 ? '+' : '';
     panel.replaceChildren(
       el('div', { class: `apuesta__desenlace apuesta__desenlace--${gana ? 'gana' : 'pierde'}` }, [

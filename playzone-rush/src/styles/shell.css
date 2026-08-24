@@ -175,16 +175,19 @@
 .toast--good {
   border-color: rgba(124, 243, 192, 0.5);
   color: var(--good);
+  box-shadow: var(--shadow-pop), 0 0 20px rgba(124, 243, 192, 0.22);
 }
 
 .toast--bad {
   border-color: rgba(255, 77, 109, 0.5);
   color: var(--bad);
+  box-shadow: var(--shadow-pop), 0 0 20px rgba(255, 77, 109, 0.22);
 }
 
 .toast--gold {
   border-color: rgba(255, 210, 63, 0.5);
   color: var(--gold);
+  box-shadow: var(--shadow-pop), 0 0 20px rgba(255, 210, 63, 0.25);
 }
 
 @keyframes toast-in {

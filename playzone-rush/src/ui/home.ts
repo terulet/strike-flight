@@ -231,25 +231,24 @@ function renderOvertake(app: App): HTMLElement | null {
     }),
   );
 
-  // Este es el aviso que mas trabajo emocional hace de toda la app, asi que va
-  // en magenta -el color del pique- y con la distancia como cifra grande: el
-  // numero es lo que se queda en la cabeza, no la frase.
+  // Este es el aviso que mas trabajo emocional hace de toda la app: el rival
+  // es el protagonista -su nombre va grande, como una cifra, no metido en una
+  // frase- porque quien te ha quitado el puesto es lo primero que se lee, y
+  // "TE HAN QUITADO EL #1" es la etiqueta de alarma que va encima, pequena.
   return el('div', { class: 'overtake', style: { '--emite': 'var(--magenta)' } }, [
     el('div', { class: 'overtake__cabeza' }, [
-      el('div', { class: 'overtake__icono', text: '🔥' }),
+      el('div', { class: 'overtake__icono', text: '👑' }),
       el('div', {}, [
-        el('div', { class: 'overtake__title' }, [
-          el('span', { class: 'overtake__quien', text: event.rivalName }),
-          el('span', { text: ' TE HA QUITADO EL #1' }),
-        ]),
-        el('div', {
-          class: 'overtake__sub',
-          text: target
-            ? `Responde en ${spec?.title ?? ''} · ${spec?.gameName ?? ''}`
-            : 'Sin intentos para responder hoy.',
-        }),
+        el('div', { class: 'overtake__kicker rotulo', text: 'TE HAN QUITADO EL #1' }),
+        el('div', { class: 'overtake__quien', text: event.rivalName }),
       ]),
     ]),
+    el('div', {
+      class: 'overtake__sub',
+      text: target
+        ? `Responde en ${spec?.title ?? ''} · ${spec?.gameName ?? ''}`
+        : 'Sin intentos para responder hoy.',
+    }),
     target
       ? el('div', { class: 'overtake__cifra' }, [
           el('span', { class: 'overtake__cifra-num num', text: formatScore(target.gap) }),
@@ -301,7 +300,7 @@ function renderHero(app: App, board: Leaderboard): HTMLElement {
   // El estado de una sola frase. Manda la distancia al de arriba; si no hay
   // nadie arriba, manda la ventaja sobre el de abajo.
   const estado = ahead
-    ? el('div', { class: 'heroe__estado' }, [
+    ? el('div', { class: 'heroe__estado heroe__estado--riesgo' }, [
         el('span', { class: 'heroe__estado-cifra num', text: `+${formatScore(ahead.gap)}` }),
         el('span', { class: 'heroe__estado-texto', text: `PARA PASAR A ${ahead.entry.name}` }),
       ])
@@ -317,6 +316,7 @@ function renderHero(app: App, board: Leaderboard): HTMLElement {
   return el('div', { class: 'hero heroe' }, [
     el('div', { class: 'heroe__fila' }, [
       el('span', { class: 'chip chip--vivo', style: { '--emite': 'var(--cian)' } }, [
+        el('span', { class: 'vivo-punto' }),
         el('span', { text: dayLabel(app.dayKey, app.clock.realDayKey()) }),
       ]),
       el('span', { class: 'rotulo', text: `${app.plan.challenges.length} RETOS · 3 INTENTOS` }),
@@ -493,7 +493,7 @@ function renderSecretCard(app: App): HTMLElement {
       { class: 'progress-pips' },
       Array.from({ length: status.total }, (_, i) => el('div', { class: `pip${i < status.done ? ' is-on' : ''}` })),
     );
-    return el('div', { class: 'card card--locked', style: { '--accent': '#ffd23f' } }, [
+    return el('div', { class: 'card card--locked', style: { '--accent': 'var(--violeta)' } }, [
       el('div', { class: 'card__head' }, [
         el('div', { class: 'card__icon' }, [marca('secreto')]),
         el('div', { class: 'card__titles' }, [
@@ -517,7 +517,7 @@ function renderSecretCard(app: App): HTMLElement {
   }
 
   const left = app.attemptsLeft(spec);
-  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': '#ffd23f' } }, [
+  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': 'var(--violeta)' } }, [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon' }, [marca('llave')]),
       el('div', { class: 'card__titles' }, [
@@ -550,7 +550,14 @@ function renderChaosCard(app: App): HTMLElement {
   const left = app.attemptsLeft(spec);
   const best = app.save.get().records.bestChaos;
 
-  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': '#a78bfa' } }, [
+  // Ni el violeta del secreto ni el de DRIFT/TRAZO: CHAOS es el unico reto
+  // "solo hay una oportunidad" del dia, asi que se gana su propio color -una
+  // fusion de magenta (calor social) y violeta (lo especial), no un tono
+  // suelto inventado a mano.
+  const card: HTMLElement = el(
+    'div',
+    { class: 'card card--chaos', style: { '--accent': 'color-mix(in srgb, var(--magenta) 55%, var(--violeta) 45%)' } },
+    [
     el('div', { class: 'card__head' }, [
       el('div', { class: 'card__icon' }, [marca('chaos')]),
       el('div', { class: 'card__titles' }, [
@@ -766,7 +773,11 @@ function renderPique(app: App, board: Leaderboard): HTMLElement | null {
       ? `👑 ERES #1 POR ${formatScore(behind.gap)} PUNTOS`
       : '';
 
-  const node = el('div', { class: 'result__pique result__pique--hot', style: { marginTop: '12px' } }, [
+  // Ser #1 se cuenta en oro, no en magenta: el magenta es rivalidad ("alguien
+  // por delante"), el oro es el puesto en si. Compartir el mismo tono para
+  // los dos casos es justo el "todo brilla, nada brilla" que este pase evita.
+  const clasePique = behind ? 'result__pique--corona' : 'result__pique--hot';
+  const node = el('div', { class: `result__pique ${clasePique}`, style: { marginTop: '12px' } }, [
     el('div', { class: 'result__pique-title', text: title }),
     best
       ? el('div', {

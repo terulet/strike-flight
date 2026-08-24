@@ -168,7 +168,10 @@ export function momentoDe(datos: DatosMomento): Momento | null {
       },
       remate: 'DOLIÓ.',
       donde,
-      color: '#ff4d6d',
+      // Coral, no rojo: dentro de DOBLE O NADA todo se cuenta como riesgo que
+      // no ha salido, con el mismo color de principio a fin en toda la app
+      // (panel, desenlace... y ahora tambien el poster).
+      color: '#ff6a3d',
       texto: `💀 Me la he jugado en ${donde} y me he quedado en ${formatScore(datos.puntuacion)}. A ver quién lo hace peor.`,
       boton: 'CONTARLO IGUAL',
     };

@@ -111,8 +111,20 @@ export function mostrarSorteo(
     temporizadores.push(
       setTimeout(() => {
         columna.parar(true);
-        options.audio?.play(i === columnas.length - 1 ? 'unlock' : 'select');
-        options.haptics?.fire(i === columnas.length - 1 ? 'heavy' : 'medium');
+        const esUltima = i === columnas.length - 1;
+        options.audio?.play(esUltima ? 'unlock' : 'select');
+        options.haptics?.fire(esUltima ? 'heavy' : 'medium');
+        // El color del juego que acaba de aterrizar invade la escena entera un
+        // instante, no solo su propia columna: cada parada deja huella en el
+        // cuarto. Quitar y volver a poner la clase (con un reflow forzado en
+        // medio) es lo que permite que el flash se repita en cada parada en
+        // vez de no hacer nada porque la clase "ya estaba puesta".
+        const spec = retos[i];
+        if (spec) capa.style.setProperty('--flash', requireGame(spec.gameId).meta.accent);
+        capa.classList.remove('sorteo--flash', 'sorteo--remate');
+        void capa.offsetWidth;
+        capa.classList.add('sorteo--flash');
+        if (esUltima) capa.classList.add('sorteo--remate');
       }, PARADAS_MS[i] ?? 0),
     );
   });

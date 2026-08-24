@@ -95,6 +95,22 @@
   }
 }
 
+/* Los ultimos tres segundos, y no solo los ultimos cinco: mismo cambio de
+   ritmo (rapido, coral, escala en vez de opacidad) que la cuenta atras de
+   DOBLE O NADA, para que "se acaba el tiempo" se lea igual en toda la app.
+   Va despues de .is-low en el CSS a proposito: las dos clases conviven en los
+   ultimos 3s y esta es la que tiene que ganar. */
+.hud__time.is-critical {
+  color: var(--coral);
+  animation: cuenta-apura 380ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud__time.is-critical {
+    animation: none;
+  }
+}
+
 .hud__lives {
   display: flex;
   gap: 4px;
@@ -156,6 +172,27 @@
 .hud__combo.is-on {
   opacity: 1;
   transform: translateX(-50%) scale(1.08);
+}
+
+/* Cada eslabon nuevo del combo golpea encima del scale(1.08) de reposo, en
+   vez de quedarse quieto mientras el numero de al lado cambia solo. */
+.hud__combo.is-punch {
+  animation: combo-punch 220ms var(--ease-out);
+}
+
+@keyframes combo-punch {
+  0% {
+    transform: translateX(-50%) scale(1.32);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud__combo.is-punch {
+    animation: none;
+  }
 }
 
 .hud__ghost {
@@ -244,6 +281,37 @@
   }
 }
 
+/* La cuenta aprieta segun baja: "3" es neutro (arriba), "1" ya se tine de
+   coral -tension, se acaba el margen- y "¡YA!" es el impacto: no un color,
+   un trofeo -mismo mecanismo que .result__score, degradado recortado en el
+   texto- con un golpe mas grande que los numeros normales. */
+.countdown__num--apura {
+  color: var(--coral);
+}
+
+.countdown__num--ya {
+  background: linear-gradient(180deg, #fff6d8 0%, var(--oro) 55%, #ffb020 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 30px rgba(255, 210, 63, 0.55));
+  animation: count-pop-ya 460ms var(--ease-elastico);
+}
+
+@keyframes count-pop-ya {
+  from {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .countdown__target {
   font-size: 12px;
   font-weight: 800;
@@ -283,6 +351,20 @@
  */
 .hud {
   background: linear-gradient(180deg, rgba(5, 6, 14, 0.9) 0%, rgba(5, 6, 14, 0.62) 62%, transparent 100%);
+}
+
+/* Secreto y CHAOS no cambian de juego -DRIFT sigue siendo DRIFT-, pero se
+   juegan en un decorado distinto: la franja del HUD se tine del color del
+   evento, no solo la tarjeta que se toco para entrar. Estatico a proposito,
+   nada de animacion aqui: dentro de la partida manda el rendimiento. */
+.play--chaos .hud {
+  background: linear-gradient(180deg, rgba(24, 4, 26, 0.92) 0%, rgba(24, 4, 26, 0.6) 62%, transparent 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--magenta) 30%, transparent);
+}
+
+.play--secreto .hud {
+  background: linear-gradient(180deg, rgba(11, 4, 28, 0.92) 0%, rgba(11, 4, 28, 0.6) 62%, transparent 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--violeta) 32%, transparent);
 }
 
 /* La puntuacion, con el color del juego por debajo. El texto se queda blanco

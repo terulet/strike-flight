@@ -133,6 +133,9 @@ export function mostrarDesafio(options: ApuestaOptions, handlers: ApuestaHandler
     aguja.style.left = `${posicionVisible(estado) * 100}%`;
     aguja.classList.toggle('reto__aguja--dentro', dentroDeZona(estado));
     cuenta.textContent = Math.max(0, restante / 1000).toFixed(1);
+    // El ultimo segundo y medio aprieta: el numero se acelera para que se
+    // sienta que se acaba el tiempo, no solo que lo dice.
+    cuenta.classList.toggle('reto__cuenta--apura', restante <= 1500 && restante > 0);
 
     // Se acaba el tiempo sin decidir: cuenta como fallo. Dejar pasar los cinco
     // segundos es una decision tambien, y ya habia avisado de que no hay
