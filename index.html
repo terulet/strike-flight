@@ -89,6 +89,68 @@ const CONFIG = {
 };
 
 // ════════════════════════════════════════════════════════════
+//  DIFICULTAD — EASY / MEDIUM / HIGH
+// ════════════════════════════════════════════════════════════
+//  MEDIUM es el juego de siempre: ni CONFIG ni las tablas de ENEMIGOS
+//  o JEFES pierden un número. EASY y HIGH son multiplicadores que se
+//  aplican en el puñado de sitios donde de verdad se decide la
+//  dificultad —velocidad de bala enemiga, cadencia, ventana de aviso,
+//  invulnerabilidad tras un golpe, tolerancia del combo, calidad de
+//  los drops defensivos y el multiplicador de puntuación final—.
+//  Nunca en la vida de un enemigo ni en su daño de contacto: eso sería
+//  x2 HP disfrazado de "dificultad", que es justo lo que no se quiere.
+//  `eliteFreqMul` y `overdriveAccessMul` están declarados ya para que
+//  los bloques de ÉLITES y OVERDRIVE los lean sin tocar esta tabla.
+const DIFFICULTY_CONFIG = {
+  easy: {
+    label:               "FÁCIL",
+    enemyBulletSpeedMul: 0.90,
+    enemyCadenceMul:     1.15,
+    telegraphMul:        1.20,
+    invulnMul:           1.25,
+    comboToleranceMul:   1.25,
+    defensiveDropMul:    1.20,
+    scoreMul:            1.00,
+    eliteFreqMul:        0.80,
+    overdriveAccessMul:  1.15,
+  },
+  medium: {
+    label:               "NORMAL",
+    enemyBulletSpeedMul: 1,
+    enemyCadenceMul:     1,
+    telegraphMul:        1,
+    invulnMul:           1,
+    comboToleranceMul:   1,
+    defensiveDropMul:    1,
+    scoreMul:            1.25,
+    eliteFreqMul:        1,
+    overdriveAccessMul:  1,
+  },
+  high: {
+    label:               "DIFÍCIL",
+    enemyBulletSpeedMul: 1.10,
+    enemyCadenceMul:     0.87,
+    telegraphMul:        0.85,
+    invulnMul:           0.85,
+    comboToleranceMul:   0.80,
+    defensiveDropMul:    0.80,
+    scoreMul:            1.60,
+    eliteFreqMul:        1.30,
+    overdriveAccessMul:  1,
+  },
+};
+// Resuelta al arrancar y cada vez que AJUSTES cambia `OPCIONES.dificultad`.
+// Vive fuera de OPCIONES.dificultad (que es la ELECCIÓN, un texto que se
+// guarda) para que el resto del juego no repita el lookup en cada sitio.
+let DIF = DIFFICULTY_CONFIG.medium;
+function resolverDificultad() {
+  DIF = DIFFICULTY_CONFIG[OPCIONES.dificultad] || DIFFICULTY_CONFIG.medium;
+}
+// Ventana real del combo: CONFIG.comboTiempo no se toca (es el dato de
+// fábrica, la identidad de MEDIUM), esto es lo que de verdad se compara.
+const comboVentana = () => CONFIG.comboTiempo * DIF.comboToleranceMul;
+
+// ════════════════════════════════════════════════════════════
 //  CAMPO DE JUEGO VERTICAL
 // ════════════════════════════════════════════════════════════
 //  La plataforma es el iPad en vertical. Un monitor de 2048×858 no puede
@@ -114,6 +176,7 @@ const OPCIONES = {
   // fila en AJUSTES: está aquí para que se guarde desde ya y ese bloque
   // no tenga que tocar el formato del save ni migrar nada.
   vfx:       "auto",   // "auto" | "alto" | "medio" | "bajo"
+  dificultad: "medium", // "easy" | "medium" | "high" — ver DIFFICULTY_CONFIG
 };
 
 // ── Niveles de calidad ────────────────────────────────────
@@ -249,7 +312,7 @@ function actualizarNodosAegis(mb, dt) {
     const nx = mb.x + n.ox, ny = mb.y + n.oy;
     n.cd -= dt;
     if (n.cd <= 0) {
-      n.cd = rand(1.7, 2.5);
+      n.cd = rand(1.7, 2.5) * DIF.enemyCadenceMul;
       const a = Math.atan2(player.y - ny, player.x - nx);
       eBala(nx, ny, Math.cos(a) * 220, Math.sin(a) * 220, 5);
       sfx("aegis_lock");
@@ -265,7 +328,7 @@ function actualizarNodosAegis(mb, dt) {
       if (n.hp <= 0) {
         muerte(nx, ny, "#ffcf5c", "defensa");
         sfx("aegis_nodo");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        combo++; comboT = comboVentana(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo);
         const pts = Math.round(220 * multCombo());
         score += pts; texto(nx, ny - 20, "+" + pts, T.bala, 13);
@@ -299,7 +362,7 @@ function actualizarSubsOmega(mb, dt) {
         muerte(sx, sy, s.col, "defensa");
         sfx("core_offline");
         texto(sx, sy - 24, s.nombre + " DESTRUIDO", s.col, 13);
-        score += 500; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        score += 500; combo++; comboT = comboVentana(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo); hitoCombo();
       }
       break;
@@ -1874,7 +1937,11 @@ const haciaJugador = (e) => Math.atan2(player.y - e.y, player.x - e.x);
 const EBALAS_MAX = 340;
 function eBala(x, y, vx, vy, r, extra) {
   if (eBullets.length >= EBALAS_MAX) return null;
-  const b = { x, y, vx, vy, r: r || 5 };
+  // Único embudo de toda bala enemiga (patrones, jefes, torretas, nodos):
+  // la velocidad de dificultad se aplica UNA vez, aquí, y no en cada sitio
+  // que dispara.
+  const m = DIF.enemyBulletSpeedMul;
+  const b = { x, y, vx: vx * m, vy: vy * m, r: r || 5 };
   if (extra) Object.assign(b, extra);
   eBullets.push(b);
   return b;
@@ -1959,6 +2026,13 @@ let telegrafos = [];
 function telegrafo(tipo, o) {
   if (telegrafos.length > 24) return null;
   const t = Object.assign({ tipo, t: 0, life: 0.9, col: TIRO_SUYO }, o);
+  // `life` y el `avisa` que decide cuándo dispara el ataque real se
+  // autoran a mano para que coincidan (ver los ~40 sitios que llaman a
+  // esto). Se escalan por el MISMO factor en los dos únicos sitios que
+  // los leen —éste y el bucle de cadencia de cada motor— para que jamás
+  // se desincronicen: un aviso más largo en FÁCIL no puede acabar
+  // desapareciendo antes de que llegue el disparo que anuncia.
+  t.life *= DIF.telegraphMul;
   telegrafos.push(t);
   return t;
 }
@@ -2466,7 +2540,7 @@ function spawnDefensas(tipo, n) {
   const y = SAFE_TOP + H * 0.09 + rand(-15, 15);
   for (let i = 0; i < n; i++) {
     defensas.push({ tipo, x: sep * (i + 1), y, r: d.r,
-      hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6, flash: 0 });
+      hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6 * DIF.enemyCadenceMul, flash: 0 });
   }
 }
 
@@ -2478,7 +2552,7 @@ function actualizarDefensas(dt) {
     d.cd -= dt;
     // M9: ALPHA controla las torretas de escenario. Sin él, se quedan de
     // adorno — la barra de vida sigue ahí, pero no disparan.
-    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga(); }
+    if (d.cd <= 0 && sistemaAlpha) { DEFENSA_TIPOS[d.tipo].atacar(d); d.cd = DEFENSA_TIPOS[d.tipo].recarga() * DIF.enemyCadenceMul; }
     else if (d.cd <= 0) { d.cd = 0.3; }
     for (let j = bullets.length - 1; j >= 0; j--) {
       const b = bullets[j];
@@ -2490,7 +2564,7 @@ function actualizarDefensas(dt) {
       if (gastada) soltarBala(j);
       if (d.hp <= 0) {
         muerte(d.x, d.y, "#4499ff", "defensa");
-        combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        combo++; comboT = comboVentana(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo);
         const pts = Math.round(DEFENSA_TIPOS[d.tipo].puntos * multCombo());
         score += pts;
@@ -2972,7 +3046,7 @@ function actualizarSistemas(dt) {
         if (s.id === "alpha") sistemaAlpha = false;
         if (s.id === "beta") sistemaBeta = false;
         if (s.id === "gamma") sistemaGamma = false;
-        score += 400; combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+        score += 400; combo++; comboT = comboVentana(); enemiesKilled++;
         maxCombo = Math.max(maxCombo, combo); hitoCombo();
       }
       break;
@@ -3309,6 +3383,7 @@ function aplicarGuardado(s) {
   if (OPCIONES.volMaster <= 0) OPCIONES.volMaster = 0.9;
   if (OPCIONES.volSfx <= 0) OPCIONES.volSfx = 0.9;
   if (OPCIONES.calidad !== "auto") Q = CALIDADES[OPCIONES.calidad] || CALIDADES.alta;
+  resolverDificultad();
 }
 
 function crearFondo() {
@@ -3390,7 +3465,7 @@ function armasDeMision() {
   const m = modo === "campana" && MISIONES[misionIdx];
   return (m && m.armas) || ["plasma", "laser"];
 }
-function elegirPremioAleatorio() {
+function elegirPremioBase() {
   const r = Math.random();
   if (r > 0.945) return "vida";
   if (r > 0.855) return "bomba";
@@ -3403,6 +3478,24 @@ function elegirPremioAleatorio() {
     return fam[(Math.random() * fam.length) | 0];
   }
   return "arma";
+}
+// Envoltorio de dificultad: en MEDIUM `defensiveDropMul` vale 1 y esta
+// función es un simple paso a través de `elegirPremioBase()`, byte a
+// byte igual que antes de este bloque. En FÁCIL empuja SUAVEMENTE hacia
+// escudo/vida; en DIFÍCIL, al revés. No se toca la escalera de
+// probabilidades base — eso rompería el ajuste fino que ya tiene.
+function elegirPremioAleatorio() {
+  const t = elegirPremioBase();
+  const mul = DIF.defensiveDropMul;
+  if (mul === 1) return t;
+  const defensivo = t === "vida" || t === "escudo";
+  if (!defensivo && mul > 1 && Math.random() < (mul - 1) * 0.4) {
+    return Math.random() < 0.5 ? "escudo" : "vida";
+  }
+  if (defensivo && mul < 1 && Math.random() < (1 - mul) * 0.4) {
+    return elegirPremioBase();
+  }
+  return t;
 }
 
 function procesarEvento(ev) {
@@ -3487,7 +3580,7 @@ function cambiarFase(mb, n) {
   const f = d.fases[n];
   if (!f) return;
   mb.fase = n; mb.faseT = 0;
-  mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6);
+  mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6 * DIF.enemyCadenceMul);
   mb.avisados = null;
   if (f.alEntrar) f.alEntrar(mb);
   // Subida de intensidad de la música por fase. Las pistas son mezclas
@@ -3686,10 +3779,10 @@ function actualizarMiniboss(dt) {
     const a = f.ataques[i];
     mb.cds[i] -= dt;
     if (a.avisa && !mb.avisados) mb.avisados = {};
-    if (a.avisa && mb.cds[i] <= a.avisa && !mb.avisados[i]) { mb.avisados[i] = 1; a.telegrafo(mb); }
+    if (a.avisa && mb.cds[i] <= a.avisa * DIF.telegraphMul && !mb.avisados[i]) { mb.avisados[i] = 1; a.telegrafo(mb); }
     if (mb.cds[i] <= 0) {
       a.fn(mb);
-      mb.cds[i] = rand(a.cd[0], a.cd[1]);
+      mb.cds[i] = rand(a.cd[0], a.cd[1]) * DIF.enemyCadenceMul;
       if (mb.avisados) mb.avisados[i] = 0;
     }
   }
@@ -4276,13 +4369,14 @@ function spawnEnemy(tipo, x) {
   const k = tipo || elegirTipo();
   const d = ENEMIGOS[k];
   asegurarSpriteEnemigo(k);
+  const r = d.r * ESC;   // el tamaño de la tabla es "a 414 px de ancho"
   const e = {
     tipo: k, r, hp: d.hp, hpMax: d.hp,
     x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
     y: -r - 12,
     vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
-    cd: d.recarga ? d.recarga() : 0, flash: 0,
+    cd: d.recarga ? d.recarga() * DIF.enemyCadenceMul : 0, flash: 0,
     recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
   };
   if (d.init) d.init(e);
@@ -4366,7 +4460,7 @@ function golpearCon(b, x, y, victima) {
 
 function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
-  combo++; comboT = CONFIG.comboTiempo; enemiesKilled++;
+  combo++; comboT = comboVentana(); enemiesKilled++;
   maxCombo = Math.max(maxCombo, combo);
   const mult = multCombo();
   const pts = Math.round(d.puntos * mult);
@@ -4593,7 +4687,7 @@ function golpe(fx, fy) {
     texto(player.x, player.y - 34, "ESCUDO ROTO", "#5ce1ff", 15);
     return;
   }
-  lives--; invulnT = CONFIG.invulnerable;
+  lives--; invulnT = CONFIG.invulnerable * DIF.invulnMul;
   sinDanio = false;
   arma = Math.max(1, arma - 1);
   combo = 0; comboHito = 0; comboT = 0;
@@ -4996,9 +5090,9 @@ function update(dt) {
       e.cd -= edt;
       // El aviso sale ANTES del ataque, no con él. Esa fracción de
       // segundo es toda la diferencia entre esquivar y adivinar.
-      if (d.avisa && !e.avisado && e.cd <= d.avisa && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
+      if (d.avisa && !e.avisado && e.cd <= d.avisa * DIF.telegraphMul && e.y > 30) { e.avisado = 1; d.telegrafo(e); }
       if (e.cd <= 0 && e.y > 30) {
-        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1);
+        e.cd = d.recarga() * (comandosVivos > 0 && !d.esComando ? 0.7 : 1) * DIF.enemyCadenceMul;
         e.avisado = 0; d.atacar(e);
       }
     }
@@ -5711,7 +5805,7 @@ function hud() {
     // Con jefe en pantalla el centro lo ocupa su barra: el combo se
     // aparta al lado en vez de superponerse.
     const cy = top + 84, cx = miniboss ? W - 40 : W / 2;
-    const k = clamp(comboT / CONFIG.comboTiempo, 0, 1);
+    const k = clamp(comboT / comboVentana(), 0, 1);
     ctx.globalAlpha = Math.min(1, comboT * 2.5);
     ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(cx, cy, 20, 0, TAU); ctx.stroke();
@@ -6316,7 +6410,8 @@ function filaOpcion(y, etiqueta, valores, campo) {
     const on = OPCIONES[campo] === val;
     boton(bx + i * paso, y - 15, paso - 4, 30, { sel: on, r: 8, tam: 9, esp: 1,
       label: lab, fn: () => { OPCIONES[campo] = val; guardarOpciones();
-        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val]; } });
+        if (campo === "calidad") Q = val === "auto" ? CALIDADES[calidadAuto] : CALIDADES[val];
+        if (campo === "dificultad") resolverDificultad(); } });
   }
 }
 
@@ -6336,9 +6431,10 @@ function pantallaAjustes() {
   // cualquier número fijo se queda corto la mitad de las veces.
   const altoSonido = sep * 4 + 16;          // 3 volúmenes + silencio
   const altoImagen = sep * 5 + 16;          // calidad, sacudida, impacto, núcleo, efectos
+  const altoDificultad = sep + 16;          // fácil / normal / difícil
   const altoBoton = 48;
   const altoAyuda = audioListo ? 30 : 68;   // el aviso naranja ocupa 38 más
-  const altoTotal = 44 + altoSonido + altoImagen + altoBoton + altoAyuda + 14;
+  const altoTotal = 44 + altoSonido + altoImagen + altoDificultad + altoBoton + altoAyuda + 14;
   panel(x0 - 18, y - 44, anchoP + 36, altoTotal, 18, 0.72);
   filo(x0 - 18, y - 44, anchoP + 36, altoTotal, 18, T.nave, 0.18);
   ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
@@ -6361,6 +6457,13 @@ function pantallaAjustes() {
   // idénticas con significados distintos en la misma pantalla es un
   // error de lectura, no un detalle de estilo.
   filaOpcion(y, "DETALLE", [["AUTO", "auto"], ["ALTO", "alto"], ["MEDIO", "medio"], ["BAJO", "bajo"]], "vfx"); y += sep + 16;
+
+  ctx.font = "800 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.8;
+  letras("PARTIDA", x0, y - 22, 3);
+  ctx.globalAlpha = 1;
+  // El multiplicador de puntuación va SOLO en la etiqueta: la cifra exacta
+  // se calibra en el bloque del kill funnel y no hace falta duplicarla aquí.
+  filaOpcion(y, "DIFICULTAD", [["FÁCIL", "easy"], ["NORMAL", "medium"], ["DIFÍCIL", "high"]], "dificultad"); y += sep + 16;
 
   // Prueba de sonido: pasa por el motor real, así que si suena aquí,
   // suena en el juego. Y el propio toque sirve de gesto de desbloqueo.
