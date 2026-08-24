@@ -8,7 +8,11 @@
  *             nueva se coge sola al recargar con cobertura, pero el juego
  *             sigue abriendo en el metro.
  */
-const CACHE = 'playzone-rush-v2';
+// v3 en el lanzamiento: el 'activate' de abajo borra toda cache cuyo nombre no
+// sea este, asi que cambiarlo garantiza que no sobreviva ni un fichero de la
+// semana de prueba. La estrategia es red-primero y ya cogia las builds nuevas
+// sola, pero en un arranque limpio no se deja nada al azar.
+const CACHE = 'playzone-rush-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

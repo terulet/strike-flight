@@ -412,44 +412,31 @@ export const migrations: Record<number, Migration> = {
   // vez y se acabo.
   4: (data) => ({ ...data, version: 5 }),
   /**
-   * v5 -> v6: ARRANQUE LIMPIO. Se borra la semana de prueba.
+   * v5 -> v6: ARRANQUE LIMPIO. Juego nuevo, datos nuevos.
    *
-   * Esta es la unica migracion del proyecto que TIRA datos, y es a proposito:
-   * la semana de alfa se jugo con cuatro juegos y una interfaz que ya no
-   * existe, y arrastrar esas marcas al lanzamiento mezclaria dos cosas que no
-   * se pueden comparar. Se empieza de cero, todos a la vez.
+   * Es la unica migracion del proyecto que TIRA datos, y tira TODOS: dias
+   * jugados, records, racha, telemetria, identidad de grupo, preferencias y
+   * hasta el nombre. Lo que queda es exactamente lo que ve alguien que abre
+   * PLAYZONE por primera vez en su vida.
    *
-   * La alternativa era pedirle a cada persona que borrara los datos del sitio
-   * desde los ajustes del navegador. Eso es un camino que la mitad no
-   * encuentra y la otra mitad hace mal, y quien lo haga mal se queda sin
-   * nombre y sin preferencias. Asi lo hace la app sola al abrir.
+   * POR QUE ENTERO Y NO A MEDIAS: la semana de alfa se jugo con cuatro juegos
+   * y una interfaz que ya no existe. Guardar "solo el nombre" suena inofensivo
+   * pero deja la puerta abierta a que sobreviva algun campo por descuido, y
+   * entonces el arranque limpio no es limpio, es casi limpio. Volver a
+   * escribir el nombre son cinco segundos y se hace una vez.
    *
-   * SE MANTIENE el nombre y las preferencias -sonido, vibracion, movimiento
-   * reducido-, que son ajustes de la persona y no del juego. SE VA todo lo
-   * demas, incluida la identidad de grupo: el grupo viejo ya no existe en el
-   * servidor, y quedarse con un token muerto solo produciria errores de
-   * sincronizacion en bucle.
+   * LA ALTERNATIVA era pedirle a cada persona que borrara los datos del sitio
+   * desde los ajustes del navegador. Ese es un camino que la mitad no
+   * encuentra y la otra mitad hace mal. Asi lo hace la app sola al abrir.
+   *
+   * Sobre el movimiento reducido: el save vuelve a su valor por defecto, pero
+   * eso ya no pisa el ajuste del sistema. App.quieto suma los dos, asi que
+   * quien tenga "reducir movimiento" puesto en el telefono lo sigue teniendo
+   * aunque su partida se haya borrado.
    */
-  5: (data) => {
-    const previo = obj(data);
-    const perfil = obj(previo.profile);
-    const prefs = obj(previo.prefs);
-    const limpio = defaultSave();
-    return {
-      ...limpio,
-      profile: {
-        ...limpio.profile,
-        name: typeof perfil.name === 'string' && perfil.name.trim() ? perfil.name : limpio.profile.name,
-        createdAt: num(perfil.createdAt, limpio.profile.createdAt),
-      },
-      prefs: {
-        muted: bool(prefs.muted, limpio.prefs.muted),
-        haptics: bool(prefs.haptics, limpio.prefs.haptics),
-        reducedMotion: bool(prefs.reducedMotion, limpio.prefs.reducedMotion),
-      },
-      version: 6,
-    };
-  },
+  // La firma de Migration devuelve un objeto suelto; defaultSave() es un
+  // SaveData y hay que ensancharlo. normalizeSave() lo valida despues igual.
+  5: () => ({ ...defaultSave() }) as unknown as Record<string, unknown>,
 };
 
 export interface LoadReport {
@@ -491,6 +478,12 @@ export function loadSaveFrom(store: KeyValueStore): LoadReport {
     migrated = true;
     v = typeof data.version === 'number' ? data.version : v + 1;
   }
+
+  // Arranque limpio de verdad: si se ha pasado por la v6, tambien se tira la
+  // copia de un save roto de antes. Es la unica cosa que quedaba escrita en el
+  // dispositivo de la semana de prueba, y un arranque limpio que deja restos
+  // no es un arranque limpio.
+  if (migrated && fromVersion < 6) store.remove(SAVE_BACKUP_KEY);
 
   const save = normalizeSave(data);
   const status: LoadReport['status'] = migrated ? 'migrated' : 'ok';

@@ -207,24 +207,36 @@ describe('arranque limpio v5 -> v6', () => {
     expect(save.snapshot).toBeNull();
   });
 
-  it('respeta el nombre y las preferencias', () => {
-    // Son ajustes de la persona, no del juego. Quitarlos seria hacerle repetir
-    // trabajo a alguien que ya lo hizo.
+  it('se lleva TAMBIEN el nombre y las preferencias', () => {
+    // Juego nuevo, datos nuevos. Guardar "solo el nombre" suena inofensivo
+    // pero deja la puerta abierta a que sobreviva algun campo por descuido, y
+    // entonces el arranque limpio no es limpio, es casi limpio.
     const { save } = loadSaveFrom(store(semanaDePrueba));
-    expect(save.profile.name).toBe('ELOI');
-    expect(save.prefs).toEqual({ muted: true, haptics: false, reducedMotion: true });
+    expect(save.profile).toEqual(defaultSave().profile);
+    expect(save.prefs).toEqual(defaultSave().prefs);
+  });
+
+  it('queda exactamente igual que una instalacion nueva', () => {
+    // La comprobacion que de verdad importa: no hay un campo que se me haya
+    // pasado. Si algun dia se anade uno al save y se olvida aqui, esto salta.
+    const { save } = loadSaveFrom(store(semanaDePrueba));
+    expect(save).toEqual(defaultSave());
+  });
+
+  it('borra tambien la copia de un save roto de la semana de prueba', () => {
+    // Era lo unico que quedaba escrito en el dispositivo, y un arranque limpio
+    // que deja restos no es un arranque limpio.
+    const s = createMemoryStore();
+    s.set(SAVE_KEY, JSON.stringify(semanaDePrueba));
+    s.set(SAVE_BACKUP_KEY, '{"basura":true}');
+    loadSaveFrom(s);
+    expect(s.get(SAVE_BACKUP_KEY)).toBeNull();
   });
 
   it('deja la partida en la version nueva', () => {
     const { save, status } = loadSaveFrom(store(semanaDePrueba));
     expect(save.version).toBe(SAVE_VERSION);
     expect(status).toBe('migrated');
-  });
-
-  it('sin nombre guardado no deja el hueco vacio', () => {
-    const sinNombre = { ...semanaDePrueba, profile: { name: '   ', createdAt: 0 } };
-    const { save } = loadSaveFrom(store(sinNombre));
-    expect(save.profile.name.trim().length).toBeGreaterThan(0);
   });
 
   it('no se ejecuta dos veces', () => {

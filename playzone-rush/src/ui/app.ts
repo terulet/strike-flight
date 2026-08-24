@@ -146,6 +146,23 @@ export class App {
     return computeStreak(this.save, this.dayKey, 30, { simulate: !this.isGroup });
   }
 
+  /**
+   * Si hay que moverse poco.
+   *
+   * Es la preferencia guardada O la del sistema, no solo la guardada. El campo
+   * del save vale false por defecto, y como se pasaba tal cual acababa
+   * ANULANDO el "reducir movimiento" de iOS: quien lo tuviera puesto veia
+   * todas las animaciones igual. Y al empezar de cero, sin esto, le pasaria a
+   * todo el mundo a la vez.
+   *
+   * Suma en vez de elegir: si el sistema pide calma, se respeta aunque el save
+   * diga lo contrario. Reducir de mas nunca hace dano; reducir de menos si.
+   */
+  get quieto(): boolean {
+    if (this.save.get().prefs.reducedMotion) return true;
+    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   /** Estado del reto secreto, real o simulado segun el modo. */
   secretInfo(): SecretStatus {
     if (this.isGroup && this.snapshot) {
@@ -241,7 +258,7 @@ export class App {
     });
     this.save.flush();
 
-    const quieto = this.save.get().prefs.reducedMotion;
+    const quieto = this.quieto;
     // Se espera a que se quite la marca de apertura. Los dos son overlays que
     // no bloquean, asi que arrancando juntos el sorteo giraba por debajo.
     setTimeout(() => {
@@ -461,7 +478,7 @@ export class App {
       {
         acento: requireGame(spec.gameId).meta.accent,
         titulo: spec.gameName,
-        reducedMotion: this.save.get().prefs.reducedMotion,
+        reducedMotion: this.quieto,
       },
       arrancar,
     );

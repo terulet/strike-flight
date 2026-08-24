@@ -98,7 +98,7 @@ export class PlayScreen {
       container: this.stage,
       audio: app.audio,
       haptics: app.haptics,
-      reducedMotion: app.save.get().prefs.reducedMotion,
+      reducedMotion: app.quieto,
       onHud: (info) => this.paintHud(info),
       onFinish: (result) => this.handleFinish(result),
       onMilestone: (text, tone) => app.toaster.show(text, tone === 'good' ? 'good' : 'bad', 1400),
@@ -428,7 +428,7 @@ export class PlayScreen {
     // El resultado sube desde el propio HUD en vez de aparecer de golpe: la
     // arena se queda debajo perdiendo intensidad y la cifra no parpadea entre
     // una pantalla y otra.
-    emergerResultado(node, this.app.save.get().prefs.reducedMotion);
+    emergerResultado(node, this.app.quieto);
     this.root.classList.add('play--resultado');
   }
 

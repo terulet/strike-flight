@@ -91,15 +91,19 @@ PLAYZONE_MAX_PLAYERS=25 pm2 restart playzone --update-env
 Al abrir la app:
 
 1. La versión nueva detecta que su partida guardada es de la semana de prueba
-   y **la limpia sola** (migración v5 → v6).
-2. Se **mantiene** el nombre y las preferencias de sonido, vibración y
-   movimiento reducido — son ajustes de la persona, no del juego.
-3. Se **va** todo lo demás: días jugados, récords, racha, telemetría y la
-   identidad del grupo viejo. Esto último es necesario: el grupo ya no existe
-   en el servidor, y quedarse con un token muerto produce errores de
-   sincronización en bucle.
-4. Aterrizan en la pantalla de bienvenida y entran al grupo nuevo con el
-   código.
+   y **la borra entera** (migración v5 → v6). Días jugados, récords, racha,
+   telemetría, identidad de grupo, preferencias y nombre.
+2. También se borra la copia de seguridad de un save roto, si la hubiera: era
+   lo único que quedaba escrito en el dispositivo.
+3. El service worker cambia de caché (`v3`), así que tampoco sobrevive ningún
+   fichero de la versión vieja.
+4. Aterrizan en la pantalla de bienvenida **como si abrieran PLAYZONE por
+   primera vez**: escriben su nombre y entran al grupo nuevo con el código.
+
+> **El movimiento reducido no se pierde de verdad.** El save vuelve a su valor
+> por defecto, pero eso ya no pisa el ajuste del teléfono: quien tenga
+> "reducir movimiento" activado en iOS lo sigue teniendo. Antes no era así —
+> el valor guardado anulaba al del sistema— y se arregló al preparar esto.
 
 Crea el grupo nuevo tú primero y pasa el código.
 
