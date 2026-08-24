@@ -428,4 +428,51 @@ congelarse. Verde.
 
 ---
 
-*(Continúa en 6J — última fase del bloque.)*
+---
+
+## 6J — Pasada final de juice
+
+Sin sistemas grandes nuevos, como pide el encargo. Lo que sí:
+
+- **`BALAS_MAX = 240`** (nuevo tope duro): las balas EXTRA de Overdrive
+  (6F), TRIPLE SHOT y MISSILE SWARM (6G/6H) no tenían presupuesto — el
+  arma base nunca se acercaba a necesitarlo antes de este bloque. La
+  peor escena razonable (5 upgrades a tope + evolución + Overdrive a
+  la vez) llegaba a 195 balas del jugador. El arma base nunca se
+  recorta por esto.
+- **`herramientas/pruebas/estres-bloque6.mjs`** — DIFÍCIL, 30 enemigos
+  con élites, hazard, 130 balas enemigas, combo 60+, Overdrive activa,
+  jefe en pantalla, todo a la vez. Los cuatro topes duros del bloque
+  (flotantes/shards/eBalas/balas) se respetan; el auto-degradado de
+  calidad responde bajo carga.
+- **`herramientas/muestra-ritmo-real.mjs`** — telemetría REAL (no
+  análisis de guión) de M1/M10/M15 jugadas de principio a fin con el
+  piloto de `mision-completa.mjs`. Las tres terminaron en "over"
+  (el piloto muere a propósito, está escrito para esquivar, no para
+  ganar) así que no hay rank/skill-events de muestra, pero SÍ hueco
+  máximo real: 8.6–10.4s, muy por debajo del umbral de 30s del
+  análisis estático — confirma que el guión no deja vacíos
+  catastróficos incluso bajo juego imperfecto.
+- **`PROTOCOLO-PLAYTEST-BLOQUE6.md`** — las ocho preguntas del
+  encargo, con instrucciones de cuándo repreguntar y cuándo NO tocar
+  balance por una sola sesión.
+- **Auditoría de audio**: 71 sonidos, 0 rutas rotas. Documentadas 5
+  identidades sin asset propio (élite aparece/muere, jackpot,
+  evolución, rank S/S+) — todas resueltas hoy por reutilización
+  razonada, ninguna con un pitido genérico nuevo.
+- **Encontrado, sin arreglar (fuera de alcance de este bloque)**: 2
+  fallos de `mundos.mjs` y la flakiness de `jefes.mjs`/`enemigos.mjs`
+  en headless, los tres confirmados pre-existentes contra el commit
+  anterior a Bloque 6. Un choque de nombres entre `ENEMIGOS.elite`
+  (de siempre) y el flag `e.elite` (6E) — sin conflicto mecánico,
+  decisión de vocabulario pendiente para el usuario.
+
+**Informe final publicado:**
+https://claude.ai/code/artifact/f9aca049-c091-4c5b-a2e0-184a132a39ed
+— los 24 puntos del encargo, con datos reales de esta rama.
+
+---
+
+**BLOQUE 6 COMPLETO.** Parado aquí, esperando OK antes de
+`sync-flight-strike` → `verify-flight-strike-sync` → Netlify. Sin
+push, sin merge, sin tocar `main` ni PLAYZONE MAX.
