@@ -429,3 +429,174 @@ describe('por juego', () => {
     expect(memory.composite).toBeGreaterThan(ritmo.composite - 40);
   });
 });
+
+/**
+ * Las senales nuevas del QUALITY PATCH: One More Rate, abandono, tiempo hasta
+ * repetir, sesion continua, close-loss por margen relativo, first pick, y
+ * niveles de confianza en vez de un si/no.
+ */
+describe('por juego: senales nuevas', () => {
+  it('One More: termina con intento libre y vuelve a pulsar el MISMO juego enseguida', () => {
+    const { player } = newGroup('Eloi');
+    const day = today();
+    // Termina con 2 intentos libres y, 900 ms despues, arranca el MISMO juego otra vez.
+    track(player, 'game_finish', { gameId: 'carga', day, ts: 1000, meta: { attemptsLeftAfter: 2 } });
+    track(player, 'game_start', { gameId: 'carga', day, ts: 1900 });
+
+    const carga = metrics().perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga.oneMoreOpportunities).toBe(1);
+    expect(carga.oneMoreCount).toBe(1);
+    expect(carga.oneMoreRate).toBe(1);
+    expect(carga.medianReplayMs).toBe(900);
+  });
+
+  it('One More: NO cuenta si a esa partida no le quedaban intentos', () => {
+    const { player } = newGroup('Eloi');
+    const day = today();
+    track(player, 'game_finish', { gameId: 'carga', day, ts: 1000, meta: { attemptsLeftAfter: 0 } });
+    track(player, 'game_start', { gameId: 'carga', day, ts: 1900 });
+
+    const carga = metrics().perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga.oneMoreOpportunities).toBe(0);
+    expect(carga.oneMoreRate).toBeNull();
+  });
+
+  it('One More: NO cuenta si lo siguiente que juega es OTRO juego', () => {
+    const { player } = newGroup('Eloi');
+    const day = today();
+    track(player, 'game_finish', { gameId: 'carga', day, ts: 1000, meta: { attemptsLeftAfter: 2 } });
+    track(player, 'game_start', { gameId: 'freno', day, ts: 1900 });
+
+    const carga = metrics().perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga.oneMoreOpportunities).toBe(1);
+    expect(carga.oneMoreCount).toBe(0);
+    expect(carga.oneMoreRate).toBe(0);
+  });
+
+  it('sesion continua: cualquier juego siguiente cuenta, no solo el mismo', () => {
+    const { player } = newGroup('Eloi');
+    const day = today();
+    track(player, 'game_finish', { gameId: 'carga', day, ts: 1000, meta: { attemptsLeftAfter: 0 } });
+    track(player, 'game_start', { gameId: 'freno', day, ts: 5000 });
+
+    const carga = metrics().perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga.sessionContinuationRate).toBe(1);
+  });
+
+  it('sesion terminada: sin ningun game_start despues, esa fue la ultima partida del dia', () => {
+    const { player } = newGroup('Eloi');
+    const day = today();
+    track(player, 'game_finish', { gameId: 'carga', day, ts: 1000, meta: { attemptsLeftAfter: 1 } });
+
+    const carga = metrics().perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga.sessionContinuationRate).toBe(0);
+    expect(carga.oneMoreRate).toBe(0); // habia intento libre, pero no volvio a nada
+  });
+
+  it('abandonRate: se expone el ratio, no solo el conteo crudo', () => {
+    const { player } = newGroup('Eloi');
+    track(player, 'game_start', { gameId: 'trile' });
+    track(player, 'game_start', { gameId: 'trile' });
+    track(player, 'game_abandon', { gameId: 'trile', value: 500 });
+
+    const trile = metrics().perGame.games.find((g) => g.gameId === 'trile');
+    expect(trile.abandons).toBe(1);
+    expect(trile.abandonRate).toBe(0.5);
+  });
+
+  it('close-loss replay: usa el margen PORCENTUAL, no el gap absoluto', () => {
+    const { player } = newGroup('Eloi');
+    // Pierde por 200 de 1000 (20%, no es "por poco"): se ofrece pero no cuenta como close-loss.
+    track(player, 'revenge_available', { gameId: 'cuenta', value: 200, meta: { marginPct: 20 } });
+    // Pierde por 50 de 1000 (5%, si es "por poco") y la pulsa.
+    track(player, 'revenge_available', { gameId: 'cuenta', value: 50, meta: { marginPct: 5 } });
+    track(player, 'revenge_clicked', { gameId: 'cuenta', value: 50, meta: { marginPct: 5 } });
+
+    const cuenta = metrics().perGame.games.find((g) => g.gameId === 'cuenta');
+    expect(cuenta.revengeAvailable).toBe(2); // las dos cuentan para el KPI original
+    expect(cuenta.closeLossAvailable).toBe(1); // solo la del 5% es "por poco"
+    expect(cuenta.closeLossClicked).toBe(1);
+    expect(cuenta.closeLossReplayRate).toBe(1);
+  });
+
+  it('first pick: solo el primer game_start del dia, de un reto diario, sin ser revancha', () => {
+    const { created, player } = newGroup('Eloi');
+    const marc = join(created.group.code, 'Marc');
+    const day = today();
+
+    // Eloi: primero TORRE, luego CARGA (no cuenta, ya no es el primero).
+    track(player, 'game_start', { gameId: 'torre', day, ts: 100, meta: { challengeId: 'c1', revenge: false } });
+    track(player, 'game_start', { gameId: 'carga', day, ts: 500, meta: { challengeId: 'c2', revenge: false } });
+    // Marc: primero CARGA.
+    track(marc, 'game_start', { gameId: 'carga', day, ts: 200, meta: { challengeId: 'c1', revenge: false } });
+    // Un game_start marcado como revancha no cuenta como "primera eleccion".
+    track(marc, 'game_start', { gameId: 'trile', day, ts: 50, meta: { challengeId: 'c3', revenge: true } });
+    // Ni el reto secreto: no es parte de "los tres del dia".
+    track(marc, 'game_start', { gameId: 'freno', day, ts: 10, meta: { challengeId: 'secret', revenge: false } });
+
+    const games = metrics().perGame.games;
+    const torre = games.find((g) => g.gameId === 'torre');
+    const carga = games.find((g) => g.gameId === 'carga');
+    expect(torre.firstPicks).toBe(1);
+    expect(carga.firstPicks).toBe(1);
+    expect(torre.firstPickShare).toBe(0.5);
+    expect(carga.firstPickShare).toBe(0.5);
+  });
+
+  it('niveles de confianza: sinDatos, muyBaja, preliminar, util y alta, no un si/no', () => {
+    const { player } = newGroup('Eloi');
+    const casos = [
+      ['torre', 5, 'sinDatos'],
+      ['carga', 10, 'muyBaja'],
+      ['freno', 30, 'preliminar'],
+      ['trile', 60, 'util'],
+      ['cuenta', 120, 'alta'],
+    ];
+    for (const [gameId, n] of casos) {
+      for (let i = 0; i < n; i++) track(player, 'game_finish', { gameId, value: 1000 });
+    }
+    const games = metrics().perGame.games;
+    for (const [gameId, , esperado] of casos) {
+      expect(games.find((g) => g.gameId === gameId).confidence, gameId).toBe(esperado);
+    }
+    // insufficient sigue existiendo por compatibilidad, y solo es cierto en sinDatos.
+    expect(games.find((g) => g.gameId === 'torre').insufficient).toBe(true);
+    expect(games.find((g) => g.gameId === 'carga').insufficient).toBe(false);
+  });
+
+  it('las fronteras de confianza son exactas: un finish de menos ya es el nivel de abajo', () => {
+    const { created } = newGroup('Eloi');
+    // Cada frontera con su propio jugador, para no arrastrar partidas de un caso a otro.
+    const fronteras = [
+      ['sinDatos-alto', 7, 'sinDatos'],
+      ['muyBaja-bajo', 8, 'muyBaja'],
+      ['muyBaja-alto', 24, 'muyBaja'],
+      ['preliminar-bajo', 25, 'preliminar'],
+      ['preliminar-alto', 49, 'preliminar'],
+      ['util-bajo', 50, 'util'],
+      ['util-alto', 99, 'util'],
+      ['alta-bajo', 100, 'alta'],
+    ];
+    for (const [id, n] of fronteras) {
+      const jugador = join(created.group.code, id);
+      for (let i = 0; i < n; i++) track(jugador, 'game_finish', { gameId: id, value: 1000 });
+    }
+    const games = metrics().perGame.games;
+    for (const [id, , esperado] of fronteras) {
+      expect(games.find((g) => g.gameId === id).confidence, `${id}`).toBe(esperado);
+    }
+  });
+
+  it('is_test excluye la partida de TODO el panel, no solo de perGame', () => {
+    const { player } = newGroup('Eloi');
+    api.recordEvents(player, {
+      events: [{ type: 'game_finish', day: today(), ts: clock, gameId: 'carga', value: 9999, isTest: true }],
+    });
+    track(player, 'app_open'); // real, para que el grupo no salga totalmente vacio
+
+    const m = metrics();
+    const carga = m.perGame.games.find((g) => g.gameId === 'carga');
+    expect(carga).toBeUndefined(); // la unica partida de carga era de prueba: no debe aparecer
+    expect(m.activity.eventCounts.game_finish).toBeUndefined();
+  });
+});

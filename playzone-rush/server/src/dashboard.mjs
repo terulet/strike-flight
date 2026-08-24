@@ -39,10 +39,10 @@ export function createDashboard(db) {
       WHERE p.group_id = ? ORDER BY pr.day ASC
     `),
     events: db.prepare(
-      'SELECT ts, player_id, day, type, game_id, value FROM events WHERE group_id = ? ORDER BY ts ASC',
+      'SELECT ts, player_id, day, type, game_id, game_version, value, meta, is_test FROM events WHERE group_id = ? ORDER BY ts ASC',
     ),
     scores: db.prepare(`
-      SELECT s.day, s.player_id, s.challenge_id, s.game_id, s.best_score, s.attempts_used, s.plays
+      SELECT s.day, s.player_id, s.challenge_id, s.game_id, s.game_version, s.best_score, s.attempts_used, s.plays, s.is_test
       FROM scores s JOIN players p ON p.id = s.player_id
       WHERE p.group_id = ? ORDER BY s.day ASC
     `),
@@ -60,8 +60,12 @@ export function createDashboard(db) {
   function metrics(groupId, today) {
     const players = q.players.all(groupId);
     const presence = q.presence.all(groupId);
-    const events = q.events.all(groupId);
-    const scores = q.scores.all(groupId);
+    // is_test fuera desde aqui, no en cada funcion por separado: una partida
+    // de ?debug (o de una herramienta de verificacion) no es una senal de
+    // enganche humano, y ninguna metrica de este panel -ni las de mas
+    // arriba, ni perGame()- debe verla nunca.
+    const events = q.events.all(groupId).filter((e) => !e.is_test);
+    const scores = q.scores.all(groupId).filter((s) => !s.is_test);
     const attempts = q.attempts.all(groupId);
 
     return {
@@ -331,24 +335,69 @@ function activity(presence, events) {
  * conversacion del grupo, sino cuales hacen que la gente pulse otra vez,
  * agote los tres intentos y mande la captura sin que nadie se lo pida.
  *
- * CINCO SENALES, cada una midiendo algo que las otras cuatro no miden:
+ * SEIS SENALES ENTRAN EN EL COMPUESTO, cada una midiendo algo que las otras
+ * cinco no miden:
  *
- *   revengeRate    -> "quiero otra" (el KPI estrella del proyecto, ahora por juego)
- *   shareRate      -> "esto me representa": de cada partida terminada, cuantas
- *                      producen un compartir de verdad. Es la senal MAS rara y
- *                      la MAS fuerte cuando aparece: nadie manda una imagen de
- *                      un juego que le da igual.
- *   exhaustedRate  -> "no me rindo hasta el tercer intento": compromiso dentro
- *                      de la propia partida, no solo entre partidas.
+ *   oneMoreRate    -> termina con otro intento libre: ¿pulsa el MISMO juego
+ *                      otra vez enseguida? Es la pregunta mas directa de
+ *                      todas -no depende de perder contra nadie, solo de si
+ *                      la partida misma da ganas de repetirla-.
+ *   revengeRate    -> "quiero otra" cuando alguien te ha pasado (el KPI
+ *                      estrella original del proyecto, mas especifico que
+ *                      oneMoreRate: solo cuenta cuando hay una persona de por
+ *                      medio).
+ *   shareRate      -> "esto me representa": de cada partida terminada,
+ *                      cuantas producen un compartir de verdad. La senal MAS
+ *                      rara y la MAS fuerte cuando aparece: nadie manda una
+ *                      imagen de un juego que le da igual.
+ *   exhaustedRate  -> "no me rindo hasta el tercer intento": compromiso
+ *                      dentro de la propia partida, no solo entre partidas.
  *   completionRate -> lo contrario de "esto no engancha, lo dejo a medias".
  *   masteryRate    -> sigue superando su propia marca, no se ha estancado.
  *
- * MUESTRA MINIMA. Con menos de MIN_FINISHES partidas terminadas cualquier
- * ratio es ruido (un 100% de revancha con n=1 no dice nada). Esos juegos
- * salen en la lista con sus numeros crudos pero sin indice: `insufficient:
- * true` y `composite: null`, nunca un numero que aparente ser una conclusion.
+ * Otras cinco se calculan y se ensenan pero NO entran en el compuesto,
+ * porque miden cosas mas especificas o mas dificiles de comparar entre
+ * juegos, y forzarlas dentro de un solo numero las diluye sin anadir nada
+ * que exhaustedRate/completionRate no cubran ya de forma mas robusta:
  *
- * EL COMPUESTO. Las cinco tasas no viven en la misma escala -revengeRate
+ *   abandonRate           -> el reverso exacto de completionRate. Se ensena
+ *                             por separado porque "cuanto abandona" y
+ *                             "cuanto completa" no son el mismo gesto para
+ *                             quien lee el numero, aunque sean la misma resta.
+ *   sessionContinuationRate-> terminar ESTE juego, ¿sigue jugando algo mas
+ *                             ese dia o fue su ultima partida? Mide si el
+ *                             juego empuja hacia PLAYZONE entero, no solo
+ *                             hacia si mismo -por eso no sustituye a
+ *                             oneMoreRate, que es mas estricto (el MISMO
+ *                             juego, no cualquier otro)-.
+ *   medianReplayMs         -> de las veces que hay One More, cuanto tarda.
+ *                             400 ms y 2 minutos son ambos "otra vez", pero
+ *                             no dicen lo mismo del impulso.
+ *   closeLossReplayRate    -> de las revanchas ofrecidas por perder por
+ *                             MARGEN PEQUENO (<=10% del rival, no puntos
+ *                             absolutos: 100 puntos es todo un mundo en
+ *                             TRAZO y nada en CUENTA), cuantas se pulsan.
+ *   firstPickShare          -> de todos los "primeros juegos del dia"
+ *                             observados en todo el grupo, que porcion fue
+ *                             este. Mide deseo ANTES de jugar, no despues; no
+ *                             es una tasa sobre "veces que estuvo disponible"
+ *                             porque el servidor no guarda que planes
+ *                             concretos vio cada uno, asi que es una cuota
+ *                             relativa, no una probabilidad.
+ *
+ * MUESTRA MINIMA Y NIVELES DE CONFIANZA. Con pocas partidas terminadas
+ * cualquier ratio es ruido: un 100% de revancha con n=1 no dice nada, y con
+ * n=8 tampoco hay que enamorarse del resultado. `confidence` en vez de un
+ * simple si/no:
+ *   sinDatos    < 8    -> no entra en el compuesto, solo numeros crudos (n).
+ *   muyBaja     8-24   -> el dashboard ya ensena un compuesto, pero es fragil.
+ *   preliminar  25-49  -> empieza a decir algo, todavia con cautela.
+ *   util        50-99  -> confianza razonable para decidir donde mirar.
+ *   alta        100+   -> la que hace falta para un veredicto.
+ * `insufficient` (booleano) se mantiene por compatibilidad con quien ya lo
+ * usa (solo lo son sinDatos): no entrar en el compuesto solo pasa ahi.
+ *
+ * EL COMPUESTO. Las seis tasas no viven en la misma escala -revengeRate
  * puede moverse en 20-70%, shareRate en 2-15%- asi que sumarlas a pelo
  * dejaria que la de rango mas ancho decidiera el orden por si sola. Se
  * normaliza cada una con min-max ENTRE LOS JUEGOS QUE SI TIENEN MUESTRA
@@ -360,34 +409,117 @@ function activity(presence, events) {
  * COMPOSITE_WEIGHTS para poder discutirlos y recalcularlos sin tocar el resto
  * de la funcion. La tabla de metricas crudas se ensena siempre al lado del
  * indice: si el compuesto y los numeros de un juego no cuentan la misma
- * historia, se cree a los numeros.
+ * historia, se cree a los numeros -el compuesto ordena, no concluye-.
  */
 const MIN_FINISHES = 8;
+const CONFIDENCE_TIERS = [
+  { id: 'sinDatos', min: 0 },
+  { id: 'muyBaja', min: 8 },
+  { id: 'preliminar', min: 25 },
+  { id: 'util', min: 50 },
+  { id: 'alta', min: 100 },
+];
+/** "Por poco" para el close-loss replay: perder por este % del rival o menos. */
+const CLOSE_MARGIN_PCT = 10;
 
 const COMPOSITE_WEIGHTS = {
-  // El KPI estrella del proyecto entero: "quiero otra" es la pregunta que mas
-  // importa, y ya estaba elegida antes de que existiera este ranking.
-  revengeRate: 0.3,
-  // La senal social explicita. Pesa casi como la revancha porque, a
-  // diferencia de las demas, no la puede fingir el propio diseno del juego:
-  // un juego facil de rejugar no es necesariamente un juego del que dar
-  // cuenta a los demas.
-  shareRate: 0.25,
+  // La pregunta mas directa de todas: hay otro intento, ¿lo usa? No depende
+  // de que nadie te haya pasado, asi que mide enganche puro con la partida.
+  oneMoreRate: 0.25,
+  // El KPI estrella original del proyecto: mismo gesto que oneMoreRate pero
+  // disparado por un rival, no por la propia partida. Pesa menos que antes
+  // porque oneMoreRate ya cubre el enganche "en frio".
+  revengeRate: 0.2,
+  // La senal social explicita. No la puede fingir el propio diseno del
+  // juego: uno facil de rejugar no es necesariamente uno del que presumir.
+  shareRate: 0.2,
   // Compromiso dentro de la propia partida: gastarse los tres intentos en
   // vez de conformarse con el primero.
-  exhaustedRate: 0.2,
+  exhaustedRate: 0.15,
   // Lo contrario de aburrir o frustrar a mitad de partida.
-  completionRate: 0.15,
+  completionRate: 0.1,
   // Sigue mejorando: la curva de habilidad no se ha aplanado.
   masteryRate: 0.1,
 };
+
+function confidenceOf(finishes) {
+  let tier = CONFIDENCE_TIERS[0].id;
+  for (const t of CONFIDENCE_TIERS) {
+    if (finishes >= t.min) tier = t.id;
+  }
+  return tier;
+}
+
+function parseMeta(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Por (jugador, dia): de cada game_finish, el siguiente game_start que le
+ * sigue ESE MISMO DIA (de cualquier juego). De aqui salen tres senales que
+ * ningun conteo total puede dar, porque dependen del ORDEN, no del total.
+ */
+function sequencePairs(events) {
+  const byPlayerDay = new Map();
+  for (const event of events) {
+    if (event.type !== 'game_finish' && event.type !== 'game_start') continue;
+    const key = `${event.player_id}|${event.day}`;
+    if (!byPlayerDay.has(key)) byPlayerDay.set(key, []);
+    byPlayerDay.get(key).push(event);
+  }
+
+  const pairs = [];
+  for (const list of byPlayerDay.values()) {
+    list.sort((a, b) => a.ts - b.ts);
+    for (let i = 0; i < list.length; i++) {
+      const event = list[i];
+      if (event.type !== 'game_finish') continue;
+      const next = list.slice(i + 1).find((e) => e.type === 'game_start');
+      const meta = parseMeta(event.meta);
+      pairs.push({
+        finishGameId: event.game_id,
+        attemptsLeftAfter: typeof meta.attemptsLeftAfter === 'number' ? meta.attemptsLeftAfter : null,
+        nextStartGameId: next ? next.game_id : null,
+        deltaMs: next ? next.ts - event.ts : null,
+      });
+    }
+  }
+  return pairs;
+}
+
+/** El gameId del primer game_start "de verdad" (ni revancha) de cada (jugador, dia). */
+function firstPicks(events) {
+  const byPlayerDay = new Map();
+  for (const event of events) {
+    if (event.type !== 'game_start' || !event.game_id) continue;
+    const meta = parseMeta(event.meta);
+    if (!DAILY_CHALLENGES.includes(meta.challengeId)) continue; // secreto/CHAOS no son "el primero de tres a elegir"
+    if (meta.revenge === true) continue; // una revancha no es una eleccion nueva
+    const key = `${event.player_id}|${event.day}`;
+    const current = byPlayerDay.get(key);
+    if (!current || event.ts < current.ts) byPlayerDay.set(key, event);
+  }
+  const counts = new Map();
+  for (const event of byPlayerDay.values()) counts.set(event.game_id, (counts.get(event.game_id) ?? 0) + 1);
+  return counts;
+}
 
 function perGame(events, scores) {
   const ids = new Set();
   for (const e of events) if (e.game_id) ids.add(e.game_id);
   for (const s of scores) if (s.game_id) ids.add(s.game_id);
 
-  const raw = [...ids].map((gameId) => rawMetricsFor(gameId, events, scores));
+  const pairs = sequencePairs(events);
+  const picks = firstPicks(events);
+  const totalFirstPicks = [...picks.values()].reduce((a, b) => a + b, 0);
+
+  const raw = [...ids].map((gameId) => rawMetricsFor(gameId, events, scores, pairs, picks, totalFirstPicks));
   const withComposite = withCompositeScores(raw);
   withComposite.sort((a, b) => {
     if (a.composite === null && b.composite === null) return b.finishes - a.finishes;
@@ -395,16 +527,16 @@ function perGame(events, scores) {
     if (b.composite === null) return -1;
     return b.composite - a.composite;
   });
-  return { minSample: MIN_FINISHES, games: withComposite };
+  return { minSample: MIN_FINISHES, closeMarginPct: CLOSE_MARGIN_PCT, games: withComposite };
 }
 
-function rawMetricsFor(gameId, events, scores) {
+function rawMetricsFor(gameId, events, scores, pairs, picks, totalFirstPicks) {
   const ofType = (type) => events.filter((e) => e.type === type && e.game_id === gameId);
   const starts = ofType('game_start').length;
   const finishes = ofType('game_finish').length;
   const abandons = ofType('game_abandon').length;
-  const revengeAvailable = ofType('revenge_available').length;
-  const revengeClicked = ofType('revenge_clicked').length;
+  const revengeAvailable = ofType('revenge_available');
+  const revengeClicked = ofType('revenge_clicked');
   const shareCompleted = ofType('share_completed').length;
   const scoreImproved = ofType('score_improved').length;
 
@@ -415,23 +547,47 @@ function rawMetricsFor(gameId, events, scores) {
   );
   const exhausted = dailyRows.filter((row) => row.attempts_used >= 3).length;
 
+  const gamePairs = pairs.filter((p) => p.finishGameId === gameId);
+  const withAttemptsLeft = gamePairs.filter((p) => p.attemptsLeftAfter !== null && p.attemptsLeftAfter > 0);
+  const oneMore = withAttemptsLeft.filter((p) => p.nextStartGameId === gameId);
+  const continued = gamePairs.filter((p) => p.nextStartGameId !== null);
+  const replayDeltas = oneMore.map((p) => p.deltaMs).filter((d) => d !== null);
+
+  const closeAvailable = revengeAvailable.filter((e) => (parseMeta(e.meta).marginPct ?? Infinity) <= CLOSE_MARGIN_PCT);
+  const closeClicked = revengeClicked.filter((e) => (parseMeta(e.meta).marginPct ?? Infinity) <= CLOSE_MARGIN_PCT);
+
+  const finishesCount = finishes;
   return {
     gameId,
     starts,
-    finishes,
+    finishes: finishesCount,
     abandons,
-    revengeAvailable,
-    revengeClicked,
-    revengeRate: revengeAvailable > 0 ? revengeClicked / revengeAvailable : null,
+    abandonRate: starts > 0 ? abandons / starts : null,
+    revengeAvailable: revengeAvailable.length,
+    revengeClicked: revengeClicked.length,
+    revengeRate: revengeAvailable.length > 0 ? revengeClicked.length / revengeAvailable.length : null,
     shareCompleted,
-    shareRate: finishes > 0 ? shareCompleted / finishes : null,
+    shareRate: finishesCount > 0 ? shareCompleted / finishesCount : null,
     dailyRows: dailyRows.length,
     exhausted,
     exhaustedRate: dailyRows.length > 0 ? exhausted / dailyRows.length : null,
-    completionRate: starts > 0 ? finishes / starts : null,
+    completionRate: starts > 0 ? finishesCount / starts : null,
     scoreImproved,
-    masteryRate: finishes > 0 ? scoreImproved / finishes : null,
-    insufficient: finishes < MIN_FINISHES,
+    masteryRate: finishesCount > 0 ? scoreImproved / finishesCount : null,
+    // One More: de las veces que termino CON otro intento libre, cuantas
+    // volvieron a pulsar este mismo juego de inmediato.
+    oneMoreOpportunities: withAttemptsLeft.length,
+    oneMoreCount: oneMore.length,
+    oneMoreRate: withAttemptsLeft.length > 0 ? oneMore.length / withAttemptsLeft.length : null,
+    medianReplayMs: median(replayDeltas),
+    sessionContinuationRate: gamePairs.length > 0 ? continued.length / gamePairs.length : null,
+    closeLossAvailable: closeAvailable.length,
+    closeLossClicked: closeClicked.length,
+    closeLossReplayRate: closeAvailable.length > 0 ? closeClicked.length / closeAvailable.length : null,
+    firstPicks: picks.get(gameId) ?? 0,
+    firstPickShare: totalFirstPicks > 0 ? (picks.get(gameId) ?? 0) / totalFirstPicks : null,
+    confidence: confidenceOf(finishesCount),
+    insufficient: finishesCount < MIN_FINISHES,
   };
 }
 

@@ -35,19 +35,39 @@ function tokenOf(player) {
 }
 
 /** N finishes de un gameId para un jugador, con revancha y compartir. */
-async function jugarVarias(token, gameId, n, { revancha = 0, comparte = 0 } = {}) {
+async function jugarVarias(
+  token,
+  gameId,
+  n,
+  { revancha = 0, comparte = 0, oneMore = 0, closeLoss = 0 } = {},
+) {
   const eventos = [];
   const day = new Date().toISOString().slice(0, 10);
+  let ts = Date.now();
   for (let i = 0; i < n; i++) {
-    eventos.push({ type: 'game_start', day, ts: Date.now(), gameId });
-    eventos.push({ type: 'game_finish', day, ts: Date.now(), gameId, value: 1000 + i });
+    eventos.push({ type: 'game_start', day, ts: ts++, gameId });
+    // Las primeras `oneMore` terminan CON intento libre y vuelven a arrancar
+    // el mismo juego enseguida: asi el panel tiene algo real que ensenar en
+    // "one more" y en "reintento en".
+    const conIntento = i < oneMore;
+    eventos.push({
+      type: 'game_finish',
+      day,
+      ts: ts++,
+      gameId,
+      value: 1000 + i,
+      meta: { challengeId: 'c1', endedBy: 'time', attemptsLeftAfter: conIntento ? 1 : 0 },
+    });
+    if (conIntento) eventos.push({ type: 'game_start', day, ts: ts++, gameId });
   }
   for (let i = 0; i < revancha; i++) {
-    eventos.push({ type: 'revenge_available', day, ts: Date.now(), gameId, value: 200 });
-    eventos.push({ type: 'revenge_clicked', day, ts: Date.now(), gameId, value: 200 });
+    // Las primeras `closeLoss` se pierden por menos del margen de "por poco".
+    const marginPct = i < closeLoss ? 5 : 40;
+    eventos.push({ type: 'revenge_available', day, ts: ts++, gameId, value: 200, meta: { marginPct } });
+    eventos.push({ type: 'revenge_clicked', day, ts: ts++, gameId, value: 200, meta: { marginPct } });
   }
   for (let i = 0; i < comparte; i++) {
-    eventos.push({ type: 'share_completed', day, ts: Date.now(), gameId, meta: { resultado: 'imagen' } });
+    eventos.push({ type: 'share_completed', day, ts: ts++, gameId, meta: { resultado: 'imagen' } });
   }
   await api('/api/events', { events: eventos }, token);
 }
@@ -77,9 +97,12 @@ const creado = await api('/api/groups', { name: 'Eloi' });
 const code = creado.group.code;
 const token = tokenOf(creado.player);
 
-await jugarVarias(token, 'carga', 10, { revancha: 9, comparte: 6 });
-await agotarIntentos(code, 'carga', 10);
-await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0 });
+// 30 finishes cruza a senal PRELIMINAR (25+): con menos, el panel no marca
+// a nadie como "el mejor" aunque vaya primero, y esa comprobacion es justo
+// la que existe para pillar si esa regla se rompe.
+await jugarVarias(token, 'carga', 30, { revancha: 27, comparte: 18, oneMore: 24, closeLoss: 20 });
+await agotarIntentos(code, 'carga', 30);
+await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0, oneMore: 1 });
 await agotarIntentos(code, 'freno', 2); // pocas: que se note tambien en "agota 3/3"
 await jugarVarias(token, 'torre', 3, {}); // por debajo de la muestra minima a proposito
 
@@ -109,8 +132,10 @@ const filas = await page.evaluate(() =>
   Array.from(document.querySelectorAll('.dash-game')).map((row) => ({
     nombre: row.querySelector('.dash-game__head span')?.textContent ?? '',
     valor: row.querySelector('.dash-game__value')?.textContent ?? '',
+    confianza: row.querySelector('.dash-game__confianza')?.textContent ?? '',
     pendiente: row.querySelector('.dash-game__fill--pendiente') !== null,
     detalle: row.querySelector('.dash-game__detail')?.textContent ?? '',
+    extra: row.querySelector('.dash-game__detail--extra')?.textContent ?? '',
     esTop: row.classList.contains('dash-game--top'),
   })),
 );
@@ -149,6 +174,27 @@ check(
   Boolean(torre) && torre.valor === '—' && torre.pendiente === true,
 );
 check('el detalle de CARGA ensena los numeros crudos, no solo el compuesto', /revancha|comparte/.test(carga?.detalle ?? ''), carga?.detalle);
+check('el detalle de CARGA incluye One More (la senal nueva)', /one more/.test(carga?.detalle ?? ''), carga?.detalle);
+check(
+  'CARGA (30 partidas) se marca como SENAL PRELIMINAR, no ALTA CONFIANZA de mentira',
+  carga?.confianza === 'SENAL PRELIMINAR',
+  carga?.confianza,
+);
+check(
+  'FRENO (9 partidas) se marca como MUESTRA MUY BAJA: cruza el minimo pero es fragil',
+  freno?.confianza === 'MUESTRA MUY BAJA',
+  freno?.confianza,
+);
+check(
+  'TORRE (3 partidas, bajo el minimo) se marca como SIN DATOS',
+  torre?.confianza === 'SIN DATOS',
+  torre?.confianza,
+);
+check(
+  'la linea extra ensena las senales que NO entran en el compuesto (sigue jugando, reintento, first pick...)',
+  /sigue jugando/.test(carga?.extra ?? '') && /reintento en/.test(carga?.extra ?? '') && /elegido/.test(carga?.extra ?? ''),
+  carga?.extra,
+);
 
 await page.waitForSelector('.boot', { state: 'detached', timeout: 5000 }).catch(() => {});
 await page.locator('.dash-games').scrollIntoViewIfNeeded();

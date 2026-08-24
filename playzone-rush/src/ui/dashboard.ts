@@ -18,11 +18,14 @@ interface Window {
   rate: number | null;
 }
 
+type Confianza = 'sinDatos' | 'muyBaja' | 'preliminar' | 'util' | 'alta';
+
 interface GameMetric {
   gameId: string;
   starts: number;
   finishes: number;
   abandons: number;
+  abandonRate: number | null;
   revengeAvailable: number;
   revengeClicked: number;
   revengeRate: number | null;
@@ -34,6 +37,17 @@ interface GameMetric {
   completionRate: number | null;
   scoreImproved: number;
   masteryRate: number | null;
+  oneMoreOpportunities: number;
+  oneMoreCount: number;
+  oneMoreRate: number | null;
+  medianReplayMs: number | null;
+  sessionContinuationRate: number | null;
+  closeLossAvailable: number;
+  closeLossClicked: number;
+  closeLossReplayRate: number | null;
+  firstPicks: number;
+  firstPickShare: number | null;
+  confidence: Confianza;
   insufficient: boolean;
   composite: number | null;
 }
@@ -81,6 +95,7 @@ interface DashboardData {
     };
     perGame: {
       minSample: number;
+      closeMarginPct: number;
       games: GameMetric[];
     };
   };
@@ -106,14 +121,35 @@ function minutes(ms: number | null): string {
   return `${(mins / 60).toFixed(1)} h`;
 }
 
+/** Para tiempos de repetir: 900 ms y 8 s importan aqui, minutes() los redondeaba a "0 min". */
+function segundos(ms: number | null): string {
+  if (ms === null) return '—';
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return minutes(ms);
+}
+
+const CONFIANZA_LABEL: Record<Confianza, string> = {
+  sinDatos: 'SIN DATOS',
+  muyBaja: 'MUESTRA MUY BAJA',
+  preliminar: 'SENAL PRELIMINAR',
+  util: 'SENAL UTIL',
+  alta: 'ALTA CONFIANZA',
+};
+
 /** PULSE -> "pulse". Los nombres de juego en este proyecto son su id en mayusculas. */
 function nombreJuego(gameId: string): string {
   return gameId.toUpperCase();
 }
 
-/** La linea pequena de numeros crudos bajo la barra: lo que sostiene al compuesto. */
+/**
+ * Las seis senales que alimentan el compuesto, siempre visibles bajo la
+ * barra: si el compuesto y estos numeros no cuentan la misma historia, se
+ * cree a los numeros.
+ */
 function detalleJuego(g: GameMetric): string {
   const partes = [
+    `one more ${pct(g.oneMoreRate)}`,
     `revancha ${pct(g.revengeRate)}`,
     `comparte ${pct(g.shareRate)}`,
     `agota 3/3 ${pct(g.exhaustedRate)}`,
@@ -123,12 +159,30 @@ function detalleJuego(g: GameMetric): string {
   return `${partes.join(' · ')} · n=${g.finishes}`;
 }
 
-function gameRow(g: GameMetric, esTop: boolean): HTMLElement {
+/** Las que se ensenan pero no entran en el compuesto: mas especificas, igual de utiles a ojo. */
+function detalleExtra(g: GameMetric, closeMarginPct: number): string {
+  const partes = [
+    `sigue jugando ${pct(g.sessionContinuationRate)}`,
+    `abandona ${pct(g.abandonRate)}`,
+    `reintento en ${segundos(g.medianReplayMs)}`,
+    `pierde por <${closeMarginPct}% -> revancha ${pct(g.closeLossReplayRate)}`,
+    `elegido 1º ${pct(g.firstPickShare)}`,
+  ];
+  return partes.join(' · ');
+}
+
+function gameRow(g: GameMetric, esTop: boolean, closeMarginPct: number): HTMLElement {
   const valor = g.composite === null ? '—' : `${g.composite}`;
   return el('div', { class: `dash-game${esTop ? ' dash-game--top' : ''}` }, [
     el('div', { class: 'dash-game__head' }, [
       el('span', { text: nombreJuego(g.gameId) }),
-      el('span', { class: 'dash-game__value num', text: valor }),
+      el('div', { class: 'dash-game__head-right' }, [
+        el('span', {
+          class: `dash-game__confianza dash-game__confianza--${g.confidence}`,
+          text: CONFIANZA_LABEL[g.confidence],
+        }),
+        el('span', { class: 'dash-game__value num', text: valor }),
+      ]),
     ]),
     el('div', { class: 'dash-game__bar' }, [
       el('div', {
@@ -137,6 +191,7 @@ function gameRow(g: GameMetric, esTop: boolean): HTMLElement {
       }),
     ]),
     el('div', { class: 'dash-game__detail', text: detalleJuego(g) }),
+    el('div', { class: 'dash-game__detail dash-game__detail--extra', text: detalleExtra(g, closeMarginPct) }),
   ]);
 }
 
@@ -240,14 +295,17 @@ function render(root: HTMLElement, data: DashboardData): void {
 
     section(
       'POR JUEGO',
-      `indice de enganche · minimo ${m.perGame.minSample} partidas terminadas para entrar en el ranking`,
+      `indice de enganche, ORDENA pero no concluye · con menos de ${m.perGame.minSample} partidas terminadas no hay ni indice`,
     ),
     el(
       'div',
       { class: 'dash-games' },
       m.perGame.games.length === 0
         ? [el('div', { class: 'dash-empty', text: 'Todavia no se ha jugado nada.' })]
-        : m.perGame.games.map((g, i) => gameRow(g, i === 0 && g.composite !== null)),
+        : // El "mejor" solo se marca con senal PRELIMINAR (25+) para arriba: con
+          // MUY BAJA (8-24) hay compuesto, pero no basta para senalar un ganador
+          // -ocho partidas no son un veredicto, por muy #1 que parezca-.
+          m.perGame.games.map((g, i) => gameRow(g, i === 0 && (g.confidence === 'preliminar' || g.confidence === 'util' || g.confidence === 'alta'), m.perGame.closeMarginPct)),
     ),
 
     section('ACTIVIDAD POR DIA'),
