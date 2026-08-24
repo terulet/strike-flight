@@ -141,8 +141,10 @@ pm2 restart playzone
 La base de datos de la semana 1 sigue en `server/data/playzone-alfa-semana1.db`.
 Para recuperarla, parar pm2, renombrarla a `playzone.db` y volver a arrancar.
 
-> Ojo: quien ya haya abierto la versión nueva tiene la partida migrada a v6 y
-> **no vuelve atrás**. La migración es de un solo sentido. Volver a la versión
-> vieja les dejaría con el nombre puesto y sin nada más, que es un estado
-> jugable pero raro. Por eso conviene comprobar el despliegue antes de pasar
-> el código a nadie.
+> **Ojo: quien ya haya abierto la versión nueva no vuelve atrás.** Su partida
+> está migrada a v6 y la migración es de un solo sentido: ya no tiene nada de
+> la semana de prueba, ni siquiera el nombre. Volver a la versión vieja le
+> dejaría empezando de cero ahí también.
+>
+> Por eso el orden importa: **despliega y compruébalo tú antes de pasarle el
+> código a nadie.** Mientras no abran la app, para ellos no ha pasado nada.
