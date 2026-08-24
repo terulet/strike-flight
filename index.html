@@ -328,11 +328,8 @@ function actualizarNodosAegis(mb, dt) {
       if (n.hp <= 0) {
         muerte(nx, ny, "#ffcf5c", "defensa");
         sfx("aegis_nodo");
-        combo++; comboT = comboVentana(); enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo);
-        const pts = Math.round(220 * multCombo());
-        score += pts; texto(nx, ny - 20, "+" + pts, T.bala, 13);
-        hitoCombo();
+        alMatar({ fuente: "nodoAegis", puntosBase: 220, posicion: { x: nx, y: ny },
+          opciones: { textoOffsetY: -20, textoTam: 13, texto: true } });
         mb.nodos.splice(i, 1);
       }
       break;
@@ -362,8 +359,8 @@ function actualizarSubsOmega(mb, dt) {
         muerte(sx, sy, s.col, "defensa");
         sfx("core_offline");
         texto(sx, sy - 24, s.nombre + " DESTRUIDO", s.col, 13);
-        score += 500; combo++; comboT = comboVentana(); enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo); hitoCombo();
+        alMatar({ fuente: "subOmega", puntosBase: 500, posicion: { x: sx, y: sy },
+          opciones: { combo: false, texto: false } });
       }
       break;
     }
@@ -2564,13 +2561,8 @@ function actualizarDefensas(dt) {
       if (gastada) soltarBala(j);
       if (d.hp <= 0) {
         muerte(d.x, d.y, "#4499ff", "defensa");
-        combo++; comboT = comboVentana(); enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo);
-        const pts = Math.round(DEFENSA_TIPOS[d.tipo].puntos * multCombo());
-        score += pts;
-        texto(d.x, d.y - 30, "+" + pts, T.bala, 15);
-        hitoCombo();
-        if (Math.random() > 0.45) soltarPremio(d.x + rand(-20, 20), d.y, elegirPremioAleatorio());
+        alMatar({ fuente: "defensa", puntosBase: DEFENSA_TIPOS[d.tipo].puntos, posicion: { x: d.x, y: d.y },
+          opciones: { textoOffsetY: -30, textoTam: 15, texto: true, premio: { prob: 0.55, offsetX: [-20, 20] } } });
         defensas.splice(i, 1);
       }
       break;
@@ -3046,8 +3038,8 @@ function actualizarSistemas(dt) {
         if (s.id === "alpha") sistemaAlpha = false;
         if (s.id === "beta") sistemaBeta = false;
         if (s.id === "gamma") sistemaGamma = false;
-        score += 400; combo++; comboT = comboVentana(); enemiesKilled++;
-        maxCombo = Math.max(maxCombo, combo); hitoCombo();
+        alMatar({ fuente: "sistema", tipo: s.id, puntosBase: 400, posicion: { x: s.x, y: s.y },
+          opciones: { combo: false, texto: false } });
       }
       break;
     }
@@ -4349,8 +4341,64 @@ function hitstop(s) { hitStop = Math.max(hitStop, s * OPCIONES.hitstop); }
 function onda(x, y, color, rMax, dur, grosor) {
   VFX.onda(x, y, color, rMax, dur, grosor);
 }
-function texto(x, y, txt, color, tam) {
-  flotantes.push({ x, y: y - flotantes.length * 20, txt, color, t: 0, life: 0.9, tam: tam || 16 });
+// ── Score flotante ──────────────────────────────────────────
+//  Antes: `flotantes.push()` sin pool ni tope. Con una limpieza de
+//  pantalla entera, eso son cientos de objetos nuevos en un fotograma
+//  y —porque el desplazamiento vertical crecía con `flotantes.length`
+//  sin límite— textos naciendo fuera de la pantalla.
+//
+//  Ahora: reciclados (nunca se tira uno al `splice`, vuelve a la cola
+//  de libres), con tope duro, y los números CERCANOS EN ESPACIO Y
+//  TIEMPO se funden en uno solo. Ocho "+50" seguidos de la misma
+//  limpieza no se leen mejor que un "+400"; un "COMBO ×25" nunca se
+//  funde con nada, es el que manda.
+const FLOTANTES_MAX = 40;
+const FUSION_RADIO = 46, FUSION_VENTANA = 0.12;
+let flotantesLibres = [];
+const esNumerico = (txt) => /^[+-]?\d/.test(txt);
+
+function texto(x, y, txt, color, tam, opciones) {
+  const prioridad = (opciones && opciones.prioridad) || 0;
+  const numerico = esNumerico(txt);
+  // Fusión: solo números recién nacidos, del mismo color, a un golpe de
+  // vista. Fundir un nombre ("JACKPOT", "COMBO ×25") sería basura.
+  if (numerico) {
+    for (let i = flotantes.length - 1; i >= 0; i--) {
+      const f = flotantes[i];
+      if (!f.numerico || f.color !== color || f.t > FUSION_VENTANA) continue;
+      const dx = f.x - x, dy = f.y - y;
+      if (dx * dx + dy * dy > FUSION_RADIO * FUSION_RADIO) continue;
+      const suma = (parseInt(f.txt, 10) || 0) + (parseInt(txt, 10) || 0);
+      f.txt = (suma >= 0 ? "+" : "") + suma;
+      f.t = 0;                                   // recién nacido: vive su `life` entero otra vez
+      f.tam = Math.min((f.tam || 16) + 1, 28);    // crece un poco: se nota que ha fundido más de uno
+      f.prioridad = Math.max(f.prioridad, prioridad);
+      return f;
+    }
+  }
+  let f;
+  if (flotantes.length >= FLOTANTES_MAX) {
+    // Sin hueco libre: cede el de menor prioridad y, entre iguales, el
+    // más viejo. Un hito de combo o un jackpot no se pisan por un "+10".
+    let peor = 0;
+    for (let i = 1; i < flotantes.length; i++) {
+      const a = flotantes[i], b = flotantes[peor];
+      if (a.prioridad < b.prioridad || (a.prioridad === b.prioridad && a.t > b.t)) peor = i;
+    }
+    if (flotantes[peor].prioridad > prioridad) return null;   // ni sitio para él: se descarta en silencio
+    f = flotantes[peor];
+  } else if (flotantesLibres.length) {
+    f = flotantesLibres.pop();
+    flotantes.push(f);
+  } else {
+    f = {};
+    flotantes.push(f);
+  }
+  f.x = clamp(x, 30, W - 30);
+  f.y = clamp(y - (flotantes.length % 6) * 10, 30, H - 30);
+  f.txt = txt; f.color = color; f.t = 0; f.life = 0.9; f.tam = tam || 16;
+  f.numerico = numerico; f.prioridad = prioridad;
+  return f;
 }
 
 // ── Enemigos ──────────────────────────────────────────────
@@ -4458,19 +4506,61 @@ function golpearCon(b, x, y, victima) {
   return true;
 }
 
-function matar(e, i) {
-  const d = ENEMIGOS[e.tipo];
+// ════════════════════════════════════════════════════════════
+//  KILL FUNNEL — alMatar()
+// ════════════════════════════════════════════════════════════
+//  Había cinco sitios que subían combo/score por su cuenta: matar(),
+//  los nodos de AEGIS, los subsistemas de OMEGA, las torretas de
+//  escenario y ALPHA/BETA/GAMMA de M9. Cualquier sistema futuro que
+//  necesite enterarse de "algo ha muerto" —Overdrive, skill events,
+//  élites, jackpot, boss break— tenía que engancharse a los cinco por
+//  separado, o se le olvidaba uno. Éste es el único embudo desde
+//  ahora: combo, comboT, multCombo, el score y el texto flotante
+//  pasan todos por aquí. Cada sitio sigue soltando su propio efecto de
+//  muerte, su propio premio o su propio texto con nombre —eso no es
+//  un dato de kill, es suyo— y pasa por `enemigos.splice`/`.vivo =
+//  false`/lo que le toque, que tampoco es cosa de este embudo.
+//
+//  `opciones.combo` decide si `puntosBase` se multiplica por el combo
+//  (matar(), nodos, torretas: sí) o va a secas (subsistemas de OMEGA y
+//  M9, que hoy dan 500/400 fijos). NO se ha igualado el criterio:
+//  igualarlo sería tocar el balance, y esto es una migración, no un
+//  rebalanceo — los cinco sitios dan EXACTAMENTE lo que daban antes.
+function alMatar(o) {
+  const opciones = o.opciones || {};
+  const cuentaCombo = opciones.combo !== false;
   combo++; comboT = comboVentana(); enemiesKilled++;
   maxCombo = Math.max(maxCombo, combo);
   const mult = multCombo();
-  const pts = Math.round(d.puntos * mult);
+  const base = Math.round(o.puntosBase * (cuentaCombo ? mult : 1));
+  // El multiplicador de DIFICULTAD se aplica AQUÍ, en el único embudo, y
+  // no en las tablas de puntos de ENEMIGOS/DEFENSA_TIPOS (no se tocan):
+  // así FÁCIL/NORMAL/DIFÍCIL premian sin desequilibrar el ELOI, que sale
+  // de los extras de `cerrarMision()` — no de aquí — y no se mueve.
+  const pts = Math.round(base * DIF.scoreMul);
   score += pts;
-  muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
-  if (mult > 1) texto(e.x, e.y - e.r, "+" + pts, T.bala, 13 + Math.min(8, mult));
   hitoCombo();
 
-  const p = CONFIG.probPremio * (d.premio || 1);
-  if (Math.random() < p) soltarPremio(e.x, e.y, elegirPremioAleatorio());
+  const mostrar = opciones.texto === true ? true : opciones.texto === false ? false : mult > 1;
+  if (mostrar) {
+    texto(o.posicion.x, o.posicion.y + (opciones.textoOffsetY || 0),
+      "+" + pts, opciones.textoColor || T.bala, opciones.textoTam || (13 + Math.min(8, mult)));
+  }
+  if (opciones.premio && Math.random() < opciones.premio.prob) {
+    const rango = opciones.premio.offsetX;
+    const ox = rango ? rand(rango[0], rango[1]) : 0;
+    soltarPremio(o.posicion.x + ox, o.posicion.y, elegirPremioAleatorio());
+  }
+  return { pts, mult, combo };
+}
+
+function matar(e, i) {
+  const d = ENEMIGOS[e.tipo];
+  muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
+  alMatar({
+    fuente: "enemigo", tipo: e.tipo, puntosBase: d.puntos, posicion: { x: e.x, y: e.y },
+    opciones: { textoOffsetY: -e.r, premio: { prob: CONFIG.probPremio * (d.premio || 1) } },
+  });
   enemies.splice(i, 1);
   // Gancho GENÉRICO y opcional: un enemigo que deja algo detrás al morir
   // (crisol, bloque 5E) declara `alMorir(e)`. Va DESPUÉS del splice,
@@ -4571,7 +4661,7 @@ function hitoCombo() {
   for (const h of HITOS) {
     if (combo === h && comboHito < h) {
       comboHito = h;
-      texto(W / 2, H * 0.62, "COMBO ×" + h, h >= 50 ? "#ffd700" : T.bala, 22 + h / 10);
+      texto(W / 2, H * 0.62, "COMBO ×" + h, h >= 50 ? "#ffd700" : T.bala, 22 + h / 10, { prioridad: 2 });
       vfx("chispa", W / 2, H * 0.62, 90 + h, 0.4);
       sfx("combo", { tono: 1 + HITOS.indexOf(h) * 0.12 });
       if (h >= 25) sacudir("tiny");
@@ -4806,7 +4896,7 @@ function update(dt) {
     actualizarEfectos(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
-      if (f.t >= f.life) flotantes.splice(i, 1);
+      if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
     }
     if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
     if (escudoRoto > 0) escudoRoto = Math.max(0, escudoRoto - dt);
