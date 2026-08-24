@@ -52,15 +52,36 @@ export const ATTEMPT_LIMITS = {
 };
 
 /**
- * Limites plausibles por juego. Calibrados con el bot de playtest (que juega
- * perfecto) mas un margen del 60%: no es un anti-cheat, es un cortafuegos
- * contra el que edita la peticion y se pone 99.999.999.
+ * Techos de anti-trampa/anti-bug por juego. Sin una entrada aqui,
+ * submitScore() rechaza CUALQUIER puntuacion de ese juego con 400
+ * "unknown_game" -asi paso con RITMO, TRAZO y FRENO al añadirse, y con los
+ * cinco de despues (CAZA, CUENTA, TORRE, TRILE, CARGA): jugaban perfectamente
+ * en solitario -el guardado es local- y sus puntuaciones jamas llegaban al
+ * ranking del grupo, en silencio, porque el cliente reintenta el envio desde
+ * un outbox y no rompe la partida cuando falla. Nadie lo vio hasta que un
+ * test se puso a mandar una puntuacion de verdad contra el servidor.
+ * server/test/config.test.mjs vigila que esta lista no se vuelva a
+ * desincronizar del catalogo real.
+ *
+ * maxScore ronda 3x el "high" calibrado en meta/rivals.ts del lado cliente
+ * (el techo de un jugador muy bueno, no el limite matematico del juego); es
+ * un cinturon de seguridad para dejar fuera un cliente roto o manipulado, no
+ * una prediccion precisa. maxDurationMs es 3x el defaultDurationMs de ese
+ * juego (el mismo cociente que ya tenian los cuatro originales).
  */
 export const GAME_LIMITS = {
   pulse: { maxScore: 14_000, minDurationMs: 800, maxDurationMs: 90_000 },
   drift: { maxScore: 14_000, minDurationMs: 800, maxDurationMs: 120_000 },
   snap: { maxScore: 10_000, minDurationMs: 800, maxDurationMs: 90_000 },
   memory: { maxScore: 14_000, minDurationMs: 800, maxDurationMs: 90_000 },
+  ritmo: { maxScore: 14_000, minDurationMs: 800, maxDurationMs: 96_000 },
+  trazo: { maxScore: 12_000, minDurationMs: 800, maxDurationMs: 102_000 },
+  freno: { maxScore: 13_000, minDurationMs: 800, maxDurationMs: 99_000 },
+  caza: { maxScore: 14_000, minDurationMs: 800, maxDurationMs: 90_000 },
+  cuenta: { maxScore: 15_000, minDurationMs: 800, maxDurationMs: 90_000 },
+  torre: { maxScore: 16_000, minDurationMs: 800, maxDurationMs: 120_000 },
+  trile: { maxScore: 13_000, minDurationMs: 800, maxDurationMs: 120_000 },
+  carga: { maxScore: 15_000, minDurationMs: 800, maxDurationMs: 105_000 },
 };
 
 /** Multiplicador extra permitido cuando el reto lleva mutadores de puntos. */
