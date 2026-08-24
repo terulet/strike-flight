@@ -248,4 +248,61 @@ hace falta declarar ningún asset SFX nuevo para este bloque.
 
 ---
 
-*(Continúa en 6G.)*
+---
+
+## 6G — Upgrades durante partida
+
+**Build TEMPORAL** (`upgradesJugador`, id → nivel): vive solo en
+memoria, `reset()` lo vacía en cada misión nueva — es la razón por la
+que un roguelite funciona, y está en el propio encargo. 9 upgrades
+(6-10 pedidos), cada uno un dato con `nombre/desc/rareza/maxNivel/
+tags/peso/incompatibles` — `incompatibles` declarado y vacío A
+PROPÓSITO: en esta primera versión cualquier par puede convivir,
+porque 6H (evoluciones) necesita que puedan.
+
+| Upgrade | Efecto | Chokepoint reutilizado |
+|---|---|---|
+| TRIPLE SHOT | +2 disparos laterales/nivel | `disparar()` |
+| RAPID CORE | -12% cadencia/nivel | el mismo cálculo de `cad` que ya usan turbo/Overdrive |
+| HEAVY CORE | +20% daño/nivel | `nuevaBala()` |
+| CHAIN LIGHTNING | el disparo salta a otro enemigo | `nuevaBala()` presta `b.cadena`, reutiliza `cadenaElectrica()` (las armas eléctricas ya la tienen) |
+| MISSILE SWARM | 6 misiles cada 8s (6s a nivel 2) | reutiliza `ARMAS.misil` ENTERO: guiado, área, sonido, sprite |
+| PLASMA BURST | explosión al matar | `alMatar()` + `danioArea()` |
+| SHIELD REACTOR | el escudo se regenera solo a los 15s | reloj propio, `escudo` |
+| MAGNET FIELD | imán permanente (+90/+80 de alcance) | los mismos `alcance`/`vel` de premios y shards |
+| OVERDRIVE BOOST | +25% carga/nivel, +2s de duración/nivel | `cargarOverdrive()` / `activarOverdrive()` |
+
+**Momento de elección:** hitos de `enemiesKilled` — [8, 24, 45, 70] —
+no de tiempo ni de score. El primero cae pronto A PROPÓSITO (el
+encargo es explícito: "una partida donde el primer upgrade llega a
+los 4 minutos ha fallado"); el resto reparte 2-4 elecciones en una
+misión larga. 3 tarjetas, pesadas por `peso`, nunca repetidas, nunca
+un upgrade ya en su `maxNivel`.
+
+**UI:** modal de pantalla completa (mismo patrón que la confirmación
+de "borrar progreso" — `botones.length = 0` al principio, así que
+nada de detrás recibe un toque por error) con 3 tarjetas grandes,
+nombre + rareza + una frase, sin texto kilométrico.
+
+**La partida se congela de verdad** mientras hay tarjetas en pantalla:
+las cuatro comprobaciones `if (state !== "play" || paused) return;`
+del motor pasaron a `|| upgradesOfrecidos`. Esto rompió TRES pruebas
+que pilotan el reloj a mano sin simular ningún toque
+(`enemigos.mjs`/`minijefes.mjs`/`mundos.mjs`, todas con el mismo
+patrón `congelar()`/`PASO()`): si una masacre de prueba cruza el
+primer hito, la oferta se queda en pantalla para siempre porque nada
+la cierra, y lo que se estaba midiendo —que nada se quede colgado— se
+queda literalmente colgado. Arreglado en el propio arnés de pruebas:
+`PASO()` descarta cualquier oferta antes de cada paso, igual que ya
+neutraliza `cerrarMision()`. Las pruebas dirigidas por el piloto de
+verdad (`campana-final.mjs`, `misiones.mjs`) NO se vieron afectadas:
+un piloto que toca la pantalla de verdad resuelve la tarjeta como lo
+haría un jugador real.
+
+**Pruebas:** `herramientas/pruebas/upgrades.mjs` (27 comprobaciones:
+disparador, elección, los 9 efectos, congelado real, `reset()`) +
+regresión completa. Verde.
+
+---
+
+*(Continúa en 6H.)*

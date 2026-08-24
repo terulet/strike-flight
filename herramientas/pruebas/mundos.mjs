@@ -88,7 +88,10 @@ const dentro = (cuerpo) => p.evaluate(new Function("return (async () => {" + cue
 const congelar = async () => p.evaluate(() => {
   if (window.PASO) return;
   const real = update;
-  window.PASO = (dt) => real(dt);
+  // Bloque 6G: UPGRADE READY congela el juego de verdad. Se descarta en
+  // cada paso para que una oferta que aparezca en medio de una prueba no
+  // se quede colgada para siempre sin un jugador que la cierre.
+  window.PASO = (dt) => { upgradesOfrecidos = null; real(dt); };
   window.__updateReal = real;
   update = () => {};
 });

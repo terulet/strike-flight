@@ -69,7 +69,12 @@ await p.waitForTimeout(900);
 const congelar = async () => p.evaluate(() => {
   if (window.PASO) return;
   const real = update;
-  window.PASO = (dt) => real(dt);
+  // Bloque 6G: UPGRADE READY congela el juego de verdad -incluida la
+  // limpieza de entidades que este archivo pilota a mano-, así que una
+  // oferta que aparezca en medio de una masacre de prueba se quedaría
+  // colgada para siempre sin un jugador que la cierre. Se descarta en
+  // cada paso, igual que ya se neutraliza cerrarMision() más abajo.
+  window.PASO = (dt) => { upgradesOfrecidos = null; real(dt); };
   window.__updateReal = real;
   update = () => {};
 });

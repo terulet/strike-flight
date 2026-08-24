@@ -464,7 +464,7 @@ function actualizarMitadesNyx(mb, dt) {
 //  cada fase, así fase 2 alterna más tipos y fase 3 acelera sin tener
 //  tres copias de esta función.
 function actualizarForjaVulcano(mb, dt, cicloSeg, avisoSeg, modoSeg, modosPosibles) {
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
   if (mb.modoForja) {
     mb.modoForjaT -= dt;
     if (mb.modoForjaT <= 0) mb.modoForja = null;
@@ -3447,7 +3447,9 @@ function reset() {
   olas.clear(); cadenaTiempos.length = 0; eliteChainT = -99;
   shards.length = 0;
   skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
-  overdrive = 0; overdriveActivo = 0;
+  overdrive = 0; overdriveActivo = 0; overdriveDuracionActual = OVERDRIVE_DURACION;
+  upgradesJugador = {}; upgradesOfrecidos = null; upgradesElegidos = 0;
+  shieldReactorT = 0; missileSwarmT = 0;
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3619,7 +3621,7 @@ let rhythmDirectorCooldownT = 0;
 // bloquea al Director por su cuenta.
 let descansoDeliberado = false;
 function rhythmDirectorTick(dt) {
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
   if (rhythmDirectorCooldownT > 0) rhythmDirectorCooldownT -= dt;
   if (bonusEvento || miniboss || rhythmDirectorCooldownT > 0 || descansoDeliberado) return;
   if (elapsed < 8 || enemies.length > 0 || spawnQueue.length > 0) return;
@@ -3765,15 +3767,16 @@ function cogerShard(s) {
   vfx("chispa", s.x, s.y, 30, 0.18);
 }
 function actualizarShards(dt) {
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
   for (let i = shards.length - 1; i >= 0; i--) {
     const s = shards[i];
     s.t += dt;
     const dx = player.x - s.x, dy = player.y - s.y;
     const d = Math.hypot(dx, dy) || 1;
-    const alcance = imanT > 0 ? 520 : 140;
+    const magnetUp = upgradesJugador.magnet_field ? 1 : 0;
+    const alcance = imanT > 0 ? 520 : 140 + magnetUp * 80;
     if (d < alcance) {
-      const vel = imanT > 0 ? 500 : 300;
+      const vel = imanT > 0 ? 500 : (300 + magnetUp * 80);
       s.x += (dx / d) * vel * dt; s.y += (dy / d) * vel * dt;
     } else {
       s.vy += 220 * dt; s.vx *= Math.max(0, 1 - dt * 1.5);
@@ -3815,12 +3818,15 @@ function dibujarShards() {
 const OVERDRIVE_MAX = 100;
 const OVERDRIVE_DURACION = 13.5;   // dentro de la horquilla de 12-15s del encargo
 let overdrive = 0;
-let overdriveActivo = 0;   // segundos que quedan; 0 = inactiva
+let overdriveActivo = 0;          // segundos que quedan; 0 = inactiva
+let overdriveDuracionActual = OVERDRIVE_DURACION;   // para dibujar la barra: OVERDRIVE BOOST la alarga
 
 function cargarOverdrive(cantidad) {
   if (overdriveActivo > 0 || state !== "play") return;
   const antes = overdrive;
-  overdrive = clamp(overdrive + cantidad * DIF.overdriveAccessMul, 0, OVERDRIVE_MAX);
+  // OVERDRIVE BOOST: +25%/nivel a TODA carga, del origen que sea.
+  const boostUp = 1 + (upgradesJugador.overdrive_boost || 0) * 0.25;
+  overdrive = clamp(overdrive + cantidad * DIF.overdriveAccessMul * boostUp, 0, OVERDRIVE_MAX);
   if (antes < OVERDRIVE_MAX && overdrive >= OVERDRIVE_MAX) {
     texto(player.x, player.y - 55, "OVERDRIVE READY", "#ff2fbd", 15, { prioridad: 2 });
     sfx("aviso", { tono: 1.4 });
@@ -3833,7 +3839,9 @@ function cargarOverdrive(cantidad) {
 function activarOverdrive() {
   if (overdrive < OVERDRIVE_MAX || overdriveActivo > 0 || state !== "play") return false;
   overdrive = 0;
-  overdriveActivo = OVERDRIVE_DURACION;
+  // OVERDRIVE BOOST: +2s de duración por nivel.
+  overdriveDuracionActual = OVERDRIVE_DURACION + (upgradesJugador.overdrive_boost || 0) * 2;
+  overdriveActivo = overdriveDuracionActual;
   sacudir("medium"); hitstop(0.06);
   onda(player.x, player.y, "#ff2fbd", 130, 0.5);
   texto(player.x, player.y - 55, "¡OVERDRIVE!", "#ff2fbd", 22, { prioridad: 2 });
@@ -3845,6 +3853,147 @@ function activarOverdrive() {
 // probar el bloque sin tener que ganárselo jugando cada vez.
 function fillOverdrive() { overdrive = OVERDRIVE_MAX; }
 function activateOverdrive() { return activarOverdrive(); }
+
+// ════════════════════════════════════════════════════════════
+//  UPGRADES DURANTE PARTIDA
+// ════════════════════════════════════════════════════════════
+//  Build TEMPORAL: vive en `upgradesJugador` (id -> nivel), no en el
+//  save — se pierde al terminar la misión, a propósito, es la misma
+//  razón por la que un roguelite funciona. Cada upgrade es un dato,
+//  no una clase: `efecto` se lee en el puñado de chokepoints que ya
+//  existían (disparar(), nuevaBala(), golpe(), alMatar()...) en vez de
+//  inventar un sistema de proyectiles nuevo por cada uno.
+const UPGRADES = {
+  triple_shot:     { nombre: "TRIPLE SHOT",     desc: "+2 disparos laterales.",              rareza: "comun", maxNivel: 2, tags: ["ofensivo", "lateral"],  peso: 10 },
+  rapid_core:      { nombre: "RAPID CORE",      desc: "Cadencia bastante más rápida.",       rareza: "comun", maxNivel: 2, tags: ["ofensivo"],             peso: 10 },
+  heavy_core:      { nombre: "HEAVY CORE",      desc: "Más daño por disparo.",                rareza: "comun", maxNivel: 2, tags: ["ofensivo"],             peso: 10 },
+  chain_lightning: { nombre: "CHAIN LIGHTNING", desc: "El disparo salta a otro enemigo.",     rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "cadena"],   peso: 7 },
+  missile_swarm:   { nombre: "MISSILE SWARM",   desc: "6 misiles cada 8 s.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "autonomo"], peso: 7 },
+  plasma_burst:    { nombre: "PLASMA BURST",    desc: "Explosión al matar.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "area"],     peso: 6 },
+  shield_reactor:  { nombre: "SHIELD REACTOR",  desc: "El escudo se regenera solo.",          rareza: "raro",  maxNivel: 1, tags: ["defensivo"],            peso: 8 },
+  magnet_field:    { nombre: "MAGNET FIELD",    desc: "Imán permanente, más alcance.",        rareza: "comun", maxNivel: 1, tags: ["utilidad"],             peso: 9 },
+  overdrive_boost: { nombre: "OVERDRIVE BOOST", desc: "Overdrive carga más rápido y dura más.", rareza: "raro", maxNivel: 2, tags: ["overdrive"],            peso: 7 },
+};
+// Incompatibilidades declaradas y vacías a propósito: en la primera
+// versión CUALQUIER par puede convivir -hace falta que puedan, para
+// que 6H (evoluciones) tenga con qué fundir-. El campo se deja puesto
+// para cuando el balance de una fase futura pida lo contrario.
+for (const k in UPGRADES) UPGRADES[k].incompatibles = UPGRADES[k].incompatibles || [];
+
+let upgradesJugador = {};      // id -> nivel actual
+let upgradesOfrecidos = null;  // { opciones: [id,id,id] } mientras hay tarjetas en pantalla
+let upgradesElegidos = 0;      // cuántas veces ha elegido YA esta partida
+// Hitos por muertes acumuladas: el primero cae pronto a propósito -el
+// encargo es explícito, una partida cuyo primer upgrade llega a los 4
+// minutos ha fallado- y el resto reparte 2-4 elecciones en una misión
+// larga sin convertirlo en una cada 20s.
+const UPGRADE_HITOS = [8, 24, 45, 70];
+
+function upgradesDisponibles() {
+  return Object.keys(UPGRADES).filter(id => (upgradesJugador[id] || 0) < UPGRADES[id].maxNivel);
+}
+function elegirTresUpgrades() {
+  const pool = upgradesDisponibles().map(id => ({ id, peso: UPGRADES[id].peso }));
+  const elegidos = [];
+  while (elegidos.length < 3 && pool.length) {
+    const total = pool.reduce((a, o) => a + o.peso, 0);
+    let r = Math.random() * total, idx = 0;
+    for (; idx < pool.length; idx++) { r -= pool[idx].peso; if (r <= 0) break; }
+    elegidos.push(pool[idx].id);
+    pool.splice(idx, 1);
+  }
+  return elegidos;
+}
+function comprobarUpgradeOfrecido() {
+  if (upgradesOfrecidos || state !== "play") return;
+  if (upgradesElegidos >= UPGRADE_HITOS.length) return;
+  if (enemiesKilled < UPGRADE_HITOS[upgradesElegidos]) return;
+  const opciones = elegirTresUpgrades();
+  if (!opciones.length) return;   // todo maximado: no hay nada que ofrecer
+  upgradesOfrecidos = { opciones };
+  sfx("aviso", { tono: 1.2 });
+  RHYTHM.marcar();
+}
+function elegirUpgrade(id) {
+  if (!upgradesOfrecidos) return;
+  upgradesJugador[id] = (upgradesJugador[id] || 0) + 1;
+  upgradesElegidos++;
+  upgradesOfrecidos = null;
+  const d = UPGRADES[id];
+  texto(player.x, player.y - 50, d.nombre + " ×" + upgradesJugador[id], "#7df9ff", 15, { prioridad: 2 });
+  sfx("mejora"); flash = Math.max(flash, 0.18);
+  // Bloque 6H: si esta elección completa una pareja de nivel II
+  // declarada en EVOLUCIONES, se funde en un arma nueva aquí mismo.
+  if (typeof comprobarEvolucion === "function") comprobarEvolucion(id);
+}
+const RAREZA_COLOR = { comun: "#7df9ff", raro: "#ffd700" };
+function dibujarUpgrades() {
+  if (!upgradesOfrecidos) return;
+  botones.length = 0;
+  ctx.fillStyle = "rgba(3,4,10,0.88)";
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.055, 18, 24)) + "px " + F;
+  ctx.fillStyle = "#ff2fbd";
+  letras("UPGRADE READY", W / 2, SAFE_TOP + 70, 2.4, "center");
+
+  const opciones = upgradesOfrecidos.opciones;
+  const anchoP = Math.min(W - 48, 340);
+  const cH = 108, sep = 16;
+  const totalH = opciones.length * cH + (opciones.length - 1) * sep;
+  let y0 = Math.max(SAFE_TOP + 110, (H - totalH) / 2);
+  const x0 = (W - anchoP) / 2;
+  for (const id of opciones) {
+    const d = UPGRADES[id];
+    const col = RAREZA_COLOR[d.rareza] || "#fff";
+    panel(x0, y0, anchoP, cH, 16, 0.82);
+    filo(x0, y0, anchoP, cH, 16, col, 0.55);
+    ctx.textAlign = "left";
+    ctx.font = "800 14px " + F; ctx.fillStyle = col;
+    letras(d.nombre + (upgradesJugador[id] ? " ×" + (upgradesJugador[id] + 1) : ""), x0 + 20, y0 + 28, 1.6);
+    ctx.font = "700 9px " + F; ctx.fillStyle = col; ctx.globalAlpha = 0.75;
+    letras(d.rareza.toUpperCase(), x0 + 20, y0 + 46, 2);
+    ctx.globalAlpha = 1;
+    ctx.font = "700 12px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.85;
+    letras(d.desc, x0 + 20, y0 + 78, 0.4);
+    ctx.globalAlpha = 1;
+    botones.push({ x: x0, y: y0, w: anchoP, h: cH, fn: () => elegirUpgrade(id) });
+    y0 += cH + sep;
+  }
+  ctx.textAlign = "center";
+}
+
+// ── Efectos pasivos (SHIELD REACTOR, MISSILE SWARM) ────────
+//  Los dos necesitan un reloj propio: no pasan por ningún chokepoint
+//  que ya exista, así que viven en su propia función de tick.
+let shieldReactorT = 0, missileSwarmT = 0;
+function dispararMissileSwarm() {
+  const a = ARMAS.misil;   // reutiliza el arma de misiles entera: guiado, área, sonido, sprite
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (i - (n - 1) / 2) * 0.16;
+    bullets.push(nuevaBala(player.x, player.y - player.r, Math.cos(ang) * a.vel * 0.4, Math.sin(ang) * a.vel, a));
+  }
+  bulletsFiredo += n;
+  sfx(a.snd, { vol: 0.6 });
+}
+function actualizarUpgradesPasivos(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  if (upgradesJugador.shield_reactor && escudo <= 0) {
+    shieldReactorT += dt;
+    if (shieldReactorT >= 15) {
+      escudo = 1; shieldReactorT = 0;
+      texto(player.x, player.y - 40, "ESCUDO REGENERADO", "#5ce1ff", 12);
+      sfx("escudo_on");
+    }
+  } else shieldReactorT = 0;
+
+  if (upgradesJugador.missile_swarm) {
+    missileSwarmT += dt;
+    const intervalo = 8 - (upgradesJugador.missile_swarm - 1) * 2;   // nivel 2: cada 6s
+    if (missileSwarmT >= intervalo) { missileSwarmT = 0; dispararMissileSwarm(); }
+  }
+}
 function actualizarOverdrive(dt) {
   if (state !== "play" || paused || overdriveActivo <= 0) return;
   overdriveActivo = Math.max(0, overdriveActivo - dt);
@@ -3862,7 +4011,7 @@ function barraOverdrive() {
   ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(bX, bY, bW, bH);
   if (overdriveActivo > 0) {
     ctx.fillStyle = "#ff2fbd";
-    ctx.fillRect(bX, bY, bW * (overdriveActivo / OVERDRIVE_DURACION), bH);
+    ctx.fillRect(bX, bY, bW * (overdriveActivo / overdriveDuracionActual), bH);
   } else {
     const lleno = overdrive >= OVERDRIVE_MAX;
     ctx.fillStyle = lleno ? "#ffd700" : "#ff2fbd";
@@ -5047,6 +5196,15 @@ function alMatar(o) {
   // cuenta. No todas -"no abusar"- así que es una tirada, no un
   // disparo garantizado.
   if (esRomperJefe && Math.random() < 0.3) jackpot(o.posicion.x, o.posicion.y);
+
+  // PLASMA BURST: explosión propia al matar, escalada por nivel. Daño
+  // aparte del de la bala que mató -no lo dobla, lo complementa-.
+  if (upgradesJugador.plasma_burst) {
+    const n = upgradesJugador.plasma_burst;
+    danioArea(o.posicion.x, o.posicion.y, 60 + n * 18, 6 + n * 4, null);
+    vfx("exp_media", o.posicion.x, o.posicion.y, 40 + n * 10, 0.3);
+  }
+  comprobarUpgradeOfrecido();
   return { pts, mult, combo };
 }
 
@@ -5358,10 +5516,17 @@ const libresBala = [];
 function nuevaBala(x, y, vx, vy, a) {
   const b = libresBala.pop() || {};
   b.x = x; b.y = y; b.vx = vx; b.vy = vy;
-  b.r = a.r; b.dmg = a.dmg * (naveActual().dmg || 1);
+  // HEAVY CORE: +20%/nivel, multiplicativo sobre lo que ya pone la nave.
+  const dmgUp = 1 + (upgradesJugador.heavy_core || 0) * 0.2;
+  b.r = a.r; b.dmg = a.dmg * (naveActual().dmg || 1) * dmgUp;
   b.col = a.col; b.sp = SPRITES[a.sp]; b.largo = a.largo;
   b.pierce = a.pierce || 0; b.area = a.area || 0;
-  b.cadena = a.cadena || 0; b.lento = a.lento || 0;
+  // CHAIN LIGHTNING: si el arma no trae salto propio, el upgrade se lo
+  // presta -reutiliza cadenaElectrica(), que ya existe para las armas
+  // eléctricas-. El nivel decide cuánto pega el salto, no cuántos saltos.
+  const nvCadena = upgradesJugador.chain_lightning || 0;
+  b.cadena = a.cadena || (nvCadena ? b.dmg * (0.3 + nvCadena * 0.15) : 0);
+  b.lento = a.lento || 0;
   b.guia = a.guia || 0; b.vida = a.vida || 0;
   b.imp = a.imp; b.estela = a.estela || 0;
   b.t = 0; b.cd = 0; b.ang = Math.atan2(vy, vx) + Math.PI / 2;
@@ -5391,6 +5556,16 @@ function disparar() {
     // bloque el que se pone bruto, no el arma que llevas puesta.
     bullets.push(nuevaBala(player.x - player.r * 0.75, y, -260, -a.vel * 0.85, a));
     bullets.push(nuevaBala(player.x + player.r * 0.75, y, 260, -a.vel * 0.85, a));
+    bulletsFiredo += 2;
+  }
+  // TRIPLE SHOT: +2 disparos laterales por nivel, sumados a lo que ya
+  // sale por overdrive/arma. Van más pegados al centro que los de
+  // Overdrive para que se lean como del PILOTO, no del bloque.
+  const nvTriple = upgradesJugador.triple_shot || 0;
+  for (let i = 0; i < nvTriple; i++) {
+    const dx = (i + 1) * player.r * 0.55;
+    bullets.push(nuevaBala(player.x - dx, y, -140, -a.vel * 0.95, a));
+    bullets.push(nuevaBala(player.x + dx, y, 140, -a.vel * 0.95, a));
     bulletsFiredo += 2;
   }
 }
@@ -5423,6 +5598,7 @@ function update(dt) {
     rhythmDirectorTick(dt);
     actualizarShards(dt);
     actualizarOverdrive(dt);
+    actualizarUpgradesPasivos(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
@@ -5441,7 +5617,7 @@ function update(dt) {
     if (warningT > 0) warningT -= dt;
     if (misionIniT > 0) misionIniT -= dt;
   }
-  if (state !== "play" || paused) return;
+  if (state !== "play" || paused || upgradesOfrecidos) return;
 
   elapsed += dt;
   if (invulnT > 0) invulnT -= dt;
@@ -5487,7 +5663,11 @@ function update(dt) {
   }
 
   const armaAct = ARMAS[armaId] || ARMAS.cannon;
-  const cad = armaAct.cad * nv.cad * ((turbo > 0 || overdriveActivo > 0) ? 0.55 : 1);
+  // RAPID CORE: -12%/nivel, multiplicativo y aparte del boost de
+  // turbo/Overdrive -los tres se pueden pisar sin romper el tope de
+  // disparos por fotograma de más abajo-.
+  const cadUp = 1 - (upgradesJugador.rapid_core || 0) * 0.12;
+  const cad = armaAct.cad * nv.cad * cadUp * ((turbo > 0 || overdriveActivo > 0) ? 0.55 : 1);
   shootAcc += dt * 1000;
   let disparos = 0;
   while (shootAcc >= cad && disparos < 4) { shootAcc -= cad; disparar(); disparos++; }
@@ -5774,8 +5954,12 @@ function update(dt) {
     p.f += dt * 4; p.t += dt; p.giro += dt * 1.1;
     const dx = player.x - p.x, dy = player.y - p.y;
     const d = Math.hypot(dx, dy);
-    const alcance = imanT > 0 ? 520 : 165;
-    if (d < alcance) { p.x += (dx / d) * (imanT > 0 ? 460 : 260) * dt; p.y += (dy / d) * (imanT > 0 ? 460 : 260) * dt; }
+    // MAGNET FIELD: imán permanente, más discreto que el power-up
+    // temporal -si igualara a imanT dejaría de sentirse especial-.
+    const magnetUp = upgradesJugador.magnet_field ? 1 : 0;
+    const alcance = imanT > 0 ? 520 : 165 + magnetUp * 90;
+    const velIman = imanT > 0 ? 460 : (260 + magnetUp * 90);
+    if (d < alcance) { p.x += (dx / d) * velIman * dt; p.y += (dy / d) * velIman * dt; }
     else p.y += p.vy * dt;
     if (Math.random() < 0.35) {
       VFX.estela(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), rand(-12, 12), rand(-30, -8),
@@ -7704,7 +7888,7 @@ function render() {
   if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
 
   if (state === "menu") menu();
-  else { hud(); barraJefe(); barraBonus(); barraOverdrive(); }
+  else { hud(); barraJefe(); barraBonus(); barraOverdrive(); dibujarUpgrades(); }
 
   // ── Fin de partida ──
   if (state === "over") {
