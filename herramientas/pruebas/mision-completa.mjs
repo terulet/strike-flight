@@ -23,6 +23,12 @@ await p.evaluate(({ mis, inmune }) => {
   // inferior y se va a ella. No es bueno, pero esquiva.
   window._bot = setInterval(() => {
     if (state !== "play") return;
+    // Bloque 6G: UPGRADE READY congela el juego de verdad hasta que
+    // alguien toca una tarjeta. Este piloto mueve targetX/Y a mano, sin
+    // pointerdown real, así que nunca "tocaría" nada por su cuenta —
+    // elige la primera opción él mismo, que es lo más parecido a lo
+    // que haría un jugador real sin pensárselo mucho.
+    if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
     let mejor = player.x, mejorD = -1;
     for (let i = 0; i < 26; i++) {
       const x = 26 + (W - 52) * i / 25;

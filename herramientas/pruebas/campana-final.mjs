@@ -27,6 +27,10 @@ for (const m of MISIONES_TEST) {
     golpe = () => {};
     window._bot = setInterval(() => {
       if (state !== "play") return;
+      // Bloque 6G: UPGRADE READY congela el juego hasta que alguien
+      // toca una tarjeta; este piloto mueve targetX/Y a mano, sin
+      // pointerdown real, así que se elige la primera opción él mismo.
+      if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
       // Esquiva hacia la columna con menos amenazas cerca.
       let mejor = player.x, mejorD = -1;
       for (let i = 0; i < 22; i++) {

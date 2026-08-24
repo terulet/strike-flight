@@ -20,7 +20,9 @@ await p.evaluate(() => {
   golpe = () => {}; eventoIdx = 999; enemies.length = 0; spawnQueue.length = 0;
   armaId = "cannon"; arma = 6;
   window._bot = setInterval(() => {
-    if (state !== "play" || !miniboss) return;
+    if (state !== "play") return;
+    if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
+    if (!miniboss) return;
     targetX = miniboss.x; targetY = H * 0.78;
   }, 50);
   spawnMiniboss("rift_reaper");
@@ -63,7 +65,9 @@ await p.evaluate(() => {
   iniciarMision(2); eventoIdx = 999; enemies.length = 0; spawnQueue.length = 0;
   armaId = "cannon"; arma = 6;
   window._bot = setInterval(() => {
-    if (state !== "play" || !miniboss) return;
+    if (state !== "play") return;
+    if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
+    if (!miniboss) return;
     targetX = miniboss.x; targetY = H * 0.78;
   }, 50);
   spawnMiniboss("aegis_prime");
@@ -112,7 +116,9 @@ await p.evaluate(() => {
   iniciarMision(3); eventoIdx = 999; enemies.length = 0; spawnQueue.length = 0;
   armaId = "cannon"; arma = 6;
   window._bot = setInterval(() => {
-    if (state !== "play" || !miniboss) return;
+    if (state !== "play") return;
+    if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
+    if (!miniboss) return;
     targetX = miniboss.x; targetY = H * 0.78;
   }, 50);
   spawnMiniboss("venom_core");

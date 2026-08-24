@@ -21,6 +21,7 @@ for (const [nombre, mis, jefe, ar, niv] of CASOS) {
     armaId = ar; arma = niv;
     window._bot = setInterval(() => {
       if (state !== "play") return;
+      if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
       targetX = miniboss ? miniboss.x : W / 2;
       targetY = H * 0.78;
       arma = niv; armaId = ar;

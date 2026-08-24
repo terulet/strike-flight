@@ -12,6 +12,7 @@ async function nueva() {
     unlockAudio(); modo = "campana"; naveSel = 1; arma = 5;
     window._bot = setInterval(() => {
       if (state !== "play") return;
+      if (upgradesOfrecidos) { elegirUpgrade(upgradesOfrecidos.opciones[0]); return; }
       targetX = miniboss ? miniboss.x : W / 2; targetY = H * 0.78;
     }, 60);
   });

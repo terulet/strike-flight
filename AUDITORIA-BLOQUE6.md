@@ -361,4 +361,71 @@ completa. Verde.
 
 ---
 
-*(Continúa en 6I.)*
+---
+
+## 6I — Rank / Replayability
+
+**No solo score.** `calcularRank()` reparte 110 puntos: 35 score/segundo
+(normaliza misiones cortas y largas — 15 pts/s en MEDIUM ya cuenta
+como bueno), 20 combo máximo, 15 no recibir daño (`vidasPerdidas`, 15
+si son 0, 0 si son 3), 15 skill events, 10 élites derrotados, 5 jefe
+sin un golpe (`sinDanioBoss`, 6D), y 10 de bono por dificultad (0
+FÁCIL / 5 NORMAL / 10 DIFÍCIL — jugar en DIFÍCIL da margen real, no
+solo el multiplicador de score de 6B). Umbrales: C (0) · B (35) · A
+(60) · S (80) · S+ (95). Verificado con pruebas que dos partidas con
+el MISMO score pueden sacar letras distintas, y que cada factor -daño,
+skill events, élites, boss limpio, dificultad- mueve la letra en la
+dirección correcta.
+
+**Guardado** (`SAVE.subirRecordDif`/`subirRankDif`, nuevo en
+`js/save.js`): récord de score Y de rank, cada uno por su lado, los
+DOS por misión Y por dificultad (clave compuesta `"m3_high"`). No
+tienen por qué caer en la misma partida — se guardan de forma
+independiente, verificado con prueba. `campana.records` (récord por
+misión SIN dificultad, de siempre) no se toca: sigue siendo lo que ya
+lee el resto del juego.
+
+**Estadísticas de por vida** (`perfil.*`, ESQUEMA ampliado):
+`closeCalls`, `elitesDerrotados`, `jackpots`, `evolucionesDescubiertas`,
+`overdrivesUsados` — se SUMAN en cada `cerrarMision()`, no se
+reemplazan, verificado con dos misiones seguidas.
+
+**Pantalla de resultados**, sin volverse una hoja de cálculo:
+- Sello de RANK en su propia esquina (no compite con la lista de
+  extras ni con el total), con un pequeño golpe de escala al entrar.
+- Una línea compacta debajo del ELOI: `COMBO ×N · N SKILL · N ÉLITES
+  · N× OVERDRIVE · DIFICULTAD · ★ NUEVO MEJOR` — solo lo que pasó de
+  verdad; sin skill events ni élites, esos dos elementos ni aparecen.
+
+**Encontrado durante la comprobación visual** (capturas de
+`frontal.mjs`): el nuevo sello de RANK y la línea compacta se leen
+limpios, sin pisar nada existente. Hay un artefacto de doble-exposición
+PREVIO al bloque (el banner de misión desbloqueada superpuesto con el
+texto de resultados) — reproducible con el MISMO guion de prueba antes
+de 6I, así que es del arnés sintético de `frontal.mjs`, no una
+regresión de este bloque; queda anotado para el informe final.
+
+**Encontrado con `mision-completa.mjs` (partida real de principio a
+fin, sin capturas intermedias que la salven):** ese archivo y otros
+siete pilotan la nave escribiendo `targetX/targetY` directamente, sin
+un toque real — así que nunca "tocarían" una tarjeta de upgrade por su
+cuenta. En una misión de 200 iteraciones × 3s, el piloto SÍ acumula
+kills de verdad (a diferencia de los bots de solo-jefe, que limpian
+`enemies` en cada paso), cruza el primer hito de 6G y la partida se
+queda congelada el resto del tiempo -confirmado: `elapsed` se quedó
+clavado en 70.5 durante más de 500s de espera real-. Arreglado en los
+8 archivos que pilotan así: si hay una oferta en pantalla, el propio
+piloto elige la primera opción, que es lo más parecido a lo que
+haría un jugador real sin pensárselo. Los tres arneses `congelar()`/
+`PASO()` de 6G ya estaban cubiertos; éste es un patrón DISTINTO
+-tiempo real con `setInterval`, no reloj pilotado a mano- que se
+había colado.
+
+**Pruebas:** `herramientas/pruebas/rank.mjs` (32 comprobaciones) +
+regresión completa, incluida `guardado.mjs` (el ESQUEMA de save.js
+cambió), `admin.mjs`, y una partida real de M1 de principio a fin sin
+congelarse. Verde.
+
+---
+
+*(Continúa en 6J — última fase del bloque.)*
