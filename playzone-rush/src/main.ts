@@ -68,6 +68,11 @@ if (params.has('debug')) void enableDebug();
 // aparte del juego (y del panel de debug, que si puede tocar cosas): sustituye
 // la interfaz entera para que no haya forma de jugar sin querer desde aqui.
 if (params.has('dashboard')) {
+  // Antes de nada: el sorteo diario se programa dentro de boot() con un
+  // setTimeout que solo mira "sigo en home?", y root ya no es suyo. Sin
+  // avisar a la app, esa animacion aparece encima del dashboard al cabo de
+  // un rato -no en el primer fotograma, asi que un vistazo rapido no lo nota-.
+  app.markExternal();
   void (async () => {
     const { mountDashboard } = await import('./ui/dashboard');
     await mountDashboard(root, app.sync.client.token);

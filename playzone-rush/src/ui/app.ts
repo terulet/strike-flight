@@ -65,7 +65,7 @@ export class App {
   private shell: HTMLElement;
   private play: PlayScreen | null = null;
   private onChangeListeners: (() => void)[] = [];
-  private screen: 'onboarding' | 'home' = 'home';
+  private screen: 'onboarding' | 'home' | 'external' = 'home';
 
   constructor(root: HTMLElement, save = new SaveManager(), sync?: SyncEngine) {
     this.root = root;
@@ -234,6 +234,22 @@ export class App {
     this.telemetry.track('app_open');
     this.renderHome();
     this.quizaSortear();
+  }
+
+  /**
+   * Le dice a la app que ha dejado de pintar la pantalla: algo de fuera se ha
+   * hecho cargo de `root` (hoy, solo el dashboard de solo lectura).
+   *
+   * Sin esto, el temporizador del sorteo -que solo comprueba si sigue en
+   * 'home'- lo pinta ENCIMA del dashboard al cabo de un segundo, aunque quien
+   * pidio ?dashboard nunca vaya a jugar desde ahi: 'home' seguia siendo cierto
+   * porque nada dentro de la app sabe que main.ts ha limpiado root por su
+   * cuenta. Se vio con una captura de pantalla real, no con un test: los
+   * checks que leen el DOM justo despues de montar van mas rapido que el
+   * propio temporizador y no lo pillan.
+   */
+  markExternal(): void {
+    this.screen = 'external';
   }
 
   /**
