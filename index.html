@@ -3450,6 +3450,7 @@ function reset() {
   overdrive = 0; overdriveActivo = 0; overdriveDuracionActual = OVERDRIVE_DURACION;
   upgradesJugador = {}; upgradesOfrecidos = null; upgradesElegidos = 0;
   shieldReactorT = 0; missileSwarmT = 0;
+  evoluciones = {}; evoNovaT = 0; evoRayoT = 0; evoPulsoT = 0;
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3773,7 +3774,7 @@ function actualizarShards(dt) {
     s.t += dt;
     const dx = player.x - s.x, dy = player.y - s.y;
     const d = Math.hypot(dx, dy) || 1;
-    const magnetUp = upgradesJugador.magnet_field ? 1 : 0;
+    const magnetUp = upgradesJugador.magnet_field || 0;
     const alcance = imanT > 0 ? 520 : 140 + magnetUp * 80;
     if (d < alcance) {
       const vel = imanT > 0 ? 500 : (300 + magnetUp * 80);
@@ -3870,8 +3871,8 @@ const UPGRADES = {
   chain_lightning: { nombre: "CHAIN LIGHTNING", desc: "El disparo salta a otro enemigo.",     rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "cadena"],   peso: 7 },
   missile_swarm:   { nombre: "MISSILE SWARM",   desc: "6 misiles cada 8 s.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "autonomo"], peso: 7 },
   plasma_burst:    { nombre: "PLASMA BURST",    desc: "Explosión al matar.",                  rareza: "raro",  maxNivel: 2, tags: ["ofensivo", "area"],     peso: 6 },
-  shield_reactor:  { nombre: "SHIELD REACTOR",  desc: "El escudo se regenera solo.",          rareza: "raro",  maxNivel: 1, tags: ["defensivo"],            peso: 8 },
-  magnet_field:    { nombre: "MAGNET FIELD",    desc: "Imán permanente, más alcance.",        rareza: "comun", maxNivel: 1, tags: ["utilidad"],             peso: 9 },
+  shield_reactor:  { nombre: "SHIELD REACTOR",  desc: "El escudo se regenera solo.",          rareza: "raro",  maxNivel: 2, tags: ["defensivo"],            peso: 8 },
+  magnet_field:    { nombre: "MAGNET FIELD",    desc: "Imán permanente, más alcance.",        rareza: "comun", maxNivel: 2, tags: ["utilidad"],             peso: 9 },
   overdrive_boost: { nombre: "OVERDRIVE BOOST", desc: "Overdrive carga más rápido y dura más.", rareza: "raro", maxNivel: 2, tags: ["overdrive"],            peso: 7 },
 };
 // Incompatibilidades declaradas y vacías a propósito: en la primera
@@ -3922,9 +3923,9 @@ function elegirUpgrade(id) {
   const d = UPGRADES[id];
   texto(player.x, player.y - 50, d.nombre + " ×" + upgradesJugador[id], "#7df9ff", 15, { prioridad: 2 });
   sfx("mejora"); flash = Math.max(flash, 0.18);
-  // Bloque 6H: si esta elección completa una pareja de nivel II
-  // declarada en EVOLUCIONES, se funde en un arma nueva aquí mismo.
-  if (typeof comprobarEvolucion === "function") comprobarEvolucion(id);
+  // Si esta elección completa una pareja de nivel II declarada en
+  // EVOLUCIONES, se funde en un arma nueva aquí mismo.
+  comprobarEvolucion();
 }
 const RAREZA_COLOR = { comun: "#7df9ff", raro: "#ffd700" };
 function dibujarUpgrades() {
@@ -3963,13 +3964,111 @@ function dibujarUpgrades() {
   ctx.textAlign = "center";
 }
 
+// ════════════════════════════════════════════════════════════
+//  EVOLUTIONS / SYNERGIES
+// ════════════════════════════════════════════════════════════
+//  Fundir DOS upgrades de nivel II en un arma nueva. 4 -dentro de las
+//  3-5 pedidas-, no las 5 de ejemplo del encargo porque el pool real
+//  tiene 9 upgrades, no 10 (sin DRONE WING): STRIKE FLEET se funde con
+//  HEAVY CORE en su lugar. OVERDRIVE BOOST se queda sin pareja a
+//  propósito -ya se combina con TODO por su cuenta vía la barra- en
+//  vez de forzar un quinto par que no aportara nada nuevo.
+//
+//  El efecto de cada una es un timer propio que reutiliza funciones
+//  que YA EXISTÍAN -danioArea(), cadenaElectrica()/rayos, el propio
+//  MISSILE SWARM, el propio SHIELD REACTOR- para que "fundirse" se
+//  note MÁS fuerte, no distinto de cero. Ninguna borra un jefe sola:
+//  todas están calibradas para pesar menos que un jugador que apunta.
+const EVOLUCIONES = [
+  { id: "supernova_cannon", nombre: "SUPERNOVA CANNON", requiere: ["triple_shot", "plasma_burst"],
+    desc: "Nova de área cada 2,5 s.", color: "#ff8a1f" },
+  { id: "thunderstorm", nombre: "THUNDERSTORM", requiere: ["chain_lightning", "rapid_core"],
+    desc: "Cadena de tres rayos cada 1,6 s.", color: "#ffd700" },
+  { id: "strike_fleet", nombre: "STRIKE FLEET", requiere: ["missile_swarm", "heavy_core"],
+    desc: "Enjambre más grande y más seguido.", color: "#ff6b3d" },
+  { id: "gravity_aegis", nombre: "GRAVITY AEGIS", requiere: ["shield_reactor", "magnet_field"],
+    desc: "Escudo más rápido + pulso de gravedad.", color: "#5ce1ff" },
+];
+let evoluciones = {};   // id -> true una vez fundida (esta partida)
+let evolucionesTotal = 0;
+function comprobarEvolucion() {
+  for (const ev of EVOLUCIONES) {
+    if (evoluciones[ev.id]) continue;
+    if (ev.requiere.every(id => (upgradesJugador[id] || 0) >= 2)) fundirEvolucion(ev);
+  }
+}
+function fundirEvolucion(ev) {
+  evoluciones[ev.id] = true;
+  evolucionesTotal++;
+  // El save real (ESQUEMA + resultados) llega en 6I -esto es un no-op
+  // seguro hasta entonces: SAVE.sumar() en una ruta sin declarar
+  // devuelve 0 sin escribir nada, no hay dato a medias que limpiar.
+  if (hayGuardado) SAVE.sumar("perfil.evolucionesDescubiertas", 1);
+  UI.desbloqueo({ tipo: "evolucion", titulo: "EVOLUTION! · " + ev.nombre, desc: ev.desc, color: ev.color });
+  onda(player.x, player.y, ev.color, 170, 0.6);
+  sacudir("medium"); hitstop(0.09);   // el "pequeño slowdown visual" que pide el encargo
+  sfx("ultimate", { tono: 0.8 });
+  RHYTHM.marcar();
+}
+let evoNovaT = 0, evoRayoT = 0, evoPulsoT = 0;
+function actualizarEvoluciones(dt) {
+  if (state !== "play" || paused || upgradesOfrecidos) return;
+  if (evoluciones.supernova_cannon) {
+    evoNovaT += dt;
+    if (evoNovaT >= 2.5) {
+      evoNovaT = 0;
+      const y = player.y - 60;
+      danioArea(player.x, y, 150, 14, null);
+      vfx("exp_media", player.x, y, 200, 0.4);
+      onda(player.x, y, "#ff8a1f", 150, 0.4);
+      sacudir("tiny");
+      sfx("ultimate", { tono: 1.4, vol: 0.5 });
+    }
+  }
+  if (evoluciones.thunderstorm) {
+    evoRayoT += dt;
+    if (evoRayoT >= 1.6) {
+      evoRayoT = 0;
+      // Set completo de visitados, no solo el último salto: con
+      // enemigoMasCerca() excluyendo uno solo, el tercer salto podía
+      // volver sobre el primero en vez de llegar a un tercer enemigo
+      // -encontrado con una prueba, no a ojo-.
+      let origen = { x: player.x, y: player.y - 30 };
+      const visitados = new Set();
+      for (let i = 0; i < 3; i++) {
+        let o = null, md = 260 * 260;
+        for (const e of enemies) {
+          if (visitados.has(e) || e.hp <= 0) continue;
+          const dx = e.x - origen.x, dy = e.y - origen.y, d = dx * dx + dy * dy;
+          if (d < md) { md = d; o = e; }
+        }
+        if (!o) break;
+        o.hp -= 8; o.flash = 0.1;
+        rayos.push({ x1: origen.x, y1: origen.y, x2: o.x, y2: o.y, col: "#ffd700", t: 0, life: 0.15 });
+        impacto(o.x, o.y, "ligero", "#ffd700");
+        origen = { x: o.x, y: o.y }; visitados.add(o);
+      }
+    }
+  }
+  if (evoluciones.gravity_aegis) {
+    evoPulsoT += dt;
+    if (evoPulsoT >= 6) {
+      evoPulsoT = 0;
+      danioArea(player.x, player.y, 130, 6, null);
+      onda(player.x, player.y, "#5ce1ff", 140, 0.5);
+      sfx("escudo_on", { vol: 0.5 });
+    }
+  }
+}
+
 // ── Efectos pasivos (SHIELD REACTOR, MISSILE SWARM) ────────
 //  Los dos necesitan un reloj propio: no pasan por ningún chokepoint
 //  que ya exista, así que viven en su propia función de tick.
 let shieldReactorT = 0, missileSwarmT = 0;
 function dispararMissileSwarm() {
   const a = ARMAS.misil;   // reutiliza el arma de misiles entera: guiado, área, sonido, sprite
-  const n = 6;
+  // STRIKE FLEET (6H): el enjambre crece de 6 a 10.
+  const n = evoluciones.strike_fleet ? 10 : 6;
   for (let i = 0; i < n; i++) {
     const ang = -Math.PI / 2 + (i - (n - 1) / 2) * 0.16;
     bullets.push(nuevaBala(player.x, player.y - player.r, Math.cos(ang) * a.vel * 0.4, Math.sin(ang) * a.vel, a));
@@ -3981,7 +4080,10 @@ function actualizarUpgradesPasivos(dt) {
   if (state !== "play" || paused || upgradesOfrecidos) return;
   if (upgradesJugador.shield_reactor && escudo <= 0) {
     shieldReactorT += dt;
-    if (shieldReactorT >= 15) {
+    // Nivel 2: regenera más rápido. GRAVITY AEGIS (6H) lo acelera aparte.
+    let umbral = 19 - upgradesJugador.shield_reactor * 4;
+    if (evoluciones.gravity_aegis) umbral *= 0.5;
+    if (shieldReactorT >= umbral) {
       escudo = 1; shieldReactorT = 0;
       texto(player.x, player.y - 40, "ESCUDO REGENERADO", "#5ce1ff", 12);
       sfx("escudo_on");
@@ -3990,7 +4092,8 @@ function actualizarUpgradesPasivos(dt) {
 
   if (upgradesJugador.missile_swarm) {
     missileSwarmT += dt;
-    const intervalo = 8 - (upgradesJugador.missile_swarm - 1) * 2;   // nivel 2: cada 6s
+    let intervalo = 8 - (upgradesJugador.missile_swarm - 1) * 2;   // nivel 2: cada 6s
+    if (evoluciones.strike_fleet) intervalo *= 0.7;                 // 6H: más seguido, además de más grande
     if (missileSwarmT >= intervalo) { missileSwarmT = 0; dispararMissileSwarm(); }
   }
 }
@@ -5599,6 +5702,7 @@ function update(dt) {
     actualizarShards(dt);
     actualizarOverdrive(dt);
     actualizarUpgradesPasivos(dt);
+    actualizarEvoluciones(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
@@ -5956,7 +6060,7 @@ function update(dt) {
     const d = Math.hypot(dx, dy);
     // MAGNET FIELD: imán permanente, más discreto que el power-up
     // temporal -si igualara a imanT dejaría de sentirse especial-.
-    const magnetUp = upgradesJugador.magnet_field ? 1 : 0;
+    const magnetUp = upgradesJugador.magnet_field || 0;
     const alcance = imanT > 0 ? 520 : 165 + magnetUp * 90;
     const velIman = imanT > 0 ? 460 : (260 + magnetUp * 90);
     if (d < alcance) { p.x += (dx / d) * velIman * dt; p.y += (dy / d) * velIman * dt; }

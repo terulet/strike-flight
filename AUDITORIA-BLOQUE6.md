@@ -305,4 +305,60 @@ regresión completa. Verde.
 
 ---
 
-*(Continúa en 6H.)*
+---
+
+## 6H — Evolutions / Synergies
+
+**4 evoluciones** (dentro de las 3-5 pedidas — no 5, porque el pool
+real de 6G tiene 9 upgrades, no los 10 de ejemplo del encargo: sin
+DRONE WING, STRIKE FLEET se funde con HEAVY CORE en su lugar).
+OVERDRIVE BOOST se queda sin pareja a propósito: ya se combina con
+TODO por su cuenta vía la barra, forzarle un quinto par no habría
+sumado nada nuevo.
+
+| Evolución | Pareja (nivel II + nivel II) | Efecto |
+|---|---|---|
+| SUPERNOVA CANNON | TRIPLE SHOT + PLASMA BURST | nova de área cada 2,5s (`danioArea()`) |
+| THUNDERSTORM | CHAIN LIGHTNING + RAPID CORE | cadena a 3 enemigos cada 1,6s (rayos/`impacto()`) |
+| STRIKE FLEET | MISSILE SWARM + HEAVY CORE | enjambre 6→10 misiles, intervalo ×0,7 |
+| GRAVITY AEGIS | SHIELD REACTOR + MAGNET FIELD | umbral de regeneración ÷2 + pulso de área cada 6s |
+
+`SHIELD REACTOR` y `MAGNET FIELD` pasaron de `maxNivel:1` a
+`maxNivel:2` para poder participar (antes eran binarios: los tenías o
+no). Sus efectos ahora escalan con el nivel en vez de ser un
+interruptor — corrección menor de diseño, no un cambio de balance
+grande.
+
+**Cada efecto reutiliza lo que YA EXISTÍA** para que fundirse se note
+más fuerte, no distinto de cero: `danioArea()` (ya la usa PLASMA
+BURST), los `rayos`/`impacto()` (ya los usa el arma eléctrica),
+`dispararMissileSwarm()` (el propio MISSILE SWARM, con parámetros
+mayores), el propio reloj de SHIELD REACTOR. Ninguna evolución inventa
+un sistema de proyectiles nuevo.
+
+**"No debe borrar un boss sola":** verificado con números, no a ojo —
+una nova sola quita 2,5% del HP de un jefe típico (Guardián, 560 HP);
+un pulso de GRAVITY AEGIS, 1,1%. Los dos muy por debajo del 5% que
+puso la prueba como techo.
+
+**Banner + "pequeño slowdown":** reutiliza `UI.desbloqueo()` (el mismo
+banner de mission/nave desbloqueada) para "EVOLUTION! · NOMBRE", y
+`hitstop()` (el congelado de impacto que ya existe) para el frenazo
+visual — nada nuevo que mantener.
+
+**Encontrado con una prueba, no a ojo:** la cadena de THUNDERSTORM
+excluía solo el ÚLTIMO objetivo golpeado (`enemigoMasCerca(...,
+victima)`), así que el tercer salto podía volver sobre el primero en
+vez de llegar a un tercer enemigo cercano — con tres enemigos en
+línea, el salto 3 comprobaba que el primero (35px) estaba más cerca
+que el tercero (60px) y repetía. Arreglado con un `Set` de visitados
+completo en vez de una única exclusión.
+
+**Pruebas:** `herramientas/pruebas/evoluciones.mjs` (22
+comprobaciones: fusión exacta por pareja+nivel, no re-fusión, los 4
+efectos, el techo de daño contra un jefe, `reset()`) + regresión
+completa. Verde.
+
+---
+
+*(Continúa en 6I.)*
