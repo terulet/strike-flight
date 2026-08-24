@@ -34,7 +34,18 @@ export type EventType =
   | 'bet_offered'
   | 'bet_taken'
   | 'bet_won'
-  | 'bet_lost';
+  | 'bet_lost'
+  // Compartir: no habia NADA de esto. "Cuanto se comparte" es la senal mas
+  // fuerte de que un momento vale la pena -mas que la revancha, que solo dice
+  // "quiero otra"; compartir dice "esto me representa delante de otros"-, y
+  // sin embargo compartirMomento() no avisaba a nadie de como habia ido.
+  // Dos eventos, como revenge_available/revenge_clicked: 'attempted' es que
+  // se ha pulsado el boton y el flujo ha llegado a una conclusion (incluye
+  // cancelar el menu del sistema, que sigue siendo una intencion de
+  // compartir); 'completed' es que ha salido algo de verdad (imagen, texto,
+  // descarga o portapapeles).
+  | 'share_attempted'
+  | 'share_completed';
 
 export interface TrackOptions {
   gameId?: string | null;

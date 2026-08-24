@@ -235,3 +235,75 @@
   letter-spacing: 0.06em;
   color: var(--text-faint);
 }
+
+/* ---------- Por juego: indice de enganche ----------
+   Una fila por juego, ordenadas ya por el servidor. La barra es el numero
+   compuesto; la linea de debajo son las cinco senales crudas, porque el
+   compuesto es una conveniencia para ordenar, no la verdad -si un juego
+   concreto no cuadra con su barra, lo que hay que creer son sus numeros. */
+.dash-games {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-game {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 9px 11px;
+}
+
+.dash-game--top {
+  border-color: rgba(255, 210, 63, 0.4);
+}
+
+.dash-game__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.dash-game__value {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.dash-game--top .dash-game__value {
+  color: var(--gold);
+}
+
+.dash-game__bar {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.dash-game__fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--gold);
+}
+
+.dash-game__fill--pendiente {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--text-faint) 0 4px,
+    transparent 4px 8px
+  );
+  opacity: 0.4;
+}
+
+.dash-game__detail {
+  margin-top: 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+}

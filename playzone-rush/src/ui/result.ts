@@ -11,7 +11,7 @@ import type { ChallengeSpec } from '../meta/daily';
 import { formatScore } from '../meta/ranking';
 import { headlineFor, type ScoreOutcome } from '../meta/scoring';
 import type { App } from './app';
-import { botonCompartir } from './compartir';
+import { botonCompartir, type ResultadoCompartir } from './compartir';
 import { momentoDe } from '../meta/compartir';
 import { button, el } from './dom';
 
@@ -42,6 +42,8 @@ export interface ResultOptions {
   codigoGrupo?: string | null;
   /** Para avisar de que el texto se ha copiado. */
   onAviso?: (texto: string) => void;
+  /** Como ha terminado el intento de compartir, para telemetria por juego. */
+  onCompartir?: (resultado: ResultadoCompartir) => void;
 }
 
 export function renderResult(
@@ -185,6 +187,7 @@ function momentoCompartible(
   return botonCompartir(momento, {
     codigoGrupo: options.codigoGrupo ?? null,
     onAviso: (aviso) => options.onAviso?.(aviso),
+    onResultado: (resultado) => options.onCompartir?.(resultado),
   });
 }
 

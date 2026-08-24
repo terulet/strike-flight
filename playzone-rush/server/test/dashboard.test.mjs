@@ -298,3 +298,134 @@ describe('solo lectura', () => {
     expect(dashboard.metrics(groupB, today()).players).toBe(1);
   });
 });
+
+/**
+ * "Por juego": de los 12, cuales enganchan de verdad.
+ *
+ * Aqui no se prueba "es un buen juego" -eso no lo puede decir un test-, se
+ * prueba que la maquina que va a decirlo hace exactamente lo que dice: corta
+ * bien por juego, no inventa una conclusion con cuatro partidas, y el orden
+ * que produce responde a los numeros y no al azar.
+ */
+describe('por juego', () => {
+  /** N finishes de un gameId para un jugador, con revancha y compartir opcionales. */
+  function jugarVarias(player, gameId, n, { revancha = 0, comparte = 0, mejora = 0 } = {}) {
+    for (let i = 0; i < n; i++) {
+      track(player, 'game_start', { gameId });
+      track(player, 'game_finish', { gameId, value: 1000 + i });
+      if (i < mejora) track(player, 'score_improved', { gameId, value: 50 });
+    }
+    for (let i = 0; i < revancha; i++) {
+      track(player, 'revenge_available', { gameId, value: 200 });
+      track(player, 'revenge_clicked', { gameId, value: 200 });
+    }
+    for (let i = 0; i < comparte; i++) track(player, 'share_completed', { gameId, meta: { resultado: 'imagen' } });
+  }
+
+  /** n filas de scores agotadas (3/3) para gameId, una por jugador nuevo. */
+  function agotarIntentos(created, gameId, n, challengeId = 'c1') {
+    for (let i = 0; i < n; i++) {
+      const jugador = join(created.group.code, `J${gameId}${i}`);
+      play(jugador, { challengeId, gameId, attemptsUsed: 3 });
+    }
+  }
+
+  it('no mezcla las senales de dos juegos distintos', () => {
+    const { player } = newGroup('Eloi');
+    jugarVarias(player, 'pulse', 3, { revancha: 2 });
+    jugarVarias(player, 'drift', 3, { revancha: 0 });
+    track(player, 'revenge_available', { gameId: 'drift', value: 90 }); // ofrecida, NO pulsada
+
+    const games = metrics().perGame.games;
+    const pulse = games.find((g) => g.gameId === 'pulse');
+    const drift = games.find((g) => g.gameId === 'drift');
+    expect(pulse.revengeAvailable).toBe(2);
+    expect(pulse.revengeClicked).toBe(2);
+    expect(drift.revengeAvailable).toBe(1);
+    expect(drift.revengeClicked).toBe(0);
+    expect(pulse.finishes).toBe(3);
+    expect(drift.finishes).toBe(3);
+  });
+
+  it('con menos partidas que la muestra minima, no hay indice: solo numeros crudos', () => {
+    const { player } = newGroup('Eloi');
+    jugarVarias(player, 'torre', 3, { revancha: 3 }); // 3 < MIN_FINISHES, aunque el 100% de revancha "se vea" perfecto
+
+    const torre = metrics().perGame.games.find((g) => g.gameId === 'torre');
+    expect(torre.insufficient).toBe(true);
+    expect(torre.composite).toBeNull();
+    expect(torre.finishes).toBe(3);
+    expect(torre.revengeRate).toBe(1); // el numero crudo SI se ensena
+  });
+
+  it('con un solo juego por encima de la muestra minima, no hay con que comparar', () => {
+    const { player } = newGroup('Eloi');
+    jugarVarias(player, 'caza', 10, { revancha: 8, comparte: 4, mejora: 5 });
+
+    const games = metrics().perGame.games;
+    expect(games.every((g) => g.composite === null)).toBe(true);
+  });
+
+  it('ordena por el indice: un juego que engancha de verdad queda por delante de uno mediocre', () => {
+    const { created, player } = newGroup('Eloi');
+    const rival = join(created.group.code, 'Marc');
+
+    // CARGA: casi todo el mundo quiere revancha, comparte y mejora su marca.
+    jugarVarias(player, 'carga', 10, { revancha: 9, comparte: 6, mejora: 8 });
+    agotarIntentos(created, 'carga', 10);
+
+    // FRENO: se termina, pero ahi se queda. Ni revancha ni compartir ni mejora.
+    jugarVarias(rival, 'freno', 10, { revancha: 1, comparte: 0, mejora: 0 });
+    agotarIntentos(created, 'freno', 10);
+
+    const games = metrics().perGame.games;
+    const carga = games.find((g) => g.gameId === 'carga');
+    const freno = games.find((g) => g.gameId === 'freno');
+    expect(carga.insufficient).toBe(false);
+    expect(freno.insufficient).toBe(false);
+    expect(carga.composite).toBeGreaterThan(freno.composite);
+    // Y la lista que se manda al panel ya viene ordenada: no hay que ordenarla en el cliente.
+    expect(games.findIndex((g) => g.gameId === 'carga')).toBeLessThan(
+      games.findIndex((g) => g.gameId === 'freno'),
+    );
+  });
+
+  it('agotar intentos solo cuenta en los retos diarios, no en secreto ni CHAOS', () => {
+    const { created, player } = newGroup('Eloi');
+    void player;
+    // Secreto: limite real de 1 intento. Si contara igual que un diario,
+    // saldria "agotado" el 100% de las veces sin decir nada de verdad.
+    for (let i = 0; i < 10; i++) {
+      const jugador = join(created.group.code, `S${i}`);
+      play(jugador, { challengeId: 'secret', gameId: 'snap', attemptsUsed: 1 });
+    }
+    jugarVarias(player, 'snap', 8, {});
+
+    const snap = metrics().perGame.games.find((g) => g.gameId === 'snap');
+    expect(snap.dailyRows).toBe(0);
+    expect(snap.exhaustedRate).toBeNull();
+  });
+
+  it('una metrica sin base para un juego no lo hunde: se reparte el peso entre las demas', () => {
+    const { created, player } = newGroup('Eloi');
+    const rival = join(created.group.code, 'Marc');
+
+    // Mismos numeros en todo salvo la revancha: a 'memory' nunca se le ha
+    // OFRECIDO una (nadie fue nunca por delante ahi), a 'ritmo' si y siempre
+    // se pulsa. Que a 'memory' le falte esa senal no debe dejarlo en el suelo.
+    jugarVarias(player, 'memory', 8, { revancha: 0, comparte: 3, mejora: 4 });
+    agotarIntentos(created, 'memory', 8);
+
+    jugarVarias(rival, 'ritmo', 8, { revancha: 8, comparte: 3, mejora: 4 });
+    agotarIntentos(created, 'ritmo', 8);
+
+    const games = metrics().perGame.games;
+    const memory = games.find((g) => g.gameId === 'memory');
+    const ritmo = games.find((g) => g.gameId === 'ritmo');
+    expect(memory.revengeRate).toBeNull();
+    expect(memory.composite).not.toBeNull();
+    // Con todo lo demas igual, a memory solo le falta el 30% de peso de la
+    // revancha (que ritmo se lleva entero): se queda cerca, no por los suelos.
+    expect(memory.composite).toBeGreaterThan(ritmo.composite - 40);
+  });
+});

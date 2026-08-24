@@ -18,6 +18,26 @@ interface Window {
   rate: number | null;
 }
 
+interface GameMetric {
+  gameId: string;
+  starts: number;
+  finishes: number;
+  abandons: number;
+  revengeAvailable: number;
+  revengeClicked: number;
+  revengeRate: number | null;
+  shareCompleted: number;
+  shareRate: number | null;
+  dailyRows: number;
+  exhausted: number;
+  exhaustedRate: number | null;
+  completionRate: number | null;
+  scoreImproved: number;
+  masteryRate: number | null;
+  insufficient: boolean;
+  composite: number | null;
+}
+
 interface DashboardData {
   buildId: string;
   metrics: {
@@ -59,6 +79,10 @@ interface DashboardData {
       activePlayersByDay: { day: string; players: number }[];
       eventCounts: Record<string, number>;
     };
+    perGame: {
+      minSample: number;
+      games: GameMetric[];
+    };
   };
   errors: {
     last24h: number;
@@ -80,6 +104,40 @@ function minutes(ms: number | null): string {
   const mins = Math.round(ms / 60_000);
   if (mins < 60) return `${mins} min`;
   return `${(mins / 60).toFixed(1)} h`;
+}
+
+/** PULSE -> "pulse". Los nombres de juego en este proyecto son su id en mayusculas. */
+function nombreJuego(gameId: string): string {
+  return gameId.toUpperCase();
+}
+
+/** La linea pequena de numeros crudos bajo la barra: lo que sostiene al compuesto. */
+function detalleJuego(g: GameMetric): string {
+  const partes = [
+    `revancha ${pct(g.revengeRate)}`,
+    `comparte ${pct(g.shareRate)}`,
+    `agota 3/3 ${pct(g.exhaustedRate)}`,
+    `completa ${pct(g.completionRate)}`,
+    `mejora ${pct(g.masteryRate)}`,
+  ];
+  return `${partes.join(' · ')} · n=${g.finishes}`;
+}
+
+function gameRow(g: GameMetric, esTop: boolean): HTMLElement {
+  const valor = g.composite === null ? '—' : `${g.composite}`;
+  return el('div', { class: `dash-game${esTop ? ' dash-game--top' : ''}` }, [
+    el('div', { class: 'dash-game__head' }, [
+      el('span', { text: nombreJuego(g.gameId) }),
+      el('span', { class: 'dash-game__value num', text: valor }),
+    ]),
+    el('div', { class: 'dash-game__bar' }, [
+      el('div', {
+        class: `dash-game__fill${g.composite === null ? ' dash-game__fill--pendiente' : ''}`,
+        style: { width: `${g.composite ?? 100}%` },
+      }),
+    ]),
+    el('div', { class: 'dash-game__detail', text: detalleJuego(g) }),
+  ]);
 }
 
 /** Una metrica grande, con su denominador al lado: un 100% de 1 no es un 100%. */
@@ -179,6 +237,18 @@ function render(root: HTMLElement, data: DashboardData): void {
         `${m.dailyCompletion.startedDays} de los que abren`,
       ),
     ]),
+
+    section(
+      'POR JUEGO',
+      `indice de enganche · minimo ${m.perGame.minSample} partidas terminadas para entrar en el ranking`,
+    ),
+    el(
+      'div',
+      { class: 'dash-games' },
+      m.perGame.games.length === 0
+        ? [el('div', { class: 'dash-empty', text: 'Todavia no se ha jugado nada.' })]
+        : m.perGame.games.map((g, i) => gameRow(g, i === 0 && g.composite !== null)),
+    ),
 
     section('ACTIVIDAD POR DIA'),
     el(

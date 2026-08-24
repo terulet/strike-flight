@@ -153,7 +153,12 @@ function esCancelacion(error: unknown): boolean {
 /** El boton de compartir un momento. */
 export function botonCompartir(
   momento: Momento,
-  opciones: { codigoGrupo?: string | null; onAviso?: (texto: string) => void },
+  opciones: {
+    codigoGrupo?: string | null;
+    onAviso?: (texto: string) => void;
+    /** Como ha ido, incluido cancelar: quien mide la telemetria decide que hacer con ello. */
+    onResultado?: (resultado: ResultadoCompartir) => void;
+  },
 ): HTMLElement {
   const node = button(momento.boton, 'btn btn--block compartir', async () => {
     if (node.dataset.enMarcha === '1') return; // dos toques seguidos no abren dos menus
@@ -162,6 +167,7 @@ export function botonCompartir(
     node.textContent = 'PREPARANDO...';
     try {
       const que = await compartirMomento(momento, opciones.codigoGrupo);
+      opciones.onResultado?.(que);
       const aviso = AVISOS[que];
       if (aviso) opciones.onAviso?.(aviso);
     } finally {

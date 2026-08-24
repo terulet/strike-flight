@@ -421,6 +421,13 @@ export class PlayScreen {
         ghostRival: this.config.ghost?.rivalName ?? null,
         codigoGrupo: this.app.save.get().account.groupCode,
         onAviso: (texto) => this.app.toaster.show(texto, 'good', 2200),
+        onCompartir: (resultado) => {
+          this.app.telemetry.track('share_attempted', { gameId: this.spec.gameId, meta: { resultado } });
+          // Cancelar el menu del sistema es una decision, no un intento fallido
+          // (ver compartir.ts): entra en 'attempted' pero no aqui.
+          if (resultado === 'cancelado' || resultado === 'fallo') return;
+          this.app.telemetry.track('share_completed', { gameId: this.spec.gameId, meta: { resultado } });
+        },
       },
     );
     this.overlay = node;

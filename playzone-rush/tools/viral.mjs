@@ -210,6 +210,19 @@ if (conFichero) {
   check('la imagen es JPEG', l?.tipo === 'image/jpeg');
   check('la imagen pesa menos de 400 kB', (l?.bytes ?? 0) > 10_000 && (l?.bytes ?? 0) < 400_000, `${((l?.bytes ?? 0) / 1024).toFixed(0)} kB`);
   check('el texto acompana a la imagen', Boolean(l?.texto));
+
+  // Telemetria por juego (panel POR JUEGO del dashboard): sin esto el
+  // servidor no puede saber que ESTE juego produjo un compartir de verdad.
+  const telemetria = await page.evaluate(() => {
+    const a = window.__PZ.app;
+    return { eventos: a.telemetry.events(), gameId: a.plan.challenges[0].gameId };
+  });
+  const atento = telemetria.eventos.filter((e) => e.type === 'share_attempted');
+  const hecho = telemetria.eventos.filter((e) => e.type === 'share_completed');
+  check('compartir de verdad deja share_attempted', atento.length === 1);
+  check('share_attempted lleva el gameId del reto jugado', atento[0]?.gameId === telemetria.gameId, atento[0]?.gameId);
+  check('compartir de verdad deja TAMBIEN share_completed', hecho.length === 1);
+  check('share_completed dice como ha ido', hecho[0]?.meta?.resultado === 'imagen', JSON.stringify(hecho[0]?.meta));
 }
 await page.getByText('VER RANKING', { exact: true }).first().click().catch(() => {});
 await page.waitForSelector('.card', { timeout: 10000 });
@@ -237,6 +250,18 @@ if (cancelado) {
   // Cancelar es una decision, no un fallo: no debe copiar nada por detras.
   const avisos = await page.locator('.toast').count();
   check('cancelar el menu no dispara nada por detras', avisos === 0);
+
+  // Pero SI queda intencion de compartir: cancelar el menu del sistema no es
+  // "no quiso compartir", es "quiso, y el menu no siguio". share_completed en
+  // cambio no debe aparecer: no ha salido nada de verdad.
+  const eventos = await page.evaluate(() => window.__PZ.app.telemetry.events());
+  const atentosTotal = eventos.filter((e) => e.type === 'share_attempted').length;
+  const hechoTotal = eventos.filter((e) => e.type === 'share_completed').length;
+  // Antes de este paso ya hubo TRES compartidos de exito: fichero, solo
+  // texto, y sin menu del sistema (descarga+copia, que tambien cuenta como
+  // exito). Este cuarto intento es el que cancela.
+  check('cancelar deja share_attempted igualmente', atentosTotal === 4, `${atentosTotal} (fichero+texto+descarga+cancela)`);
+  check('cancelar NO deja share_completed', hechoTotal === 3, `${hechoTotal} (fichero+texto+descarga)`);
 }
 
 console.log(`\nRESULTADO: ${ok.length} OK · ${fail.length} fallos`);
