@@ -6,6 +6,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Flight Strike">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05060f">
+<!-- PWA: instalable desde Safari/Chrome con "Añadir a pantalla de inicio".
+     manifest.json + icons/ son rutas relativas, así que si esto se abre
+     con doble clic desde file:// simplemente no cargan -sin onerror
+     porque un manifest que falla no rompe nada, el juego sigue igual. -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Flight Strike</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -8807,6 +8815,18 @@ function loop(now) {
 }
 const fallos = {};
 requestAnimationFrame(loop);
+
+// PWA: registra el service worker para que "Añadir a pantalla de inicio"
+// cuente como instalación de verdad (Chrome/Android lo exige para el
+// aviso de instalar) y para jugar sin red una vez cargado una vez.
+// Solo tiene sentido servido por http(s) -abierto con doble clic desde
+// file:// no hay origen que registrar, y el intento falla en silencio,
+// como el resto de cosas opcionales de esta pantalla.
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 </script>
 <script src="../_playzone/overlay.js" defer></script>
 </body>

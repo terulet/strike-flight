@@ -5,15 +5,15 @@
     "Para cambiar el juego se cambia el ORIGEN y se vuelve a sincronizar."
   ],
   "origen": {
-    "etiqueta": "Bloque 7 (7A-7E) - reto diario, records, endless rank, accesibilidad",
+    "etiqueta": "PWA instalable (icono, manifest, service worker)",
     "ruta": "C:\\Users\\TeRuLeT\\Desktop\\PROJECTES SOFTS\\JOCS\\strike-flight-repo",
-    "commit": "0f69ef7d344698a55b58a32d9caf8e6029edeb03",
-    "asunto": "fix(bloque7-7d): actualiza el conteo de botones de SUPERVIVENCIA en 2 pruebas más",
+    "commit": "c9c8a20f702997b1c94655ebdf48c58b6599c562",
+    "asunto": "feat(pwa): instalable desde Safari/Chrome con \"Añadir a pantalla de inicio\"",
     "arbolSucio": false
   },
-  "sincronizado": "2026-08-24T21:59:49.410Z",
+  "sincronizado": "2026-08-24T22:36:13.412Z",
   "overlay": "<script src=\"../_playzone/overlay.js\" defer></script>",
-  "indexOrigenSha": "6254f12658e18bfe789baf705180b5c259659431d430eb74545310089846f831",
+  "indexOrigenSha": "a7669fa76ab8f86f8b2121a2323ce80b135b8663c882820b204fc106bbb05107",
   "ficheros": {
     ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "art/bosses/aegis_prime.png": "0685c4c2d7ef5ef28f6128e3e781af725c48ad6e29f6431bc0ebeda6197d04e4",
@@ -269,7 +269,11 @@
     "audio/musica/unlock.mp3": "757e8ad25f701cfe951db8571e08ea17414232043742f54df329ac948326c992",
     "audio/musica/victoria.mp3": "fd3de6635c7a82d2ba01a2db02071c64f36c60a4b3050775d8ffce1a06a49f9a",
     "audio/MUSICA.json": "38cd0049629c1d935019508903f2e96cb3b960fccfc1ee199dad5710851c6683",
-    "index.html": "6254f12658e18bfe789baf705180b5c259659431d430eb74545310089846f831",
+    "icons/apple-touch-icon.png": "73e5396c9c20920ec909c7c2ad9e6dfd204c669b6282e83a2bbe14447228cd7e",
+    "icons/favicon-32.png": "cd31f63d504193451aa1111d432a1b5f0bcfee6b35a144a9bcef19bbb2314023",
+    "icons/icon-192.png": "bd1fab5249a115e674852803b06f99d733bb92ac35eb30bc5fe4b3d06529fb96",
+    "icons/icon-512.png": "8adab41bb7e842b9a07479f8c6925c5dd9f178ad7b0e49d06f15e20ed1278210",
+    "index.html": "a7669fa76ab8f86f8b2121a2323ce80b135b8663c882820b204fc106bbb05107",
     "js/admin.js": "aaa59fb8098c0f6667b0a26ed6a2631faf4cfb043a7ae16ca23519cca5c85abc",
     "js/enemigos.js": "1ed125db8cb12357642e447b203efea70d30ad9debd1c391c357327d81a54f49",
     "js/hangar.js": "323830fc739f7ce80a2add6abaa43d82827c2e2961190410b9f57a524be08ea1",
@@ -280,6 +284,8 @@
     "js/ships.js": "70d30c096bb595826ef243ec3b65aa577b5d9091da95e10bed963b1a64145c6c",
     "js/ui.js": "39a7df800d64d067f29d3c10c4e2d6853495969860edcc8ef2dd0f183f94cb0d",
     "js/vfx.js": "de6b4c1bfd1e287822d58b90a2302f1b7a43dd953392e57d22f98a4293fbf909",
+    "manifest.json": "fb96ebb368707ea29517838972e9edd073423435da52f8911e233e1af0cf71f2",
+    "sw.js": "6f38a802dcbb090f01c688ec494bc3a3f3f006e3cc47bab859be4ac4255ca7fd",
     "THIRD_PARTY_AUDIO_LICENSES.md": "cd9598286b3e9a4d3774d26120593cfa1aa9ecb72141d7cd945edb2fbb54f579"
   }
 }
