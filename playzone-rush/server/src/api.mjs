@@ -238,10 +238,12 @@ export function createApi(store, options = {}) {
       player.id,
       payload.challengeId,
       payload.gameId,
+      payload.gameVersion,
       bestAfter,
       attemptsAfter,
       1,
       payload.countsForRanking ? 1 : 0,
+      payload.isTest ? 1 : 0,
       ts,
     );
 
@@ -267,8 +269,10 @@ export function createApi(store, options = {}) {
       day,
       'score_submitted',
       payload.gameId,
+      payload.gameVersion,
       payload.score,
       JSON.stringify({ challengeId: payload.challengeId, improved: payload.score > bestBefore }),
+      payload.isTest ? 1 : 0,
     );
 
     const snapshot = buildSnapshot(player.group_id, day);
@@ -330,8 +334,12 @@ export function createApi(store, options = {}) {
         typeof event.day === 'string' ? event.day.slice(0, 10) : serverDay(),
         event.type,
         typeof event.gameId === 'string' ? event.gameId.slice(0, 24) : null,
+        typeof event.gameVersion === 'number' && Number.isFinite(event.gameVersion)
+          ? Math.round(event.gameVersion)
+          : null,
         typeof event.value === 'number' && Number.isFinite(event.value) ? Math.round(event.value) : null,
         event.meta ? JSON.stringify(event.meta).slice(0, 500) : null,
+        event.isTest === true ? 1 : 0,
       );
       stored++;
     }

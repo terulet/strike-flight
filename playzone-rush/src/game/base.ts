@@ -268,6 +268,7 @@ export abstract class BaseMiniGame implements MiniGame {
     const total = this.hits + this.misses;
     this.result = {
       gameId: this.meta.id,
+      gameVersion: this.meta.version ?? 1,
       seed: this.config.seed,
       score: Math.round(this._score),
       durationMs: Math.round(this.elapsedMs),

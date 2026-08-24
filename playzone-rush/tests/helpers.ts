@@ -19,6 +19,7 @@ import type { GameResult } from '../src/game/contract';
 export function makeResult(gameId: string, score: number, extra: Partial<GameResult> = {}): GameResult {
   return {
     gameId,
+    gameVersion: 1,
     seed: 'test',
     score,
     durationMs: 30_000,

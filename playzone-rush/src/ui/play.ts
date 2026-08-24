@@ -339,8 +339,10 @@ export class PlayScreen {
       ? outcome.challengeTarget.gap
       : 0;
     const rival = outcome.challengeTarget?.entry.name ?? null;
+    const rivalTotal = outcome.challengeTarget?.entry.total ?? 0;
+    const marginPct = rivalTotal > 0 ? Math.round((gap / rivalTotal) * 1000) / 10 : null;
     if (outcome.attemptsLeft > 0 && gap > 0) {
-      this.app.offerRevenge(`result:${this.spec.id}:${outcome.score}`, gap, rival, this.spec.gameId);
+      this.app.offerRevenge(`result:${this.spec.id}:${outcome.score}`, gap, rival, this.spec.gameId, marginPct);
     }
 
     // DOBLE O NADA: solo si le queda la ficha del dia y el reto cuenta.
@@ -391,7 +393,7 @@ export class PlayScreen {
       {
         onRematch: () => {
           this.app.audio.play('select');
-          this.app.rematch(this.spec, { gap, rival: rival ?? undefined });
+          this.app.rematch(this.spec, { gap, rival: rival ?? undefined, marginPct });
         },
         onContinue: () => {
           this.app.audio.play('back');

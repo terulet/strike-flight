@@ -343,6 +343,8 @@ export class SyncEngine extends Emitter<SyncEvents> {
               durationMs: pending.durationMs,
               attemptsUsed: pending.attemptsUsed,
               countsForRanking: pending.countsForRanking,
+              gameVersion: pending.gameVersion,
+              isTest: pending.isTest,
               ghost: pending.ghost,
             });
             this.removePending(pending.attemptId);

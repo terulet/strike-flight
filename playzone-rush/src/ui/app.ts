@@ -13,7 +13,7 @@ import { seedFrom } from '../core/rng';
 import { SaveManager, type PendingScore } from '../core/save';
 import type { GameConfig, GameResult } from '../game/contract';
 import { resolveMutators } from '../game/mutators';
-import { requireGame } from '../game/registry';
+import { getGame, requireGame } from '../game/registry';
 import { attemptsLeft, beginAttempt, canPlay, refundAttempt } from '../meta/attempts';
 import { buildDailyPlan, findChallenge, type ChallengeSpec, type DailyPlan } from '../meta/daily';
 import { myBestFor, remoteStandings } from '../meta/contenders';
@@ -84,6 +84,8 @@ export class App {
     this.sync = sync ?? new SyncEngine(save);
     this.telemetry = new Telemetry(save, {
       day: () => this.dayKey,
+      gameVersion: (gameId) => getGame(gameId)?.meta.version ?? 1,
+      isTest: () => this.debugMode,
       send: (events) =>
         this.sync.sendTelemetry(
           events.map((event) => ({
@@ -91,8 +93,10 @@ export class App {
             ts: event.ts,
             day: event.day,
             gameId: event.gameId ?? null,
+            gameVersion: event.gameVersion ?? null,
             value: event.value ?? null,
             meta: event.meta ?? null,
+            isTest: event.isTest ?? false,
           })),
         ),
     });
@@ -603,6 +607,8 @@ export class App {
       day: this.dayKey,
       challengeId: spec.id,
       gameId: spec.gameId,
+      gameVersion: getGame(spec.gameId)?.meta.version ?? 1,
+      isTest: this.debugMode,
       score: puntuacion,
       durationMs: 5000,
       attemptsUsed: progreso?.attemptsUsed ?? 1,
@@ -614,7 +620,7 @@ export class App {
   }
 
   /** Revancha: mismo reto, cero menus. */
-  rematch(spec: ChallengeSpec, context: { gap?: number; rival?: string } = {}): void {
+  rematch(spec: ChallengeSpec, context: { gap?: number; rival?: string; marginPct?: number | null } = {}): void {
     if (!this.canPlay(spec)) {
       this.toaster.show('SIN INTENTOS', 'bad');
       this.audio.play('error');
@@ -623,7 +629,11 @@ export class App {
     this.telemetry.track('revenge_clicked', {
       gameId: spec.gameId,
       value: context.gap ?? null,
-      meta: { rival: context.rival ?? null, challengeId: spec.id },
+      // marginPct va tambien en el clic, no solo en la oferta: sin el, no se
+      // puede saber CUALES de las revanchas ofrecidas por poco margen son las
+      // que de verdad se pulsan -"close-loss replay"-, solo cuantas se
+      // ofrecieron por poco.
+      meta: { rival: context.rival ?? null, challengeId: spec.id, marginPct: context.marginPct ?? null },
     });
     this.pendingOvertake = null;
     this.startChallenge(spec, { quick: true, revenge: true });
@@ -650,7 +660,11 @@ export class App {
     this.telemetry.track('game_finish', {
       gameId: spec.gameId,
       value: result.score,
-      meta: { challengeId: spec.id, endedBy: result.endedBy },
+      // attemptsLeftAfter es lo que hace posible el One More Rate: sin saber
+      // si a esta partida le quedaba otra oportunidad, no se puede distinguir
+      // "termino y no jugo mas porque no quiso" de "termino y no jugo mas
+      // porque ya no podia". Ese matiz no se puede reconstruir a posteriori.
+      meta: { challengeId: spec.id, endedBy: result.endedBy, attemptsLeftAfter: attemptsLeft(this.save, this.dayKey, spec) },
     });
     if (outcome.isChallengeBest) {
       this.telemetry.track('score_improved', { gameId: spec.gameId, value: outcome.gainVsBest });
@@ -698,6 +712,8 @@ export class App {
       day: this.dayKey,
       challengeId: spec.id,
       gameId: spec.gameId,
+      gameVersion: result.gameVersion,
+      isTest: this.debugMode,
       score: result.score,
       durationMs: Math.max(1000, Math.round(result.durationMs)),
       attemptsUsed: this.save.get().days[this.dayKey]?.challenges[spec.id]?.attemptsUsed ?? 1,
@@ -759,11 +775,15 @@ export class App {
   /**
    * Se ha ofrecido una revancha. La clave evita contar dos veces la misma
    * oferta cuando la pantalla se repinta: si no, el Revenge Rate mentiria.
+   *
+   * marginPct (gap / total del rival) va ADEMAS de gap: 100 puntos es todo un
+   * mundo en TRAZO y nada en CUENTA, y sin normalizar por juego "perder por
+   * poco" no se puede comparar entre los doce.
    */
-  offerRevenge(key: string, gap: number, rival: string | null, gameId: string): void {
+  offerRevenge(key: string, gap: number, rival: string | null, gameId: string, marginPct: number | null): void {
     if (this.offeredRevenges.has(key)) return;
     this.offeredRevenges.add(key);
-    this.telemetry.track('revenge_available', { gameId, value: gap, meta: { rival } });
+    this.telemetry.track('revenge_available', { gameId, value: gap, meta: { rival, marginPct } });
   }
 
   /* ---------------- preferencias ---------------- */

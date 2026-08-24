@@ -83,6 +83,8 @@ export interface SubmitScoreRequest {
   durationMs: number;
   attemptsUsed: number;
   countsForRanking: boolean;
+  gameVersion: number;
+  isTest: boolean;
   ghost?: GhostPayload | null;
 }
 
@@ -113,6 +115,8 @@ export interface TelemetryEventPayload {
   ts: number;
   day: string;
   gameId?: string | null;
+  gameVersion?: number | null;
   value?: number | null;
   meta?: Record<string, unknown> | null;
+  isTest?: boolean;
 }

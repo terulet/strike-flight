@@ -50,6 +50,14 @@ export interface GameMeta {
   /** Descripcion corta, una linea. */
   tagline: string;
   skill: SkillKind;
+  /**
+   * Version del juego. Por defecto 1: los doce del catalogo actual no la
+   * necesitan todavia. El dia que se retoque uno a fondo (reglas, ritmo,
+   * dificultad) y se quiera saber si el cambio mejoro algo, sube este numero
+   * -no antes-, porque compararlo contra sus propios datos de la version
+   * vieja es justo lo que se pierde si no se distinguen desde el principio.
+   */
+  version?: number;
   /** Duracion por defecto en ms (el reto diario puede cambiarla). */
   defaultDurationMs: number;
   /** Instrucciones, una idea por linea. */
@@ -145,6 +153,8 @@ export interface GameEvents extends Record<string, unknown> {
 /** Lo que el shell recibe al terminar. */
 export interface GameResult {
   gameId: string;
+  /** Resuelta una vez aqui (BaseMiniGame.finish()) para no repetir el `?? 1` en cada sitio que la necesite. */
+  gameVersion: number;
   seed: string;
   score: number;
   /** Tiempo realmente jugado. */

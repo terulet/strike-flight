@@ -118,6 +118,8 @@ const pending = (attemptId: string, score = 1000) => ({
   day: DAY,
   challengeId: 'c1',
   gameId: 'pulse',
+  gameVersion: 1,
+  isTest: false,
   score,
   durationMs: 30_000,
   attemptsUsed: 1,

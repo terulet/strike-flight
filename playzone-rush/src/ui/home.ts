@@ -216,10 +216,11 @@ function renderOvertake(app: App): HTMLElement | null {
 
   const actions: HTMLElement[] = [];
   if (spec && target) {
-    app.offerRevenge(`overtake:${event.key}`, target.gap, event.rivalName, spec.gameId);
+    const marginPct = target.rivalScore > 0 ? Math.round((target.gap / target.rivalScore) * 1000) / 10 : null;
+    app.offerRevenge(`overtake:${event.key}`, target.gap, event.rivalName, spec.gameId, marginPct);
     actions.push(
       button('REVANCHA', 'btn btn--play btn--lg', () => {
-        app.rematch(spec, { gap: target.gap, rival: event.rivalName });
+        app.rematch(spec, { gap: target.gap, rival: event.rivalName, marginPct });
       }),
     );
   }

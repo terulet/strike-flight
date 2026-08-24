@@ -74,6 +74,8 @@ export interface PendingScore {
   day: string;
   challengeId: string;
   gameId: string;
+  gameVersion: number;
+  isTest: boolean;
   score: number;
   durationMs: number;
   attemptsUsed: number;
@@ -95,8 +97,12 @@ export interface TelemetryEvent {
   ts: number;
   day: string;
   gameId?: string | null;
+  /** Version del juego cuando ocurrio, resuelta por Telemetry.track() a partir del gameId. */
+  gameVersion?: number | null;
   value?: number | null;
   meta?: Record<string, unknown> | null;
+  /** true si vino de ?debug: el dashboard lo excluye de toda metrica. */
+  isTest?: boolean;
 }
 
 export interface TelemetryState {
@@ -312,6 +318,8 @@ function normalizePending(raw: unknown): PendingScore | null {
     day: r.day.slice(0, 10),
     challengeId: r.challengeId.slice(0, 24),
     gameId: r.gameId.slice(0, 24),
+    gameVersion: Math.max(1, Math.round(num(r.gameVersion, 1))),
+    isTest: bool(r.isTest, false),
     score: Math.max(0, Math.round(num(r.score, 0))),
     durationMs: Math.max(0, Math.round(num(r.durationMs, 0))),
     attemptsUsed: Math.max(0, Math.round(num(r.attemptsUsed, 0))),

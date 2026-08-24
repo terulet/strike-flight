@@ -99,14 +99,25 @@ export class Telemetry {
   private dayOf: () => string;
   private sender: ((events: TelemetryEvent[]) => Promise<boolean>) | null;
   private sendTimer: ReturnType<typeof setTimeout> | null = null;
+  private versionOf: (gameId: string) => number;
+  private testFlag: () => boolean;
 
   constructor(
     save: SaveManager,
-    options: { day: () => string; send?: (events: TelemetryEvent[]) => Promise<boolean> },
+    options: {
+      day: () => string;
+      send?: (events: TelemetryEvent[]) => Promise<boolean>;
+      /** De que version es un juego ahora mismo. Sin esto, todo se guarda como v1. */
+      gameVersion?: (gameId: string) => number;
+      /** Si el envio actual viene de ?debug (o de una herramienta de verificacion). */
+      isTest?: () => boolean;
+    },
   ) {
     this.save = save;
     this.dayOf = options.day;
     this.sender = options.send ?? null;
+    this.versionOf = options.gameVersion ?? (() => 1);
+    this.testFlag = options.isTest ?? (() => false);
   }
 
   track(type: EventType, options: TrackOptions = {}): void {
@@ -115,8 +126,10 @@ export class Telemetry {
       ts: Date.now(),
       day: this.dayOf(),
       gameId: options.gameId ?? null,
+      gameVersion: options.gameId ? this.versionOf(options.gameId) : null,
       value: options.value ?? null,
       meta: options.meta ?? null,
+      isTest: this.testFlag(),
     };
     this.save.update((data) => {
       data.telemetry.events.push(event);

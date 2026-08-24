@@ -81,6 +81,11 @@ export function validateScorePayload(body, serverDay) {
     min: 0,
     max: ATTEMPT_LIMITS[challengeKind(challengeId)],
   });
+  // Opcional y con un default seguro: un cliente viejo que todavia no manda
+  // gameVersion no debe romperse por eso. 1000 de techo es solo para parar
+  // un numero absurdo, no una prediccion de cuantas versiones habra.
+  const gameVersion = assertInteger(body.gameVersion ?? 1, 'gameVersion', { min: 1, max: 1000 });
+  const isTest = body.isTest === true;
 
   let ghost = null;
   if (body.ghost != null) {
@@ -107,6 +112,8 @@ export function validateScorePayload(body, serverDay) {
     durationMs,
     attemptsUsed,
     countsForRanking: body.countsForRanking !== false,
+    gameVersion,
+    isTest,
     ghost,
   };
 }
