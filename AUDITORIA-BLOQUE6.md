@@ -161,4 +161,54 @@ Verde.
 
 ---
 
-*(Continúa en 6E.)*
+---
+
+## 6E — Skill Events + Élites + Jackpot + Drops físicos
+
+**SKILL EVENTS** (`SKILL_EVENTOS`, 5, sin ELOI directo grande):
+
+| Tipo | Dispara cuando |
+|---|---|
+| CLOSE CALL | una bala enemiga pasa a menos de 1.8× el radio de impacto SIN tocar (una vez por bala, con `b.cerca`) |
+| CHAIN KILL | 4 muertes de `alMatar()` (cualquier fuente, no solo enemigos) en 1.0s |
+| FAST BREAK | una ola (`{fn:"ola"}`) se limpia entera en ≤6s sin que nadie escape |
+| PERFECT WAVE | una ola se limpia entera, más despacio, pero sin que el jugador reciba un golpe mientras tanto |
+| NO HIT BOSS | el jefe muere sin que `golpe()` se haya llamado desde `spawnMiniboss()` |
+
+**Seguimiento de olas** (`olas`, Map con tope duro 30): cada `{fn:"ola"}`
+del guión abre una entrada con cuántos trae y cuándo nació el primero;
+`matar()` y la fuga por abajo la cierran. Si ALGUNO de la ola escapó
+—aunque sea el primero, y la cierre otro que sí murió— ni FAST BREAK ni
+PERFECT WAVE cuentan: encontrado por una prueba que fallaba con el
+código tal cual, porque el flag de "¿escapó?" solo miraba la llamada
+que cerraba a cero, no la ola entera. Corregido antes de mergear.
+
+**ÉLITES:** variante de un enemigo existente, nunca en tipos `grande`
+(jefes en miniatura) ni `esComando`. `ELITE_PROB_BASE` (5% en MEDIUM)
+× `DIF.eliteFreqMul` (bloque 6B, sin usar hasta ahora). Vida ×1.4 —no
+x2—, cadencia ×0.85, aura dorada pulsante (dos anillos, `lighter`,
+sin sprite nuevo), score ×2.2, premio garantizado al morir. Dos élites
+en 4s encadenan un JACKPOT.
+
+**JACKPOT** — cuatro disparadores, cada uno en el sitio donde ya ocurre
+su condición (nada de temporizador propio, "no abusar" es literal):
+hito de combo ×50/×100, PERFECT FORMATION (bonus event) exitosa,
+cadena de dos élites, romper una pieza de jefe (nodo AEGIS/subsistema
+OMEGA/ALPHA-BETA-GAMMA de M9 — 30% de probabilidad, no garantizado).
+
+**DROPS FÍSICOS (`shards`):** distintos de PREMIOS (power-ups,
+elección estratégica) — son la lluvia visible de recompensa. Pool +
+reciclaje + tope duro propio (60; PREMIOS no lo necesitaba con su
+volumen, esto sí). Imán reutilizado (mismo alcance/velocidad que ya
+usan los premios con `imanT`). Jerarquía normal(2) → élite(4+1
+energía) → miniboss(10+3) → boss(22+8). Los shards de `energia` ya
+premian con score porque Overdrive (6F) no existe todavía — cuando
+llegue, es la MISMA entidad la que empieza a cargar la barra, no un
+sistema nuevo.
+
+**Pruebas:** `herramientas/pruebas/skill-elites-jackpot.mjs` (21
+comprobaciones) + regresión completa. Verde.
+
+---
+
+*(Continúa en 6F.)*

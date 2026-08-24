@@ -3246,7 +3246,7 @@ let state = "menu";
 let player, bullets, eBullets, enemies, premios, bg, flotantes;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
 let arma, escudo, turbo, combo, comboT, flash;
-let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0;
+let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0, sinDanioBoss = true;
 // Estado visual del jugador. Nada de esto toca el juego: son relojes
 // de dibujo. `escudoRoto`/`escudoAng` orientan el destello del escudo,
 // `danoT`/`danoAng` el fogonazo de daño, `respawnT` la materialización.
@@ -3444,6 +3444,9 @@ function reset() {
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
   RHYTHM.reiniciar();
   bonusEvento = null; rhythmDirectorCooldownT = 0; descansoDeliberado = false;
+  olas.clear(); cadenaTiempos.length = 0; eliteChainT = -99;
+  shards.length = 0;
+  skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3452,7 +3455,7 @@ function reset() {
   paused = false; warningT = 0; dragging = false;
   efectos.length = 0; hitStop = 0;
   telegrafos.length = 0; estallidos.length = 0; rayos.length = 0;
-  sinDanio = true; comboHito = 0; bombaT = 0; dobleT = 0; imanT = 0;
+  sinDanio = true; sinDanioBoss = true; comboHito = 0; bombaT = 0; dobleT = 0; imanT = 0;
   escudoRoto = 0; danoT = 0; respawnT = 0;
   UI.reiniciarCifras(); UI.limpiarAvisos();
   comandosVivos = 0; sistemaAlpha = true; sistemaBeta = true; sistemaGamma = true;
@@ -3484,11 +3487,11 @@ function iniciarMision(idx) {
   misionIniT = 2.6;
 }
 
-function spawnFormacion(tipo, n, patron, marca) {
+function spawnFormacion(tipo, n, patron, marca, olaGen) {
   const fn = FORMACIONES[patron] || FORMACIONES.linea;
   const poss = fn(n);
   for (const p of poss) {
-    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d, marca });
+    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d, marca, olaGen });
   }
 }
 
@@ -3574,6 +3577,9 @@ function finalizarBonusEvento(exito) {
     texto(W / 2, H * 0.4, bonusEvento.nombre + " ¡LOGRADO! +" + premio, bonusEvento.color, 18, { prioridad: 2 });
     onda(W / 2, H * 0.4, bonusEvento.color, 140, 0.5);
     sfx("combo", { tono: 1.3 });
+    // PERFECT FORMATION es el disparador de jackpot que pide el encargo
+    // -las otras cuatro ya tienen su propio premio arriba y no lo necesitan-.
+    if (bonusEvento.tipo === "formacion") jackpot(W / 2, H * 0.34);
   } else {
     texto(W / 2, H * 0.4, bonusEvento.nombre + " FALLIDO", "#8a8a9a", 15, { prioridad: 1 });
     sfx("ui_no");
@@ -3622,6 +3628,174 @@ function rhythmDirectorTick(dt) {
   if (iniciarBonusEvento(tipo)) rhythmDirectorCooldownT = 45;
 }
 
+// ════════════════════════════════════════════════════════════
+//  SKILL EVENTS — reconocer que has hecho algo bien
+// ════════════════════════════════════════════════════════════
+//  Cinco, no más: CLOSE CALL, PERFECT WAVE, CHAIN KILL, FAST BREAK,
+//  NO HIT BOSS. Cada uno da score, cuenta para el combo/Overdrive
+//  (Overdrive llega en 6F; el contador ya vive aquí para que ese
+//  bloque no tenga que tocar este) y feedback audiovisual — nunca
+//  ELOI directo grande, según el encargo del bloque.
+const SKILL_EVENTOS = {
+  cierre:       { nombre: "CLOSE CALL",   premio: 60,  color: "#7effc4" },
+  ola_perfecta: { nombre: "PERFECT WAVE", premio: 250, color: "#7df9ff" },
+  cadena:       { nombre: "CHAIN KILL",   premio: 150, color: "#ffd700" },
+  fulminante:   { nombre: "FAST BREAK",   premio: 200, color: "#ff8a1f" },
+  sin_golpe:    { nombre: "NO HIT BOSS",  premio: 800, color: "#ffcf5c" },
+};
+let skillEventos = { cierre: 0, ola_perfecta: 0, cadena: 0, fulminante: 0, sin_golpe: 0 };
+// CLOSE CALL: anillo alrededor del radio real de impacto. 1 = tocar,
+// así que esto es "pasar a un pelo" sin llegar a rozar.
+const CERCA_MULT = 1.8;
+function skillEvent(tipo, x, y) {
+  const d = SKILL_EVENTOS[tipo];
+  if (!d) return;
+  skillEventos[tipo] = (skillEventos[tipo] || 0) + 1;
+  const premio = Math.round(d.premio * DIF.scoreMul);
+  score += premio;
+  const px = x != null ? x : player.x, py = y != null ? y : player.y - 40;
+  texto(px, py, d.nombre, d.color, 15, { prioridad: 2 });
+  onda(px, py, d.color, 60, 0.3);
+  sfx("combo", { tono: 1.15 });
+  RHYTHM.marcar();
+  return skillEventos[tipo];
+}
+
+// ── CHAIN KILL / cadena de élites ──────────────────────────
+//  Ventanas móviles de timestamps: si N muertes caen dentro de la
+//  ventana, se dispara. Vive aquí, no en `alMatar()`, para que ese
+//  embudo siga siendo solo score/combo y esto sea un consumidor más.
+const CADENA_VENTANA = 1.0, CADENA_OBJETIVO = 4;
+let cadenaTiempos = [];
+const ELITE_CADENA_VENTANA = 4.0;
+let eliteChainT = -99;
+
+// ── FAST BREAK / PERFECT WAVE: seguimiento de oleadas ──────
+//  Cada `{ fn:"ola" }` del guión (procesarEvento) abre una entrada
+//  aquí con cuántos enemigos trae y cuándo nació el primero. matar()
+//  y la fuga por abajo de pantalla la cierran. Si se cierra sola —sin
+//  que nadie escapara— y rápido, FAST BREAK; si se cierra sin que el
+//  jugador recibiera un golpe mientras tanto, PERFECT WAVE. Las dos
+//  cosas a la vez cuentan como FAST BREAK, que es la más exigente.
+const FAST_BREAK_UMBRAL = 6;
+const OLAS_MAX = 30;   // tope defensivo: nunca debería hacer falta, pero no crece sin límite
+let olaGenSeq = 0;
+let olas = new Map();
+function abrirOla(n) {
+  const gen = ++olaGenSeq;
+  olas.set(gen, { restantes: n, t0: elapsed, sinDanio: true, escapo: false });
+  if (olas.size > OLAS_MAX) olas.delete(olas.keys().next().value);
+  return gen;
+}
+function cerrarOla(gen, x, y, escapo) {
+  const w = olas.get(gen);
+  if (!w) return;
+  w.restantes--;
+  // Basta con que UNO de la ola escape para que ninguno de los dos
+  // eventos cuente, aunque el que cierra la ola a cero sea otro que sí
+  // se mató: `w.escapo` recuerda toda la vida de la ola, no solo esta
+  // llamada.
+  if (escapo) w.escapo = true;
+  if (w.restantes > 0) return;
+  olas.delete(gen);
+  if (w.escapo) return;
+  const dur = elapsed - w.t0;
+  if (dur <= FAST_BREAK_UMBRAL) skillEvent("fulminante", x, y);
+  else if (w.sinDanio) skillEvent("ola_perfecta", x, y);
+}
+
+// ════════════════════════════════════════════════════════════
+//  JACKPOT
+// ════════════════════════════════════════════════════════════
+//  Momentos raros: hito de combo alto, PERFECT FORMATION, cadena de
+//  élites, romper una pieza de jefe. No relleno — "no abusar" es
+//  literal en el encargo, así que cada disparador vive donde ya
+//  ocurre su condición, no en un temporizador propio.
+function jackpot(x, y) {
+  const premio = Math.round(1200 * DIF.scoreMul);
+  score += premio;
+  texto(x, y, "JACKPOT +" + premio, "#ffd700", 24, { prioridad: 2 });
+  onda(x, y, "#ffd700", 160, 0.6);
+  sacudir("tiny");
+  sfx("combo", { tono: 1.5 });
+  lluviaShards(x, y, "miniboss");
+  RHYTHM.marcar();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DROPS FÍSICOS — shards
+// ════════════════════════════════════════════════════════════
+//  Distintos de PREMIOS (power-ups, elección estratégica, raros):
+//  los shards son la lluvia visible de recompensa, pooled y con tope
+//  duro propio -PREMIOS no lo tenía y no hacía falta con su volumen;
+//  aquí sí, porque un jefe puede soltar veinte de golpe-. El imán
+//  reutiliza el mismo alcance/velocidad que ya usan los premios.
+const SHARDS_MAX = 60;
+let shards = [];
+let shardsLibres = [];
+function soltarShard(x, y, tipo) {
+  if (shards.length >= SHARDS_MAX) return;
+  const s = shardsLibres.pop() || {};
+  if (shards.indexOf(s) < 0) shards.push(s);
+  s.x = x + rand(-14, 14); s.y = y + rand(-10, 10);
+  s.vx = rand(-40, 40); s.vy = rand(-90, -30);
+  s.tipo = tipo; s.t = 0; s.vida = 3.2; s.r = tipo === "energia" ? 5 : 4;
+}
+// Jerarquía de la lluvia: cuántos shards y de qué tipo según lo que ha
+// muerto. `energia` está reservado para Overdrive (6F) — hoy ya
+// premia con score, así que soltarlos desde ya no espera a ese bloque.
+const LLUVIA_SHARDS = {
+  normal:   [2, 0],
+  elite:    [4, 1],
+  miniboss: [10, 3],
+  boss:     [22, 8],
+};
+function lluviaShards(x, y, nivel) {
+  const [nScore, nEnergia] = LLUVIA_SHARDS[nivel] || LLUVIA_SHARDS.normal;
+  for (let i = 0; i < nScore; i++) soltarShard(x, y, "score");
+  for (let i = 0; i < nEnergia; i++) soltarShard(x, y, "energia");
+}
+function cogerShard(s) {
+  const premio = Math.round((s.tipo === "energia" ? 8 : 6) * DIF.scoreMul);
+  score += premio;
+  sfx("pickup", { vol: 0.5 });
+  vfx("chispa", s.x, s.y, 30, 0.18);
+}
+function actualizarShards(dt) {
+  if (state !== "play" || paused) return;
+  for (let i = shards.length - 1; i >= 0; i--) {
+    const s = shards[i];
+    s.t += dt;
+    const dx = player.x - s.x, dy = player.y - s.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const alcance = imanT > 0 ? 520 : 140;
+    if (d < alcance) {
+      const vel = imanT > 0 ? 500 : 300;
+      s.x += (dx / d) * vel * dt; s.y += (dy / d) * vel * dt;
+    } else {
+      s.vy += 220 * dt; s.vx *= Math.max(0, 1 - dt * 1.5);
+      s.x += s.vx * dt; s.y += s.vy * dt;
+    }
+    if (d < 20) { cogerShard(s); shardsLibres.push(s); shards.splice(i, 1); continue; }
+    if (s.t >= s.vida || s.y > H + 30) { shardsLibres.push(s); shards.splice(i, 1); }
+  }
+}
+function dibujarShards() {
+  for (const s of shards) {
+    const col = s.tipo === "energia" ? "#5cc8ff" : "#ffd700";
+    const alfa = Math.min(1, (s.vida - s.t) * 2);
+    ctx.save();
+    ctx.globalAlpha = alfa;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+}
+
 // Las familias de arma que suelta cada misión son parte de su identidad:
 // en el cinturón de asteroides caen misiles, en la fisura helada cae crio.
 // Salir de M2 con un arma distinta a la de M5 es lo que hace que la
@@ -3665,7 +3839,7 @@ function elegirPremioAleatorio() {
 
 function procesarEvento(ev) {
   if (ev.fn === "ola") {
-    spawnFormacion(ev.tipo, ev.n, ev.patron || "linea");
+    spawnFormacion(ev.tipo, ev.n, ev.patron || "linea", null, abrirOla(ev.n));
     // La nave de mando es la mecánica firma de M6: si aparece sin que
     // suene nada, la jugadora se entera cuando ya la tiene encima.
     if (ev.tipo === "comando") sfx("alarma_flota");
@@ -3730,6 +3904,7 @@ function spawnMiniboss(tipo, mult) {
   sfx("boss_llega");
   sacudir("medium");
   RHYTHM.marcar();
+  sinDanioBoss = true;
   // OMEGA SOVEREIGN y AXIOMA tienen pista propia de jefe épico
   // ("jefe_final"/"final2" — distintas entre sí, ver `pistaJefe` de
   // JEFES.axioma). Los cuatro jefes completos de la expansión
@@ -4005,6 +4180,8 @@ function matarMiniboss() {
   telegrafos.length = 0;
   hitstop(0.1);
   sacudir("heavy");
+  lluviaShards(mb.x, mb.y, d.epico ? "boss" : "miniboss");
+  if (sinDanioBoss) skillEvent("sin_golpe", mb.x, mb.y);
   // El primer estallido del jefe. Era exp_grande, que es lo mismo que
   // suena al morir cualquier enemigo pesado: el golpe que abre la muerte
   // del jefe no puede ser el sonido más repetido de la misión.
@@ -4617,19 +4794,31 @@ function elegirTipo() {
   return "normal";
 }
 
+// Probabilidad BASE de que un enemigo cualquiera nazca élite, en
+// MEDIUM. `DIF.eliteFreqMul` (bloque 6B, sin usar hasta ahora) la
+// escala por dificultad.
+const ELITE_PROB_BASE = 0.05;
+
 function spawnEnemy(tipo, x) {
   const k = tipo || elegirTipo();
   const d = ENEMIGOS[k];
   asegurarSpriteEnemigo(k);
   const r = d.r * ESC;   // el tamaño de la tabla es "a 414 px de ancho"
+  // Élite: variante del mismo enemigo, nunca uno "grande" (jefes en
+  // miniatura) ni de mando (ya son especiales por su cuenta). Vida y
+  // cadencia se mueven poco -no es un x2 HP disfrazado-; lo que cambia
+  // de verdad es el aura, el score y el drop.
+  const elite = !d.grande && !d.esComando &&
+    Math.random() < ELITE_PROB_BASE * DIF.eliteFreqMul;
+  const hpMul = elite ? 1.4 : 1;
   const e = {
-    tipo: k, r, hp: d.hp, hpMax: d.hp,
+    tipo: k, r, hp: d.hp * hpMul, hpMax: d.hp * hpMul,
     x: x != null ? clamp(x, r, W - r) : rand(r + 10, W - r - 10),
     y: -r - 12,
     vy: CONFIG.velocidadEnemigo * ESC * (1 + (level - 1) * 0.13) * d.vel,
     fase: rand(0, TAU), giro: rand(0, TAU),
-    cd: d.recarga ? d.recarga() * DIF.enemyCadenceMul : 0, flash: 0,
-    recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0,
+    cd: d.recarga ? d.recarga() * DIF.enemyCadenceMul * (elite ? 0.85 : 1) : 0, flash: 0,
+    recoil: 0, lentoT: 0, avisado: 0, escFlash: 0, onda: 0, elite,
   };
   if (d.init) d.init(e);
   enemies.push(e);
@@ -4757,6 +4946,22 @@ function alMatar(o) {
     const ox = rango ? rand(rango[0], rango[1]) : 0;
     soltarPremio(o.posicion.x + ox, o.posicion.y, elegirPremioAleatorio());
   }
+
+  // CHAIN KILL: cuenta CUALQUIER muerte que pase por este embudo, no
+  // solo enemigos — un AEGIS y dos torretas seguidas también son una
+  // cadena. `=== CADENA_OBJETIVO` y no `>=`: dispara una vez por
+  // racha, no en cada muerte mientras la racha sigue viva.
+  cadenaTiempos.push(elapsed);
+  cadenaTiempos = cadenaTiempos.filter(t => elapsed - t <= CADENA_VENTANA);
+  if (cadenaTiempos.length === CADENA_OBJETIVO) skillEvent("cadena", o.posicion.x, o.posicion.y);
+
+  // BOSS BREAK: romper una pieza de jefe (nodo de AEGIS, subsistema de
+  // OMEGA, ALPHA/BETA/GAMMA de M9) es ya un momento fuerte por su
+  // cuenta. No todas -"no abusar"- así que es una tirada, no un
+  // disparo garantizado.
+  if ((o.fuente === "nodoAegis" || o.fuente === "subOmega" || o.fuente === "sistema") && Math.random() < 0.3) {
+    jackpot(o.posicion.x, o.posicion.y);
+  }
   return { pts, mult, combo };
 }
 
@@ -4764,10 +4969,19 @@ function matar(e, i) {
   const d = ENEMIGOS[e.tipo];
   muerte(e.x, e.y, d.color(T), d.muerte || (d.grande ? "pesada" : "basica"));
   alMatar({
-    fuente: "enemigo", tipo: e.tipo, puntosBase: d.puntos, posicion: { x: e.x, y: e.y },
-    opciones: { textoOffsetY: -e.r, premio: { prob: CONFIG.probPremio * (d.premio || 1) } },
+    fuente: "enemigo", tipo: e.tipo, puntosBase: d.puntos * (e.elite ? 2.2 : 1), posicion: { x: e.x, y: e.y },
+    opciones: { textoOffsetY: -e.r, premio: { prob: e.elite ? 1 : CONFIG.probPremio * (d.premio || 1) } },
   });
+  lluviaShards(e.x, e.y, e.elite ? "elite" : "normal");
+  if (e.elite) {
+    // Cadena de élites: dos dentro de la ventana disparan un jackpot.
+    // No hace falta contar más de dos — la ventana ya se corta sola si
+    // el jugador tarda.
+    if (elapsed - eliteChainT <= ELITE_CADENA_VENTANA) jackpot(e.x, e.y);
+    eliteChainT = elapsed;
+  }
   if (e.bonusGen) bonusEventoMuerte(e);
+  if (e.olaGen) cerrarOla(e.olaGen, e.x, e.y, false);
   enemies.splice(i, 1);
   // Gancho GENÉRICO y opcional: un enemigo que deja algo detrás al morir
   // (crisol, bloque 5E) declara `alMorir(e)`. Va DESPUÉS del splice,
@@ -4872,6 +5086,7 @@ function hitoCombo() {
       vfx("chispa", W / 2, H * 0.62, 90 + h, 0.4);
       sfx("combo", { tono: 1 + HITOS.indexOf(h) * 0.12 });
       if (h >= 25) sacudir("tiny");
+      if (h >= 50) jackpot(W / 2, H * 0.48);
     }
   }
 }
@@ -4987,6 +5202,8 @@ function golpe(fx, fy) {
   lives--; invulnT = CONFIG.invulnerable * DIF.invulnMul;
   RHYTHM.marcar();
   if (bonusEvento && bonusEvento.tipo === "riesgo" && bonusEvento.estado === "activo") finalizarBonusEvento(false);
+  for (const w of olas.values()) w.sinDanio = false;
+  sinDanioBoss = false;
   sinDanio = false;
   arma = Math.max(1, arma - 1);
   combo = 0; comboHito = 0; comboT = 0;
@@ -5105,6 +5322,7 @@ function update(dt) {
     actualizarEfectos(dt);
     actualizarBonusEvento(dt);
     rhythmDirectorTick(dt);
+    actualizarShards(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
@@ -5220,10 +5438,17 @@ function update(dt) {
     if (b.bomba && b.y >= b.explotaY) { estallido(b.x, b.y, b.bomba); eBullets.splice(i, 1); continue; }
     if (b.y > H + 24 || b.y < -140 || b.x < -24 || b.x > W + 24) { eBullets.splice(i, 1); continue; }
     const dx = b.x - player.x, dy = b.y - player.y;
-    if (dx * dx + dy * dy < (b.r + hitR()) ** 2) {
+    const d2 = dx * dx + dy * dy;
+    if (d2 < (b.r + hitR()) ** 2) {
       if (b.bomba) estallido(b.x, b.y, b.bomba);
       eBullets.splice(i, 1); golpe(b.x, b.y);
       if (state !== "play") return;
+    } else if (!b.cerca) {
+      // CLOSE CALL: pasa cerca sin tocar. Una vez por bala -`b.cerca`
+      // se apaga en cuanto entra en el anillo- para que no dispare cada
+      // fotograma mientras ronda por ahí.
+      const rCerca = (b.r + hitR()) * CERCA_MULT;
+      if (d2 < rCerca * rCerca) { b.cerca = true; skillEvent("cierre", b.x, b.y); }
     }
   }
   for (let i = estallidos.length - 1; i >= 0; i--) {
@@ -5248,6 +5473,7 @@ function update(dt) {
         const e = spawnEnemy(q.tipo, q.x);
         if (q.y !== undefined) e.y = q.y;
         if (q.marca) e.bonusGen = q.marca;
+        if (q.olaGen) e.olaGen = q.olaGen;
         spawnQueue.splice(i, 1);
       }
     }
@@ -5379,7 +5605,11 @@ function update(dt) {
     // Congelado: se mueve y recarga a la mitad. Frenar es hacer daño.
     const edt = e.lentoT > 0 ? dt * 0.5 : dt;
     d.mover(e, edt);
-    if (e.y - e.r > H + 20) { if (e.bonusGen) bonusEventoEscape(e); enemies.splice(i, 1); continue; }
+    if (e.y - e.r > H + 20) {
+      if (e.bonusGen) bonusEventoEscape(e);
+      if (e.olaGen) cerrarOla(e.olaGen, e.x, e.y, true);
+      enemies.splice(i, 1); continue;
+    }
 
     if (e.recoil > 0) e.recoil = Math.max(0, e.recoil - dt * 48);
     if (e.escFlash > 0) e.escFlash -= dt;
@@ -5868,6 +6098,19 @@ function dibujarEnemigo(e) {
     ctx.fill();
   }
   ctx.restore();
+
+  if (e.elite) {
+    const pulso = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 220));
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "#ffcf5c";
+    ctx.globalAlpha = 0.5 * pulso; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.35, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 0.85 * pulso; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.55, 0, TAU); ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
 
   if (e.hpMax > 3 && e.hp < e.hpMax) {
     const w = e.r * 2;
@@ -7193,6 +7436,7 @@ function render() {
     if (velo) { dibujarOscuridad(); dibujarTelegrafos(); }
 
     for (const p of premios) dibujarPremio(p);
+    dibujarShards();
     dibujarJugador();
 
     // ── CAPA MEDIO ──
