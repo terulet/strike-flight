@@ -323,18 +323,34 @@ var HANGAR = (function () {
     var chasis = SHIPS.porId(nv.id);
     var cf = chasis ? SHIPS.config(nv.id) : null;
     var tam = Math.min(G.W * 0.50, 220);
-    var altoBanda = tam * 1.35;
     var anchoP = Math.min(G.W - 44, 320), px0 = (G.W - anchoP) / 2;
     var altoP = nv.bloqueada ? 122 : 104;
+
+    // El resto del bloque (nombre, lema, descripción, ficha de
+    // estadísticas, el botón de personalizar) no se comprime: es texto,
+    // tiene un tamaño legible mínimo. Lo único elástico es el escaparate
+    // de la nave -`tam`/`altoBanda`- porque una nave más pequeña sigue
+    // siendo una nave, y es lo que sobra cuando Safari en iPhone se come
+    // parte del alto con la barra de direcciones. Sin este ajuste, en una
+    // pantalla real (no en el viewport fijo de una prueba) el bloque se
+    // salía por debajo y tapaba la rejilla de chasis.
+    var alturaFija = 6 + 18 + 18 + 16 + (nv.provisional ? 14 : 0) + altoP + (nv.bloqueada ? 0 : 40);
+    var disponible = yGrid - yTop;
+    var tamMax = (disponible - alturaFija) / 1.35;
+    if (tamMax < tam) tam = Math.max(96, tamMax);
+    var altoBanda = tam * 1.35;
 
     // El bloque se CENTRA en el hueco que deja la rejilla. En un iPad de
     // 1180 px de alto, anclarlo arriba deja medio metro de vacío entre la
     // ficha y las casillas y la pantalla parece a medio hacer.
-    var altoBloque = altoBanda + 6 + 18 + 18 + 16 + (nv.provisional ? 14 : 0) + altoP + (nv.bloqueada ? 0 : 40);
+    var altoBloque = altoBanda + alturaFija;
     // Repartido a partes iguales: el bloque queda ópticamente centrado
     // entre las pestañas y la rejilla, que es lo que hace que la pantalla
     // se vea terminada y no a medio montar.
     var y0 = yTop + Math.max(0, (yGrid - yTop - altoBloque) * 0.5);
+    // Solo para pruebas: deja medido dónde termina el bloque de verdad,
+    // para poder comprobar desde fuera que nunca pisa la rejilla de abajo.
+    G.chasisMedido = { y0: y0, fin: y0 + altoBloque, yGrid: yGrid, tam: tam };
 
     fondoHangar(G, y0, altoBanda);
     G.naveEscaparate(G.W / 2, y0 + altoBanda / 2, tam);

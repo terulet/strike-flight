@@ -369,6 +369,22 @@ var SHIPS = (function () {
   //  lienzo del juego —que es opaco y donde sí saldría un cuadrado, la
   //  trampa que este proyecto tiene documentada—. Además no hace falta
   //  `getImageData` en ningún momento, que es lo que file:// prohíbe.
+  // Luminancia aproximada 0-1 de un "#rrggbb". Los nueve skins de fábrica
+  // (ver arriba, SKINS) usan SIEMPRE un primario oscuro -es lo que hace
+  // que el tinte de abajo siga leyéndose como metal- pero el selector
+  // COLOR (bloque de personalización libre) ofrece la misma paleta de 15
+  // colores para las tres ranuras, y la mayoría son claros. Un primario
+  // claro con el alfa pensado para uno oscuro no tiñe: EMPASTA, y la nave
+  // pierde el relieve entero y queda plana, como plástico. De ahí venía
+  // "el color queda horrible" - no es un fallo de dibujado, es que el
+  // compositor solo estaba calibrado para la mitad de su propia paleta.
+  function luminancia(hex) {
+    var h = (hex || "").replace("#", "");
+    if (h.length !== 6) return 0;
+    var r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
   var cache = {};
   function componer(sprite, pal) {
     if (!sprite || !pal) return sprite;
@@ -381,11 +397,20 @@ var SHIPS = (function () {
       cx = cv.getContext("2d");
       cx.drawImage(sprite, 0, 0, w, h);
 
+      // Cuanto más claro el primario, menos tinte y más se recupera
+      // después: un primario oscuro (todos los skins de fábrica) sale
+      // exactamente igual que siempre (0.62/0.42), uno claro (posible
+      // solo desde el selector libre) se queda en un tinte ligero que dejar
+      // ver el relieve original en vez de taparlo.
+      var luz = luminancia(pal.p);
+      var alfaTinte = 0.62 - luz * 0.30;      // 0.62 (oscuro) → 0.32 (blanco)
+      var alfaRelieve = 0.42 + luz * 0.30;    // 0.42 (oscuro) → 0.72 (blanco)
+
       // Carrocería: degradado del color principal al secundario, solo
       // encima de la nave. Alfa contenido para no perder el relieve del
       // dibujo — si se sube, la nave deja de parecer metal.
       cx.globalCompositeOperation = "source-atop";
-      cx.globalAlpha = 0.62;
+      cx.globalAlpha = alfaTinte;
       var g = cx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, pal.s);
       g.addColorStop(0.55, pal.p);
@@ -396,7 +421,7 @@ var SHIPS = (function () {
       // Se recupera el brillo perdido: el dibujo original en aditivo, a
       // poca opacidad, devuelve los reflejos y los cantos.
       cx.globalCompositeOperation = "lighter";
-      cx.globalAlpha = 0.42;
+      cx.globalAlpha = alfaRelieve;
       cx.drawImage(sprite, 0, 0, w, h);
 
       // Acento en el reactor: la parte baja de la nave.
@@ -444,6 +469,11 @@ var SHIPS = (function () {
   var api = {
     CHASIS: CHASIS,
     ALIAS: ALIAS,
+
+    // Solo para pruebas: la misma luminancia que usa componer() para
+    // decidir cuánto tinte aplicar. Sin acceso a componer() en sí -es
+    // canvas puro, más simple comprobar la decisión que el píxel final.
+    luminancia: luminancia,
 
     porId: function (id) { return porId[id] || null; },
 

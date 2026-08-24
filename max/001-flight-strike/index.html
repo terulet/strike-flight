@@ -4907,6 +4907,21 @@ c.addEventListener("pointerdown", (e) => {
     return;
   }
   if (state === "play") {
+    // UPGRADE READY (bloque 6G) no cambia `state` -sigue siendo "play",
+    // la partida sigue viva detrás- así que sin este corte el toque
+    // sobre una tarjeta caía al aim()/drag de más abajo: se movía la
+    // nave, la oferta se quedaba en pantalla para siempre y la partida
+    // no podía continuar. dibujarUpgrades() ya deja las tres tarjetas
+    // en botones[]; aquí solo hace falta resolverlas como en el menú.
+    if (upgradesOfrecidos) {
+      const p = pos(e);
+      for (let i = botones.length - 1; i >= 0; i--) {
+        const b = botones[i];
+        if (!dentro(p, b) || !b.fn) continue;
+        UI.pulsar(b); sfx("ui_sel"); b.fn(); return;
+      }
+      return;   // nada de aim/drag mientras la oferta está en pantalla
+    }
     const p = pos(e);
     if (dentro(p, hudRects.pausa)) { paused = true; sfx("ui_pausa"); return; }
     if (dentro(p, hudRects.bomba)) { usarBomba(); return; }
