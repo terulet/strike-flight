@@ -630,6 +630,9 @@ const MISIONES = [
       { t:300, fn:"ola", tipo:"elite",         n:1, patron:"linea"  },   // guardián final
       { t:312, fn:"reward" },
       // Silencio deliberado antes del aviso — nada entre 312 y 340.
+      // El Director en vivo (bloque 6D) rellenaría este hueco si no se
+      // le avisa: `descansoOn` se lo dice explícitamente.
+      { t:313, fn:"descansoOn" },
       { t:340, fn:"miniboss", tipo:"omega_sovereign" },
     ],
   },
@@ -748,6 +751,7 @@ const MISIONES = [
       { t:182, fn:"ola", tipo:"sierra_hielo", n:5, patron:"ola"    },
       { t:190, fn:"reward" },
       // Silencio deliberado antes del aviso — nada entre 190 y 206.
+      { t:191, fn:"descansoOn" },
       { t:206, fn:"miniboss", tipo:"kryos" },
     ],
   },
@@ -847,6 +851,7 @@ const MISIONES = [
       { t:194, fn:"hazardOff" },
       { t:198, fn:"reward" },
       // Silencio deliberado antes del aviso — nada entre 198 y 214.
+      { t:199, fn:"descansoOn" },
       { t:214, fn:"miniboss", tipo:"vertice" },
     ],
   },
@@ -941,6 +946,7 @@ const MISIONES = [
       { t:168, fn:"ola", tipo:"sembrador", n:3, patron:"pinza"  },
       { t:176, fn:"reward" },
       // Silencio deliberado antes del aviso — nada entre 176 y 192.
+      { t:177, fn:"descansoOn" },
       { t:192, fn:"miniboss", tipo:"nyx" },
     ],
   },
@@ -1031,6 +1037,7 @@ const MISIONES = [
       { t:176, fn:"ola", tipo:"veloz",    n:9, patron:"pinza"  },
       { t:184, fn:"reward" },
       // Silencio deliberado antes del aviso — nada entre 184 y 202.
+      { t:185, fn:"descansoOn" },
       { t:202, fn:"miniboss", tipo:"vulcano" },
     ],
   },
@@ -1133,6 +1140,7 @@ const MISIONES = [
       // despeja solo, y la pantalla llega vacía al aviso.
       { t:236, fn:"reward" },
       // Silencio deliberado y largo antes del aviso — nada entre 236 y 268.
+      { t:237, fn:"descansoOn" },
       { t:268, fn:"miniboss", tipo:"axioma" },
     ],
   },

@@ -82,7 +82,10 @@ console.log("\n1 · REGISTRO — 10 misiones, mundo, armas y eventos válidos");
   const p = await abrirPartida();
   const r = await p.evaluate((MISIONES_11_20) => {
     const fns = new Set(["ola", "reward", "miniboss", "hazardOn", "hazardOff", "defensa",
-      "zonaOn", "zonaOff", "pozo", "carril", "sistemas", "zonaCol", "columna", "oscuridad", "ruptura"]);
+      "zonaOn", "zonaOff", "pozo", "carril", "sistemas", "zonaCol", "columna", "oscuridad", "ruptura",
+      // Bloque 6D: le dicen al Rhythm Director que NO rellene un silencio
+      // deliberado antes de un aviso de jefe (ver AUDITORIA-BLOQUE6.md).
+      "bonus", "descansoOn", "descansoOff"]);
     return MISIONES_11_20.map(({ i, nombre, mundo, jefe, boss }) => {
       const m = MISIONES[i];
       const bad = m.eventos.filter(e => !fns.has(e.fn));

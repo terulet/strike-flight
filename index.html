@@ -151,6 +151,42 @@ function resolverDificultad() {
 const comboVentana = () => CONFIG.comboTiempo * DIF.comboToleranceMul;
 
 // ════════════════════════════════════════════════════════════
+//  RHYTHM DIRECTOR — TIME WITHOUT STIMULUS
+// ════════════════════════════════════════════════════════════
+//  No sustituye el guión de las misiones: lo acompaña. Mide cuánto
+//  tiempo real pasa sin que ocurra nada que cuente como estímulo
+//  -enemigo, hazard, aviso, drop, bonus, élite, jefe/miniboss, o el
+//  jugador recibiendo daño-. El objetivo no es rellenar cada segundo
+//  -un descanso puede ser deliberado, "silencio → portal → AVISO →
+//  formación nueva" es sano- sino encontrar los huecos que nadie quiso
+//  dejar: silencio → nada → nada → nada → enemigo suelto.
+//
+//  `marcar()` lo llaman las funciones que YA crean el estímulo
+//  -spawnEnemy, soltarPremio, telegrafo, golpe, spawnMiniboss,
+//  cambiarFase, spawnPozo/Carril/Sistemas/Defensas- así que ningún
+//  sistema futuro (upgrades en 6G, élites en 6E) tiene que acordarse
+//  de avisar dos veces: si crea su entidad con una de estas, ya cuenta.
+const RHYTHM = {
+  ultimo: 0,
+  maxHueco: 0,
+  huecos: [],          // { t, dur } — solo los que superan UMBRAL
+  UMBRAL: 4,            // segundos: por encima de esto, es un hueco real
+  HUECOS_MAX: 200,      // tope duro: una sesión larga no crece sin fin
+  marcar() {
+    if (typeof state === "undefined" || state !== "play" || paused) return;
+    const hueco = elapsed - this.ultimo;
+    if (this.ultimo > 0 && hueco > this.UMBRAL) {
+      this.huecos.push({ t: Math.round(this.ultimo * 10) / 10, dur: Math.round(hueco * 10) / 10 });
+      if (this.huecos.length > this.HUECOS_MAX) this.huecos.shift();
+    }
+    if (hueco > this.maxHueco) this.maxHueco = hueco;
+    this.ultimo = elapsed;
+  },
+  reiniciar() { this.ultimo = elapsed; this.maxHueco = 0; this.huecos.length = 0; },
+  estado() { return { maxHueco: Math.round(this.maxHueco * 10) / 10, huecos: this.huecos.slice() }; },
+};
+
+// ════════════════════════════════════════════════════════════
 //  CAMPO DE JUEGO VERTICAL
 // ════════════════════════════════════════════════════════════
 //  La plataforma es el iPad en vertical. Un monitor de 2048×858 no puede
@@ -2031,6 +2067,7 @@ function telegrafo(tipo, o) {
   // desapareciendo antes de que llegue el disparo que anuncia.
   t.life *= DIF.telegraphMul;
   telegrafos.push(t);
+  RHYTHM.marcar();
   return t;
 }
 function actualizarTelegrafos(dt) {
@@ -2539,6 +2576,7 @@ function spawnDefensas(tipo, n) {
     defensas.push({ tipo, x: sep * (i + 1), y, r: d.r,
       hp: d.hpMax, hpMax: d.hpMax, cd: d.recarga() * 0.6 * DIF.enemyCadenceMul, flash: 0 });
   }
+  RHYTHM.marcar();
 }
 
 function actualizarDefensas(dt) {
@@ -2663,6 +2701,7 @@ let pozos = [];
 function spawnPozo(x, y, radio, fuerza, vida) {
   if (pozos.length > 6) return;
   pozos.push({ x, y, r: radio, fuerza, t: 0, fase: 0, vida: vida || 3.5 });
+  RHYTHM.marcar();
 }
 function actualizarPozos(dt) {
   for (let i = pozos.length - 1; i >= 0; i--) {
@@ -2731,6 +2770,7 @@ let carriles = [];
 function spawnCarril(y, h, vida) {
   if (carriles.length > 5) return;
   carriles.push({ y, h: h || 70, t: 0, fase: 0, vida: vida || 2.2, damageCd: 0 });
+  RHYTHM.marcar();
 }
 function actualizarCarriles(dt) {
   for (let i = carriles.length - 1; i >= 0; i--) {
@@ -3012,6 +3052,7 @@ function spawnSistemas() {
   ];
   for (const s of specs) sistemas.push(Object.assign({ y, r: 26, hpMax: s.hp, flash: 0, vivo: true }, s));
   sfx("reactor");   // el núcleo de M9 arrancando: subgrave, sin melodía
+  RHYTHM.marcar();
 }
 function actualizarSistemas(dt) {
   if (sistemaGamma && sistemas.some(s => s.vivo) && state === "play" && !paused) {
@@ -3401,6 +3442,8 @@ function reset() {
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
+  RHYTHM.reiniciar();
+  bonusEvento = null; rhythmDirectorCooldownT = 0; descansoDeliberado = false;
   arma = 1; escudo = nv.escudo; turbo = 0; combo = 0; comboT = 0;
   armaId = nv.arma; bombas = 1 + (nv.bombas || 0);
   flash = 0; bank = 0; fondoY = 0;
@@ -3441,12 +3484,142 @@ function iniciarMision(idx) {
   misionIniT = 2.6;
 }
 
-function spawnFormacion(tipo, n, patron) {
+function spawnFormacion(tipo, n, patron, marca) {
   const fn = FORMACIONES[patron] || FORMACIONES.linea;
   const poss = fn(n);
   for (const p of poss) {
-    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d });
+    spawnQueue.push({ tipo, x: p.x, y: p.y, at: elapsed + p.d, marca });
   }
+}
+
+// ════════════════════════════════════════════════════════════
+//  BONUS EVENTS — eventos cortos reutilizables
+// ════════════════════════════════════════════════════════════
+//  No son una misión aparte: son un paréntesis de 9-16 s dentro de la
+//  que ya se está jugando. Uno cada vez, con banner, objetivo y reloj
+//  visibles, y un final claro -LOGRADO o FALLIDO-, nunca ambiguo. El
+//  RHYTHM DIRECTOR los dispara cuando ve que se acerca un hueco (ver
+//  `rhythmDirectorTick()`); una misión también puede pedirlos a mano
+//  con `procesarEvento({ fn: "bonus", tipo: "..." })`.
+const BONUS_EVENTOS = {
+  bonus_wave:  { nombre: "BONUS WAVE",        duracion: 14, objetivo: 8, premio: 900,  color: "#ffd700", escapeFalla: false },
+  convoy:      { nombre: "TREASURE CONVOY",   duracion: 16, objetivo: 5, premio: 1200, color: "#7effc4", escapeFalla: true  },
+  dorado:      { nombre: "GOLDEN TARGET",     duracion: 9,  objetivo: 1, premio: 1500, color: "#ffb800", escapeFalla: true  },
+  formacion:   { nombre: "PERFECT FORMATION", duracion: 12, objetivo: 0, premio: 1100, color: "#7df9ff", escapeFalla: true  },
+  riesgo:      { nombre: "RISK GATE",         duracion: 10, objetivo: 0, premio: 1600, color: "#ff5c8a", escapeFalla: false },
+};
+let bonusEvento = null;
+let bonusEventoGen = 0;
+
+function iniciarBonusEvento(tipo, opciones) {
+  if (bonusEvento && bonusEvento.estado === "activo") return null;   // uno cada vez: no se solapan
+  const d = BONUS_EVENTOS[tipo];
+  if (!d || state !== "play") return null;
+  opciones = opciones || {};
+  bonusEventoGen++;
+  bonusEvento = {
+    tipo, nombre: d.nombre, color: d.color, premio: d.premio, escapeFalla: d.escapeFalla,
+    gen: bonusEventoGen, t: 0, duracion: d.duracion,
+    objetivo: opciones.objetivo != null ? opciones.objetivo : d.objetivo,
+    progreso: 0, estado: "activo", finT: 0,
+  };
+  UI.desbloqueo({ tipo: "bonus", titulo: d.nombre, desc: opciones.desc || "", color: d.color });
+  sfx("aviso");
+  RHYTHM.marcar();
+
+  if (tipo === "bonus_wave") {
+    spawnFormacion(opciones.enemigo || "veloz", bonusEvento.objetivo, opciones.patron || "ola", bonusEventoGen);
+  } else if (tipo === "convoy") {
+    const n = bonusEvento.objetivo;
+    for (let i = 0; i < n; i++) {
+      const e = spawnEnemy("tanque", W * (0.2 + 0.6 * i / Math.max(1, n - 1)));
+      e.esConvoy = true; e.bonusGen = bonusEventoGen;
+    }
+  } else if (tipo === "dorado") {
+    const e = spawnEnemy(opciones.enemigo || "kamikaze", W / 2);
+    e.dorado = true; e.bonusGen = bonusEventoGen;
+  } else if (tipo === "formacion") {
+    const n = opciones.n || 6;
+    bonusEvento.objetivo = n;
+    spawnFormacion(opciones.enemigo || "normal", n, opciones.patron || "V", bonusEventoGen);
+  } else if (tipo === "riesgo") {
+    bonusEvento.hazardPrevio = hazardEnabled;
+    hazardEnabled = true;
+  }
+  return bonusEvento;
+}
+
+// Un enemigo marcado (`e.bonusGen`) ha muerto: cuenta para el evento
+// activo si sigue siendo el mismo (un evento viejo no puede sumarle
+// progreso a uno nuevo que ya empezó).
+function bonusEventoMuerte(e) {
+  if (!bonusEvento || bonusEvento.estado !== "activo" || e.bonusGen !== bonusEvento.gen) return;
+  bonusEvento.progreso++;
+  if (bonusEvento.progreso >= bonusEvento.objetivo) finalizarBonusEvento(true);
+}
+// Un enemigo marcado se ha ido de pantalla vivo: para los tipos donde
+// escapar es fallo (convoy, dorado, formación), se acabó ahí mismo.
+function bonusEventoEscape(e) {
+  if (!bonusEvento || bonusEvento.estado !== "activo" || e.bonusGen !== bonusEvento.gen) return;
+  if (bonusEvento.escapeFalla) finalizarBonusEvento(false);
+}
+function finalizarBonusEvento(exito) {
+  if (!bonusEvento || bonusEvento.estado !== "activo") return;
+  bonusEvento.estado = exito ? "exito" : "fallo";
+  bonusEvento.finT = 1.8;
+  if (bonusEvento.tipo === "riesgo" && hazardEnabled && !bonusEvento.hazardPrevio) hazardEnabled = false;
+  if (exito) {
+    const premio = Math.round(bonusEvento.premio * DIF.scoreMul);
+    score += premio;
+    texto(W / 2, H * 0.4, bonusEvento.nombre + " ¡LOGRADO! +" + premio, bonusEvento.color, 18, { prioridad: 2 });
+    onda(W / 2, H * 0.4, bonusEvento.color, 140, 0.5);
+    sfx("combo", { tono: 1.3 });
+  } else {
+    texto(W / 2, H * 0.4, bonusEvento.nombre + " FALLIDO", "#8a8a9a", 15, { prioridad: 1 });
+    sfx("ui_no");
+  }
+  RHYTHM.marcar();
+}
+// Tick del propio evento: caducidad, cierre de RISK GATE por tiempo
+// cumplido (aquí SÍ es éxito: sobrevivir la ventana es el objetivo) y
+// limpieza del banner una vez mostrado el resultado.
+function actualizarBonusEvento(dt) {
+  if (!bonusEvento || state !== "play" || paused) return;
+  bonusEvento.t += dt;
+  if (bonusEvento.estado === "activo") {
+    if (bonusEvento.tipo === "riesgo" && bonusEvento.t >= bonusEvento.duracion) finalizarBonusEvento(true);
+    else if (bonusEvento.t >= bonusEvento.duracion) finalizarBonusEvento(false);
+  } else if (bonusEvento.finT > 0) {
+    bonusEvento.finT -= dt;
+    if (bonusEvento.finT <= 0) bonusEvento = null;
+  }
+}
+
+// ── El Director en vivo ────────────────────────────────────
+//  No decide el guión de la misión: lo vigila. Si el hueco actual ya
+//  lleva el 70 % del umbral de RHYTHM y la pantalla está VACÍA de
+//  verdad -sin enemigos, sin nada en camino, sin jefe- interviene ANTES
+//  de que el hueco se note, con un Bonus Event al azar. Un enfriamiento
+//  largo evita que dos salgan pegados: eso seguiría siendo relleno, no
+//  ritmo.
+let rhythmDirectorCooldownT = 0;
+// Ventana que una misión puede abrir con `{ fn: "descansoOn" }` cuando el
+// guión deja un silencio LARGO A PROPÓSITO antes de un aviso de jefe -hay
+// siete en la campaña, ver AUDITORIA-BLOQUE6.md-. Sin esto, el Director
+// rellenaría exactamente el silencio que el guión quiso dejar. No hace
+// falta un "descansoOff": en cuanto `miniboss` existe, ese guardián ya
+// bloquea al Director por su cuenta.
+let descansoDeliberado = false;
+function rhythmDirectorTick(dt) {
+  if (state !== "play" || paused) return;
+  if (rhythmDirectorCooldownT > 0) rhythmDirectorCooldownT -= dt;
+  if (bonusEvento || miniboss || rhythmDirectorCooldownT > 0 || descansoDeliberado) return;
+  if (elapsed < 8 || enemies.length > 0 || spawnQueue.length > 0) return;
+  const hueco = elapsed - RHYTHM.ultimo;
+  if (hueco <= RHYTHM.UMBRAL * 0.7) return;
+  const tipos = Object.keys(BONUS_EVENTOS);
+  const tipo = tipos[(Math.random() * tipos.length) | 0];
+  if (iniciarBonusEvento(tipo)) rhythmDirectorCooldownT = 45;
 }
 
 // Las familias de arma que suelta cada misión son parte de su identidad:
@@ -3517,6 +3690,12 @@ function procesarEvento(ev) {
     spawnCarril(H * (ev.y || 0.5), ev.h || 74, ev.vida || 2.0);
   } else if (ev.fn === "sistemas") {
     spawnSistemas();
+  } else if (ev.fn === "bonus") {
+    iniciarBonusEvento(ev.tipo, ev);
+  } else if (ev.fn === "descansoOn") {
+    descansoDeliberado = true;
+  } else if (ev.fn === "descansoOff") {
+    descansoDeliberado = false;
   } else if (ev.fn === "zonaCol") {
     venomZona(ev.col != null ? ev.col : (Math.random() * 3) | 0);
   } else if (ev.fn === "columna") {
@@ -3550,6 +3729,7 @@ function spawnMiniboss(tipo, mult) {
   eBullets.length = 0;
   sfx("boss_llega");
   sacudir("medium");
+  RHYTHM.marcar();
   // OMEGA SOVEREIGN y AXIOMA tienen pista propia de jefe épico
   // ("jefe_final"/"final2" — distintas entre sí, ver `pistaJefe` de
   // JEFES.axioma). Los cuatro jefes completos de la expansión
@@ -3574,6 +3754,7 @@ function cambiarFase(mb, n) {
   mb.fase = n; mb.faseT = 0;
   mb.cds = f.ataques.map(a => rand(a.cd[0], a.cd[1]) * 0.6 * DIF.enemyCadenceMul);
   mb.avisados = null;
+  RHYTHM.marcar();
   if (f.alEntrar) f.alEntrar(mb);
   // Subida de intensidad de la música por fase. Las pistas son mezclas
   // planas y no traen capas sueltas, así que la subida se hace abriendo
@@ -3999,6 +4180,29 @@ function dibujarMiniboss() {
 
 // La barra va aparte del jefe: es HUD, no mundo, y no debe temblar con
 // la sacudida de cámara ni quedar tapada por una explosión.
+// Banner + barra de tiempo del bonus event activo. Mismo lenguaje visual
+// que barraJefe() pero más pequeño y más arriba: los dos no van a la vez
+// -no hay bonus events durante un jefe- así que no compiten por sitio.
+function barraBonus() {
+  if (!bonusEvento || bonusEvento.estado !== "activo") return;
+  const bW = Math.min(W - 60, 320), bH = 6;
+  const bX = (W - bW) / 2, bY = SAFE_TOP + 118;
+  ctx.save();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + Math.round(clamp(W * 0.04, 13, 16)) + "px " + F;
+  ctx.fillStyle = bonusEvento.color;
+  ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
+  const marcador = bonusEvento.objetivo > 1 ? "  " + bonusEvento.progreso + "/" + bonusEvento.objetivo : "";
+  letras(bonusEvento.nombre + marcador, W / 2, bY - 14, 2, "center");
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(bX - 2, bY - 2, bW + 4, bH + 4);
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(bX, bY, bW, bH);
+  const k = clamp(1 - bonusEvento.t / bonusEvento.duracion, 0, 1);
+  ctx.fillStyle = bonusEvento.color;
+  ctx.fillRect(bX, bY, bW * k, bH);
+  ctx.restore();
+}
+
 function barraJefe() {
   if (!miniboss || miniboss.est === "aviso") return;
   const mb = miniboss, d = JEFES[mb.tipo];
@@ -4429,6 +4633,7 @@ function spawnEnemy(tipo, x) {
   };
   if (d.init) d.init(e);
   enemies.push(e);
+  RHYTHM.marcar();
   return e;
 }
 
@@ -4453,6 +4658,7 @@ function soltarPremio(x, y, tipo) {
   const d = premio(tipo);
   VFX.materializar(x, y, 8, d.color, 46);
   onda(x, y, d.color, 42, 0.32, 3);
+  RHYTHM.marcar();
 }
 
 // ── Daño ──────────────────────────────────────────────────
@@ -4561,6 +4767,7 @@ function matar(e, i) {
     fuente: "enemigo", tipo: e.tipo, puntosBase: d.puntos, posicion: { x: e.x, y: e.y },
     opciones: { textoOffsetY: -e.r, premio: { prob: CONFIG.probPremio * (d.premio || 1) } },
   });
+  if (e.bonusGen) bonusEventoMuerte(e);
   enemies.splice(i, 1);
   // Gancho GENÉRICO y opcional: un enemigo que deja algo detrás al morir
   // (crisol, bloque 5E) declara `alMorir(e)`. Va DESPUÉS del splice,
@@ -4778,6 +4985,8 @@ function golpe(fx, fy) {
     return;
   }
   lives--; invulnT = CONFIG.invulnerable * DIF.invulnMul;
+  RHYTHM.marcar();
+  if (bonusEvento && bonusEvento.tipo === "riesgo" && bonusEvento.estado === "activo") finalizarBonusEvento(false);
   sinDanio = false;
   arma = Math.max(1, arma - 1);
   combo = 0; comboHito = 0; comboT = 0;
@@ -4894,6 +5103,8 @@ function update(dt) {
     // un solo recorrido.
     VFX.actualizar(dt);
     actualizarEfectos(dt);
+    actualizarBonusEvento(dt);
+    rhythmDirectorTick(dt);
     for (let i = flotantes.length - 1; i >= 0; i--) {
       const f = flotantes[i]; f.t += dt; f.y -= 34 * dt;
       if (f.t >= f.life) { flotantesLibres.push(f); flotantes.splice(i, 1); }
@@ -5036,6 +5247,7 @@ function update(dt) {
       if (elapsed >= q.at) {
         const e = spawnEnemy(q.tipo, q.x);
         if (q.y !== undefined) e.y = q.y;
+        if (q.marca) e.bonusGen = q.marca;
         spawnQueue.splice(i, 1);
       }
     }
@@ -5167,7 +5379,7 @@ function update(dt) {
     // Congelado: se mueve y recarga a la mitad. Frenar es hacer daño.
     const edt = e.lentoT > 0 ? dt * 0.5 : dt;
     d.mover(e, edt);
-    if (e.y - e.r > H + 20) { enemies.splice(i, 1); continue; }
+    if (e.y - e.r > H + 20) { if (e.bonusGen) bonusEventoEscape(e); enemies.splice(i, 1); continue; }
 
     if (e.recoil > 0) e.recoil = Math.max(0, e.recoil - dt * 48);
     if (e.escFlash > 0) e.escFlash -= dt;
@@ -7126,7 +7338,7 @@ function render() {
   if (flash > 0) { ctx.fillStyle = "rgba(255,255,255," + (flash * 0.75) + ")"; ctx.fillRect(0, 0, W, H); }
 
   if (state === "menu") menu();
-  else { hud(); barraJefe(); }
+  else { hud(); barraJefe(); barraBonus(); }
 
   // ── Fin de partida ──
   if (state === "over") {

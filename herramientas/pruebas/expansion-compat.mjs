@@ -459,8 +459,11 @@ console.log("\nK · LAS TABLAS EXTRAÍDAS SON LAS MISMAS");
   // fragmento interno de crisol (que no tiene PNG a propósito — ver
   // `enemigos.mjs` — así que cuenta en ENEMIGOS pero no en los sprites).
   comprobar(r.enemigos === 25, "25 enemigos (14 base + 10 expansión + 1 interno)", r.enemigos + "");
-  // 358 de M1-M10 (sin tocar) + 323 de M11-M20 (bloque 5H) = 681.
-  comprobar(r.eventos === 681, "681 eventos de guión en total (358 + 323 de la expansión)", r.eventos + "");
+  // 359 de M1-M10 + 328 de M11-M20 (bloque 5H) = 687. Subió de 681 a 687
+  // en el bloque 6D: seis `descansoOn` -uno en M6/OMEGA y cinco en la
+  // expansión- que le dicen al Rhythm Director que NO rellene los
+  // silencios deliberados antes de cada aviso de jefe (ver AUDITORIA-BLOQUE6.md).
+  comprobar(r.eventos === 687, "687 eventos de guión en total (359 + 328 de la expansión)", r.eventos + "");
   comprobar(r.caer, "`caer` viajó con la tabla que lo usa al construirse");
   // Desde la corrección de la regresión de premios: los 14 sprites base
   // siguen cargando al vuelo (como siempre), pero los 10 de expansión
