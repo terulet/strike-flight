@@ -104,6 +104,25 @@ var SAVE = (function () {
     "campana.recordsDif":         { tipo: "mapaNum", def: {} },
     "campana.rankDif":            { tipo: "mapaNum", def: {} },   // 0=C 1=B 2=A 3=S 4=S+
 
+    // Bloque 7B — el mismo trío que campana.*Dif, pero para SUPERVIVENCIA.
+    // Clave compuesta "mundoId_dificultad" (p.ej. "neon_high"): no hay
+    // misionIdx en supervivencia, hay mundo. `nivelDif` es el propio de
+    // este modo — cuánto aguantaste, no cuánto sacaste — y no tiene
+    // equivalente en campana.*, que se mide en misiones completadas.
+    "supervivencia.recordsDif":   { tipo: "mapaNum", def: {} },
+    "supervivencia.rankDif":      { tipo: "mapaNum", def: {} },
+    "supervivencia.nivelDif":     { tipo: "mapaNum", def: {} },
+
+    // Bloque 7D — RETO DIARIO. Aparte de supervivencia.*Dif a propósito:
+    // el reto tiene semilla fija (mundo y dificultad fijos), así que
+    // mezclarlo con las partidas normales de "espacio_medium" ensuciaría
+    // las dos tablas. Solo se guarda EL DE HOY: un día nuevo pisa al
+    // anterior sin comparar, es un reto nuevo, no una racha.
+    "perfil.retoFecha":           { tipo: "texto",  def: "", max: 12 },
+    "perfil.retoScore":           { tipo: "entero", def: 0, min: 0, max: 1e9 },
+    "perfil.retoRank":            { tipo: "entero", def: 0, min: 0, max: 4 },
+    "perfil.retoNivel":           { tipo: "entero", def: 0, min: 0, max: 999 },
+
     // Lista vacía = ninguna nave bloqueada. Hoy están las cinco
     // disponibles y NO se toca eso: el campo queda preparado para el
     // bloque del hangar, que es quien decidirá qué se bloquea.
@@ -634,6 +653,71 @@ var SAVE = (function () {
     },
     rankDif: function (idx, dificultad) {
       return (datos && datos.campana.rankDif["m" + idx + "_" + dificultad]) || 0;
+    },
+
+    // Bloque 7B — el mismo trío, para SUPERVIVENCIA. Clave por MUNDO
+    // (no hay misión), y un tercer récord que no tiene equivalente en
+    // campaña: cuánto nivel aguantaste, que es la pregunta que de verdad
+    // importa en un modo sin final.
+    subirRecordSuper: function (mundoId, dificultad, score) {
+      if (!datos) return false;
+      var k = mundoId + "_" + dificultad;
+      var n = Math.max(0, Math.floor(Number(score) || 0));
+      var prev = datos.supervivencia.recordsDif[k] || 0;
+      if (n > prev) { datos.supervivencia.recordsDif[k] = n; marcar("récord " + mundoId + " " + dificultad); return true; }
+      return false;
+    },
+    recordSuper: function (mundoId, dificultad) {
+      return (datos && datos.supervivencia.recordsDif[mundoId + "_" + dificultad]) || 0;
+    },
+    subirRankSuper: function (mundoId, dificultad, rankNum) {
+      if (!datos) return false;
+      var k = mundoId + "_" + dificultad;
+      var n = Math.max(0, Math.min(4, Math.floor(Number(rankNum) || 0)));
+      var prev = datos.supervivencia.rankDif[k] || 0;
+      if (n > prev) { datos.supervivencia.rankDif[k] = n; marcar("rank " + mundoId + " " + dificultad); return true; }
+      return false;
+    },
+    rankSuper: function (mundoId, dificultad) {
+      return (datos && datos.supervivencia.rankDif[mundoId + "_" + dificultad]) || 0;
+    },
+    subirNivelSuper: function (mundoId, dificultad, nivel) {
+      if (!datos) return false;
+      var k = mundoId + "_" + dificultad;
+      var n = Math.max(0, Math.floor(Number(nivel) || 0));
+      var prev = datos.supervivencia.nivelDif[k] || 0;
+      if (n > prev) { datos.supervivencia.nivelDif[k] = n; marcar("nivel " + mundoId + " " + dificultad); return true; }
+      return false;
+    },
+    nivelSuper: function (mundoId, dificultad) {
+      return (datos && datos.supervivencia.nivelDif[mundoId + "_" + dificultad]) || 0;
+    },
+
+    // Bloque 7D — el reto de HOY. Si `fecha` no coincide con la guardada,
+    // es un reto nuevo: pisa sin comparar. Si coincide (un reintento en
+    // el mismo día), solo mejora si el score es mayor — como un récord
+    // normal, pero que empieza de cero cada medianoche.
+    registrarReto: function (fecha, score, rank, nivel) {
+      if (!datos) return false;
+      var n = Math.max(0, Math.floor(Number(score) || 0));
+      var rk = Math.max(0, Math.min(4, Math.floor(Number(rank) || 0)));
+      var lv = Math.max(0, Math.floor(Number(nivel) || 0));
+      if (datos.perfil.retoFecha !== fecha) {
+        datos.perfil.retoFecha = fecha; datos.perfil.retoScore = n;
+        datos.perfil.retoRank = rk; datos.perfil.retoNivel = lv;
+        marcar("reto diario " + fecha);
+        return true;
+      }
+      if (n > datos.perfil.retoScore) {
+        datos.perfil.retoScore = n; datos.perfil.retoRank = rk; datos.perfil.retoNivel = lv;
+        marcar("reto diario " + fecha + " (mejorado)");
+        return true;
+      }
+      return false;
+    },
+    retoDeHoy: function (fecha) {
+      if (!datos || datos.perfil.retoFecha !== fecha) return null;
+      return { score: datos.perfil.retoScore, rank: datos.perfil.retoRank, nivel: datos.perfil.retoNivel };
     },
 
     // Contadores que solo suman.

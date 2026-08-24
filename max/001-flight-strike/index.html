@@ -206,6 +206,7 @@ const OPCIONES = {
   silencio:  false,
   sacudida:  1,        // 0 = sin sacudida de cámara
   hitstop:   1,        // 0 = sin congelado de impacto
+  destellos: 1,        // bloque 7E — 0 = sin destello de pantalla (fotosensibilidad)
   calidad:   "auto",   // "auto" | "alta" | "media" | "baja"
   nucleo:    true,     // pinta la zona de impacto real de la nave
   // Preparado para el bloque de VFX. Todavía no lo lee nadie ni tiene
@@ -626,6 +627,34 @@ resize();
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+// Bloque 7D — RETO DIARIO. En vez de re-cablear los más de cien sitios
+// que llaman a Math.random() (spawns, VFX, todo), se sustituye la propia
+// Math.random GLOBAL por un generador con semilla mientras dura el reto,
+// y se devuelve la nativa en cuanto acaba. Así el reto es determinista
+// de verdad —de punta a punta, no "casi"— sin tocar ni una sola llamada
+// existente. mulberry32: rápido, sin dependencias, de 32 bits de estado.
+function mulberry32(semilla) {
+  let s = semilla | 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function semillaDeTexto(txt) {
+  let h = 0;
+  for (let i = 0; i < txt.length; i++) h = (Math.imul(h, 31) + txt.charCodeAt(i)) | 0;
+  return h;
+}
+// "YYYY-MM-DD" en hora LOCAL del jugador — es su día, no el UTC de un
+// servidor que aquí ni existe.
+function fechaHoyLocal() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
 const TAU = Math.PI * 2;
 
 // La zona de impacto real de la nave, más pequeña que el dibujo. Es la
@@ -3251,6 +3280,16 @@ let T, naveSel = 0, fondoY = 0;
 let state = "menu";
 let player, bullets, eBullets, enemies, premios, bg, flotantes;
 let score, best, lives, elapsed, level, spawnAcc, shootAcc, invulnT, overAt;
+// Bloque 7B — resultado de una partida de SUPERVIVENCIA al morir. Solo se
+// rellena en ese modo; en campaña la pantalla de "over" no los lee.
+let overRank = null, overRecordScore = false, overRecordRank = false, overRecordNivel = false;
+// Bloque 7D — RETO DIARIO: supervivencia con semilla fija, mundo y
+// dificultad fijos. `retoMathOriginal` guarda la Math.random NATIVA
+// mientras el reto tiene puesta la suya; fuera de un reto es siempre null.
+let retoActivo = false, retoFecha = "", retoDificultadPrevia = null, retoMathOriginal = null;
+// Snapshot para la pantalla de "over": salirDeReto() ya ha puesto
+// retoActivo a false para cuando esa pantalla se dibuja.
+let overEraReto = false;
 let arma, escudo, turbo, combo, comboT, flash;
 let armaId = "cannon", bombas = 1, sinDanio = true, comboHito = 0, sinDanioBoss = true;
 // Contadores de la misión EN CURSO, para RANK y el resumen de
@@ -3440,7 +3479,22 @@ function crearFondo() {
   }
 }
 
+// Bloque 7D — apaga el reto si estaba encendido: Math.random NATIVA de
+// vuelta y la dificultad real del jugador de vuelta (la del reto es
+// siempre "medium", en memoria, nunca se guarda). reset() la llama
+// SIEMPRE al principio, antes de decidir si lo que arranca ES un reto —
+// así ningún otro modo puede heredar por accidente el generador con
+// semilla ni la dificultad prestada.
+function salirDeReto() {
+  if (retoMathOriginal) { Math.random = retoMathOriginal; retoMathOriginal = null; }
+  if (retoActivo && retoDificultadPrevia) {
+    OPCIONES.dificultad = retoDificultadPrevia; resolverDificultad(); retoDificultadPrevia = null;
+  }
+  retoActivo = false;
+}
+
 function reset() {
+  salirDeReto();
   state = "play";
   const nv = naveActual();
   player = { x: W / 2, y: H * 0.78, r: 16, px: W / 2, retro: 0, empuje: 0 };
@@ -3451,6 +3505,7 @@ function reset() {
   hazardEnabled = false; zonaEnabled = false; hazardAcc = 0; zonaAcc = 0; hazardTipo = "asteroide";
   crearFondo();
   score = 0; lives = CONFIG.vidas; elapsed = 0; level = 1;
+  overRank = null; overRecordScore = false; overRecordRank = false; overRecordNivel = false; overEraReto = false;
   spawnAcc = 0; shootAcc = 0; invulnT = 0;
   RHYTHM.reiniciar();
   bonusEvento = null; rhythmDirectorCooldownT = 0; descansoDeliberado = false;
@@ -3477,6 +3532,24 @@ function reset() {
   pozos.length = 0; carriles.length = 0; sistemas.length = 0;
   columnas.length = 0; rupturas.length = 0;
   oscuro.k = 0; oscuro.obj = 0; oscuro.dur = 0; oscuro.t = 0;
+}
+
+// ── Reto diario (bloque 7D) ──────────────────────────────
+//  Mundo y dificultad fijos —ESPACIO, NORMAL— a propósito: un reto con
+//  doce combinaciones de mundo y dificultad no es un reto, son doce
+//  clasificaciones que nadie más juega. Uno solo, igual para todos el
+//  mismo día, es lo que hace que compararse tenga sentido.
+function iniciarRetoDiario() {
+  const fecha = fechaHoyLocal();
+  T = TEMAS.find(t => t.id === "espacio");
+  modo = "supervivencia";
+  reset();   // deja Math.random y OPCIONES.dificultad en su sitio antes de tocar nada
+  retoActivo = true; retoFecha = fecha;
+  retoDificultadPrevia = OPCIONES.dificultad;
+  OPCIONES.dificultad = "medium"; resolverDificultad();   // en memoria: nunca se guarda
+  retoMathOriginal = Math.random;
+  Math.random = mulberry32(semillaDeTexto("reto_" + fecha));
+  musica("combate");
 }
 
 // ── Campaña ──────────────────────────────────────────────
@@ -3935,7 +4008,7 @@ function elegirUpgrade(id) {
   upgradesOfrecidos = null;
   const d = UPGRADES[id];
   texto(player.x, player.y - 50, d.nombre + " ×" + upgradesJugador[id], "#7df9ff", 15, { prioridad: 2 });
-  sfx("mejora"); flash = Math.max(flash, 0.18);
+  sfx("mejora"); destello(0.18);
   // Si esta elección completa una pareja de nivel II declarada en
   // EVOLUCIONES, se funde en un arma nueva aquí mismo.
   comprobarEvolucion();
@@ -5034,7 +5107,12 @@ function shake(mag, dur, prio) { VFX.sacudir(mag, dur, prio || 1); }
 VFX.puente.vfx = (id, x, y, tam, dur, o) => vfx(id, x, y, tam, dur, o);
 VFX.puente.sfx = (id, o) => sfx(id, o);
 VFX.puente.sacudir = (nivel) => sacudir(nivel);
-VFX.puente.flash = (v) => { flash = Math.max(flash, v * VFX.limites().flash); };
+// Bloque 7E — accesibilidad: reduce o quita el destello blanco de
+// pantalla (mejoras, muerte, golpes fuertes). Aparte de OPCIONES.vfx
+// -que existe por RENDIMIENTO, no por confort- multiplica sobre lo que
+// ya decida VFX.limites(), nunca lo sustituye.
+function destello(v) { flash = Math.max(flash, v * OPCIONES.destellos); }
+VFX.puente.flash = (v) => { flash = Math.max(flash, v * VFX.limites().flash * OPCIONES.destellos); };
 
 // Los puntos del CUERPO del jefe donde repartir las explosiones. Se leen
 // del estado que el jefe YA tiene —nodos de AEGIS, pods de VESPER, subs
@@ -5368,6 +5446,7 @@ let resultado = null;
 //  pesa de verdad-. 100 puntos de la partida + 10 de dificultad = 110.
 const RANK_UMBRALES = [["S+", 95], ["S", 80], ["A", 60], ["B", 35], ["C", 0]];
 const RANK_NUMERO = { "C": 0, "B": 1, "A": 2, "S": 3, "S+": 4 };
+const RANK_LETRAS = ["C", "B", "A", "S", "S+"];   // Bloque 7C — el reverso de RANK_NUMERO
 const RANK_COLOR = { "C": "#8fa0b8", "B": "#7df9ff", "A": "#8fffb0", "S": "#ffd700", "S+": "#ff2fbd" };
 const totalSkillEventos = () => Object.keys(skillEventos).reduce((a, k) => a + skillEventos[k], 0);
 function calcularRank() {
@@ -5515,7 +5594,7 @@ function cogerPremio(p) {
   // encima es un cartel; sin ellas, es un objeto.
   texto(p.x, p.y - 26, d.nombre, d.color, 17);
 
-  if (d.familia) { armaId = d.familia; shootAcc = 0; sfx("mejora"); flash = Math.max(flash, 0.22); }
+  if (d.familia) { armaId = d.familia; shootAcc = 0; sfx("mejora"); destello(0.22); }
   else if (p.tipo === "arma") {
     if (arma >= ARMA_MAX) { score += 250; texto(p.x, p.y - 46, "+250", "#ffd700", 14); }
     else { arma++; sfx("mejora"); }
@@ -5549,7 +5628,7 @@ function usarBomba() {
   }
   bombas--;
   bombaT = 0.85;
-  flash = Math.max(flash, 0.55);
+  destello(0.55);
   sacudir("heavy");
   hitstop(0.07);
   sfx("bomba");
@@ -5649,14 +5728,36 @@ function golpe(fx, fy) {
     // lo que hace que la pantalla de fin de partida pese.
     musica("derrota");
     onda(player.x, player.y, T.motor, player.r * 20, 0.9);
+    // Bloque 7B — supervivencia no tiene "misión completada": la única
+    // vez que se sabe cómo ha ido una partida es al morir. Rank y los
+    // tres récords (score, rank, nivel aguantado) se calculan aquí, no
+    // en cerrarMision(), que es solo de campaña.
+    if (modo !== "campana") overRank = calcularRank();
+    overEraReto = retoActivo;
     // Fin de partida: se escribe en el acto. Es el momento en que más
     // probable es que el jugador cierre la pestaña.
     if (hayGuardado) {
       if (SAVE.subirRecord(score)) best = score;
-      if (modo === "campana") SAVE.subirRecordMision(misionIdx, score);
+      if (modo === "campana") {
+        SAVE.subirRecordMision(misionIdx, score);
+      } else if (retoActivo) {
+        // Bloque 7D — el reto no se mezcla con las tablas normales de
+        // supervivencia: una sola entrada, "el de hoy", que un día nuevo
+        // pisa sin comparar.
+        const nuevo = SAVE.registrarReto(retoFecha, score, overRank.numero, level);
+        overRecordScore = overRecordRank = overRecordNivel = nuevo;
+      } else {
+        overRecordScore = SAVE.subirRecordSuper(T.id, OPCIONES.dificultad, score);
+        overRecordRank = SAVE.subirRankSuper(T.id, OPCIONES.dificultad, overRank.numero);
+        overRecordNivel = SAVE.subirNivelSuper(T.id, OPCIONES.dificultad, level);
+      }
       SAVE.sumar("perfil.tiempoJugado", Math.round(elapsed));
       SAVE.ya("fin de partida");
     } else if (score > best) best = score;
+    // El reto se apaga aquí: ya se ha leído todo lo que hacía falta de
+    // él (dificultad para el récord, rank ya calculado). A partir de
+    // ahora Math.random vuelve a ser la nativa.
+    salirDeReto();
     // Limpiar campo para que el overlay quede limpio
     enemies.length = 0; eBullets.length = 0; bullets.length = 0;
     premios.length = 0; spawnQueue.length = 0; miniboss = null;
@@ -7126,9 +7227,10 @@ function pantallaInicio() {
   boton(bx, y, bw, 46, { label: "SUPERVIVENCIA", tam: 13,
     fn: () => UI.ir(() => { pantalla = "mundos"; modo = "supervivencia"; }) });
   y += 56;
-  const mitad = (bw - 10) / 2;
-  boton(bx, y, mitad, 46, { label: "HANGAR", tam: 13, fn: () => UI.ir(() => { pantalla = "naves"; }) });
-  boton(bx + mitad + 10, y, mitad, 46, { label: "AJUSTES", tam: 13, fn: () => UI.ir(() => { pantalla = "ajustes"; }) });
+  const tercio = (bw - 20) / 3;
+  boton(bx, y, tercio, 46, { label: "HANGAR", tam: 12, fn: () => UI.ir(() => { pantalla = "naves"; }) });
+  boton(bx + tercio + 10, y, tercio, 46, { label: "RÉCORDS", tam: 12, fn: () => UI.ir(() => { pantalla = "records"; }) });
+  boton(bx + (tercio + 10) * 2, y, tercio, 46, { label: "AJUSTES", tam: 12, fn: () => UI.ir(() => { pantalla = "ajustes"; }) });
 
   if (best > 0) {
     ctx.textAlign = "center";
@@ -7356,7 +7458,9 @@ function pantallaMundos() {
   // cuatro a mano: añadir un mundo a la campaña metía una tarjeta más
   // aquí y descuadraba la rejilla, sin que nadie lo hubiera decidido.
   const mundos = TEMAS_SUPERVIVENCIA();
-  const R = rejilla(mundos.length, { y0: SAFE_TOP + 84, reserva: 24, hueco: 12,
+  // reserva:88 dado un poco más de hueco que antes (24) para que quepa
+  // debajo la tarjeta del reto diario (bloque 7D) sin comerse el volver.
+  const R = rejilla(mundos.length, { y0: SAFE_TOP + 84, reserva: 88, hueco: 12,
                                      maxFilas: 6, altoMin: 64, altoMax: 96, altoTope: 54 });
   const wCard = R.w, alto = R.alto, cmp = R.compacta;
   for (let i = 0; i < mundos.length; i++) {
@@ -7390,6 +7494,26 @@ function pantallaMundos() {
       ctx.restore();
     }
   }
+
+  // ── Reto diario (bloque 7D) ──
+  //  Aparte de la rejilla, a propósito: es lo único de esta pantalla que
+  //  es igual para todo el mundo hoy, y se nota que no es un mundo más.
+  // Mismo ancho que usa rejilla() arriba (sin `ancho` propio, su tope es
+  // 420) para que la tarjeta del reto quede alineada con las de encima.
+  const rbw = Math.min(W - 32, 420), rbx = (W - rbw) / 2, rby = H - SAFE_BOTTOM - 68, rbh = 54;
+  const hoy = fechaHoyLocal();
+  const jugadoHoy = hayGuardado ? SAVE.retoDeHoy(hoy) : null;
+  const espacio = TEMAS.find(t => t.id === "espacio");
+  boton(rbx, rby, rbw, rbh, { color: "#ffd700", r: 14,
+    fn: () => UI.ir(() => { iniciarRetoDiario(); }, "#ffd700") });
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.font = "800 12px " + F; ctx.fillStyle = "#ffd700";
+  letras("RETO DIARIO", rbx + 16, rby + rbh * 0.36, 2);
+  ctx.font = "700 8px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.5;
+  letras(jugadoHoy ? "MEJOR DE HOY: " + jugadoHoy.score.toLocaleString("es") + " · RANK " + RANK_LETRAS[jugadoHoy.rank]
+                   : espacio.nombre + " · NORMAL · misma partida para todos hoy",
+    rbx + 16, rby + rbh * 0.72, 1.2);
+  ctx.globalAlpha = 1;
 }
 
 // ── Ajustes ───────────────────────────────────────────────
@@ -7433,6 +7557,92 @@ function filaOpcion(y, etiqueta, valores, campo) {
   }
 }
 
+// ── Récords (bloque 7C) ──────────────────────────────────
+//  Los datos ya existían —campana.recordsDif/rankDif desde el 6I,
+//  supervivencia.recordsDif/rankDif/nivelDif desde el 7B— y no se veían
+//  en ningún sitio salvo un número suelto por misión mientras se elegía.
+//  Esta pantalla es puro READ: no guarda nada, solo enseña lo que ya hay.
+let recordsVista = "campana", recordsDifVista = "medium";
+function pantallaRecords() {
+  cabecera("RÉCORDS");
+  const bw = Math.min(W - 56, 320), bx = (W - bw) / 2;
+  let y = SAFE_TOP + 62;
+
+  const mitadT = (bw - 8) / 2;
+  boton(bx, y, mitadT, 38, { sel: recordsVista === "campana", tam: 11, label: "CAMPAÑA",
+    fn: () => { recordsVista = "campana"; } });
+  boton(bx + mitadT + 8, y, mitadT, 38, { sel: recordsVista === "supervivencia", tam: 11, label: "SUPERVIVENCIA",
+    fn: () => { recordsVista = "supervivencia"; } });
+  y += 48;
+
+  const tercioT = (bw - 16) / 3;
+  const difs = [["FÁCIL", "easy"], ["NORMAL", "medium"], ["DIFÍCIL", "high"]];
+  for (let i = 0; i < 3; i++) {
+    const [lab, val] = difs[i];
+    boton(bx + i * (tercioT + 8), y, tercioT, 32, { sel: recordsDifVista === val, tam: 9, label: lab,
+      fn: () => { recordsDifVista = val; } });
+  }
+  y += 46;
+
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+
+  if (recordsVista === "campana") {
+    const n = MISIONES.length;
+    const R = rejilla(n, { y0: y, reserva: 16, maxFilas: 12, altoMin: 40, altoMax: 60, altoTope: 34 });
+    for (let i = 0; i < n; i++) {
+      const m = MISIONES[i];
+      const tm = TEMAS.find(t => t.id === m.temaId) || TEMAS[0];
+      const { x, y: yy } = R.pos(i);
+      const sc = hayGuardado ? SAVE.recordDif(i, recordsDifVista) : 0;
+      const rk = hayGuardado ? SAVE.rankDif(i, recordsDifVista) : 0;
+      panel(x, yy, R.w, R.alto, 10, 0.45);
+      ctx.font = "800 10px " + F; ctx.fillStyle = tm.nave; ctx.globalAlpha = 1;
+      letras("M" + (i + 1), x + 10, yy + R.alto * 0.32, 1.4);
+      ctx.font = "700 8px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.5;
+      letras(cortar(m.nombre, R.w - 76, 1), x + 32, yy + R.alto * 0.32, 1);
+      ctx.globalAlpha = 1;
+      if (sc > 0) {
+        ctx.font = "800 9px " + F; ctx.fillStyle = "#ffd700";
+        letras(sc.toLocaleString("es"), x + 10, yy + R.alto * 0.72, 1);
+        ctx.textAlign = "right"; ctx.font = "800 11px " + F; ctx.fillStyle = RANK_COLOR[RANK_LETRAS[rk]];
+        letras(RANK_LETRAS[rk], x + R.w - 10, yy + R.alto * 0.72, 1, "right");
+        ctx.textAlign = "left";
+      } else {
+        ctx.font = "700 8px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.25;
+        letras("SIN JUGAR", x + 10, yy + R.alto * 0.72, 1);
+        ctx.globalAlpha = 1;
+      }
+    }
+  } else {
+    const mundos = TEMAS_SUPERVIVENCIA();
+    const R = rejilla(mundos.length, { y0: y, reserva: 16, altoMin: 60, altoMax: 92, altoTope: 60, ancho: 380 });
+    for (let i = 0; i < mundos.length; i++) {
+      const tm = mundos[i];
+      const { x, y: yy } = R.pos(i);
+      const sc = hayGuardado ? SAVE.recordSuper(tm.id, recordsDifVista) : 0;
+      const rk = hayGuardado ? SAVE.rankSuper(tm.id, recordsDifVista) : 0;
+      const nv = hayGuardado ? SAVE.nivelSuper(tm.id, recordsDifVista) : 0;
+      panel(x, yy, R.w, R.alto, 12, 0.45);
+      ctx.font = "800 11px " + F; ctx.fillStyle = tm.nave; ctx.globalAlpha = 1;
+      letras(tm.nombre, x + 12, yy + R.alto * 0.3, 1.6);
+      if (sc > 0) {
+        ctx.font = "700 9px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.55;
+        letras("NIVEL " + nv, x + 12, yy + R.alto * 0.68, 1.2);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = "right"; ctx.font = "800 10px " + F; ctx.fillStyle = "#ffd700";
+        letras(sc.toLocaleString("es"), x + R.w - 44, yy + R.alto * 0.68, 1, "right");
+        ctx.font = "800 13px " + F; ctx.fillStyle = RANK_COLOR[RANK_LETRAS[rk]];
+        letras(RANK_LETRAS[rk], x + R.w - 14, yy + R.alto * 0.68, 1, "right");
+        ctx.textAlign = "left";
+      } else {
+        ctx.font = "700 9px " + F; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.25;
+        letras("SIN JUGAR", x + 12, yy + R.alto * 0.68, 1.2);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
 function pantallaAjustes() {
   cabecera("AJUSTES");
   let y = SAFE_TOP + 92;
@@ -7469,6 +7679,10 @@ function pantallaAjustes() {
   filaOpcion(y, "CALIDAD", [["AUTO", "auto"], ["ALTA", "alta"], ["MEDIA", "media"], ["BAJA", "baja"]], "calidad"); y += sep;
   filaOpcion(y, "SACUDIDA", [["NO", 0], ["POCA", 0.5], ["NORMAL", 1]], "sacudida"); y += sep;
   filaOpcion(y, "IMPACTO", [["NO", 0], ["SÍ", 1]], "hitstop"); y += sep;
+  // Bloque 7E — aparte de SACUDIDA/IMPACTO: esos son cámara y ritmo,
+  // esto es fotosensibilidad. Alguien puede querer sacudida normal y
+  // destellos apagados, o al revés.
+  filaOpcion(y, "DESTELLOS", [["NO", 0], ["POCOS", 0.4], ["NORMAL", 1]], "destellos"); y += sep;
   filaOpcion(y, "NÚCLEO", [["NO", false], ["SÍ", true]], "nucleo"); y += sep;
   // "DETALLE" y no "EFECTOS": en la sección de SONIDO ya hay una fila
   // que se llama EFECTOS —el volumen de los sonidos— y dos etiquetas
@@ -7794,6 +8008,7 @@ function menu() {
   else if (pantalla === "campana") pantallaCampana();
   else if (pantalla === "mundos") pantallaMundos();
   else if (pantalla === "ajustes") pantallaAjustes();
+  else if (pantalla === "records") pantallaRecords();
   else if (pantalla === "admin") ADMIN.dibujar(PUENTE_HANGAR);
   else if (pantalla === "campana-completa") {
     if (pantallaCompletaEsExp) pantallaExpansionCompletada(); else pantallaCampanaCompleta();
@@ -8117,6 +8332,21 @@ function render() {
       ctx.font = "700 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.6;
       letras("MISIÓN " + (misionIdx + 1) + " · " + MISIONES[misionIdx].nombre, cx, y + 14, 2, "center");
       ctx.globalAlpha = 1;
+    } else if (overRank) {
+      // Bloque 7B — supervivencia no tiene pantalla de "misión completada"
+      // donde lucir el rank: esta ES esa pantalla, la de morir.
+      ctx.font = "700 9px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.6;
+      letras((overEraReto ? "RETO DIARIO · " + retoFecha : "SUPERVIVENCIA · " + T.nombre) + " · NIVEL " + level,
+        cx, y + 14, 2, "center");
+      ctx.globalAlpha = 1;
+      ctx.font = "800 22px " + F; ctx.fillStyle = RANK_COLOR[overRank.letra];
+      letras("RANK " + overRank.letra, cx, y + 44, 3, "center");
+      if (overRecordNivel || overRecordRank) {
+        const pul = 0.7 + 0.3 * Math.sin(performance.now() / 140);
+        ctx.font = "700 9px " + F; ctx.fillStyle = UI.COL.oro; ctx.globalAlpha = pul;
+        letras(overRecordNivel ? "¡NUEVO RÉCORD DE NIVEL!" : "¡NUEVO MEJOR RANK!", cx, y + 70, 2.5, "center");
+        ctx.globalAlpha = 1;
+      }
     }
 
     // Reintentar sin pasar por el menú: si te matan en el segundo 200 de
@@ -8362,7 +8592,8 @@ function render() {
     letras("PAUSA", W / 2, H * 0.34, 6, "center");
     ctx.font = "700 10px " + F; ctx.fillStyle = T.nave; ctx.globalAlpha = 0.7;
     letras(modo === "campana" ? "MISIÓN " + (misionIdx + 1) + " · " + MISIONES[misionIdx].nombre
-                              : "SUPERVIVENCIA · NIVEL " + level, W / 2, H * 0.34 + 32, 2.4, "center");
+                              : (retoActivo ? "RETO DIARIO" : "SUPERVIVENCIA") + " · NIVEL " + level,
+                              W / 2, H * 0.34 + 32, 2.4, "center");
     ctx.globalAlpha = 1;
 
     let by = by0;
