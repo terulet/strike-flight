@@ -1,0 +1,85 @@
+===========================================
+  CHASIS  -  los PNG de las naves jugables
+===========================================
+
+Los nombres tienen que ser EXACTAMENTE estos,
+en minusculas:
+
+  chassis_01_interceptor.png     VX-9 TALON
+  chassis_02_striker.png         AX-4 WARHAWK
+  chassis_03_aegis.png           CR-7 BULWARK
+  chassis_04_phantom.png         NX-11 WRAITH
+  chassis_05_nova.png            SV-12 SOVEREIGN
+
+El nombre del archivo se declara en js/ships.js,
+campo `archivo` de cada chasis. Si cambias el
+archivo, cambia ahi tambien y no hace falta
+tocar nada mas: la clave del sprite es el id
+del chasis, no el nombre del fichero.
+
+-------------------------------------------
+  COMO TIENEN QUE VENIR
+-------------------------------------------
+
+1. PNG con transparencia REAL.
+   Las cuatro esquinas con alfa 0. Si el PNG
+   trae fondo opaco, el juego intenta quitarlo
+   por inundacion y una nave oscura puede
+   perder parte del casco.
+
+2. RECORTADOS AL PIXEL.
+   Sin margen alrededor. Esto es lo mas
+   importante: al abrir el juego con doble
+   clic (file://) el navegador NO deja leer
+   los pixeles, asi que el recorte automatico
+   NO se ejecuta. Un PNG con margen se veria
+   mas pequeno y descentrado solo en ese modo.
+
+3. CENTRADOS Y SIMETRICOS.
+   El disparo sale del centro exacto de la
+   nave. Medio pixel de descentrado se nota.
+
+4. MORRO ARRIBA, vista cenital, sin rotar.
+
+OJO: assets\ esta en .gitignore. Un dibujo que
+se quede SOLO ahi funciona en el ordenador donde
+esta y no llega a GitHub, ni a la web, ni al iPad.
+Los definitivos van en art\
+
+CUIDADO CON LAS MAYUSCULAS: en Windows da igual
+KALI.PNG que kali.png, pero en GitHub Pages NO.
+Si el archivo se llama KALI.PNG funcionara en tu
+ordenador y fallara en el iPad. En minusculas
+siempre.
+
+5. LADO MAYOR 512 px COMO MUCHO.
+   Por encima de eso el navegador los reduce
+   en cada arranque (MAX_SPRITE = 512).
+
+6. SIN NOMBRES ESCRITOS EN EL CASCO.
+   Los chasis llevan modelo (VX-9, AX-4...),
+   y el modelo lo pone la interfaz, no el
+   dibujo.
+
+-------------------------------------------
+  COMO PREPARARLOS
+-------------------------------------------
+
+No hace falta hacerlo a mano:
+
+  node herramientas/preparar-naves.mjs <carpeta del pack>
+
+Recorta a la caja alfa de forma simetrica,
+escala a 512 y deja los archivos aqui con el
+nombre correcto. Tambien prepara los emblemas
+(art/emblemas/) y el fondo del hangar
+(art/hangar/).
+
+-------------------------------------------
+  NAVES CARGADAS POR EL JUGADOR
+-------------------------------------------
+
+El boton "+ CARGAR" del selector sigue
+funcionando aparte: esas se guardan en el
+navegador (clave sf_naves) y no viven en esta
+carpeta.

@@ -1,0 +1,59 @@
+===========================================
+  EMBLEMAS  -  el distintivo de tu nave
+===========================================
+
+Los nombres tienen que ser EXACTAMENTE estos,
+en minusculas:
+
+  skull.png      CALAVERA
+  wolf.png       LOBO
+  tiger.png      TIGRE
+  phoenix.png    FENIX
+  dragon.png     DRAGON
+  cobra.png      COBRA
+  eye.png        OJO
+  crystal.png    CRISTAL
+  wings.png      ALAS
+  solar.png      SOLAR
+
+La lista se declara en js/ships.js, en la
+tabla EMBLEMAS. Anadir uno es anadir una linea
+alli y dejar el PNG aqui.
+
+-------------------------------------------
+  DONDE SE VEN
+-------------------------------------------
+
+En el Hangar, en la casilla de la nave y en
+la pantalla de MISION COMPLETADA.
+
+NUNCA encima de la nave durante la partida.
+La nave se dibuja a unos 77 px de ancho: un
+emblema legible ahi serian 12 px, o sea una
+mancha justo encima de lo unico que hace
+falta leer bien.
+
+-------------------------------------------
+  COMO TIENEN QUE VENIR
+-------------------------------------------
+
+1. PNG con transparencia REAL.
+
+2. RECORTADOS AL PIXEL, sin margen.
+   Con file:// el navegador no deja leer los
+   pixeles y el recorte automatico no se
+   ejecuta.
+
+3. LADO MAYOR 256 px.
+   Se muestran entre 18 y 64 px. Los
+   originales de 1254 px pesaban 31 MB entre
+   todos; a 256 son kilobytes.
+
+-------------------------------------------
+  COMO PREPARARLOS
+-------------------------------------------
+
+  node herramientas/preparar-naves.mjs <carpeta del pack>
+
+Prepara de una vez los chasis, los emblemas y
+el fondo del hangar.

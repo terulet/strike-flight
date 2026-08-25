@@ -1,0 +1,22 @@
+{
+  "mission": "01",
+  "name": "PRIMER CONTACTO",
+  "theme": "espacio",
+  "assets": {
+    "fondo": {
+      "id": "f_espacio",
+      "src": "art/fondos/espacio.png",
+      "loader": "cargarImagen"
+    },
+    "enemigos": {
+      "normal":   { "id": "e_normal",   "src": "art/enemigos/normal.png",   "origin": "ENEMY_012_blue_scythe" },
+      "veloz":    { "id": "e_veloz",    "src": "art/enemigos/veloz.png",    "origin": "ENEMY_011_red_lancer" },
+      "torreta":  { "id": "e_torreta",  "src": "art/enemigos/torreta.png",  "origin": "ENEMY_013_yellow_heavy_gunship" },
+      "kamikaze": { "id": "e_kamikaze", "src": "art/enemigos/kamikaze.png", "origin": "ENEMY_017_red_kamikaze" }
+    }
+  },
+  "targets": {
+    "asset_404": 0,
+    "fallbacks_active": 0
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "mission": "05",
+  "name": "FISURA HELADA",
+  "theme": "espacio",
+  "mechanics": ["hazard_cristal", "titan_3fases"],
+  "assets": {
+    "fondo": { "id": "f_espacio", "src": "art/fondos/espacio.png", "loader": "cargarImagen" },
+    "enemigos": {
+      "bombardero":    { "id": "e_bombardero",    "src": "art/enemigos/bombardero.png" },
+      "francotirador": { "id": "e_francotirador", "src": "art/enemigos/francotirador.png" },
+      "veloz":         { "id": "e_veloz",         "src": "art/enemigos/veloz.png" },
+      "portaescudos":  { "id": "e_portaescudos",  "src": "art/enemigos/portaescudos.png" },
+      "tanque":        { "id": "e_tanque",        "src": "art/enemigos/tanque.png" },
+      "kamikaze":      { "id": "e_kamikaze",      "src": "art/enemigos/kamikaze.png" }
+    },
+    "hazards": {
+      "cristal": { "id": "hz_cristal", "src": "art/hazards/cristal_hielo.png" }
+    },
+    "boss": {
+      "titan": {
+        "id": "titan",
+        "phases": 3,
+        "hpMax": 220,
+        "umbralFase2": 0.66,
+        "umbralFase3": 0.33
+      }
+    }
+  },
+  "targets": {
+    "asset_404": 0,
+    "fallbacks_active": 0
+  }
+}
