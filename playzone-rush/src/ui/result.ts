@@ -140,7 +140,11 @@ export function renderResult(
     ]),
   ]);
 
-  return el('div', { class: `result${outcome.becameLeader ? ' result--corona' : ''}` }, [inner]);
+  // corona (has pasado a mandar el dia entero) es el momento mayor: si se da
+  // a la vez que un record personal, gana ella sola -sin apilar las dos
+  // clases, para no depender del orden de las reglas en el CSS-.
+  const trofeo = outcome.becameLeader ? ' result--corona' : headline.tone === 'record' ? ' result--record' : '';
+  return el('div', { class: `result${trofeo}` }, [inner]);
 }
 
 /**

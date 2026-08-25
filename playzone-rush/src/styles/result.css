@@ -87,10 +87,29 @@
    marca tratada como trofeo" mas abajo), asi que teñirlo de oro aqui significa
    cambiar el degradado -tocar solo `color` no pintaria nada, porque
    `-webkit-text-fill-color: transparent` gana siempre que el navegador
-   soporta el recorte-. */
+   soporta el recorte-. El shorthand `background` resetea `background-clip` a
+   su valor inicial (border-box) aunque el valor no lo mencione: sin repetir
+   aqui las tres propiedades del recorte, esta regla -con mas especificidad
+   que la de mas abajo, por tener dos clases- gana la cascada y el numero deja
+   de recortarse: se ve como un bloque solido, no como texto. */
 .result--corona .result__score {
   background: linear-gradient(180deg, #fff6d8 0%, var(--oro) 55%, #ffb020 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 8px 30px rgba(255, 210, 63, 0.5));
+}
+
+/* Un record personal tambien es un trofeo, aunque no te ponga primero del
+   dia: mismo oro, un peldano por debajo de la corona -brillo mas corto- para
+   que la jerarquia se note sin decir una palabra. Nunca a la vez que corona
+   (ver renderResult): esa es la noticia mayor y no comparte protagonismo. */
+.result--record .result__score {
+  background: linear-gradient(180deg, #fff6d8 0%, var(--oro) 60%, #ffb020 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 20px rgba(255, 210, 63, 0.32));
 }
 
 .result__headline {
