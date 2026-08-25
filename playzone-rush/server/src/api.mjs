@@ -224,28 +224,61 @@ export function createApi(store, options = {}) {
     const limit = attemptLimitFor(payload.challengeId);
     const existing = store.scoreRow.get(day, player.id, payload.challengeId);
     const playsBefore = existing?.plays ?? 0;
-    if (playsBefore >= limit) {
+
+    // DOBLE O NADA reenvia la marca del reto que ya se jugo -no es un intento
+    // nuevo, es la ultima palabra sobre uno que ya paso-. Apostar cierra el
+    // reto localmente (desperdicia los intentos que quedaran), asi que lo mas
+    // habitual es apostar justo despues de gastar el ultimo intento: sin este
+    // camino aparte, `playsBefore >= limit` ya seria cierto en ese momento y
+    // el reenvio rebotaria con attempts_exhausted por igual, ganase o perdiese
+    // la apuesta.
+    if (payload.isBet) {
+      if (!existing) {
+        throw new ApiError(409, 'no_score_to_bet', 'No hay una marca previa que apostar en ese reto');
+      }
+    } else if (playsBefore >= limit) {
       throw new ApiError(409, 'attempts_exhausted', 'No quedan intentos en ese reto');
     }
 
     const bestBefore = existing?.best_score ?? 0;
-    const bestAfter = Math.max(bestBefore, payload.score);
-    const attemptsAfter = Math.min(limit, Math.max(playsBefore + 1, payload.attemptsUsed));
+    // Sustituir y no MAX(): una apuesta perdida (x0,5) tiene que poder BAJAR
+    // la marca en el servidor igual que la baja en local, o el ranking
+    // compartido se quedaria con la cifra de antes de perder la apuesta.
+    const bestAfter = payload.isBet ? payload.score : Math.max(bestBefore, payload.score);
+    const attemptsAfter = payload.isBet
+      ? Math.min(limit, Math.max(existing.attempts_used, payload.attemptsUsed))
+      : Math.min(limit, Math.max(playsBefore + 1, payload.attemptsUsed));
     const ts = now();
 
-    store.upsertScore.run(
-      day,
-      player.id,
-      payload.challengeId,
-      payload.gameId,
-      payload.gameVersion,
-      bestAfter,
-      attemptsAfter,
-      1,
-      payload.countsForRanking ? 1 : 0,
-      payload.isTest ? 1 : 0,
-      ts,
-    );
+    if (payload.isBet) {
+      // No toca `plays`: no es una tirada mas contra el limite del reto.
+      store.replaceScoreForBet.run(
+        bestAfter,
+        attemptsAfter,
+        payload.gameId,
+        payload.gameVersion,
+        payload.countsForRanking ? 1 : 0,
+        payload.isTest ? 1 : 0,
+        ts,
+        day,
+        player.id,
+        payload.challengeId,
+      );
+    } else {
+      store.upsertScore.run(
+        day,
+        player.id,
+        payload.challengeId,
+        payload.gameId,
+        payload.gameVersion,
+        bestAfter,
+        attemptsAfter,
+        1,
+        payload.countsForRanking ? 1 : 0,
+        payload.isTest ? 1 : 0,
+        ts,
+      );
+    }
 
     // El ghost solo se guarda si esta partida ha mejorado la marca del dia.
     let ghostStored = false;
@@ -271,7 +304,11 @@ export function createApi(store, options = {}) {
       payload.gameId,
       payload.gameVersion,
       payload.score,
-      JSON.stringify({ challengeId: payload.challengeId, improved: payload.score > bestBefore }),
+      JSON.stringify({
+        challengeId: payload.challengeId,
+        improved: payload.score > bestBefore,
+        isBet: payload.isBet,
+      }),
       payload.isTest ? 1 : 0,
     );
 

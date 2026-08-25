@@ -85,6 +85,8 @@ export interface SubmitScoreRequest {
   countsForRanking: boolean;
   gameVersion: number;
   isTest: boolean;
+  /** DOBLE O NADA reenviando la marca ya apostada: no es un intento nuevo. */
+  isBet?: boolean;
   ghost?: GhostPayload | null;
 }
 

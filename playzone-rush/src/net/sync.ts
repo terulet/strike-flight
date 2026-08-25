@@ -345,6 +345,7 @@ export class SyncEngine extends Emitter<SyncEvents> {
               countsForRanking: pending.countsForRanking,
               gameVersion: pending.gameVersion,
               isTest: pending.isTest,
+              isBet: pending.isBet,
               ghost: pending.ghost,
             });
             this.removePending(pending.attemptId);

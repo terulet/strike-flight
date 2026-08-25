@@ -177,6 +177,23 @@ export function createStore(db) {
         is_test       = excluded.is_test,
         updated_at    = excluded.updated_at
     `),
+    // DOBLE O NADA: no es un intento nuevo, es la ultima palabra sobre uno
+    // que ya se jugo -por eso sustituye best_score en vez de MAX() (una
+    // apuesta perdida tiene que poder BAJAR la marca) y por eso no toca
+    // `plays` en absoluto (no cuenta como una tirada mas contra el limite).
+    // Requiere una fila existente: no se puede apostar sobre un reto que el
+    // servidor no ha visto jugar todavia.
+    replaceScoreForBet: db.prepare(`
+      UPDATE scores SET
+        best_score    = ?,
+        attempts_used = ?,
+        game_id       = ?,
+        game_version  = ?,
+        counts_ranking = ?,
+        is_test       = ?,
+        updated_at    = ?
+      WHERE day = ? AND player_id = ? AND challenge_id = ?
+    `),
     scoresForGroupDay: db.prepare(`
       SELECT s.* FROM scores s
       JOIN players p ON p.id = s.player_id

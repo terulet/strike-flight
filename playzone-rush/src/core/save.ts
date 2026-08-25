@@ -80,6 +80,8 @@ export interface PendingScore {
   durationMs: number;
   attemptsUsed: number;
   countsForRanking: boolean;
+  /** DOBLE O NADA reenviando la marca ya apostada: no es un intento nuevo. */
+  isBet?: boolean;
   ghost: { trace: string; durationMs: number } | null;
   queuedAt: number;
   tries: number;

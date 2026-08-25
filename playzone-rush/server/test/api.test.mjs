@@ -34,7 +34,7 @@ function expectError(fn, code) {
   throw new Error(`Se esperaba el error "${code}" pero no fallo`);
 }
 
-function play(player, { challengeId = 'c1', gameId = 'pulse', score = 1000, attemptId, ghost } = {}) {
+function play(player, { challengeId = 'c1', gameId = 'pulse', score = 1000, attemptId, ghost, isBet, attemptsUsed = 1 } = {}) {
   return api.submitScore(player, {
     attemptId: attemptId ?? `at-${Math.random().toString(36).slice(2, 12)}-${score}`,
     gameId,
@@ -42,7 +42,8 @@ function play(player, { challengeId = 'c1', gameId = 'pulse', score = 1000, atte
     day: api.serverDay(),
     score,
     durationMs: 30_000,
-    attemptsUsed: 1,
+    attemptsUsed,
+    isBet,
     ghost,
   });
 }
@@ -157,6 +158,76 @@ describe('resultados', () => {
     expect(play(eloi, { score: 200 }).attemptsLeft).toBe(1);
     expect(play(eloi, { score: 300 }).attemptsLeft).toBe(0);
     expectError(() => play(eloi, { score: 400 }), 'attempts_exhausted');
+  });
+
+  describe('DOBLE O NADA: reenvio de la marca apostada', () => {
+    // Reproduce el 409 real: apostar cierra el reto localmente (desperdicia
+    // los intentos que queden), asi que lo mas habitual es apostar justo
+    // despues de gastar el ultimo intento -el reenvio llegaba al servidor
+    // con playsBefore ya en el limite, y attempts_exhausted lo tiraba
+    // siempre, ganase o perdiese la apuesta-.
+    it('doblar tras gastar el ultimo intento no revienta con attempts_exhausted', () => {
+      play(eloi, { score: 100 });
+      play(eloi, { score: 200 });
+      const ultima = play(eloi, { score: 300 });
+      expect(ultima.attemptsLeft).toBe(0);
+
+      // Sin isBet esto es exactamente el 409 que se veia en las capturas.
+      expectError(() => play(eloi, { score: 600, attemptId: 'sin-isbet-0001' }), 'attempts_exhausted');
+
+      // Con isBet:true (lo que manda reenviarMarca de verdad) tiene que colar.
+      const doblada = play(eloi, { score: 600, isBet: true, attemptsUsed: 3 });
+      expect(doblada.bestScore).toBe(600);
+      expect(doblada.attemptsLeft).toBe(0);
+    });
+
+    it('una apuesta perdida BAJA la marca en el servidor (x0,5), no se queda con el MAX', () => {
+      play(eloi, { score: 1000 });
+      play(eloi, { score: 1200 });
+      play(eloi, { score: 1400 });
+      // Cayo: la marca final es la mitad, y tiene que sustituir, no competir con MAX().
+      const caida = play(eloi, { score: 700, isBet: true, attemptsUsed: 3 });
+      expect(caida.bestScore).toBe(700);
+      expect(store.scoreRow.get(api.serverDay(), eloi.id, 'c1').best_score).toBe(700);
+    });
+
+    it('el reenvio de la apuesta no cuenta como una tirada mas contra el limite', () => {
+      play(eloi, { score: 100 });
+      play(eloi, { score: 200 });
+      play(eloi, { score: 300 });
+      expect(store.scoreRow.get(api.serverDay(), eloi.id, 'c1').plays).toBe(3);
+      play(eloi, { score: 600, isBet: true, attemptsUsed: 3 });
+      // plays sigue en 3: la apuesta no es un intento nuevo.
+      expect(store.scoreRow.get(api.serverDay(), eloi.id, 'c1').plays).toBe(3);
+    });
+
+    it('no se puede apostar sobre un reto que el servidor nunca ha visto jugar', () => {
+      expectError(
+        () => play(eloi, { challengeId: 'c2', score: 600, isBet: true, attemptsUsed: 3 }),
+        'no_score_to_bet',
+      );
+    });
+
+    it('el reenvio de la apuesta es idempotente igual que un intento normal', () => {
+      play(eloi, { score: 100 });
+      play(eloi, { score: 200 });
+      play(eloi, { score: 300 });
+      const first = play(eloi, { score: 600, isBet: true, attemptsUsed: 3, attemptId: 'apuesta-repetida' });
+      const second = play(eloi, { score: 999, isBet: true, attemptsUsed: 3, attemptId: 'apuesta-repetida' });
+      expect(second.duplicate).toBe(true);
+      expect(second.bestScore).toBe(first.bestScore);
+      expect(store.scoreRow.get(api.serverDay(), eloi.id, 'c1').plays).toBe(3);
+    });
+
+    it('doblar en el reto secreto (1 solo intento) tambien funciona', () => {
+      play(eloi, { challengeId: 'secret', score: 500 });
+      expectError(
+        () => play(eloi, { challengeId: 'secret', score: 1000, attemptId: 'secreto-sin-isbet' }),
+        'attempts_exhausted',
+      );
+      const doblada = play(eloi, { challengeId: 'secret', score: 1000, isBet: true, attemptsUsed: 1 });
+      expect(doblada.bestScore).toBe(1000);
+    });
   });
 
   it('el reto secreto y CHAOS solo tienen un intento', () => {

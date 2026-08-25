@@ -86,6 +86,9 @@ export function validateScorePayload(body, serverDay) {
   // un numero absurdo, no una prediccion de cuantas versiones habra.
   const gameVersion = assertInteger(body.gameVersion ?? 1, 'gameVersion', { min: 1, max: 1000 });
   const isTest = body.isTest === true;
+  // DOBLE O NADA reenvia la marca ya apostada: no es un intento nuevo, es la
+  // ultima palabra sobre uno que ya se jugo. Ver replaceScoreForBet en db.mjs.
+  const isBet = body.isBet === true;
 
   let ghost = null;
   if (body.ghost != null) {
@@ -114,6 +117,7 @@ export function validateScorePayload(body, serverDay) {
     countsForRanking: body.countsForRanking !== false,
     gameVersion,
     isTest,
+    isBet,
     ghost,
   };
 }

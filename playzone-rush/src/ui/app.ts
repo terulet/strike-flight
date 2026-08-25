@@ -608,7 +608,16 @@ export class App {
     this.notify();
   }
 
-  /** Sube la marca ya apostada al grupo, para que el ranking la refleje. */
+  /**
+   * Sube la marca ya apostada al grupo, para que el ranking la refleje.
+   *
+   * isBet:true es lo que le dice al servidor "esto no es un intento nuevo,
+   * es la ultima palabra sobre uno que ya jugaste": sin esa marca, el reenvio
+   * se trataba como una tirada mas y el servidor lo rechazaba con
+   * attempts_exhausted en cuanto apostabas despues de gastar el ultimo
+   * intento -que es el caso mas habitual, porque apostar cierra el reto y
+   * desperdicia los que queden-. Ver server/src/api.mjs.
+   */
   private reenviarMarca(spec: ChallengeSpec, puntuacion: number): void {
     const progreso = this.save.get().days[this.dayKey]?.challenges[spec.id];
     this.sync.queueScore({
@@ -622,6 +631,7 @@ export class App {
       durationMs: 5000,
       attemptsUsed: progreso?.attemptsUsed ?? 1,
       countsForRanking: spec.countsForRanking,
+      isBet: true,
       ghost: null,
       queuedAt: Date.now(),
       tries: 0,
