@@ -1,0 +1,168 @@
+/**
+ * ARCADE SOCIAL SHOWTIME
+ *
+ * Sigue siendo la misma maquina de cristal oscuro con luz por dentro -eso no
+ * se toca, funcionaba-. Lo que cambia es que la maquina antes estaba apagada
+ * y ahora esta ENCENDIDA: el fondo respira en vez de quedarse quieto, los
+ * momentos importantes interrumpen en vez de aparecer educadamente, y hay una
+ * senal de color reservada para la tension -perder, arriesgar, que quede poco
+ * tiempo- que antes no existia como tal.
+ *
+ * La pregunta que filtra cada cambio de este bloque: ¿esto pone mas nervioso,
+ * mas orgulloso o mas dolido? Si la respuesta es que solo "queda mejor", no
+ * entra. Locura controlada y espectaculo legible, no casino ni ruido.
+ *
+ * REPARTO DEL COLOR (esto es lo que evita el ruido: cada tono tiene un trabajo
+ * y solo uno):
+ *
+ *   cian    -> energia, accion, "esto se puede pulsar". Es el color del RUSH.
+ *   violeta -> profundidad, superficie, lo que sostiene sin pedir atencion.
+ *              Tambien lo especial/secreto: lo raro y deseable vive aqui.
+ *   oro     -> el #1, la corona, la racha. Escaso a proposito: si el oro sale
+ *              en cinco sitios deja de significar primero.
+ *   magenta -> calor social. Rivalidad, adelantamientos, "te han quitado el
+ *              #1". Es la marca, y sigue siendo la marca, pero pasa a estar al
+ *              servicio del pique en vez de pintar la interfaz entera.
+ *   coral   -> riesgo y tension. NUEVO: antes "casi" y "me la juego" no tenian
+ *              color propio y se apoyaban en el rojo de perder o en el oro del
+ *              #1, que ya tenian trabajo. Cuenta atras apretando, DOBLE O
+ *              NADA, CHAOS subiendo de intensidad: todo eso es coral.
+ *   lima    -> acento agudo, en gotas. Records personales, mutadores buff.
+ *   rojo    -> perdida. Nunca decorativo.
+ *
+ * Lo que NO se hace: saturar todo, poner degradados de casino, o usar el mismo
+ * acento para pulsar y para ganar. Si todo brilla, nada brilla.
+ */
+:root {
+  /* ---------- Suelo ---------- */
+  /* Grafito azulado, no negro neutro: el azul da sensacion de pantalla
+     encendida y hace que el cian y el violeta se sienten encima sin chillar. */
+  --bg: #05060e;
+  --bg-2: #080a15;
+
+  /* ---------- Capas ---------- */
+  /* Tres alturas y no mas. Con mas de tres alturas nadie sabe que esta encima
+     de que, y la profundidad se convierte en barro. */
+  --capa-1: rgba(255, 255, 255, 0.032);
+  --capa-2: rgba(255, 255, 255, 0.055);
+  --capa-3: rgba(255, 255, 255, 0.085);
+  --surface: #10121e;
+  --surface-2: #171a29;
+  --surface-3: #212536;
+
+  --line: rgba(255, 255, 255, 0.075);
+  --line-strong: rgba(255, 255, 255, 0.15);
+
+  --text: #f2f4fc;
+  --text-dim: #9aa0c0;
+  --text-faint: #61668a;
+
+  /* ---------- El reparto ---------- */
+  --cian: #22d3ee;
+  --cian-hondo: #0891b2;
+  --violeta: #8b5cf6;
+  --violeta-hondo: #6d28d9;
+  --oro: #ffd23f;
+  --magenta: #ff2f6d;
+  --lima: #d7ff3e;
+  --rojo: #ff4d6d;
+  --coral: #ff6a3d;
+  --coral-hondo: #c2340f;
+
+  /* Alias heredados: hay codigo y juegos que ya piden estos nombres, y
+     renombrarlos a mano en 2.700 lineas de CSS solo aportaria riesgo. */
+  --brand: var(--magenta);
+  --brand-soft: rgba(255, 47, 109, 0.16);
+  --gold: var(--oro);
+  --good: #5eead4;
+  --bad: var(--rojo);
+  --cyan: var(--cian);
+  --violet: var(--violeta);
+  --lime: var(--lima);
+
+  /* Capa semantica: el nombre dice el ESTADO EMOCIONAL, no el tono. Nuevo
+     codigo deberia pedir "el color del riesgo", no acordarse de que el
+     riesgo es coral -eso es justo lo que se olvida y acaba en rojo de perder
+     puesto donde no toca-. */
+  --emocion-accion: var(--cian);
+  --emocion-rival: var(--magenta);
+  --emocion-riesgo: var(--coral);
+  --emocion-exito: var(--oro);
+  --emocion-casi: var(--oro);
+  --emocion-secreto: var(--violeta);
+  --emocion-perdida: var(--rojo);
+
+  /* Versiones apagadas, para fondos y bordes teñidos sin repetir rgba() por
+     todo el proyecto. */
+  --cian-suave: rgba(34, 211, 238, 0.14);
+  --violeta-suave: rgba(139, 92, 246, 0.16);
+  --oro-suave: rgba(255, 210, 63, 0.14);
+  --magenta-suave: rgba(255, 47, 109, 0.15);
+  --coral-suave: rgba(255, 106, 61, 0.16);
+
+  /* ---------- Material ---------- */
+  --radius-xl: 26px;
+  --radius-lg: 22px;
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.6);
+  /* Luz en el borde de arriba. Es lo que separa una caja oscura de una
+     superficie con volumen: sin esto todo se ve plano por muy buenos que sean
+     los colores. */
+  --luz-borde: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --luz-borde-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --luz-marca: 0 0 40px rgba(255, 47, 109, 0.28);
+  /* Desenfoque de cristal. Una sola variable para poder bajarlo de golpe si
+     algun dispositivo sufre. */
+  --vidrio: blur(18px) saturate(130%);
+
+  /* ---------- Tipografia ---------- */
+  /* Archivo variable, auto-alojada: es una PWA que tiene que abrir sin
+     cobertura, asi que una fuente enlazada de fuera la dejaria coja. 88 KB
+     para los pesos 100-900 y los ejes de anchura. La pila de reserva es la
+     del sistema, por si el fichero no llega: el juego se lee igual. */
+  --font: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* Escala. Solo seis tamanos: cada uno tiene un trabajo y repetirlos es lo
+     que hace que la pantalla se lea de un vistazo. */
+  --t-heroe: 40px;   /* la marca del resultado, el titulo del dia */
+  --t-titulo: 26px;  /* nombre del reto */
+  --t-grande: 19px;  /* cifras dentro de tarjetas */
+  --t-cuerpo: 14.5px;
+  --t-menu: 12px;    /* etiquetas de boton */
+  --t-micro: 9.5px;  /* rotulos con mucho tracking */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --shell-max: 460px;
+
+  /* ---------- Motion ---------- */
+  /* Regla: la interfaz nunca espera a la animacion. Nada de lo que se pueda
+     pulsar tarda mas de 240 ms en estar disponible, y las entradas completas
+     se acaban antes de medio segundo. La elasticidad se reserva para lo que es
+     recompensa; usarla en todo hace que la interfaz parezca de goma. */
+  --dur-tap: 90ms;
+  --dur-fast: 150ms;
+  --dur: 240ms;
+  --dur-lento: 420ms;
+  /* Golpe seco: el numero que salta al marcar, el escudo al esquivar. Mas
+     corto que --dur-fast a proposito -un golpe que se demora deja de sentirse
+     como golpe-. */
+  --dur-impacto: 130ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-entrada: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-elastico: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --escalon: 45ms; /* retardo entre hermanos en una entrada escalonada */
+
+  /* Latido de tension: el bucle detras de una cuenta atras apretando o un
+     riesgo activo. Un solo ritmo para toda la app -que dos elementos "en
+     tension" a la vez lo hagan en el mismo compas ayuda a que se lea como un
+     estado, no como decoracion suelta-. */
+  --dur-latido: 900ms;
+}

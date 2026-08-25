@@ -1,0 +1,419 @@
+/**
+ * Dashboard de la alfa. SOLO LECTURA.
+ *
+ * Deliberadamente separado de ui/debug.ts: aquel puede mover el dia, forzar
+ * mutadores y lanzar partidas falsas, y por eso no puede ser el sitio donde
+ * se miran los resultados de la semana (quien mira los datos no debe poder
+ * ensuciarlos sin darse cuenta). Este modulo solo pide GET /api/dashboard y
+ * pinta numeros: no hay ni un boton que escriba nada.
+ *
+ * Se abre con ?dashboard y se carga bajo demanda, asi que no pesa en el
+ * arranque normal del juego.
+ */
+import { el, clear } from './dom';
+
+interface Window {
+  eligible: number;
+  returned: number;
+  rate: number | null;
+}
+
+type Confianza = 'sinDatos' | 'muyBaja' | 'preliminar' | 'util' | 'alta';
+
+interface GameMetric {
+  gameId: string;
+  starts: number;
+  finishes: number;
+  abandons: number;
+  abandonRate: number | null;
+  revengeAvailable: number;
+  revengeClicked: number;
+  revengeRate: number | null;
+  shareCompleted: number;
+  shareRate: number | null;
+  dailyRows: number;
+  exhausted: number;
+  exhaustedRate: number | null;
+  completionRate: number | null;
+  scoreImproved: number;
+  masteryRate: number | null;
+  oneMoreOpportunities: number;
+  oneMoreCount: number;
+  oneMoreRate: number | null;
+  medianReplayMs: number | null;
+  sessionContinuationRate: number | null;
+  closeLossAvailable: number;
+  closeLossClicked: number;
+  closeLossReplayRate: number | null;
+  firstPicks: number;
+  firstPickShare: number | null;
+  framesSampled: number;
+  longFrameRate50: number | null;
+  longFrameRate100: number | null;
+  worstFrameMs: number | null;
+  confidence: Confianza;
+  insufficient: boolean;
+  composite: number | null;
+}
+
+interface DashboardData {
+  buildId: string;
+  metrics: {
+    generatedFor: string;
+    players: number;
+    days: number;
+    retention: { d1: Window; d3: Window; d7: Window };
+    revenge: {
+      available: number;
+      clicked: number;
+      rate: number | null;
+      timesOvertaken: number;
+      byLoss: { id: string; available: number; clicked: number; rate: number | null }[];
+    };
+    attempts: {
+      retosJugados: number;
+      one: number;
+      two: number;
+      three: number;
+      exhaustedRate: number | null;
+      average: number | null;
+    };
+    dailyCompletion: {
+      activeDays: number;
+      startedDays: number;
+      completedDays: number;
+      startRate: number | null;
+      completionRate: number | null;
+    };
+    organicReopen: {
+      closedSessions: number;
+      reopened: number;
+      organic: number;
+      reopenRate: number | null;
+      organicReopenRate: number | null;
+      medianGapMs: number | null;
+    };
+    activity: {
+      activePlayersByDay: { day: string; players: number }[];
+      eventCounts: Record<string, number>;
+    };
+    perGame: {
+      minSample: number;
+      closeMarginPct: number;
+      games: GameMetric[];
+    };
+  };
+  errors: {
+    last24h: number;
+    last7d: number;
+    recent: { ts: number; source: string; message: string; url: string | null }[];
+  };
+}
+
+function pct(value: number | null): string {
+  return value === null ? '—' : `${Math.round(value * 100)}%`;
+}
+
+/**
+ * Agrupado con puntos ("1.234"), a mano: toLocaleString('es-ES') no siempre
+ * agrupa segun la ICU del entorno -paso de verdad en este mismo proyecto- y
+ * un panel de metricas es el peor sitio para que un numero mienta.
+ */
+function agrupado(value: number): string {
+  const digits = Math.round(Math.abs(value)).toString();
+  let out = '';
+  for (let i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 === 0) out += '.';
+    out += digits[i];
+  }
+  return value < 0 ? `-${out}` : out;
+}
+
+function num(value: number | null, digits = 1): string {
+  return value === null ? '—' : value.toFixed(digits);
+}
+
+function minutes(ms: number | null): string {
+  if (ms === null) return '—';
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `${mins} min`;
+  return `${(mins / 60).toFixed(1)} h`;
+}
+
+/** Para tiempos de repetir: 900 ms y 8 s importan aqui, minutes() los redondeaba a "0 min". */
+function segundos(ms: number | null): string {
+  if (ms === null) return '—';
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return minutes(ms);
+}
+
+const CONFIANZA_LABEL: Record<Confianza, string> = {
+  sinDatos: 'SIN DATOS',
+  muyBaja: 'MUESTRA MUY BAJA',
+  preliminar: 'SENAL PRELIMINAR',
+  util: 'SENAL UTIL',
+  alta: 'ALTA CONFIANZA',
+};
+
+/** PULSE -> "pulse". Los nombres de juego en este proyecto son su id en mayusculas. */
+function nombreJuego(gameId: string): string {
+  return gameId.toUpperCase();
+}
+
+/**
+ * Las seis senales que alimentan el compuesto, siempre visibles bajo la
+ * barra: si el compuesto y estos numeros no cuentan la misma historia, se
+ * cree a los numeros.
+ */
+function detalleJuego(g: GameMetric): string {
+  const partes = [
+    `one more ${pct(g.oneMoreRate)}`,
+    `revancha ${pct(g.revengeRate)}`,
+    `comparte ${pct(g.shareRate)}`,
+    `agota 3/3 ${pct(g.exhaustedRate)}`,
+    `completa ${pct(g.completionRate)}`,
+    `mejora ${pct(g.masteryRate)}`,
+  ];
+  return `${partes.join(' · ')} · n=${g.finishes}`;
+}
+
+/** Las que se ensenan pero no entran en el compuesto: mas especificas, igual de utiles a ojo. */
+function detalleExtra(g: GameMetric, closeMarginPct: number): string {
+  const partes = [
+    `sigue jugando ${pct(g.sessionContinuationRate)}`,
+    `abandona ${pct(g.abandonRate)}`,
+    `reintento en ${segundos(g.medianReplayMs)}`,
+    `pierde por <${closeMarginPct}% -> revancha ${pct(g.closeLossReplayRate)}`,
+    `elegido 1º ${pct(g.firstPickShare)}`,
+  ];
+  return partes.join(' · ');
+}
+
+/**
+ * Diagnostico de rendimiento, no de enganche: se lee AL LADO del resto, no
+ * mezclado. "poco fun + rendimiento malo" y "poco fun + rendimiento
+ * perfecto" piden arreglos distintos, y esta linea es la que permite
+ * distinguirlos de un vistazo.
+ */
+function detallePerf(g: GameMetric): string {
+  if (g.framesSampled === 0) return 'rendimiento: sin datos todavia';
+  const partes = [
+    `>50ms ${pct(g.longFrameRate50)}`,
+    `>100ms ${pct(g.longFrameRate100)}`,
+    `peor fotograma ${g.worstFrameMs ?? '—'} ms`,
+  ];
+  return `rendimiento: ${partes.join(' · ')} · ${agrupado(g.framesSampled)} fotogramas medidos`;
+}
+
+/** Umbral para pintar la linea de rendimiento en aviso: no es un limite tecnico, es "esto merece mirarse". */
+function rendimientoPreocupante(g: GameMetric): boolean {
+  return (g.longFrameRate50 !== null && g.longFrameRate50 > 0.05) || (g.worstFrameMs !== null && g.worstFrameMs > 500);
+}
+
+function gameRow(g: GameMetric, esTop: boolean, closeMarginPct: number): HTMLElement {
+  const valor = g.composite === null ? '—' : `${g.composite}`;
+  return el('div', { class: `dash-game${esTop ? ' dash-game--top' : ''}` }, [
+    el('div', { class: 'dash-game__head' }, [
+      el('span', { text: nombreJuego(g.gameId) }),
+      el('div', { class: 'dash-game__head-right' }, [
+        el('span', {
+          class: `dash-game__confianza dash-game__confianza--${g.confidence}`,
+          text: CONFIANZA_LABEL[g.confidence],
+        }),
+        el('span', { class: 'dash-game__value num', text: valor }),
+      ]),
+    ]),
+    el('div', { class: 'dash-game__bar' }, [
+      el('div', {
+        class: `dash-game__fill${g.composite === null ? ' dash-game__fill--pendiente' : ''}`,
+        style: { width: `${g.composite ?? 100}%` },
+      }),
+    ]),
+    el('div', { class: 'dash-game__detail', text: detalleJuego(g) }),
+    el('div', { class: 'dash-game__detail dash-game__detail--extra', text: detalleExtra(g, closeMarginPct) }),
+    el('div', {
+      class: `dash-game__detail dash-game__detail--perf${rendimientoPreocupante(g) ? ' dash-game__detail--perf-mala' : ''}`,
+      text: detallePerf(g),
+    }),
+  ]);
+}
+
+/** Una metrica grande, con su denominador al lado: un 100% de 1 no es un 100%. */
+function metric(label: string, value: string, detail: string, tone = ''): HTMLElement {
+  return el('div', { class: `dash-metric${tone ? ` dash-metric--${tone}` : ''}` }, [
+    el('div', { class: 'dash-metric__label', text: label }),
+    el('div', { class: 'dash-metric__value num', text: value }),
+    el('div', { class: 'dash-metric__detail', text: detail }),
+  ]);
+}
+
+function section(title: string, note?: string): HTMLElement {
+  return el('div', { class: 'dash-section' }, [
+    el('span', { text: title }),
+    note ? el('small', { text: note }) : null,
+  ]);
+}
+
+function render(root: HTMLElement, data: DashboardData): void {
+  const m = data.metrics;
+  clear(root);
+
+  const page = el('div', { class: 'dash' }, [
+    el('div', { class: 'dash__head' }, [
+      el('div', {}, [
+        el('div', { class: 'dash__title', text: 'ALFA · DATOS' }),
+        el('div', {
+          class: 'dash__sub',
+          text: `${m.players} jugadores · ${m.days} dias con actividad · build ${data.buildId}`,
+        }),
+      ]),
+      el('div', { class: 'dash__readonly', text: 'SOLO LECTURA' }),
+    ]),
+
+    section('RETENCION', 'volver al dia siguiente exacto'),
+    el('div', { class: 'dash-grid' }, [
+      metric('D1', pct(m.retention.d1.rate), `${m.retention.d1.returned}/${m.retention.d1.eligible}`, 'brand'),
+      metric('D3', pct(m.retention.d3.rate), `${m.retention.d3.returned}/${m.retention.d3.eligible}`),
+      metric('D7', pct(m.retention.d7.rate), `${m.retention.d7.returned}/${m.retention.d7.eligible}`),
+    ]),
+
+    section('REVENGE RATE', 'el KPI estrella'),
+    el('div', { class: 'dash-grid' }, [
+      metric('REVANCHA', pct(m.revenge.rate), `${m.revenge.clicked}/${m.revenge.available} ofrecidas`, 'gold'),
+      metric('ADELANTADO', String(m.revenge.timesOvertaken), 'veces que le han pasado'),
+    ]),
+    el(
+      'div',
+      { class: 'dash-bars' },
+      m.revenge.byLoss.map((bucket) =>
+        el('div', { class: 'dash-bar' }, [
+          el('div', { class: 'dash-bar__label', text: `POR ${bucket.id}` }),
+          el('div', { class: 'dash-bar__track' }, [
+            el('div', {
+              class: 'dash-bar__fill',
+              style: { width: `${Math.round((bucket.rate ?? 0) * 100)}%` },
+            }),
+          ]),
+          el('div', { class: 'dash-bar__value num', text: `${pct(bucket.rate)} · ${bucket.available}` }),
+        ]),
+      ),
+    ),
+
+    section('ORGANIC REOPEN', 'volver despues de terminar, con el ranking movido'),
+    el('div', { class: 'dash-grid' }, [
+      metric(
+        'ORGANICA',
+        pct(m.organicReopen.organicReopenRate),
+        `${m.organicReopen.organic}/${m.organicReopen.closedSessions} sesiones`,
+        'brand',
+      ),
+      metric(
+        'VUELVE',
+        pct(m.organicReopen.reopenRate),
+        `${m.organicReopen.reopened} reaperturas`,
+      ),
+      metric('TARDA', minutes(m.organicReopen.medianGapMs), 'mediana en volver'),
+    ]),
+
+    section('INTENTOS', '1/3 frente a 3/3'),
+    el('div', { class: 'dash-grid' }, [
+      metric('AGOTA 3/3', pct(m.attempts.exhaustedRate), `${m.attempts.three} de ${m.attempts.retosJugados}`),
+      metric('SE QUEDA EN 1', pct(m.attempts.retosJugados > 0 ? m.attempts.one / m.attempts.retosJugados : null), `${m.attempts.one} retos`),
+      metric('MEDIA', num(m.attempts.average, 2), 'intentos por reto'),
+    ]),
+
+    section('RETO DIARIO'),
+    el('div', { class: 'dash-grid' }, [
+      metric(
+        'COMPLETA',
+        pct(m.dailyCompletion.completionRate),
+        `${m.dailyCompletion.completedDays}/${m.dailyCompletion.activeDays} dias-jugador`,
+      ),
+      metric(
+        'EMPIEZA',
+        pct(m.dailyCompletion.startRate),
+        `${m.dailyCompletion.startedDays} de los que abren`,
+      ),
+    ]),
+
+    section(
+      'POR JUEGO',
+      `indice de enganche, ORDENA pero no concluye · con menos de ${m.perGame.minSample} partidas terminadas no hay ni indice`,
+    ),
+    el(
+      'div',
+      { class: 'dash-games' },
+      m.perGame.games.length === 0
+        ? [el('div', { class: 'dash-empty', text: 'Todavia no se ha jugado nada.' })]
+        : // El "mejor" solo se marca con senal PRELIMINAR (25+) para arriba: con
+          // MUY BAJA (8-24) hay compuesto, pero no basta para senalar un ganador
+          // -ocho partidas no son un veredicto, por muy #1 que parezca-.
+          m.perGame.games.map((g, i) => gameRow(g, i === 0 && (g.confidence === 'preliminar' || g.confidence === 'util' || g.confidence === 'alta'), m.perGame.closeMarginPct)),
+    ),
+
+    section('ACTIVIDAD POR DIA'),
+    el(
+      'div',
+      { class: 'dash-days' },
+      m.activity.activePlayersByDay.map((row) =>
+        el('div', { class: 'dash-day' }, [
+          el('span', { text: row.day }),
+          el('span', { class: 'num', text: `${row.players} jugador${row.players === 1 ? '' : 'es'}` }),
+        ]),
+      ),
+    ),
+
+    section('ERRORES', `${data.errors.last24h} en 24 h · ${data.errors.last7d} en 7 dias`),
+    data.errors.recent.length === 0
+      ? el('div', { class: 'dash-empty', text: 'Ninguno. Bien.' })
+      : el(
+          'div',
+          { class: 'dash-errors' },
+          data.errors.recent.slice(0, 12).map((row) =>
+            el('div', { class: `dash-error dash-error--${row.source}` }, [
+              el('span', { class: 'dash-error__source', text: row.source }),
+              el('span', { class: 'dash-error__msg', text: row.message }),
+            ]),
+          ),
+        ),
+
+    el('div', { class: 'dash-foot' }, [
+      el('span', { text: `Dia competitivo: ${m.generatedFor}` }),
+      el('span', { text: 'Este panel no puede modificar resultados.' }),
+    ]),
+  ]);
+
+  root.appendChild(page);
+}
+
+/**
+ * Monta el dashboard sobre todo lo demas. Necesita el token de sesion: sin
+ * grupo no hay datos que agregar.
+ */
+export async function mountDashboard(root: HTMLElement, token: string | null): Promise<void> {
+  clear(root);
+  root.appendChild(el('div', { class: 'dash-empty', text: 'CARGANDO DATOS…' }));
+
+  if (!token) {
+    clear(root);
+    root.appendChild(
+      el('div', { class: 'dash-empty', text: 'Sin grupo: no hay datos agregados que ensenar.' }),
+    );
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/dashboard', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`El servidor ha respondido ${response.status}`);
+    render(root, (await response.json()) as DashboardData);
+  } catch (error) {
+    clear(root);
+    root.appendChild(
+      el('div', { class: 'dash-empty', text: `No se han podido cargar los datos: ${String(error)}` }),
+    );
+  }
+}

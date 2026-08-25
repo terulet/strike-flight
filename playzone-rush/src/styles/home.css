@@ -1,0 +1,1156 @@
+/* ---------- Portada ---------- */
+.hero {
+  margin-bottom: 14px;
+}
+
+.hero__title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.hero__title em {
+  font-style: normal;
+  color: var(--brand);
+}
+
+/* Los avisos sociales van sueltos sobre el fondo. Antes iban dentro de una
+   caja con su propio borde y salia caja-dentro-de-caja: dos marcos para el
+   mismo contenido, y encima empujaban los retos por debajo del pliegue. Los
+   retos son el motivo de abrir la app; el estado social los acompana. */
+.social {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 12px 0 4px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 2px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+/* ---------- Tarjeta de reto ---------- */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 13px 14px 13px 17px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--accent, var(--brand));
+  box-shadow: 0 0 18px var(--accent, var(--brand));
+}
+
+.card--done {
+  opacity: 0.82;
+}
+
+/* Presupuesto de movimiento: solo LA SIGUIENTE tarjeta respira (la que se
+   jugaria a continuacion), no todas las abiertas a la vez. Con 3 retos +
+   secreto + CHAOS abiertos a la vez, cinco franjas latiendo juntas no
+   guian a ninguna -se anulan entre si-. Las demas se quedan a opacidad
+   plena y quieta: siguen leyendose como "abierta" frente al 0.82 de
+   card--done, solo que sin pulso propio. */
+.card--next:not(.card--done)::before {
+  animation: respira-acento var(--dur-latido) ease-in-out infinite;
+}
+
+/* CHAOS no respira al mismo compas que el resto: mas rapido y con mas
+   diferencia entre pico y valle, porque es el unico reto del dia que dice
+   "solo hay una oportunidad" -reutiliza la animacion, solo cambia el ritmo.
+   Solo aplica si ademas le toca ser la siguiente tarjeta (ver arriba). */
+.card--chaos.card--next:not(.card--done)::before {
+  animation-duration: 480ms;
+}
+
+@keyframes respira-acento {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card--next:not(.card--done)::before {
+    animation: none;
+  }
+}
+
+.card--locked {
+  border-style: dashed;
+  background: rgba(18, 18, 29, 0.6);
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.card__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  /* Safari < 16.2 no entiende color-mix: se queda con estos dos. */
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: color-mix(in srgb, var(--accent, var(--brand)) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent, var(--brand)) 40%, transparent);
+  color: var(--accent, var(--brand));
+  box-shadow: var(--luz-borde);
+}
+
+/* La marca se pinta con el acento del juego porque hereda `currentColor` de
+   aqui: un solo dibujo, ocho colores. El brillo la despega del fondo. */
+.card__icon svg {
+  display: block;
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent, var(--brand)) 55%, transparent));
+}
+
+.card__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.card__kicker {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
+.card__name {
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.card__name small {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.card__timer {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.card__tagline {
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+.mutators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.mut {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid;
+}
+
+.mut--debuff {
+  color: #ffb4c4;
+  border-color: rgba(255, 77, 109, 0.35);
+  background: rgba(255, 77, 109, 0.1);
+}
+
+.mut--buff {
+  color: var(--good);
+  border-color: rgba(124, 243, 192, 0.35);
+  background: rgba(124, 243, 192, 0.1);
+}
+
+.mut--chaos {
+  color: #e9d5ff;
+  border-color: rgba(167, 139, 250, 0.45);
+  background: rgba(167, 139, 250, 0.14);
+}
+
+.card__foot {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attempts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 74px;
+}
+
+.attempts__label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.attempts__dots {
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--brand);
+}
+
+.attempts__dots.is-empty {
+  color: var(--text-faint);
+}
+
+.card__best {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.card__best-label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.card__best-value {
+  font-size: 16px;
+  font-weight: 900;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+/* El nombre del rival acompana a la cifra, no compite con ella: mas fino,
+   mas apagado y con aire por delante. */
+.card__best-who {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 13px;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn--play {
+  background: linear-gradient(135deg, var(--brand), #ff6a4d);
+  border-color: transparent;
+  color: #1a0410;
+  box-shadow: 0 8px 22px rgba(255, 47, 109, 0.3);
+}
+
+.btn--accent {
+  background: var(--accent, var(--brand));
+  background: color-mix(in srgb, var(--accent, var(--brand)) 88%, black);
+  color: #080810;
+  border-color: transparent;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent, var(--brand)) 35%, transparent);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--text-dim);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--lg {
+  min-height: 54px;
+  font-size: 16px;
+}
+
+.btn:disabled {
+  filter: grayscale(0.8);
+  opacity: 0.5;
+}
+
+.card__locked-note {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.progress-pips {
+  display: flex;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.pip {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.pip.is-on {
+  background: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 210, 63, 0.5);
+}
+
+/* ---------- Clasificacion ---------- */
+.board {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row--me {
+  background: linear-gradient(90deg, rgba(255, 47, 109, 0.16), transparent);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.row__pos {
+  width: 20px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text-faint);
+}
+
+.row--me .row__pos {
+  color: var(--brand);
+}
+
+.row__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.row__name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.row__name .tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 4px;
+}
+
+.row__score {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.row__gap {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-faint);
+  min-width: 46px;
+  text-align: right;
+}
+
+.footer-note {
+  margin: 14px 2px calc(6px + var(--safe-bottom));
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ---------- Marcas personales ---------- */
+.records {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.record {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 9px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.record__value {
+  font-size: 15px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.record__label {
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ---------- Aviso de version nueva ---------- */
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 11px 11px 11px 15px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: linear-gradient(120deg, rgba(34, 211, 238, 0.16), var(--surface));
+  animation: overtake-in 320ms var(--ease-out);
+}
+
+.update-banner__text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.update-banner__btn {
+  --accent: var(--cyan);
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Marca de quien gasto su ficha de DOBLE O NADA. */
+.row__name .tag--doblo {
+  color: var(--gold);
+  border-color: rgba(255, 210, 63, 0.5);
+  background: rgba(255, 210, 63, 0.12);
+}
+
+.row__name .tag--cayo {
+  color: var(--bad);
+  border-color: rgba(255, 77, 109, 0.45);
+  background: rgba(255, 77, 109, 0.1);
+}
+
+/* ---------- Luz y volumen en las superficies ---------- */
+.card,
+.board,
+.record,
+.group {
+  /* Un filo de luz arriba: es lo que separa una caja oscura de una superficie
+     con volumen. Cuesta una linea y cambia la percepcion de todo. */
+  box-shadow: var(--shadow-card), var(--luz-borde);
+}
+
+.card {
+  background: linear-gradient(168deg, #16161f 0%, var(--surface) 58%);
+}
+
+/* El titular de la portada, con la misma materia que la marca del resultado. */
+.hero__title {
+  background: linear-gradient(178deg, #ffffff 0%, #b9bdd4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-stretch: 78%;
+  letter-spacing: -0.045em;
+  /* Con la letra tan cerrada el espacio de la fuente se queda en 3 px y se lee
+     "RUSHDEHOY". Se compensa aqui: las letras van juntas, las palabras no. */
+  word-spacing: 0.16em;
+}
+
+.hero__title em {
+  /* El acento si es color solido, y ademas emite: contrasta con el titulo
+     metalico y hace de foco. */
+  -webkit-text-fill-color: var(--brand);
+  filter: drop-shadow(0 0 22px rgba(255, 47, 109, 0.55));
+}
+
+/* La fila propia del ranking, iluminada de verdad. */
+.row--me {
+  background: linear-gradient(90deg, rgba(255, 47, 109, 0.2), rgba(255, 47, 109, 0.02) 62%, transparent);
+  box-shadow: inset 3px 0 0 var(--brand), inset 0 0 30px rgba(255, 47, 109, 0.07);
+}
+
+/* La entrada de la portada, escalonada igual que el resultado. */
+.scroller > * {
+  animation: sube 380ms var(--ease-out) both;
+}
+
+.scroller > *:nth-child(1) { animation-delay: 10ms; }
+.scroller > *:nth-child(2) { animation-delay: 55ms; }
+.scroller > *:nth-child(3) { animation-delay: 95ms; }
+.scroller > *:nth-child(4) { animation-delay: 130ms; }
+.scroller > *:nth-child(n + 5) { animation-delay: 160ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scroller > * {
+    animation: none;
+  }
+}
+
+/* ==================================================================== */
+/* PORTADA REDISENADA — bloque de evento, ranking vivo, tarjetas         */
+/* ==================================================================== */
+
+/* ---------- El bloque de evento ---------- */
+
+.heroe__fila {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+/**
+ * El marcador: puesto grande a la izquierda, distancia accionable a la derecha.
+ * Es la unica parte de la portada que responde a "por que abro esto ahora".
+ */
+.heroe__marcador {
+  margin-top: 13px;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.heroe__puesto {
+  flex: none;
+  min-width: 78px;
+  padding: 9px 13px 10px;
+  border-radius: var(--radius);
+  background: var(--capa-2);
+  border: 1px solid rgba(34, 211, 238, 0.26);
+  box-shadow: var(--luz-borde), 0 0 26px rgba(34, 211, 238, 0.1);
+  text-align: center;
+}
+
+.heroe__puesto--oro {
+  position: relative;
+  border-color: rgba(255, 210, 63, 0.42);
+  box-shadow: var(--luz-borde-fuerte), 0 0 30px rgba(255, 210, 63, 0.2);
+}
+
+/* El oro respira detras de la caja: un halo aparte que sube y baja de
+   opacidad. Nunca el fondo o el borde de la caja en si -esos se quedan
+   quietos para que la cifra se lea siempre igual de nitida, gane quien gane. */
+.heroe__puesto--oro::after,
+.heroe__estado--oro::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 24px rgba(255, 210, 63, 0.45);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Presupuesto de movimiento: el puesto (#1 en oro) es el hero de esta
+   tarjeta y es el unico que late. El chip de estado, aunque tambien se
+   tine de oro cuando vas primero y con ventaja, se queda quieto -son la
+   misma noticia dicha dos veces, y con las dos latiendo compiten entre
+   si en vez de reforzarse. */
+.heroe__puesto--oro::after {
+  animation: late-brillo var(--dur-latido) ease-in-out infinite;
+}
+
+.heroe__estado--oro::after {
+  opacity: 0.6;
+}
+
+/* Solo pulsa opacity: el color de cada halo lo pone el box-shadow del
+   elemento que lo usa (oro, magenta...), asi que un unico ritmo compartido
+   sirve para cualquier "esto esta vivo y brillando", no solo para el oro. */
+@keyframes late-brillo {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroe__puesto--oro::after,
+  .heroe__estado--oro::after {
+    animation: none;
+  }
+}
+
+.heroe__puesto-cifra {
+  margin-top: 1px;
+  font-size: 28px;
+  font-weight: 900;
+  font-stretch: 82%;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--cian);
+}
+
+.heroe__puesto--oro .heroe__puesto-cifra {
+  color: var(--oro);
+}
+
+.heroe__estado {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+}
+
+.heroe__estado-cifra {
+  font-size: 21px;
+  font-weight: 900;
+  font-stretch: 86%;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.heroe__estado--oro .heroe__estado-cifra {
+  color: var(--oro);
+}
+
+/* Cuando toca perseguir a alguien, el aviso se tine de coral: la misma logica
+   de riesgo/tension que el resto del sistema, aplicada al unico sitio de la
+   portada que dice "todavia no vas primero". La cifra late un poco -es el
+   numero que mas te interesa mirar en toda la pantalla-. */
+.heroe__estado--riesgo {
+  background: color-mix(in srgb, var(--coral) 10%, var(--capa-1));
+  border-color: color-mix(in srgb, var(--coral) 36%, transparent);
+  box-shadow: var(--luz-borde), 0 0 20px color-mix(in srgb, var(--coral) 18%, transparent);
+}
+
+.heroe__estado--riesgo .heroe__estado-cifra {
+  color: var(--coral);
+  animation: cifra-riesgo var(--dur-latido) ease-in-out infinite;
+}
+
+/* Presupuesto de movimiento: si el aviso de adelantamiento esta en pantalla
+   -su propio boton ya late-, esta cifra dice exactamente la misma noticia
+   (te han pasado, por esta distancia) y se queda quieta para no competir
+   con el. */
+.heroe__estado--riesgo.heroe__estado--quieto .heroe__estado-cifra {
+  animation: none;
+}
+
+@keyframes cifra-riesgo {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.68;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroe__estado--riesgo .heroe__estado-cifra {
+    animation: none;
+  }
+}
+
+.heroe__estado-texto {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  color: var(--text-dim);
+}
+
+/* ---------- El aviso de adelantamiento ---------- */
+
+.overtake__cabeza {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.overtake__icono {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--magenta-suave);
+  border: 1px solid rgba(255, 47, 109, 0.36);
+  font-size: 20px;
+}
+
+/* La etiqueta de alarma: pequena y muy espaciada, como un rotulo de noticia
+   de ultima hora. Va encima del nombre, nunca al reves. */
+.overtake__kicker {
+  color: #ff89ab;
+}
+
+/* El rival es el protagonista del aviso: su nombre va tan grande como el
+   puesto en el marcador del hero, no metido en una frase corrida. */
+.overtake__quien {
+  margin-top: 1px;
+  font-size: 26px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #ff89ab;
+  text-shadow: 0 0 20px rgba(255, 47, 109, 0.4);
+}
+
+/* La distancia como cifra grande: el numero se queda, la frase no. */
+.overtake__cifra {
+  margin-top: 11px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.overtake__cifra-num {
+  font-size: 30px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--magenta);
+  filter: drop-shadow(0 0 18px rgba(255, 47, 109, 0.45));
+}
+
+/* ---------- Ranking ---------- */
+
+/* La fila propia se ilumina en cian: es TU color en todo el sistema, y asi el
+   oro se reserva entero para el primer puesto. */
+.row--me {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.15), rgba(34, 211, 238, 0.02) 60%, transparent);
+  box-shadow: inset 3px 0 0 var(--cian), inset 0 0 30px rgba(34, 211, 238, 0.06);
+}
+
+.row--me .row__score {
+  color: #b8f4ff;
+}
+
+/* ---------- Tarjetas de reto ---------- */
+
+/**
+ * La tarjeta tiene que parecer un evento y no un boton con texto. Lo que la
+ * convierte en evento es que emite el color de SU juego: la franja lateral, el
+ * icono y el boton salen todos del mismo acento, asi que tres tarjetas seguidas
+ * se leen como tres cosas distintas y no como una lista.
+ */
+.card {
+  position: relative;
+  isolation: isolate;
+}
+
+.card::after {
+  /* Un resplandor del color del juego en la esquina superior derecha, muy bajo.
+     Da la sensacion de que la tarjeta tiene luz propia por dentro. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    76% 60% at 100% 0%,
+    color-mix(in srgb, var(--accent, var(--cian)) 13%, transparent),
+    transparent 68%
+  );
+  pointer-events: none;
+}
+
+/* El boton de la tarjeta hereda el acento del juego, asi que JUGAR es del color
+   del reto que vas a jugar. */
+.card .btn--accent {
+  box-shadow:
+    var(--luz-borde-fuerte),
+    0 6px 22px color-mix(in srgb, var(--accent, var(--cian)) 30%, transparent);
+}
+
+/* ---------- Entrada ---------- */
+
+/* La portada se construye de arriba abajo. Se acaba en 420 ms y nada espera a
+   la animacion: los botones ya responden desde el primer fotograma. */
+.scroller > * {
+  animation: sube var(--dur-lento) var(--ease-entrada) both;
+}
+
+.scroller > *:nth-child(1) { animation-delay: 0ms; }
+.scroller > *:nth-child(2) { animation-delay: var(--escalon); }
+.scroller > *:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.scroller > *:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+.scroller > *:nth-child(n + 5) { animation-delay: calc(var(--escalon) * 4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .scroller > * {
+    animation: none;
+  }
+}
+
+/* ==================================================================== */
+/* INVITAR: el codigo del grupo como pieza                               */
+/* ==================================================================== */
+
+/**
+ * Este bloque solo tiene un trabajo: que alguien pase el codigo a otra persona.
+ * Antes era una linea de texto pequena junto a dos botones y se leia como un
+ * dato de configuracion. Ahora el codigo es lo mas grande del panel, con los
+ * caracteres separados uno a uno -que es como se dictan y como se leen desde
+ * el otro lado de una mesa- y las acciones debajo, sin competir con el.
+ */
+.invita {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 14px 14px;
+  text-align: center;
+}
+
+.invita__codigo {
+  display: flex;
+  gap: 7px;
+}
+
+.invita__letra {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  padding: 9px 4px 11px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.04));
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  box-shadow: var(--luz-borde-fuerte), 0 0 22px rgba(34, 211, 238, 0.12);
+  font-size: 27px;
+  font-weight: 900;
+  font-stretch: 86%;
+  line-height: 1;
+  color: #ccf7ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.invita__pista {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.invita__acciones {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+}
+
+.invita__acciones .group__mini {
+  flex: 1;
+}
+
+/* Cuando no hay marca que batir, el hueco lleva texto y no cifra: el
+   tratamiento de numero (muy cerrado, peso 900) hace ilegible una frase. */
+.card__best-value .num {
+  font-stretch: 88%;
+}
+
+/* ==================================================================== */
+/* PODIO                                                                 */
+/* ==================================================================== */
+
+/**
+ * Tres alturas de lectura: el #1 grande, el #2 y el #3 en una fila de dos, y
+ * del cuarto en adelante filas compactas.
+ *
+ * El podio entero mide unos 190 px. Con tres columnas al estilo de un podio de
+ * verdad ocuparia el doble y empujaria los retos por debajo del pliegue, y los
+ * retos son el motivo de abrir la app.
+ */
+.podio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- El #1 ---------- */
+
+.podio__hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(100deg, rgba(255, 210, 63, 0.17), rgba(255, 210, 63, 0.03) 58%, transparent),
+    var(--capa-2);
+  border: 1px solid rgba(255, 210, 63, 0.34);
+  box-shadow: var(--luz-borde-fuerte), 0 0 34px rgba(255, 210, 63, 0.12);
+}
+
+/* El mismo halo dorado que el resto del "vas primero", pero quieto: el
+   pulso de esa noticia ya lo lleva la tarjeta de arriba (heroe__puesto), que
+   esta siempre a la vista sin hacer scroll. Repetirlo aqui abajo, en cada
+   visita a la portada, es la clase de pulso permanente -no ligado a ningun
+   evento- que mas rapido se convierte en ruido de fondo. */
+.podio__hero::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 30px rgba(255, 210, 63, 0.4);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Si el #1 eres tu, ademas del oro entra tu cian: las dos cosas a la vez, que
+   es exactamente lo que esta pasando. */
+.podio__hero--yo {
+  box-shadow:
+    var(--luz-borde-fuerte),
+    inset 3px 0 0 var(--cian),
+    0 0 34px rgba(255, 210, 63, 0.16);
+}
+
+.podio__corona {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 210, 63, 0.14);
+  border: 1px solid rgba(255, 210, 63, 0.32);
+  font-size: 20px;
+}
+
+.podio__hero-datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.podio__hero-nombre {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 19px;
+  font-weight: 900;
+  font-stretch: 88%;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.podio__hero-nombre > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podio__hero-puntos {
+  flex: none;
+  font-size: 26px;
+  font-weight: 900;
+  font-stretch: 84%;
+  letter-spacing: -0.035em;
+  color: #ffe89a;
+}
+
+/* ---------- #2 y #3 ---------- */
+
+.podio__pareja {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.podio__mini {
+  padding: 10px 12px 11px;
+  border-radius: var(--radius);
+  background: var(--capa-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--luz-borde);
+  min-width: 0;
+}
+
+.podio__mini--yo {
+  background:
+    linear-gradient(100deg, rgba(34, 211, 238, 0.14), transparent 70%),
+    var(--capa-2);
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: var(--luz-borde), inset 3px 0 0 var(--cian);
+}
+
+.podio__mini-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.podio__mini-nombre {
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podio__mini-puntos {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: 900;
+  font-stretch: 86%;
+  letter-spacing: -0.03em;
+}
+
+.podio__mini-gap {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-faint);
+}
+
+/* ---------- Del cuarto en adelante ---------- */
+
+.board--resto {
+  margin-top: 2px;
+}
+
+/**
+ * Tu fila repetida al final cuando estas lejos.
+ *
+ * El separador de puntos dice que esto no es la continuacion de la lista sino
+ * un recordatorio: sin el, un #7 pegado detras de un #6 pareceria que la lista
+ * sigue y confundiria mas que ayudar.
+ */
+.board--yo-fijo {
+  margin-top: 4px;
+  border-top: 2px dotted var(--line-strong);
+  padding-top: 6px;
+}
+
+/**
+ * Las etiquetas de la fila no se parten nunca.
+ *
+ * Con nombres largos -ALEJANDRA, BARTOLOMEO- "HA JUGADO" se partia en dos
+ * lineas y esa fila crecia el doble que las demas, rompiendo el ritmo de la
+ * lista. Antes es el nombre el que cede: se recorta con puntos suspensivos,
+ * que se entiende, mientras que una etiqueta partida solo desordena.
+ */
+.row__name .tag {
+  white-space: nowrap;
+  flex: none;
+}
+
+.row__name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

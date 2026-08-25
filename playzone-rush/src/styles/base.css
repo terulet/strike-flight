@@ -1,0 +1,170 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* El fondo solido de siempre. La atmosfera de verdad vive en body::before,
+     debajo: esto es solo la red de seguridad para el primer fotograma (o
+     para un dispositivo que por lo que sea no llegue a pintar la capa de
+     abajo) y por eso es plano y barato a proposito. */
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  /* Nada de zoom accidental ni scroll de rebote mientras se juega. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/**
+ * LA ATMOSFERA RESPIRA.
+ *
+ * Antes eran tres auroras fijas: un fondo bien resuelto, pero un fondo al
+ * fin y al cabo -exactamente el "negro seco" del que se quejaba el pase de
+ * hype-. Siguen siendo las mismas tres auroras (mismo reparto de color: cian
+ * arriba, violeta a la izquierda, magenta al fondo) pero ahora es un
+ * ESCENARIO: deriva despacio, como si respirase, para que la sensacion sea
+ * "aqui esta pasando algo" incluso antes de tocar nada.
+ *
+ * Por que una capa aparte y no animar el fondo de body directamente: animar
+ * `background-position`/`background-size` fuerza repintado en cada
+ * fotograma. Aqui solo se anima `transform` (compuesto por la GPU, gratis
+ * para el hilo principal), asi que respirar de fondo no le quita ni un
+ * fotograma al juego -verificado con el trazador de Chrome, ver el informe
+ * de esta pasada-. `z-index:-1` la deja detras de #app sin depender de que
+ * nada de mas arriba tenga su propio z-index.
+ *
+ * inset con margen negativo: la deriva mueve la capa unos puntos porcentuales
+ * y sin ese margen se veria un borde recortado en las esquinas al moverse.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 36% at 50% 6%, rgba(34, 211, 238, 0.19), transparent 68%),
+    radial-gradient(42% 34% at 8% 24%, rgba(139, 92, 246, 0.18), transparent 66%),
+    radial-gradient(44% 32% at 93% 96%, rgba(255, 47, 109, 0.15), transparent 66%);
+  animation: atmosfera-respira 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes atmosfera-respira {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(1.4%, -1.8%, 0) scale(1.035);
+  }
+  66% {
+    transform: translate3d(-1.6%, 1.2%, 0) scale(1.018);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+body.is-playing {
+  touch-action: none;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Tipografia auto-alojada ---------- */
+@font-face {
+  font-family: 'Archivo';
+  /* Rango completo en un solo fichero: un peso 900 muy cerrado para los
+     numeros grandes y uno ligero para las etiquetas, sin descargar dos veces. */
+  src: url('/fonts/archivo.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  /* swap: el juego se lee con la fuente del sistema mientras carga, en vez de
+     quedarse en blanco. En un movil con mala cobertura eso importa. */
+  font-display: swap;
+}
+
+/* Los numeros son el protagonista de todas las pantallas: van mas cerrados,
+   mas pesados y con las cifras de ancho fijo para que no bailen al contar. */
+.num {
+  font-family: 'Archivo', var(--font);
+  font-weight: 900;
+  font-stretch: 88%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}

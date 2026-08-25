@@ -1,0 +1,410 @@
+/* ---------- Bienvenida ---------- */
+.onboarding {
+  justify-content: center;
+  gap: 22px;
+  padding-bottom: 24px;
+}
+
+.onboarding__head {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brand--big {
+  font-size: 20px;
+  justify-content: center;
+  letter-spacing: 0.18em;
+}
+
+.onboarding__tagline {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.onboarding__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.onboarding__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: screen-in var(--dur) var(--ease-out);
+}
+
+.onboarding__kicker {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
+.onboarding__options {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.onboarding__hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.onboarding__solo {
+  margin-top: 6px;
+}
+
+.onboarding__input {
+  width: 100%;
+  height: 54px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.onboarding__input:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.onboarding__input--code {
+  font-size: 30px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
+
+.onboarding__error {
+  min-height: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--bad);
+  text-align: center;
+}
+
+.onboarding__back {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  padding: 6px 2px;
+}
+
+.onboarding__code {
+  font-size: 58px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-align: center;
+  color: var(--brand);
+  text-shadow: 0 8px 40px rgba(255, 47, 109, 0.4);
+}
+
+.onboarding__row {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding__row .btn {
+  flex: 1;
+}
+
+/* ---------- Estado de red ---------- */
+.net {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.net__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.net--online .net__dot {
+  background: var(--good);
+  box-shadow: 0 0 8px rgba(124, 243, 192, 0.7);
+}
+
+.net--online {
+  color: var(--good);
+}
+
+.net--syncing .net__dot {
+  background: var(--gold);
+  animation: net-pulse 1s ease-in-out infinite;
+}
+
+.net--syncing {
+  color: var(--gold);
+}
+
+.net--offline .net__dot,
+.net--error .net__dot {
+  background: var(--bad);
+}
+
+.net--offline,
+.net--error {
+  color: var(--bad);
+}
+
+@keyframes net-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- Grupo ---------- */
+.group {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.group__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group__code {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--brand);
+}
+
+.group__label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.group__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.group__mini {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  font-weight: 900;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+}
+
+.group__members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.member {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.member__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.member--online .member__dot {
+  background: var(--good);
+  box-shadow: 0 0 7px rgba(124, 243, 192, 0.8);
+}
+
+.member--me {
+  border-color: rgba(255, 47, 109, 0.5);
+  color: #ffd0dd;
+}
+
+.member--done::after {
+  content: '✓';
+  color: var(--good);
+  font-size: 10px;
+}
+
+/* ---------- Aviso de adelantamiento ---------- */
+.overtake {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 47, 109, 0.5);
+  background: linear-gradient(160deg, rgba(255, 47, 109, 0.2), var(--surface));
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: overtake-in 420ms var(--ease-elastico);
+  box-shadow: 0 12px 40px rgba(255, 47, 109, 0.18);
+}
+
+/* Esto no es un aviso mas: alguien te acaba de quitar el puesto. Entra con
+   mas caida y mas rebote que un banner normal -mismo espiritu que el golpe de
+   .card o el remate del sorteo, aplicado al momento social mas caliente de
+   toda la app-. */
+@keyframes overtake-in {
+  from {
+    opacity: 0;
+    transform: translateY(-22px) scale(0.94);
+  }
+  60% {
+    transform: translateY(3px) scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* El marco no late: el boton de REVANCHA de aqui abajo ya es el pulso de
+   esta tarjeta -presupuesto de movimiento, 1 elemento por bloque-. El marco
+   se queda con su resplandor fijo; sigue siendo la unica tarjeta magenta de
+   toda la portada, así que no necesita moverse ademas para destacar. */
+.overtake::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 36px rgba(255, 47, 109, 0.45);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtake {
+    animation: none;
+  }
+}
+
+.overtake__sub {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.overtake__row {
+  display: flex;
+  gap: 8px;
+}
+
+.overtake__row .btn {
+  flex: 1;
+}
+
+/* La revancha aqui no es un boton mas: es la unica respuesta a que te hayan
+   quitado el puesto, asi que late -como .apuesta__jugar, reservado para los
+   pocos botones que de verdad son un momento y no un tramite-. */
+.overtake__row .btn--play {
+  animation: jugar-late var(--dur-latido) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtake__row .btn--play {
+    animation: none;
+  }
+}
+
+/* ---------- Objetivo durante la partida ---------- */
+.hud__target {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + 100px);
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(18, 18, 29, 0.72);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: opacity 200ms, color 200ms, border-color 200ms;
+}
+
+.hud__target.is-passed {
+  color: var(--good);
+  border-color: rgba(124, 243, 192, 0.55);
+}
+
+/* ---------- Comparativa tras perder por mucho ---------- */
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.compare__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.compare__row--rival {
+  background: rgba(255, 47, 109, 0.14);
+}
+
+.compare__name {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.compare__score {
+  font-size: 20px;
+  font-weight: 900;
+}
