@@ -47,7 +47,7 @@ del Mac Mini antes de seguir.
 ```bash
 cd ~/playzone-rush
 git fetch origin
-git checkout claude/playzone-rush-viral-kg1l61
+git checkout main
 git pull
 
 npm install          # por si acaso; no hay dependencias nuevas
@@ -134,10 +134,18 @@ CUENTA, TORRE, TRILE y CARGA) y que el ranking tiene **podio**.
 
 ## Si algo va mal
 
-Volver atrás es cambiar de rama y reconstruir:
+Volver atrás requiere revertir a un commit anterior. Por ejemplo, si el problema está en la última versión de main:
 
 ```bash
-git checkout claude/playzone-rush-showtime-kg1l61
+git revert HEAD
+npm run build
+pm2 restart playzone
+```
+
+O, para ir a un commit específico (por ejemplo, desde un backup):
+
+```bash
+git checkout <commit-hash>
 npm run build
 pm2 restart playzone
 ```

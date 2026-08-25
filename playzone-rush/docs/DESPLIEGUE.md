@@ -44,9 +44,9 @@ existe** en estas maquinas.
 
 ```bash
 cd ~/Developer/strike-flight
-git fetch origin claude/playzone-rush-showtime-kg1l61
-git checkout claude/playzone-rush-showtime-kg1l61
-git pull origin claude/playzone-rush-showtime-kg1l61
+git fetch origin main
+git checkout main
+git pull origin main
 
 cd playzone-rush
 npm install          # completo, NO --omit=dev: vite y typescript hacen falta para construir
@@ -180,7 +180,7 @@ En cada iPhone, con Safari (Chrome en iOS no puede instalar):
 
 ```bash
 cd ~/Developer/strike-flight
-git pull origin claude/playzone-rush-showtime-kg1l61
+git pull origin main
 cd playzone-rush
 npm install
 npm run build
