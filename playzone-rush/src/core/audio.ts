@@ -21,7 +21,8 @@ export type SoundName =
   | 'victory'
   | 'defeat'
   | 'unlock'
-  | 'chaos';
+  | 'chaos'
+  | 'apura';
 
 type Ctor = typeof AudioContext;
 
@@ -221,6 +222,16 @@ export class AudioBus {
           this.tone(f, 0.14, { type: 'sawtooth', gain: 0.12, delay: i * 0.05, sweepTo: f * 1.6 }),
         );
         break;
+      // El tictac de "se acaba el tiempo" (DOBLE O NADA, HUD critico...):
+      // param 0..1 es cuanto falta para el limite, no el tiempo en si -quien
+      // llama ya sabe su propia cuenta atras-. Mismo tono, mas agudo y un
+      // pelin mas fuerte segun se acerca el final, para que la escalada se
+      // oiga y no solo se vea.
+      case 'apura': {
+        const t = Math.max(0, Math.min(1, param));
+        this.tone(520 + t * 340, 0.09, { type: 'square', gain: 0.12 + t * 0.06 });
+        break;
+      }
     }
   }
 }

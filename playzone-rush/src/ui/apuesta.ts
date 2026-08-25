@@ -15,7 +15,7 @@ import { avanzarApuesta, dentroDeZona, nuevaApuesta, posicionVisible, resolverAp
 import { formatScore } from '../meta/ranking';
 import { button, el } from './dom';
 import type { AudioBus } from '../core/audio';
-import type { Haptics } from '../core/haptics';
+import type { Haptics, HapticPattern } from '../core/haptics';
 
 export interface ApuestaHandlers {
   /** El jugador guarda la marca tal cual. */
@@ -79,11 +79,26 @@ export function renderDecision(options: ApuestaOptions, handlers: ApuestaHandler
  * Se monta encima de todo para que no haya nada mas que mirar: son cinco
  * segundos y toda la atencion tiene que estar en la barra.
  */
+/**
+ * Umbrales del tictac final, de mas lejano a mas cercano: al cruzar cada uno
+ * (de bajada, restante nunca sube) suena un aviso mas agudo y un haptic un
+ * pelin mas fuerte que el anterior. Tres golpes, no un zumbido continuo -en
+ * una vibracion de telefono, "cada 100ms durante 1.5s" se siente a avería,
+ * no a tension creciente-, y se paran en 500ms para no pisar el sonido de
+ * ganar o perder que ya suena en el propio 0.
+ */
+const UMBRALES_APURA: { ms: number; haptic: HapticPattern }[] = [
+  { ms: 1500, haptic: 'tick' },
+  { ms: 1000, haptic: 'light' },
+  { ms: 500, haptic: 'medium' },
+];
+
 export function mostrarDesafio(options: ApuestaOptions, handlers: ApuestaHandlers): void {
   let estado = nuevaApuesta(Math.random);
   let resuelto = false;
   let ultimo = performance.now();
   let restante = APUESTA_MS;
+  let siguienteUmbral = 0;
 
   const marca = el('div', { class: 'reto__zona' });
   const aguja = el('div', { class: 'reto__aguja' });
@@ -136,6 +151,15 @@ export function mostrarDesafio(options: ApuestaOptions, handlers: ApuestaHandler
     // El ultimo segundo y medio aprieta: el numero se acelera para que se
     // sienta que se acaba el tiempo, no solo que lo dice.
     cuenta.classList.toggle('reto__cuenta--apura', restante <= 1500 && restante > 0);
+
+    // El mismo aprieto, en sonido y vibracion: cada umbral cruzado suena mas
+    // agudo y golpea un poco mas fuerte que el anterior.
+    while (siguienteUmbral < UMBRALES_APURA.length && restante <= UMBRALES_APURA[siguienteUmbral].ms) {
+      const intensidad = siguienteUmbral / (UMBRALES_APURA.length - 1);
+      options.audio.play('apura', intensidad);
+      options.haptics.fire(UMBRALES_APURA[siguienteUmbral].haptic);
+      siguienteUmbral++;
+    }
 
     // Se acaba el tiempo sin decidir: cuenta como fallo. Dejar pasar los cinco
     // segundos es una decision tambien, y ya habia avisado de que no hay
