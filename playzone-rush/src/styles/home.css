@@ -70,19 +70,21 @@
   opacity: 0.82;
 }
 
-/* Los que aun no se han jugado respiran: la franja de acento (y su resplandor,
-   que es su box-shadow) sube y baja de opacidad muy despacio, como diciendo
-   "todavia estoy esperando". En cuanto se juega -card--done- se queda quieta:
-   ya ha hablado. Solo opacity, nunca el blur del shadow: eso es lo que hace
-   que sea gratis para el hilo principal en vez de repintar cada fotograma. */
-.card:not(.card--done)::before {
+/* Presupuesto de movimiento: solo LA SIGUIENTE tarjeta respira (la que se
+   jugaria a continuacion), no todas las abiertas a la vez. Con 3 retos +
+   secreto + CHAOS abiertos a la vez, cinco franjas latiendo juntas no
+   guian a ninguna -se anulan entre si-. Las demas se quedan a opacidad
+   plena y quieta: siguen leyendose como "abierta" frente al 0.82 de
+   card--done, solo que sin pulso propio. */
+.card--next:not(.card--done)::before {
   animation: respira-acento var(--dur-latido) ease-in-out infinite;
 }
 
 /* CHAOS no respira al mismo compas que el resto: mas rapido y con mas
    diferencia entre pico y valle, porque es el unico reto del dia que dice
-   "solo hay una oportunidad" -reutiliza la animacion, solo cambia el ritmo. */
-.card--chaos:not(.card--done)::before {
+   "solo hay una oportunidad" -reutiliza la animacion, solo cambia el ritmo.
+   Solo aplica si ademas le toca ser la siguiente tarjeta (ver arriba). */
+.card--chaos.card--next:not(.card--done)::before {
   animation-duration: 480ms;
 }
 
@@ -97,7 +99,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card:not(.card--done)::before {
+  .card--next:not(.card--done)::before {
     animation: none;
   }
 }
@@ -639,7 +641,19 @@
   box-shadow: 0 0 24px rgba(255, 210, 63, 0.45);
   opacity: 0.35;
   pointer-events: none;
+}
+
+/* Presupuesto de movimiento: el puesto (#1 en oro) es el hero de esta
+   tarjeta y es el unico que late. El chip de estado, aunque tambien se
+   tine de oro cuando vas primero y con ventaja, se queda quieto -son la
+   misma noticia dicha dos veces, y con las dos latiendo compiten entre
+   si en vez de reforzarse. */
+.heroe__puesto--oro::after {
   animation: late-brillo var(--dur-latido) ease-in-out infinite;
+}
+
+.heroe__estado--oro::after {
+  opacity: 0.6;
 }
 
 /* Solo pulsa opacity: el color de cada halo lo pone el box-shadow del
@@ -717,6 +731,14 @@
 .heroe__estado--riesgo .heroe__estado-cifra {
   color: var(--coral);
   animation: cifra-riesgo var(--dur-latido) ease-in-out infinite;
+}
+
+/* Presupuesto de movimiento: si el aviso de adelantamiento esta en pantalla
+   -su propio boton ya late-, esta cifra dice exactamente la misma noticia
+   (te han pasado, por esta distancia) y se queda quieta para no competir
+   con el. */
+.heroe__estado--riesgo.heroe__estado--quieto .heroe__estado-cifra {
+  animation: none;
 }
 
 @keyframes cifra-riesgo {
@@ -970,8 +992,11 @@
   box-shadow: var(--luz-borde-fuerte), 0 0 34px rgba(255, 210, 63, 0.12);
 }
 
-/* La misma respiracion dorada que el resto del "vas primero": la corona
-   tambien tiene que sentirse viva y no solo pintada de oro. */
+/* El mismo halo dorado que el resto del "vas primero", pero quieto: el
+   pulso de esa noticia ya lo lleva la tarjeta de arriba (heroe__puesto), que
+   esta siempre a la vista sin hacer scroll. Repetirlo aqui abajo, en cada
+   visita a la portada, es la clase de pulso permanente -no ligado a ningun
+   evento- que mas rapido se convierte en ruido de fondo. */
 .podio__hero::after {
   content: '';
   position: absolute;
@@ -979,15 +1004,8 @@
   z-index: -1;
   border-radius: inherit;
   box-shadow: 0 0 30px rgba(255, 210, 63, 0.4);
-  opacity: 0.35;
+  opacity: 0.6;
   pointer-events: none;
-  animation: late-brillo var(--dur-latido) ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .podio__hero::after {
-    animation: none;
-  }
 }
 
 /* Si el #1 eres tu, ademas del oro entra tu cian: las dos cosas a la vez, que

@@ -27,11 +27,19 @@ export function renderHome(app: App): HTMLElement {
 
   screen.appendChild(renderTopbar(app));
 
+  // Presupuesto de movimiento: como mucho 1 elemento hero + 1 secundario
+  // llamando la atencion a la vez en toda la pantalla, el resto quieto -ver
+  // findNextChallenge() y las clases --quieto/--next de mas abajo. Cuando hay
+  // un adelantamiento en curso, ES el secundario de la portada (su boton de
+  // REVANCHA ya late): la cifra de riesgo del heroe, que cuenta la misma
+  // noticia, se queda quieta para no competir con el.
+  const overtake = renderOvertake(app);
+  const siguiente = findNextChallengeId(app);
+
   const scroller = el('div', { class: 'scroller' });
   const update = renderUpdateBanner(app);
   if (update) scroller.appendChild(update);
-  scroller.appendChild(renderHero(app, board));
-  const overtake = renderOvertake(app);
+  scroller.appendChild(renderHero(app, board, { quietoRiesgo: overtake !== null }));
   if (overtake) scroller.appendChild(overtake);
   scroller.appendChild(renderSocial(app, board));
   const group = renderGroup(app);
@@ -39,9 +47,11 @@ export function renderHome(app: App): HTMLElement {
 
   scroller.appendChild(sectionTitle('RETOS DE HOY', `${app.plan.challenges.length} + SECRETO`));
   const cards = el('div', { class: 'cards' });
-  for (const spec of app.plan.challenges) cards.appendChild(renderChallengeCard(app, spec));
-  cards.appendChild(renderSecretCard(app));
-  if (app.chaosEnabled) cards.appendChild(renderChaosCard(app));
+  for (const spec of app.plan.challenges) {
+    cards.appendChild(renderChallengeCard(app, spec, spec.id === siguiente));
+  }
+  cards.appendChild(renderSecretCard(app, app.plan.secret.id === siguiente));
+  if (app.chaosEnabled) cards.appendChild(renderChaosCard(app, app.plan.chaos.id === siguiente));
   scroller.appendChild(cards);
 
   scroller.appendChild(sectionTitle('CLASIFICACION DE HOY', dayLabel(app.dayKey, app.clock.realDayKey())));
@@ -207,6 +217,22 @@ function renderUpdateBanner(app: App): HTMLElement | null {
 }
 
 /** "Marc te ha quitado el #1": el aviso que dispara la revancha. */
+/**
+ * Cual es la unica tarjeta que respira (presupuesto de movimiento): la
+ * primera sin jugar, en el orden natural en que se juega un dia -los tres
+ * retos diarios, luego secreto, luego CHAOS-. Un reto secreto todavia
+ * bloqueado no cuenta nunca: prometer "juega esto ya" con una animacion en
+ * una tarjeta que no se puede abrir seria confundir, no invitar.
+ */
+function findNextChallengeId(app: App): string | null {
+  for (const spec of app.plan.challenges) {
+    if (app.attemptsLeft(spec) > 0) return spec.id;
+  }
+  if (app.secretInfo().unlocked && app.attemptsLeft(app.plan.secret) > 0) return app.plan.secret.id;
+  if (app.chaosEnabled && app.attemptsLeft(app.plan.chaos) > 0) return app.plan.chaos.id;
+  return null;
+}
+
 function renderOvertake(app: App): HTMLElement | null {
   const event = app.pendingOvertake;
   if (!event) return null;
@@ -292,7 +318,7 @@ function revengeTargetFor(app: App, rivalId: string, rivalName: string) {
  * arriba va al lado, porque "te faltan 148" es una frase que se puede accionar
  * y "vas #5" no.
  */
-function renderHero(app: App, board: Leaderboard): HTMLElement {
+function renderHero(app: App, board: Leaderboard, opts: { quietoRiesgo: boolean }): HTMLElement {
   const ahead = rivalAhead(board.standings);
   const behind = rivalBehind(board.standings);
   const lider = board.myRank === 1;
@@ -300,7 +326,7 @@ function renderHero(app: App, board: Leaderboard): HTMLElement {
   // El estado de una sola frase. Manda la distancia al de arriba; si no hay
   // nadie arriba, manda la ventaja sobre el de abajo.
   const estado = ahead
-    ? el('div', { class: 'heroe__estado heroe__estado--riesgo' }, [
+    ? el('div', { class: `heroe__estado heroe__estado--riesgo${opts.quietoRiesgo ? ' heroe__estado--quieto' : ''}` }, [
         el('span', { class: 'heroe__estado-cifra num', text: `+${formatScore(ahead.gap)}` }),
         el('span', { class: 'heroe__estado-texto', text: `PARA PASAR A ${ahead.entry.name}` }),
       ])
@@ -404,7 +430,7 @@ function mutatorChips(ids: string[]): HTMLElement | null {
   );
 }
 
-function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
+function renderChallengeCard(app: App, spec: ChallengeSpec, isNext: boolean): HTMLElement {
   const meta = gameMetaOf(app, spec);
   const left = app.attemptsLeft(spec);
   const progress = app.save.get().days[app.dayKey]?.challenges[spec.id];
@@ -424,7 +450,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
   const card = el(
     'div',
     {
-      class: `card${left === 0 ? ' card--done' : ''}`,
+      class: `card${left === 0 ? ' card--done' : ''}${isNext ? ' card--next' : ''}`,
       style: { '--accent': meta.accent },
     },
     [
@@ -482,7 +508,7 @@ function renderChallengeCard(app: App, spec: ChallengeSpec): HTMLElement {
   return card;
 }
 
-function renderSecretCard(app: App): HTMLElement {
+function renderSecretCard(app: App, isNext: boolean): HTMLElement {
   const spec = app.plan.secret;
   const status = app.secretInfo();
   const meta = gameMetaOf(app, spec);
@@ -517,34 +543,38 @@ function renderSecretCard(app: App): HTMLElement {
   }
 
   const left = app.attemptsLeft(spec);
-  const card: HTMLElement = el('div', { class: 'card', style: { '--accent': 'var(--violeta)' } }, [
-    el('div', { class: 'card__head' }, [
-      el('div', { class: 'card__icon' }, [marca('llave')]),
-      el('div', { class: 'card__titles' }, [
-        el('div', { class: 'card__kicker', text: 'RETO SECRETO · 1 INTENTO' }),
-        el('div', { class: 'card__name' }, [el('span', { text: meta.name }), el('small', { text: 'A OSCURAS' })]),
+  const card: HTMLElement = el(
+    'div',
+    { class: `card${isNext ? ' card--next' : ''}`, style: { '--accent': 'var(--violeta)' } },
+    [
+      el('div', { class: 'card__head' }, [
+        el('div', { class: 'card__icon' }, [marca('llave')]),
+        el('div', { class: 'card__titles' }, [
+          el('div', { class: 'card__kicker', text: 'RETO SECRETO · 1 INTENTO' }),
+          el('div', { class: 'card__name' }, [el('span', { text: meta.name }), el('small', { text: 'A OSCURAS' })]),
+        ]),
+        el('div', { class: 'card__timer num', text: formatDuration(spec.durationMs) }),
       ]),
-      el('div', { class: 'card__timer num', text: formatDuration(spec.durationMs) }),
-    ]),
-    el('div', { class: 'card__tagline', text: 'Un solo intento. Puntos dobles. Suma al ranking del dia.' }),
-    mutatorChips(spec.mutatorIds),
-    el('div', { class: 'card__foot' }, [
-      el('div', { class: 'attempts' }, [
-        el('div', { class: 'attempts__label', text: 'INTENTOS' }),
-        el('div', {
-          class: `attempts__dots${left === 0 ? ' is-empty' : ''}`,
-          text: attemptsDisplay(spec.attempts - left, spec.attempts),
+      el('div', { class: 'card__tagline', text: 'Un solo intento. Puntos dobles. Suma al ranking del dia.' }),
+      mutatorChips(spec.mutatorIds),
+      el('div', { class: 'card__foot' }, [
+        el('div', { class: 'attempts' }, [
+          el('div', { class: 'attempts__label', text: 'INTENTOS' }),
+          el('div', {
+            class: `attempts__dots${left === 0 ? ' is-empty' : ''}`,
+            text: attemptsDisplay(spec.attempts - left, spec.attempts),
+          }),
+        ]),
+        button(left > 0 ? 'JUGAR' : 'HECHO', 'btn btn--accent', () => app.startChallenge(spec), {
+          disabled: left === 0,
         }),
       ]),
-      button(left > 0 ? 'JUGAR' : 'HECHO', 'btn btn--accent', () => app.startChallenge(spec), {
-        disabled: left === 0,
-      }),
-    ]),
-  ]);
+    ],
+  );
   return card;
 }
 
-function renderChaosCard(app: App): HTMLElement {
+function renderChaosCard(app: App, isNext: boolean): HTMLElement {
   const spec = app.plan.chaos;
   const meta = gameMetaOf(app, spec);
   const left = app.attemptsLeft(spec);
@@ -556,28 +586,35 @@ function renderChaosCard(app: App): HTMLElement {
   // suelto inventado a mano.
   const card: HTMLElement = el(
     'div',
-    { class: 'card card--chaos', style: { '--accent': 'color-mix(in srgb, var(--magenta) 55%, var(--violeta) 45%)' } },
+    {
+      class: `card card--chaos${isNext ? ' card--next' : ''}`,
+      style: { '--accent': 'color-mix(in srgb, var(--magenta) 55%, var(--violeta) 45%)' },
+    },
     [
-    el('div', { class: 'card__head' }, [
-      el('div', { class: 'card__icon' }, [marca('chaos')]),
-      el('div', { class: 'card__titles' }, [
-        el('div', { class: 'card__kicker', text: 'EVENTO · 1 INTENTO' }),
-        el('div', { class: 'card__name' }, [el('span', { text: 'CHAOS' }), el('small', { text: meta.name })]),
+      el('div', { class: 'card__head' }, [
+        el('div', { class: 'card__icon' }, [marca('chaos')]),
+        el('div', { class: 'card__titles' }, [
+          el('div', { class: 'card__kicker', text: 'EVENTO · 1 INTENTO' }),
+          el('div', { class: 'card__name' }, [el('span', { text: 'CHAOS' }), el('small', { text: meta.name })]),
+        ]),
+        el('div', { class: 'card__timer num', text: formatDuration(spec.durationMs) }),
       ]),
-      el('div', { class: 'card__timer num', text: formatDuration(spec.durationMs) }),
-    ]),
-    el('div', { class: 'card__tagline', text: 'Reglas rotas, puntos x2.5 y marcador aparte. Un intento y a correr.' }),
-    mutatorChips(spec.mutatorIds),
-    el('div', { class: 'card__foot' }, [
-      el('div', { class: 'card__best' }, [
-        el('div', { class: 'card__best-label', text: 'RECORD CHAOS' }),
-        el('div', { class: 'card__best-value num', text: best > 0 ? formatScore(best) : '—' }),
-      ]),
-      button(left > 0 ? 'ENTRAR' : 'USADO', 'btn btn--accent', () => app.startChallenge(spec, { desde: card }), {
-        disabled: left === 0,
+      el('div', {
+        class: 'card__tagline',
+        text: 'Reglas rotas, puntos x2.5 y marcador aparte. Un intento y a correr.',
       }),
-    ]),
-  ]);
+      mutatorChips(spec.mutatorIds),
+      el('div', { class: 'card__foot' }, [
+        el('div', { class: 'card__best' }, [
+          el('div', { class: 'card__best-label', text: 'RECORD CHAOS' }),
+          el('div', { class: 'card__best-value num', text: best > 0 ? formatScore(best) : '—' }),
+        ]),
+        button(left > 0 ? 'ENTRAR' : 'USADO', 'btn btn--accent', () => app.startChallenge(spec, { desde: card }), {
+          disabled: left === 0,
+        }),
+      ]),
+    ],
+  );
   return card;
 }
 

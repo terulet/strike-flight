@@ -115,30 +115,19 @@
   background: var(--emite, var(--cian));
 }
 
+/* Presupuesto de movimiento: este anillo vivia siempre latiendo, sin
+   depender de ningun evento -esta en la fila de arriba de la portada, justo
+   encima de la cifra que si tiene que latir (heroe__estado-cifra), y dos
+   pulsos en el mismo golpe de vista se restan protagonismo el uno al otro.
+   El punto solido de al lado ya dice "esto es HOY, en directo"; el anillo
+   se queda fijo -sigue leyendose como una senal, no como un reloj parado. */
 .vivo-punto::after {
   content: '';
   position: absolute;
   inset: -4px;
   border-radius: 50%;
   border: 1px solid var(--emite, var(--cian));
-  animation: vivo-pulso var(--dur-latido) ease-out infinite;
-}
-
-@keyframes vivo-pulso {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(2.1);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vivo-punto::after {
-    animation: none;
-  }
+  opacity: 0.5;
 }
 
 /* La insignia de posicion: #1 va en oro y el resto en cristal. */

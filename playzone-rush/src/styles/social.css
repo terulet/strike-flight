@@ -298,8 +298,10 @@
   }
 }
 
-/* Mientras esta en pantalla, el marco respira: es una llamada a reaccionar
-   YA, no una nota informativa que puede esperar. */
+/* El marco no late: el boton de REVANCHA de aqui abajo ya es el pulso de
+   esta tarjeta -presupuesto de movimiento, 1 elemento por bloque-. El marco
+   se queda con su resplandor fijo; sigue siendo la unica tarjeta magenta de
+   toda la portada, así que no necesita moverse ademas para destacar. */
 .overtake::after {
   content: '';
   position: absolute;
@@ -307,17 +309,12 @@
   z-index: -1;
   border-radius: inherit;
   box-shadow: 0 0 36px rgba(255, 47, 109, 0.45);
-  opacity: 0.3;
+  opacity: 0.55;
   pointer-events: none;
-  animation: late-brillo var(--dur-latido) ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .overtake {
-    animation: none;
-  }
-
-  .overtake::after {
     animation: none;
   }
 }
