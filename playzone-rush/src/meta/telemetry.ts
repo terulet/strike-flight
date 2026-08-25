@@ -118,7 +118,23 @@ export class Telemetry {
     this.sender = options.send ?? null;
     this.versionOf = options.gameVersion ?? (() => 1);
     this.testFlag = options.isTest ?? (() => false);
+    // El lote de track() espera hasta 4s antes de mandarse. Sin esto, cerrar
+    // la pestana (o irse a otra app) dentro de esa ventana deja el ultimo
+    // evento -a veces el mas importante, el game_finish del dia- sin enviar
+    // hasta la proxima vez que se abra Playzone. Mismo gesto que ya usa
+    // SyncEngine para su cola, aplicado a esta.
+    // `typeof document` y no `document?.`: Telemetry se construye tambien en
+    // los tests (entorno 'node', sin DOM), donde `document` no es solo null
+    // sino un identificador que no existe -y el opcional no libra de ese
+    // ReferenceError, solo de un valor nulo-.
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibility);
+    }
   }
+
+  private handleVisibility = (): void => {
+    if (document.hidden) void this.flush();
+  };
 
   track(type: EventType, options: TrackOptions = {}): void {
     const event: TelemetryEvent = {
