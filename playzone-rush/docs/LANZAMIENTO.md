@@ -137,7 +137,7 @@ CUENTA, TORRE, TRILE y CARGA) y que el ranking tiene **podio**.
 Volver atrás es cambiar de rama y reconstruir:
 
 ```bash
-git checkout claude/playzone-rush-social-kg1l61
+git checkout claude/playzone-rush-showtime-kg1l61
 npm run build
 pm2 restart playzone
 ```

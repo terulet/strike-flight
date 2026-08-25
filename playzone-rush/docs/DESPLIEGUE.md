@@ -44,14 +44,14 @@ existe** en estas maquinas.
 
 ```bash
 cd ~/Developer/strike-flight
-git fetch origin claude/playzone-rush-social-kg1l61
-git checkout claude/playzone-rush-social-kg1l61
-git pull origin claude/playzone-rush-social-kg1l61
+git fetch origin claude/playzone-rush-showtime-kg1l61
+git checkout claude/playzone-rush-showtime-kg1l61
+git pull origin claude/playzone-rush-showtime-kg1l61
 
 cd playzone-rush
 npm install          # completo, NO --omit=dev: vite y typescript hacen falta para construir
 npm run build        # deja dist/ listo
-npm test             # 221 tests; si algo falla, parar aqui
+npm test             # 355 tests; si algo falla, parar aqui
 ```
 
 `npm install` completo es a proposito: el servidor en si no tiene ni una
@@ -180,7 +180,7 @@ En cada iPhone, con Safari (Chrome en iOS no puede instalar):
 
 ```bash
 cd ~/Developer/strike-flight
-git pull origin claude/playzone-rush-social-kg1l61
+git pull origin claude/playzone-rush-showtime-kg1l61
 cd playzone-rush
 npm install
 npm run build
