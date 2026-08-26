@@ -37,6 +37,11 @@ import redlineFxUrl from '../sprites/redline_fx.png';
 import dangerFlagsUrl from '../sprites/danger_flags.png';
 import ropeBarrierUrl from '../sprites/rope_barrier.png';
 import tireSkidUrl from '../sprites/tire_skid.png';
+import brokenBarrierUrl from '../sprites/broken_barrier.png';
+import rampDecoUrl from '../sprites/ramp_deco.png';
+import logObstacleUrl from '../sprites/log_obstacle.png';
+import tireStackUrl from '../sprites/tire_stack.png';
+import boulderUrl from '../sprites/boulder.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -68,6 +73,11 @@ export const SpriteImages = {
   dangerFlags: loadImage(dangerFlagsUrl),
   ropeBarrier: loadImage(ropeBarrierUrl),
   tireSkid: loadImage(tireSkidUrl),
+  brokenBarrier: loadImage(brokenBarrierUrl),
+  rampDeco: loadImage(rampDecoUrl),
+  logObstacle: loadImage(logObstacleUrl),
+  tireStack: loadImage(tireStackUrl),
+  boulder: loadImage(boulderUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

@@ -178,6 +178,11 @@ export class Renderer {
       { image: SpriteImages.fenceBanner, widthMeters: 5.5 },
       { image: SpriteImages.dangerFlags, widthMeters: 2.4 },
       { image: SpriteImages.ropeBarrier, widthMeters: 4.8 },
+      { image: SpriteImages.brokenBarrier, widthMeters: 4.8 },
+      { image: SpriteImages.rampDeco, widthMeters: 4.5 },
+      { image: SpriteImages.logObstacle, widthMeters: 4.2 },
+      { image: SpriteImages.tireStack, widthMeters: 3.4 },
+      { image: SpriteImages.boulder, widthMeters: 3.6 },
     ];
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);
