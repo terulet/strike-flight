@@ -129,13 +129,31 @@ export class Renderer {
     this.ctx.drawImage(image, p.x - w / 2, p.y - h, w, h);
   }
 
-  /** Arcos de la pista: salida al principio, checkpoint en cada sector intermedio, meta al final. */
+  /** Nombres de sector que empiezan con un salto: ahi va el cartel de "JUMP", no un arco de checkpoint. */
+  private static readonly JUMP_SECTORS = new Set([
+    'JUMP_SIMPLE',
+    'DOUBLE_JUMP',
+    'RISK_LINE_JUMP',
+    'BIG_TRIPLE',
+    'MEGA_JUMP',
+  ]);
+
+  /**
+   * Arcos y carteles de la pista: salida al principio, un cartel de "JUMP"
+   * al entrar en cada tramo de salto (telegrafia lo que viene, no solo
+   * decora), un arco de checkpoint en el resto de sectores intermedios, y
+   * el arco de meta al final.
+   */
   private drawTrackGates(camera: Camera, track: TrackDefinition, shake: Vec2): void {
     const { terrain, labels } = track;
     this.drawGroundSprite(camera, terrain, shake, track.startX, 9, SpriteImages.startGate);
     for (const label of labels) {
       if (label.name === 'START' || label.name === 'FINISH') continue;
-      this.drawGroundSprite(camera, terrain, shake, label.x, 8, SpriteImages.checkpointGate);
+      if (Renderer.JUMP_SECTORS.has(label.name)) {
+        this.drawGroundSprite(camera, terrain, shake, label.x - 3, 5.5, SpriteImages.jumpSign);
+      } else {
+        this.drawGroundSprite(camera, terrain, shake, label.x, 8, SpriteImages.checkpointGate);
+      }
     }
     this.drawGroundSprite(camera, terrain, shake, terrain.endX, 11, SpriteImages.finishGate);
   }
@@ -156,7 +174,10 @@ export class Renderer {
     const props: Array<{ image: HTMLImageElement; widthMeters: number }> = [
       { image: SpriteImages.barrier, widthMeters: 4.2 },
       { image: SpriteImages.rockClusterA, widthMeters: 4.5 },
+      { image: SpriteImages.rockClusterB, widthMeters: 4.5 },
       { image: SpriteImages.bannerFlag, widthMeters: 1.6 },
+      { image: SpriteImages.cactusCluster, widthMeters: 2.6 },
+      { image: SpriteImages.fenceBanner, widthMeters: 5.5 },
     ];
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);

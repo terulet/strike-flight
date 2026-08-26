@@ -26,6 +26,10 @@ import checkpointGateUrl from '../sprites/checkpoint_gate.png';
 import barrierUrl from '../sprites/barrier.png';
 import rockClusterAUrl from '../sprites/rock_cluster_a.png';
 import bannerFlagUrl from '../sprites/banner_flag.png';
+import cactusClusterUrl from '../sprites/cactus_cluster.png';
+import rockClusterBUrl from '../sprites/rock_cluster_b.png';
+import jumpSignUrl from '../sprites/jump_sign.png';
+import fenceBannerUrl from '../sprites/fence_banner.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -46,6 +50,10 @@ export const SpriteImages = {
   barrier: loadImage(barrierUrl),
   rockClusterA: loadImage(rockClusterAUrl),
   bannerFlag: loadImage(bannerFlagUrl),
+  cactusCluster: loadImage(cactusClusterUrl),
+  rockClusterB: loadImage(rockClusterBUrl),
+  jumpSign: loadImage(jumpSignUrl),
+  fenceBanner: loadImage(fenceBannerUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */
