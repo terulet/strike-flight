@@ -42,6 +42,8 @@ import rampDecoUrl from '../sprites/ramp_deco.png';
 import logObstacleUrl from '../sprites/log_obstacle.png';
 import tireStackUrl from '../sprites/tire_stack.png';
 import boulderUrl from '../sprites/boulder.png';
+import rampSmallUrl from '../sprites/ramp_small.png';
+import tireMoundUrl from '../sprites/tire_mound.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -78,6 +80,8 @@ export const SpriteImages = {
   logObstacle: loadImage(logObstacleUrl),
   tireStack: loadImage(tireStackUrl),
   boulder: loadImage(boulderUrl),
+  rampSmall: loadImage(rampSmallUrl),
+  tireMound: loadImage(tireMoundUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

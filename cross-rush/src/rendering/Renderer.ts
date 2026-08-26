@@ -183,6 +183,8 @@ export class Renderer {
       { image: SpriteImages.logObstacle, widthMeters: 4.2 },
       { image: SpriteImages.tireStack, widthMeters: 3.4 },
       { image: SpriteImages.boulder, widthMeters: 3.6 },
+      { image: SpriteImages.rampSmall, widthMeters: 3.8 },
+      { image: SpriteImages.tireMound, widthMeters: 4.0 },
     ];
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);
