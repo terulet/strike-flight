@@ -75,10 +75,10 @@ export class TouchInput implements InputSource {
     el.style.display = 'flex';
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
-    el.style.background = 'rgba(255,255,255,0.08)';
-    el.style.border = '1px solid rgba(255,255,255,0.25)';
+    el.style.background = 'rgba(28,18,10,0.45)';
+    el.style.border = '1px solid rgba(224,170,106,0.45)';
     el.style.borderRadius = '10px';
-    el.style.color = '#fff';
+    el.style.color = '#f0d9b8';
     el.style.fontSize = '12px';
     el.style.fontWeight = '700';
     el.style.width = '64px';

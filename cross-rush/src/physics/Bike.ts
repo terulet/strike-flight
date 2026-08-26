@@ -8,7 +8,7 @@
 
 import { Terrain } from './Terrain';
 import { computeSuspension, SuspensionParams } from './Suspension';
-import { clamp, rotateVec } from './MathUtils';
+import { clamp, rotateVec, angleDelta } from './MathUtils';
 import {
   BikeConfig,
   EngineConfig,
@@ -16,6 +16,7 @@ import {
   SuspensionConfig,
   AirControlConfig,
   GravityConfig,
+  GroundBalanceConfig,
 } from '../config/GameConfig';
 
 export interface BikeInput {
@@ -197,6 +198,19 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
     next.angularVelocity += (sumTorque / inertia) * dt;
     // Ligero amortiguamiento en el suelo para que no oscile eternamente.
     next.angularVelocity *= Math.max(0, 1 - 2.0 * dt);
+
+    // Asistencia leve al piloto (ver GroundBalanceConfig): con una sola
+    // rueda apoyada -tipico caballito al acelerar a fondo- nada compensa el
+    // par de la rueda trasera. Amortiguamos mas y tiramos suavemente del
+    // angulo hacia la pendiente real del terreno bajo la moto.
+    const oneWheelOnly = frontResult.inContact !== rearResult.inContact;
+    if (oneWheelOnly) {
+      const n = terrain.surfaceNormal(state.x);
+      const tangent = { x: n.y, y: -n.x };
+      const groundAngle = Math.atan2(tangent.y, tangent.x);
+      next.angularVelocity += angleDelta(state.angle, groundAngle) * GroundBalanceConfig.levelingStrength * dt;
+      next.angularVelocity *= Math.max(0, 1 - GroundBalanceConfig.oneWheelAngularDamping * dt);
+    }
   }
 
   next.angularVelocity = clamp(
@@ -212,4 +226,30 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
 
 export function isAirborne(state: BikeState): boolean {
   return !state.front.inContact && !state.rear.inContact;
+}
+
+/**
+ * Punto de anclaje (parte alta de la horquilla/basculante) de una rueda, en
+ * coordenadas de mundo. Solo geometria, no fisica.
+ */
+export function wheelAnchorWorld(state: BikeState, side: 'front' | 'rear'): { x: number; y: number } {
+  const local = side === 'front' ? frontOffset() : rearOffset();
+  const world = rotateVec(local, state.angle);
+  return { x: state.x + world.x, y: state.y + world.y };
+}
+
+/**
+ * Centro visual de una rueda, en coordenadas de mundo: el punto de anclaje
+ * desplazado a lo largo del eje de la horquilla (que rota con el chasis) una
+ * distancia igual a la longitud actual del muelle (restLength - compresion).
+ * Con esto el dibujo muestra de verdad el recorrido de la suspension: la
+ * rueda se "mete" hacia el chasis al comprimirse en vez de quedarse fija.
+ */
+export function wheelVisualCenterWorld(state: BikeState, side: 'front' | 'rear'): { x: number; y: number } {
+  const wheel = side === 'front' ? state.front : state.rear;
+  const params = side === 'front' ? FRONT_SUSPENSION : REAR_SUSPENSION;
+  const anchor = wheelAnchorWorld(state, side);
+  const springLength = params.restLength - wheel.compression;
+  const forkAxis = rotateVec({ x: 0, y: -1 }, state.angle);
+  return { x: anchor.x + forkAxis.x * springLength, y: anchor.y + forkAxis.y * springLength };
 }

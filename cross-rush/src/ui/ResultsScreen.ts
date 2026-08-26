@@ -28,8 +28,8 @@ export class ResultsScreen {
     this.root.innerHTML = '';
 
     const card = document.createElement('div');
-    card.style.background = '#12161f';
-    card.style.border = '1px solid rgba(255,255,255,0.12)';
+    card.style.background = 'linear-gradient(180deg, #1c1a17, #100e0c)';
+    card.style.border = '1px solid rgba(224,170,106,0.28)';
     card.style.borderRadius = '14px';
     card.style.padding = '28px 34px';
     card.style.color = '#fff';
@@ -92,9 +92,9 @@ export class ResultsScreen {
 
     const btn = document.createElement('button');
     btn.textContent = 'REINTENTAR (R)';
-    btn.style.background = '#3fa8ff';
+    btn.style.background = '#e0aa6a';
     btn.style.border = 'none';
-    btn.style.color = '#06121f';
+    btn.style.color = '#1c1208';
     btn.style.fontWeight = '800';
     btn.style.padding = '10px 20px';
     btn.style.borderRadius = '8px';

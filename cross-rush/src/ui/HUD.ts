@@ -60,7 +60,7 @@ export class HUD {
     flowWrap.style.bottom = '18px';
     flowWrap.style.width = '220px';
     flowWrap.style.height = '14px';
-    flowWrap.style.border = '2px solid rgba(255,255,255,0.6)';
+    flowWrap.style.border = '2px solid rgba(224,170,106,0.55)';
     flowWrap.style.borderRadius = '8px';
     flowWrap.style.overflow = 'hidden';
     flowWrap.style.background = 'rgba(0,0,0,0.4)';
@@ -68,7 +68,7 @@ export class HUD {
     this.flowFillEl = document.createElement('div');
     this.flowFillEl.style.height = '100%';
     this.flowFillEl.style.width = '0%';
-    this.flowFillEl.style.background = 'linear-gradient(90deg, #3fa8ff, #7cf5c4)';
+    this.flowFillEl.style.background = 'linear-gradient(90deg, #3fa8ff, #e0aa6a)';
     this.flowFillEl.style.transition = 'width 0.08s linear, background 0.2s linear';
     flowWrap.appendChild(this.flowFillEl);
 

@@ -12,8 +12,17 @@ export const MAX_CATCHUP_STEPS = 10; // guarda anti "espiral de la muerte"
 
 export const BikeConfig = {
   mass: 180, // kg (aprox. moto + piloto)
-  /** Momento de inercia alrededor del centro de masas (kg*m^2), aprox como barra. */
-  inertia: 55,
+  /**
+   * Momento de inercia alrededor del centro de masas (kg*m^2). Deliberadamente
+   * mucho mas alto que el de una moto real: con el par de traccion maximo
+   * aplicado en la rueda trasera (ver EngineConfig.maxDriveForce), un valor
+   * "realista" produce una aceleracion angular tan violenta que acelerar a
+   * fondo desde parado da un backflip involuntario en poco mas de un segundo
+   * (visto y medido en tests/_debug durante el tuning). Subirlo es lo que
+   * convierte ese caballito en algo que el jugador puede sentir y corregir
+   * en vez de un crash garantizado con solo pulsar GAS.
+   */
+  inertia: 420,
   wheelBase: 1.35, // metros entre eje delantero y trasero
   /** Altura del centro de masas sobre el eje de las ruedas, en reposo. */
   comHeight: 0.55,
@@ -57,6 +66,23 @@ export const AirControlConfig = {
   airAngularDamping: 0.35,
   /** Tope duro de velocidad angular (rad/s). */
   maxAngularVelocity: 9.0,
+} as const;
+
+/**
+ * Asistencia leve al piloto en el suelo (brief seccion 6): con solo una rueda
+ * apoyada -tipico de acelerar a fondo desde parado, "caballito"- el par de
+ * traccion aplicado en la rueda trasera no tiene nada que lo compense y el
+ * chasis puede entrar en un giro hacia atras que no hay forma de frenar,
+ * provocando un crash instantaneo en la recta inicial. Un piloto real
+ * corrige esto con el cuerpo; aqui lo aproximamos con un amortiguamiento
+ * extra y una ligera tendencia a nivelarse mientras solo hay una rueda en
+ * contacto, sin tocarle nada al control aereo real (ver AirControlConfig).
+ */
+export const GroundBalanceConfig = {
+  /** Amortiguamiento angular extra (1/s) cuando solo una rueda toca el suelo. */
+  oneWheelAngularDamping: 8.0,
+  /** Fuerza (rad/s^2 por radian de inclinacion) que tira del chasis hacia el nivel del suelo. */
+  levelingStrength: 1.2,
 } as const;
 
 export const GravityConfig = {
@@ -165,10 +191,10 @@ export const EffectsConfig = {
 } as const;
 
 export const InputActionKeys = {
-  throttle: ['ArrowUp', 'KeyW'],
-  brake: ['ArrowDown', 'KeyS'],
-  leanBack: ['ArrowLeft', 'KeyA'],
-  leanForward: ['ArrowRight', 'KeyD'],
+  throttle: ['ArrowRight', 'KeyD'],
+  brake: ['ArrowLeft', 'KeyA'],
+  leanForward: ['ArrowUp', 'KeyW'],
+  leanBack: ['ArrowDown', 'KeyS'],
   restart: ['KeyR', 'Space'],
 } as const;
 

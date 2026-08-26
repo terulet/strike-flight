@@ -128,6 +128,7 @@ const loop = new GameLoop(
         particles,
         flowValue: race.flow.value,
         isRedline: race.flow.isRedline,
+        crashed: race.state === 'CRASHED',
       });
 
       hud.update(race.raceTime, race.currentSectorName, race.flow.value, race.flow.isRedline);
