@@ -21,6 +21,11 @@ import riderUrl from '../sprites/rider.png';
 import dirtSprayUrl from '../sprites/dirt_spray.png';
 import landingImpactUrl from '../sprites/landing_impact.png';
 import finishGateUrl from '../sprites/finish_gate.png';
+import startGateUrl from '../sprites/start_gate.png';
+import checkpointGateUrl from '../sprites/checkpoint_gate.png';
+import barrierUrl from '../sprites/barrier.png';
+import rockClusterAUrl from '../sprites/rock_cluster_a.png';
+import bannerFlagUrl from '../sprites/banner_flag.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -36,6 +41,11 @@ export const SpriteImages = {
   dirtSpray: loadImage(dirtSprayUrl),
   landingImpact: loadImage(landingImpactUrl),
   finishGate: loadImage(finishGateUrl),
+  startGate: loadImage(startGateUrl),
+  checkpointGate: loadImage(checkpointGateUrl),
+  barrier: loadImage(barrierUrl),
+  rockClusterA: loadImage(rockClusterAUrl),
+  bannerFlag: loadImage(bannerFlagUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

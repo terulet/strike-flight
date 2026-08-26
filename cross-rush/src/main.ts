@@ -131,7 +131,7 @@ const loop = new GameLoop(
 
       renderer.render({
         camera,
-        terrain: track.terrain,
+        track,
         bike: race.bike,
         particles,
         decals,

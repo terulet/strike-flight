@@ -12,6 +12,7 @@
  */
 
 import { Terrain } from '../physics/Terrain';
+import { TrackDefinition } from '../tracks/CanyonRun';
 import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
 import { Camera } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
@@ -82,7 +83,7 @@ export class Renderer {
 
   render(opts: {
     camera: Camera;
-    terrain: Terrain;
+    track: TrackDefinition;
     bike: BikeState;
     particles: ParticleSystem;
     decals: SpriteDecals;
@@ -91,7 +92,8 @@ export class Renderer {
     crashed: boolean;
   }): void {
     const { ctx, canvas } = this;
-    const { camera, terrain, bike, particles, decals, isRedline, crashed } = opts;
+    const { camera, track, bike, particles, decals, isRedline, crashed } = opts;
+    const terrain = track.terrain;
     const shake = camera.getShakeOffset();
 
     ctx.save();
@@ -100,7 +102,8 @@ export class Renderer {
     this.drawSky(camera);
     this.drawBackdrop(camera, terrain, shake);
     this.drawTerrain(camera, terrain, shake);
-    this.drawFinishGate(camera, terrain, shake);
+    this.drawTrackProps(camera, terrain, shake);
+    this.drawTrackGates(camera, track, shake);
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
     this.drawBike(camera, bike, isRedline, crashed, shake);
@@ -108,18 +111,61 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Arco de meta al final de la pista, apoyado en el suelo. */
-  private drawFinishGate(camera: Camera, terrain: Terrain, shake: Vec2): void {
-    const img = SpriteImages.finishGate;
-    if (!img.complete || img.naturalWidth === 0) return;
-    const gateWidthMeters = 11;
-    const scale = (gateWidthMeters * camera.pixelsPerMeter) / img.naturalWidth;
-    const groundX = terrain.endX;
-    const groundY = terrain.surfaceY(groundX);
-    const p = this.worldToScreen(camera, groundX, groundY, shake);
-    const w = img.naturalWidth * scale;
-    const h = img.naturalHeight * scale;
-    this.ctx.drawImage(img, p.x - w / 2, p.y - h, w, h);
+  /** Dibuja un sprite anclado por su centro-inferior a un punto del suelo. */
+  private drawGroundSprite(
+    camera: Camera,
+    terrain: Terrain,
+    shake: Vec2,
+    x: number,
+    widthMeters: number,
+    image: HTMLImageElement,
+  ): void {
+    if (!image.complete || image.naturalWidth === 0) return;
+    const scale = (widthMeters * camera.pixelsPerMeter) / image.naturalWidth;
+    const groundY = terrain.surfaceY(x);
+    const p = this.worldToScreen(camera, x, groundY, shake);
+    const w = image.naturalWidth * scale;
+    const h = image.naturalHeight * scale;
+    this.ctx.drawImage(image, p.x - w / 2, p.y - h, w, h);
+  }
+
+  /** Arcos de la pista: salida al principio, checkpoint en cada sector intermedio, meta al final. */
+  private drawTrackGates(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+    const { terrain, labels } = track;
+    this.drawGroundSprite(camera, terrain, shake, track.startX, 9, SpriteImages.startGate);
+    for (const label of labels) {
+      if (label.name === 'START' || label.name === 'FINISH') continue;
+      this.drawGroundSprite(camera, terrain, shake, label.x, 8, SpriteImages.checkpointGate);
+    }
+    this.drawGroundSprite(camera, terrain, shake, terrain.endX, 11, SpriteImages.finishGate);
+  }
+
+  /**
+   * Decoracion suelta a lo largo de la pista: bloques de neumaticos, rocas y
+   * banderolas, intercalados de forma deterministica (mismo aspecto cada
+   * frame). Mas espaciados que los matojos de drawTerrain -son piezas
+   * grandes, no relleno-.
+   */
+  private drawTrackProps(camera: Camera, terrain: Terrain, shake: Vec2): void {
+    const ppm = camera.pixelsPerMeter;
+    const halfWidthMeters = this.canvas.width / 2 / ppm;
+    const startX = Math.max(terrain.startX, camera.x - halfWidthMeters - 6);
+    const endX = Math.min(terrain.endX, camera.x + halfWidthMeters + 6);
+    const spacing = 26;
+    const firstSlot = Math.floor(startX / spacing) * spacing;
+    const props: Array<{ image: HTMLImageElement; widthMeters: number }> = [
+      { image: SpriteImages.barrier, widthMeters: 4.2 },
+      { image: SpriteImages.rockClusterA, widthMeters: 4.5 },
+      { image: SpriteImages.bannerFlag, widthMeters: 1.6 },
+    ];
+    for (let slot = firstSlot; slot <= endX; slot += spacing) {
+      const r = hash(slot * 0.091);
+      if (r < 0.25) continue; // hueco: no todos los tramos llevan decoracion
+      const prop = props[Math.floor(hash(slot * 0.133) * props.length) % props.length];
+      const x = slot + (hash(slot * 0.211) - 0.5) * spacing * 0.4;
+      if (x < terrain.startX + 6 || x > terrain.endX - 6) continue;
+      this.drawGroundSprite(camera, terrain, shake, x, prop.widthMeters, prop.image);
+    }
   }
 
   private drawDecals(camera: Camera, decals: SpriteDecals, shake: Vec2): void {
