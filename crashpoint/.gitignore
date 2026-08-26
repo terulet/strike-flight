@@ -7,3 +7,11 @@ dist
 # root game); this subproject needs both versioned, so un-ignore them here.
 !package.json
 !package-lock.json
+
+# The root .gitignore also blanket-ignores any directory named "assets" (a rule for the legacy
+# root game's raw art dump) — that catches this project's own src/assets/ and public/assets/,
+# which must be versioned. Un-ignore both, directory and contents.
+!src/assets/
+!src/assets/**
+!public/assets/
+!public/assets/**

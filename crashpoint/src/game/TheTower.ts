@@ -33,7 +33,9 @@ const LEVEL_NAME = 'THE TOWER';
 const pieces: PieceSpec[] = [
   // --- Primary structure: columns ---
   { id: 'col_left', role: 'primary', material: 'concrete', x: COL_LEFT_X, y: COL_Y, shape: { kind: 'rectangle', width: 74, height: COL_HALF_H * 2 }, structuralValue: 22, assetId: 'structure_column_concrete_placeholder', restsOnGround: true },
-  { id: 'col_right', role: 'primary', material: 'concrete', x: COL_RIGHT_X, y: COL_Y, shape: { kind: 'rectangle', width: 74, height: COL_HALF_H * 2 }, structuralValue: 22, assetId: 'structure_column_concrete_placeholder', restsOnGround: true },
+  // Steel skin on col_right is purely cosmetic variety (MEGA_ASSET_PACK_v1) — material stays
+  // 'concrete' so toughness/damage economics are unchanged; see ASSET_INTEGRATION_REPORT.md.
+  { id: 'col_right', role: 'primary', material: 'concrete', x: COL_RIGHT_X, y: COL_Y, shape: { kind: 'rectangle', width: 74, height: COL_HALF_H * 2 }, structuralValue: 22, assetId: 'structure_column_steel_placeholder', restsOnGround: true },
 
   // --- Primary structure: beams (span between columns) ---
   { id: 'beam_roof', role: 'primary', material: 'metal', x: SPAN_X, y: ROOF_Y, shape: { kind: 'rectangle', width: SPAN_W, height: 36 }, structuralValue: 6, assetId: 'structure_beam_metal_placeholder' },
@@ -45,31 +47,31 @@ const pieces: PieceSpec[] = [
   { id: 'platform_floor1', role: 'secondary', material: 'wood', x: SPAN_X, y: platformY(FLOOR1_Y), shape: { kind: 'rectangle', width: SPAN_W, height: 24 }, structuralValue: 4, assetId: 'structure_platform_wood_placeholder' },
   { id: 'platform_floor2', role: 'secondary', material: 'wood', x: SPAN_X, y: platformY(FLOOR2_Y), shape: { kind: 'rectangle', width: SPAN_W, height: 24 }, structuralValue: 4, assetId: 'structure_platform_wood_placeholder' },
   { id: 'platform_floor3', role: 'secondary', material: 'wood', x: SPAN_X, y: platformY(FLOOR3_Y), shape: { kind: 'rectangle', width: SPAN_W, height: 24 }, structuralValue: 4, assetId: 'structure_platform_wood_placeholder' },
-  { id: 'walkway_floor2', role: 'secondary', material: 'metal', x: 1300, y: platformY(FLOOR2_Y), shape: { kind: 'rectangle', width: 340, height: 20 }, structuralValue: 3, assetId: 'structure_walkway_metal_placeholder' },
+  { id: 'walkway_floor2', role: 'secondary', material: 'metal', x: 1300, y: platformY(FLOOR2_Y), shape: { kind: 'rectangle', width: 340, height: 20 }, structuralValue: 3, assetId: 'structure_platform_walkway_placeholder' },
 
   // --- Reactive / props ---
   // Physics collision boxes are shorter than the recommended final-art dims in ASSET_REQUIREMENTS.md
   // (a full-height box didn't fit in the gap between floors) — the sprite can still be drawn taller.
-  { id: 'gas_tank', role: 'reactive', material: 'explosive', x: COL_LEFT_X + 100, y: platformY(FLOOR1_Y) - 12 - 35, shape: { kind: 'rectangle', width: 90, height: 70 }, structuralValue: 5, assetId: 'prop_gas_tank_placeholder', isExplosive: true },
-  { id: 'glass_panel', role: 'secondary', material: 'glass', x: SPAN_X + 130, y: platformY(FLOOR3_Y) - 12 - 32, shape: { kind: 'rectangle', width: 130, height: 64 }, structuralValue: 2, assetId: 'prop_glass_panel_placeholder' },
+  { id: 'gas_tank', role: 'reactive', material: 'explosive', x: COL_LEFT_X + 100, y: platformY(FLOOR1_Y) - 12 - 35, shape: { kind: 'rectangle', width: 90, height: 70 }, structuralValue: 5, assetId: 'react_gas_tank_placeholder', isExplosive: true },
+  { id: 'glass_panel', role: 'secondary', material: 'glass', x: SPAN_X + 130, y: platformY(FLOOR3_Y) - 12 - 32, shape: { kind: 'rectangle', width: 130, height: 64 }, structuralValue: 2, assetId: 'break_glass_panel_placeholder' },
   { id: 'crate_1', role: 'prop', material: 'wood', x: COL_LEFT_X + 100, y: platformY(FLOOR2_Y) - 12 - 30, shape: { kind: 'rectangle', width: 56, height: 56 }, structuralValue: 1, assetId: 'prop_crate_wood_placeholder' },
   { id: 'crate_2', role: 'prop', material: 'wood', x: SPAN_X - 40, y: platformY(FLOOR2_Y) - 12 - 30, shape: { kind: 'rectangle', width: 56, height: 56 }, structuralValue: 1, assetId: 'prop_crate_wood_placeholder' },
   { id: 'barrel_1', role: 'prop', material: 'metal', x: COL_RIGHT_X - 90, y: platformY(FLOOR1_Y) - 12 - 34, shape: { kind: 'rectangle', width: 48, height: 68 }, structuralValue: 1, assetId: 'prop_barrel_metal_placeholder' },
   { id: 'barrel_2', role: 'prop', material: 'metal', x: SPAN_X - 60, y: platformY(FLOOR3_Y) - 12 - 34, shape: { kind: 'rectangle', width: 48, height: 68 }, structuralValue: 1, assetId: 'prop_barrel_metal_placeholder' },
-  { id: 'generator', role: 'prop', material: 'metal', x: COL_LEFT_X - 170, y: GROUND_Y - 55, shape: { kind: 'rectangle', width: 130, height: 110 }, structuralValue: 4, assetId: 'prop_generator_placeholder', restsOnGround: true },
+  { id: 'generator', role: 'prop', material: 'metal', x: COL_LEFT_X - 170, y: GROUND_Y - 55, shape: { kind: 'rectangle', width: 130, height: 110 }, structuralValue: 4, assetId: 'react_generator_placeholder', restsOnGround: true },
 
   // --- Counterweight (cable + mass) hanging under floor2 beam — short drop, stays clear of
   // platform_floor1 below it (a long drop here would spawn the ball overlapping that platform). ---
-  { id: 'cable_counterweight', role: 'secondary', material: 'cable', x: SPAN_X + 60, y: FLOOR2_Y + 18 + 10, shape: { kind: 'rectangle', width: 8, height: 20 }, structuralValue: 2, assetId: 'environment_cable_placeholder', isCable: true },
-  { id: 'counterweight_ball', role: 'prop', material: 'metal', x: SPAN_X + 60, y: FLOOR2_Y + 18 + 10 + 10 + 25, shape: { kind: 'circle', radius: 25 }, structuralValue: 4, assetId: 'prop_counterweight_placeholder' },
+  { id: 'cable_counterweight', role: 'secondary', material: 'cable', x: SPAN_X + 60, y: FLOOR2_Y + 18 + 10, shape: { kind: 'rectangle', width: 8, height: 20 }, structuralValue: 2, assetId: 'weak_tension_cable_placeholder', isCable: true },
+  { id: 'counterweight_ball', role: 'prop', material: 'metal', x: SPAN_X + 60, y: FLOOR2_Y + 18 + 10 + 10 + 25, shape: { kind: 'circle', radius: 25 }, structuralValue: 4, assetId: 'react_counterweight_placeholder' },
 
   // --- Crane: independent structure well clear of the tower's footprint, boom overhangs the roof
   // with a wrecking-ball load dangling above it (tall enough that it doesn't spawn overlapping
   // the roof beam — see the geometry note in docs/SCALE.md). ---
   { id: 'crane_mast', role: 'primary', material: 'metal', x: 1600, y: GROUND_Y - 325, shape: { kind: 'rectangle', width: 46, height: 650 }, structuralValue: 6, assetId: 'environment_crane_placeholder', restsOnGround: true },
   { id: 'crane_boom', role: 'secondary', material: 'metal', x: 1470, y: 216, shape: { kind: 'rectangle', width: 300, height: 28 }, structuralValue: 4, assetId: 'environment_crane_placeholder' },
-  { id: 'crane_cable', role: 'secondary', material: 'cable', x: 1320, y: 305, shape: { kind: 'rectangle', width: 10, height: 150 }, structuralValue: 2, assetId: 'environment_cable_placeholder', isCable: true },
-  { id: 'crane_hook', role: 'secondary', material: 'metal', x: 1320, y: 394, shape: { kind: 'circle', radius: 14 }, structuralValue: 1, assetId: 'structure_joint_bolt_placeholder' },
+  { id: 'crane_cable', role: 'secondary', material: 'cable', x: 1320, y: 305, shape: { kind: 'rectangle', width: 10, height: 150 }, structuralValue: 2, assetId: 'weak_tension_cable_placeholder', isCable: true },
+  { id: 'crane_hook', role: 'secondary', material: 'metal', x: 1320, y: 394, shape: { kind: 'circle', radius: 14 }, structuralValue: 1, assetId: 'mach_crane_hook_placeholder' },
   { id: 'crane_load', role: 'prop', material: 'concrete', x: 1320, y: 458, shape: { kind: 'circle', radius: 50 }, structuralValue: 6, assetId: 'prop_suspended_load_placeholder' },
 ];
 
@@ -122,6 +124,14 @@ const decor: DecorSpec[] = [
   { id: 'decor_truck', x: 250, y: GROUND_Y - 45, shape: { kind: 'rectangle', width: 220, height: 90 }, assetId: 'prop_truck_placeholder', color: '#4a6d8c', strokeColor: '#2c4256', layer: 'near' },
   { id: 'decor_pipes', x: 1550, y: GROUND_Y - 220, shape: { kind: 'rectangle', width: 90, height: 380 }, assetId: 'environment_decor_pipes_placeholder', color: '#5c6570', strokeColor: '#3a4149', layer: 'near' },
   { id: 'decor_sign', x: 900, y: 90, shape: { kind: 'rectangle', width: 160, height: 90 }, assetId: 'environment_decor_sign_placeholder', color: '#e8482c', strokeColor: '#8f2515', layer: 'near' },
+
+  // --- Weak-point / structural accents (MEGA_ASSET_PACK_v1) — purely visual, no physics body.
+  // Communicate "this looks important" per section 8 without any on-screen "SHOOT HERE" text.
+  { id: 'accent_brace_left', x: COL_LEFT_X + 44, y: GROUND_Y - 68, shape: { kind: 'rectangle', width: 92, height: 69 }, assetId: 'structure_brace_triangular_placeholder', color: '#5c6570', strokeColor: '#3a4149', layer: 'accent' },
+  { id: 'accent_brace_right', x: COL_RIGHT_X - 44, y: GROUND_Y - 68, shape: { kind: 'rectangle', width: 92, height: 69 }, assetId: 'structure_brace_triangular_placeholder', color: '#5c6570', strokeColor: '#3a4149', layer: 'accent', flipX: true },
+  { id: 'accent_hinge_left', x: COL_LEFT_X + 37, y: FLOOR2_Y, shape: { kind: 'rectangle', width: 42, height: 50 }, assetId: 'weak_hinge_heavy_placeholder', color: '#6b6f76', strokeColor: '#33363b', layer: 'accent' },
+  { id: 'accent_hinge_right', x: COL_RIGHT_X - 37, y: FLOOR2_Y, shape: { kind: 'rectangle', width: 42, height: 50 }, assetId: 'weak_hinge_heavy_placeholder', color: '#6b6f76', strokeColor: '#33363b', layer: 'accent', flipX: true },
+  { id: 'accent_junction_roof', x: COL_RIGHT_X - 27, y: ROOF_Y, shape: { kind: 'rectangle', width: 44, height: 44 }, assetId: 'weak_junction_core_placeholder', color: '#6b6f76', strokeColor: '#33363b', layer: 'accent' },
 ];
 
 export const THE_TOWER: TowerLevelData = {

@@ -2,7 +2,9 @@
   "game": "CRASHPOINT",
   "level": "THE TOWER",
   "generatedNote": "Machine-readable companion to docs/ASSET_REQUIREMENTS.md — same ids/fields, kept in sync by hand with src/assets/AssetManifest.ts.",
-  "assetCount": 43,
+  "assetCount": 52,
+  "productionCount": 12,
+  "referenceOnlyCount": 8,
   "assets": [
     {
       "id": "projectile_impact_core_placeholder",
@@ -15,7 +17,8 @@
       "orientation": "lateral",
       "pivot": "center",
       "animation": "rotación en vuelo (opcional)",
-      "finalFile": null
+      "status": "production",
+      "productionFile": "/assets/production/projectiles/PROJ_IMPACT_CORE_01.png"
     },
     {
       "id": "projectile_drill_spike_placeholder",
@@ -27,8 +30,9 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "animation": "rotación rápida en vuelo",
-      "finalFile": null
+      "animation": "rotación alineada a la velocidad",
+      "status": "production",
+      "productionFile": "/assets/production/projectiles/PROJ_DRILL_SPIKE_01.png"
     },
     {
       "id": "projectile_pulse_orb_placeholder",
@@ -41,7 +45,31 @@
       "orientation": "lateral",
       "pivot": "center",
       "animation": "pulso/brillo continuo + flash al activarse",
-      "finalFile": null
+      "status": "reference_only"
+    },
+    {
+      "id": "projectile_shock_capsule_placeholder",
+      "name": "Shock Capsule (futuro)",
+      "category": "projectiles",
+      "function": "Proyectil futuro, aún sin mecánica de gameplay",
+      "width": 64,
+      "height": 48,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "status": "reference_only"
+    },
+    {
+      "id": "projectile_split_node_placeholder",
+      "name": "Split Node (futuro)",
+      "category": "projectiles",
+      "function": "Proyectil futuro, aún sin mecánica de gameplay",
+      "width": 56,
+      "height": 56,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "status": "reference_only"
     },
     {
       "id": "projectile_launcher_placeholder",
@@ -58,7 +86,7 @@
         "aiming",
         "firing"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "structure_column_concrete_placeholder",
@@ -67,7 +95,7 @@
       "function": "Soporte vertical primario de la torre",
       "width": 100,
       "height": 400,
-      "transparency": false,
+      "transparency": true,
       "orientation": "lateral",
       "pivot": "bottom-center",
       "states": [
@@ -75,7 +103,26 @@
         "damaged",
         "broken"
       ],
-      "finalFile": null
+      "status": "production",
+      "productionFile": "/assets/production/structures/STRUCT_COLUMN_CONCRETE_01.png"
+    },
+    {
+      "id": "structure_column_steel_placeholder",
+      "name": "Columna de acero",
+      "category": "structures",
+      "function": "Soporte vertical primario de la torre (variante acero)",
+      "width": 100,
+      "height": 400,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "states": [
+        "intact",
+        "damaged",
+        "broken"
+      ],
+      "status": "production",
+      "productionFile": "/assets/production/structures/STRUCT_COLUMN_STEEL_01.png"
     },
     {
       "id": "structure_beam_metal_placeholder",
@@ -92,7 +139,21 @@
         "damaged",
         "broken"
       ],
-      "finalFile": null
+      "status": "production",
+      "productionFile": "/assets/production/structures/STRUCT_BEAM_STEEL_01.png"
+    },
+    {
+      "id": "structure_brace_triangular_placeholder",
+      "name": "Riostra triangular",
+      "category": "structures",
+      "function": "Refuerzo decorativo en la base de columnas / esquinas de vigas (sin cuerpo físico propio)",
+      "width": 140,
+      "height": 105,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "status": "production",
+      "productionFile": "/assets/production/structures/STRUCT_BRACE_TRIANGULAR_01.png"
     },
     {
       "id": "structure_platform_wood_placeholder",
@@ -109,13 +170,13 @@
         "damaged",
         "broken"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
-      "id": "structure_walkway_metal_placeholder",
+      "id": "structure_platform_walkway_placeholder",
       "name": "Pasarela metálica",
       "category": "structures",
-      "function": "Conexión entre plataformas",
+      "function": "Conexión entre plataformas / voladizo",
       "width": 260,
       "height": 24,
       "transparency": true,
@@ -125,19 +186,82 @@
         "intact",
         "broken"
       ],
-      "finalFile": null
+      "status": "production",
+      "productionFile": "/assets/production/structures/STRUCT_PLATFORM_WALKWAY_01.png"
     },
     {
-      "id": "structure_joint_bolt_placeholder",
-      "name": "Unión / bisagra",
-      "category": "structures",
-      "function": "Punto de conexión visual entre piezas (indicador sutil de debilidad)",
-      "width": 24,
-      "height": 24,
+      "id": "weak_hinge_heavy_placeholder",
+      "name": "Bisagra pesada",
+      "category": "weak_points",
+      "function": "Marcador decorativo de unión estructural crítica (sin cuerpo físico propio)",
+      "width": 70,
+      "height": 84,
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "finalFile": null
+      "status": "production",
+      "productionFile": "/assets/production/weak_points/WEAK_HINGE_HEAVY_01.png"
+    },
+    {
+      "id": "weak_junction_core_placeholder",
+      "name": "Conector de unión (4 vías)",
+      "category": "weak_points",
+      "function": "Marcador decorativo de nodo estructural crítico (sin cuerpo físico propio)",
+      "width": 60,
+      "height": 60,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "status": "production",
+      "productionFile": "/assets/production/weak_points/WEAK_JUNCTION_CORE_01.png"
+    },
+    {
+      "id": "weak_tension_cable_placeholder",
+      "name": "Cable tensor",
+      "category": "weak_points",
+      "function": "Cable de contrapeso / carga de grúa — punto débil de baja resistencia",
+      "width": 40,
+      "height": 200,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-center",
+      "scaleNotes": "arte horizontal en origen, rotado 90° en motor para uso vertical; ver docs/SCALE.md",
+      "states": [
+        "intact",
+        "cut"
+      ],
+      "status": "production",
+      "productionFile": "/assets/production/weak_points/WEAK_TENSION_CABLE_01.png"
+    },
+    {
+      "id": "break_glass_panel_placeholder",
+      "name": "Cristal industrial reforzado",
+      "category": "breakables",
+      "function": "Panel frágil, rotura inmediata",
+      "width": 140,
+      "height": 100,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact (ya agrietado en el arte)",
+        "shattered"
+      ],
+      "status": "production",
+      "productionFile": "/assets/production/breakables/BREAK_GLASS_PANEL_01.png"
+    },
+    {
+      "id": "mach_crane_hook_placeholder",
+      "name": "Gancho de grúa",
+      "category": "machinery",
+      "function": "Gancho pesado que sostiene la carga suspendida",
+      "width": 90,
+      "height": 90,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-center",
+      "status": "production",
+      "productionFile": "/assets/production/machinery/MACH_CRANE_HOOK_01.png"
     },
     {
       "id": "prop_crate_wood_placeholder",
@@ -157,7 +281,7 @@
         "intact",
         "broken"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "prop_barrel_metal_placeholder",
@@ -173,10 +297,10 @@
         "intact",
         "broken"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
-      "id": "prop_gas_tank_placeholder",
+      "id": "react_gas_tank_placeholder",
       "name": "Depósito de gas",
       "category": "props",
       "function": "Elemento reactivo explosivo",
@@ -190,27 +314,35 @@
         "critical",
         "exploded"
       ],
-      "finalFile": null
+      "status": "reference_only"
     },
     {
-      "id": "prop_glass_panel_placeholder",
-      "name": "Cristal industrial",
+      "id": "react_explosive_barrel_placeholder",
+      "name": "Barril explosivo (futuro)",
       "category": "props",
-      "function": "Panel frágil, rotura inmediata",
-      "width": 140,
-      "height": 180,
+      "function": "Prop reactivo futuro, aún no colocado en THE TOWER",
+      "width": 60,
+      "height": 80,
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "states": [
-        "intact",
-        "shattered"
-      ],
-      "finalFile": null
+      "status": "reference_only"
     },
     {
-      "id": "prop_counterweight_placeholder",
-      "name": "Contrapeso",
+      "id": "react_magnet_placeholder",
+      "name": "Imán industrial (futuro)",
+      "category": "props",
+      "function": "Prop reactivo futuro, aún no colocado en THE TOWER",
+      "width": 110,
+      "height": 110,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "status": "reference_only"
+    },
+    {
+      "id": "react_counterweight_placeholder",
+      "name": "Contrapeso 10T",
       "category": "props",
       "function": "Masa suspendida por cable, libera carga al cortarse",
       "width": 90,
@@ -218,7 +350,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "finalFile": null
+      "status": "reference_only"
     },
     {
       "id": "prop_suspended_load_placeholder",
@@ -230,11 +362,11 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
-      "id": "prop_generator_placeholder",
-      "name": "Generador",
+      "id": "react_generator_placeholder",
+      "name": "Generador de alto voltaje",
       "category": "props",
       "function": "Maquinaria decorativa/reactiva",
       "width": 130,
@@ -246,7 +378,7 @@
         "intact",
         "broken"
       ],
-      "finalFile": null
+      "status": "reference_only"
     },
     {
       "id": "prop_pipe_placeholder",
@@ -262,7 +394,7 @@
         "straight",
         "elbow"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "prop_truck_placeholder",
@@ -274,7 +406,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "bottom-center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "environment_crane_placeholder",
@@ -290,24 +422,7 @@
         "intact",
         "collapsed"
       ],
-      "finalFile": null
-    },
-    {
-      "id": "environment_cable_placeholder",
-      "name": "Cable",
-      "category": "environment",
-      "function": "Conexión tensora / contrapeso / carga de grúa",
-      "width": 12,
-      "height": 200,
-      "transparency": true,
-      "orientation": "lateral",
-      "pivot": "top-center",
-      "scaleNotes": "renderizado como segmento estirable, ver docs/SCALE.md",
-      "states": [
-        "intact",
-        "cut"
-      ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "environment_chain_placeholder",
@@ -323,7 +438,23 @@
         "intact",
         "cut"
       ],
-      "finalFile": null
+      "status": "placeholder"
+    },
+    {
+      "id": "environment_chain_placeholder",
+      "name": "Cadena",
+      "category": "environment",
+      "function": "Alternativa visual al cable en soportes pesados",
+      "width": 20,
+      "height": 200,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-center",
+      "states": [
+        "intact",
+        "cut"
+      ],
+      "status": "placeholder"
     },
     {
       "id": "environment_ground_placeholder",
@@ -335,7 +466,7 @@
       "transparency": false,
       "orientation": "lateral",
       "pivot": "top-left",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "environment_decor_pipes_placeholder",
@@ -347,7 +478,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "bottom-center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "environment_decor_sign_placeholder",
@@ -359,7 +490,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "background_sky_industrial_placeholder",
@@ -371,7 +502,7 @@
       "transparency": false,
       "orientation": "lateral",
       "pivot": "top-left",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "background_skyline_placeholder",
@@ -383,7 +514,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "top-left",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "destruction_debris_wood_placeholder",
@@ -398,7 +529,7 @@
       "variants": [
         "4 formas distintas"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "destruction_debris_metal_placeholder",
@@ -413,7 +544,7 @@
       "variants": [
         "4 formas distintas"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "destruction_debris_concrete_placeholder",
@@ -428,7 +559,7 @@
       "variants": [
         "4 formas distintas"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "destruction_shatter_glass_placeholder",
@@ -443,7 +574,7 @@
       "variants": [
         "4 formas distintas"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "fx_explosion_placeholder",
@@ -456,7 +587,7 @@
       "orientation": "lateral",
       "pivot": "center",
       "animation": "secuencia de expansión + desvanecido",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "fx_dust_placeholder",
@@ -469,7 +600,7 @@
       "orientation": "lateral",
       "pivot": "center",
       "animation": "expansión + fade",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "fx_spark_placeholder",
@@ -481,7 +612,7 @@
       "transparency": true,
       "orientation": "lateral",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "fx_smoke_placeholder",
@@ -494,7 +625,7 @@
       "orientation": "lateral",
       "pivot": "bottom-center",
       "animation": "ascenso + disipación",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_icon_impact_core",
@@ -506,7 +637,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_icon_drill_spike",
@@ -518,7 +649,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_icon_pulse_orb",
@@ -530,7 +661,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_logo_crashpoint",
@@ -542,7 +673,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_button_demolish",
@@ -559,7 +690,7 @@
         "hover",
         "pressed"
       ],
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_medal_bronze",
@@ -571,7 +702,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_medal_silver",
@@ -583,7 +714,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_medal_gold",
@@ -595,7 +726,7 @@
       "transparency": true,
       "orientation": "ui",
       "pivot": "center",
-      "finalFile": null
+      "status": "placeholder"
     },
     {
       "id": "ui_medal_crashpoint",
@@ -608,7 +739,7 @@
       "orientation": "ui",
       "pivot": "center",
       "animation": "brillo especial",
-      "finalFile": null
+      "status": "placeholder"
     }
   ]
 }

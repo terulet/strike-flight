@@ -1,18 +1,18 @@
 # ASSET_REQUIREMENTS.md
 
-CRASHPOINT — THE TOWER. Catálogo completo de assets visuales necesarios para el
-CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP final).
+CRASHPOINT — THE TOWER. Catálogo completo de assets visuales.
 
-- Ver también: `docs/asset-manifest.json` (mismo catálogo en formato máquina) y
-  `docs/SCALE.md` (escala px/metro y convenciones de pivote/orientación).
+- Ver también: `docs/asset-manifest.json` (mismo catálogo en formato máquina),
+  `docs/SCALE.md` (escala px/metro y convenciones de pivote/orientación) y
+  `docs/ASSET_INTEGRATION_REPORT.md` / `docs/ASSETS_PENDING_FINAL.md` (estado de MEGA_ASSET_PACK_v1).
 - Cada asset se referencia en el código exclusivamente por su `ID` (ver
-  `src/assets/AssetManifest.ts` → `AssetRegistry` → `PlaceholderRenderer`). Nunca hay
-  rutas de archivo hardcodeadas fuera de esa capa.
-- **Total: 43 assets.**
+  `src/assets/AssetManifest.ts` → `AssetRegistry` → `PlaceholderRenderer` / `src/render/Renderer.ts`).
+  Nunca hay rutas de archivo hardcodeadas fuera de esa capa.
+- **Total: 52 assets · 12 en producción (integrados) · 8 reference_only (pendientes) · 32 placeholder.**
 
-## Proyectiles (3)
+## Proyectiles (5)
 
-### `projectile_impact_core_placeholder`
+### `projectile_impact_core_placeholder` — ✅ PRODUCTION (integrado)
 
 - **Nombre:** Impact Core
 - **Función:** Proyectil pesado de impacto
@@ -20,9 +20,10 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
+- **Archivo en producción:** `public/assets/production/projectiles/PROJ_IMPACT_CORE_01.png`
 - **Animación:** rotación en vuelo (opcional)
 
-### `projectile_drill_spike_placeholder`
+### `projectile_drill_spike_placeholder` — ✅ PRODUCTION (integrado)
 
 - **Nombre:** Drill Spike
 - **Función:** Proyectil perforante
@@ -30,9 +31,10 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
-- **Animación:** rotación rápida en vuelo
+- **Archivo en producción:** `public/assets/production/projectiles/PROJ_DRILL_SPIKE_01.png`
+- **Animación:** rotación alineada a la velocidad
 
-### `projectile_pulse_orb_placeholder`
+### `projectile_pulse_orb_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
 - **Nombre:** Pulse Orb
 - **Función:** Proyectil de onda de choque
@@ -42,19 +44,49 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Animación:** pulso/brillo continuo + flash al activarse
 
-## Estructura (primaria y secundaria) (5)
+### `projectile_shock_capsule_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
-### `structure_column_concrete_placeholder`
+- **Nombre:** Shock Capsule (futuro)
+- **Función:** Proyectil futuro, aún sin mecánica de gameplay
+- **Dimensiones recomendadas:** 64 × 48 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+
+### `projectile_split_node_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
+
+- **Nombre:** Split Node (futuro)
+- **Función:** Proyectil futuro, aún sin mecánica de gameplay
+- **Dimensiones recomendadas:** 56 × 56 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+
+## Estructura (primaria y secundaria) (6)
+
+### `structure_column_concrete_placeholder` — ✅ PRODUCTION (integrado)
 
 - **Nombre:** Columna de hormigón
 - **Función:** Soporte vertical primario de la torre
 - **Dimensiones recomendadas:** 100 × 400 px
-- **Transparencia:** no
+- **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** bottom-center
+- **Archivo en producción:** `public/assets/production/structures/STRUCT_COLUMN_CONCRETE_01.png`
 - **Estados:** intact → damaged → broken
 
-### `structure_beam_metal_placeholder`
+### `structure_column_steel_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Columna de acero
+- **Función:** Soporte vertical primario de la torre (variante acero)
+- **Dimensiones recomendadas:** 100 × 400 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** bottom-center
+- **Archivo en producción:** `public/assets/production/structures/STRUCT_COLUMN_STEEL_01.png`
+- **Estados:** intact → damaged → broken
+
+### `structure_beam_metal_placeholder` — ✅ PRODUCTION (integrado)
 
 - **Nombre:** Viga metálica
 - **Función:** Soporte horizontal / unión entre plantas
@@ -62,9 +94,20 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
+- **Archivo en producción:** `public/assets/production/structures/STRUCT_BEAM_STEEL_01.png`
 - **Estados:** intact → damaged → broken
 
-### `structure_platform_wood_placeholder`
+### `structure_brace_triangular_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Riostra triangular
+- **Función:** Refuerzo decorativo en la base de columnas / esquinas de vigas (sin cuerpo físico propio)
+- **Dimensiones recomendadas:** 140 × 105 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+- **Archivo en producción:** `public/assets/production/structures/STRUCT_BRACE_TRIANGULAR_01.png`
+
+### `structure_platform_wood_placeholder` — ⬜ placeholder
 
 - **Nombre:** Plataforma de madera
 - **Función:** Suelo de planta, secundaria
@@ -74,28 +117,79 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Estados:** intact → damaged → broken
 
-### `structure_walkway_metal_placeholder`
+### `structure_platform_walkway_placeholder` — ✅ PRODUCTION (integrado)
 
 - **Nombre:** Pasarela metálica
-- **Función:** Conexión entre plataformas
+- **Función:** Conexión entre plataformas / voladizo
 - **Dimensiones recomendadas:** 260 × 24 px
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
+- **Archivo en producción:** `public/assets/production/structures/STRUCT_PLATFORM_WALKWAY_01.png`
 - **Estados:** intact → broken
 
-### `structure_joint_bolt_placeholder`
+## Puntos débiles (marcadores visuales) (3)
 
-- **Nombre:** Unión / bisagra
-- **Función:** Punto de conexión visual entre piezas (indicador sutil de debilidad)
-- **Dimensiones recomendadas:** 24 × 24 px
+### `weak_hinge_heavy_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Bisagra pesada
+- **Función:** Marcador decorativo de unión estructural crítica (sin cuerpo físico propio)
+- **Dimensiones recomendadas:** 70 × 84 px
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
+- **Archivo en producción:** `public/assets/production/weak_points/WEAK_HINGE_HEAVY_01.png`
 
-## Props dinámicos (10)
+### `weak_junction_core_placeholder` — ✅ PRODUCTION (integrado)
 
-### `projectile_launcher_placeholder`
+- **Nombre:** Conector de unión (4 vías)
+- **Función:** Marcador decorativo de nodo estructural crítico (sin cuerpo físico propio)
+- **Dimensiones recomendadas:** 60 × 60 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+- **Archivo en producción:** `public/assets/production/weak_points/WEAK_JUNCTION_CORE_01.png`
+
+### `weak_tension_cable_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Cable tensor
+- **Función:** Cable de contrapeso / carga de grúa — punto débil de baja resistencia
+- **Dimensiones recomendadas:** 40 × 200 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** top-center
+- **Archivo en producción:** `public/assets/production/weak_points/WEAK_TENSION_CABLE_01.png`
+- **Notas de escala:** arte horizontal en origen, rotado 90° en motor para uso vertical; ver docs/SCALE.md
+- **Estados:** intact → cut
+
+## Rompibles (1)
+
+### `break_glass_panel_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Cristal industrial reforzado
+- **Función:** Panel frágil, rotura inmediata
+- **Dimensiones recomendadas:** 140 × 100 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+- **Archivo en producción:** `public/assets/production/breakables/BREAK_GLASS_PANEL_01.png`
+- **Estados:** intact (ya agrietado en el arte) → shattered
+
+## Maquinaria (1)
+
+### `mach_crane_hook_placeholder` — ✅ PRODUCTION (integrado)
+
+- **Nombre:** Gancho de grúa
+- **Función:** Gancho pesado que sostiene la carga suspendida
+- **Dimensiones recomendadas:** 90 × 90 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** top-center
+- **Archivo en producción:** `public/assets/production/machinery/MACH_CRANE_HOOK_01.png`
+
+## Props dinámicos / reactivos (11)
+
+### `projectile_launcher_placeholder` — ⬜ placeholder
 
 - **Nombre:** Launcher
 - **Función:** Dispositivo de lanzamiento del jugador (izquierda de pantalla)
@@ -105,7 +199,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** bottom-center
 - **Estados:** idle → aiming → firing
 
-### `prop_crate_wood_placeholder`
+### `prop_crate_wood_placeholder` — ⬜ placeholder
 
 - **Nombre:** Caja de madera
 - **Función:** Prop dinámico ligero
@@ -116,7 +210,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Variantes:** small, large
 - **Estados:** intact → broken
 
-### `prop_barrel_metal_placeholder`
+### `prop_barrel_metal_placeholder` — ⬜ placeholder
 
 - **Nombre:** Barril metálico
 - **Función:** Prop dinámico rodante
@@ -126,7 +220,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Estados:** intact → broken
 
-### `prop_gas_tank_placeholder`
+### `react_gas_tank_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
 - **Nombre:** Depósito de gas
 - **Función:** Elemento reactivo explosivo
@@ -136,26 +230,34 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Estados:** intact → critical → exploded
 
-### `prop_glass_panel_placeholder`
+### `react_explosive_barrel_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
-- **Nombre:** Cristal industrial
-- **Función:** Panel frágil, rotura inmediata
-- **Dimensiones recomendadas:** 140 × 180 px
+- **Nombre:** Barril explosivo (futuro)
+- **Función:** Prop reactivo futuro, aún no colocado en THE TOWER
+- **Dimensiones recomendadas:** 60 × 80 px
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
-- **Estados:** intact → shattered
 
-### `prop_counterweight_placeholder`
+### `react_magnet_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
-- **Nombre:** Contrapeso
+- **Nombre:** Imán industrial (futuro)
+- **Función:** Prop reactivo futuro, aún no colocado en THE TOWER
+- **Dimensiones recomendadas:** 110 × 110 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** center
+
+### `react_counterweight_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
+
+- **Nombre:** Contrapeso 10T
 - **Función:** Masa suspendida por cable, libera carga al cortarse
 - **Dimensiones recomendadas:** 90 × 90 px
 - **Transparencia:** sí (PNG con alpha)
 - **Orientación:** lateral
 - **Pivote:** center
 
-### `prop_suspended_load_placeholder`
+### `prop_suspended_load_placeholder` — ⬜ placeholder
 
 - **Nombre:** Carga suspendida (grúa)
 - **Función:** Masa pesada colgada de la grúa
@@ -164,9 +266,9 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** lateral
 - **Pivote:** center
 
-### `prop_generator_placeholder`
+### `react_generator_placeholder` — 🟡 REFERENCE_ONLY (pendiente arte final)
 
-- **Nombre:** Generador
+- **Nombre:** Generador de alto voltaje
 - **Función:** Maquinaria decorativa/reactiva
 - **Dimensiones recomendadas:** 130 × 110 px
 - **Transparencia:** sí (PNG con alpha)
@@ -174,7 +276,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** bottom-center
 - **Estados:** intact → broken
 
-### `prop_pipe_placeholder`
+### `prop_pipe_placeholder` — ⬜ placeholder
 
 - **Nombre:** Tubería industrial
 - **Función:** Prop decorativo/dinámico
@@ -184,7 +286,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Variantes:** straight, elbow
 
-### `prop_truck_placeholder`
+### `prop_truck_placeholder` — ⬜ placeholder
 
 - **Nombre:** Camión industrial
 - **Función:** Vehículo decorativo en la base del escenario
@@ -195,7 +297,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 
 ## Entorno / decorado interactivo (6)
 
-### `environment_crane_placeholder`
+### `environment_crane_placeholder` — ⬜ placeholder
 
 - **Nombre:** Grúa
 - **Función:** Estructura de grúa que sostiene la carga suspendida
@@ -205,18 +307,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** bottom-center
 - **Estados:** intact → collapsed
 
-### `environment_cable_placeholder`
-
-- **Nombre:** Cable
-- **Función:** Conexión tensora / contrapeso / carga de grúa
-- **Dimensiones recomendadas:** 12 × 200 px
-- **Transparencia:** sí (PNG con alpha)
-- **Orientación:** lateral
-- **Pivote:** top-center
-- **Notas de escala:** renderizado como segmento estirable, ver docs/SCALE.md
-- **Estados:** intact → cut
-
-### `environment_chain_placeholder`
+### `environment_chain_placeholder` — ⬜ placeholder
 
 - **Nombre:** Cadena
 - **Función:** Alternativa visual al cable en soportes pesados
@@ -226,7 +317,17 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** top-center
 - **Estados:** intact → cut
 
-### `environment_ground_placeholder`
+### `environment_chain_placeholder` — ⬜ placeholder
+
+- **Nombre:** Cadena
+- **Función:** Alternativa visual al cable en soportes pesados
+- **Dimensiones recomendadas:** 20 × 200 px
+- **Transparencia:** sí (PNG con alpha)
+- **Orientación:** lateral
+- **Pivote:** top-center
+- **Estados:** intact → cut
+
+### `environment_ground_placeholder` — ⬜ placeholder
 
 - **Nombre:** Suelo industrial
 - **Función:** Terreno base de la instalación
@@ -235,7 +336,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** lateral
 - **Pivote:** top-left
 
-### `environment_decor_pipes_placeholder`
+### `environment_decor_pipes_placeholder` — ⬜ placeholder
 
 - **Nombre:** Tuberías decorativas de fondo
 - **Función:** Relleno visual no interactivo
@@ -244,7 +345,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** lateral
 - **Pivote:** bottom-center
 
-### `environment_decor_sign_placeholder`
+### `environment_decor_sign_placeholder` — ⬜ placeholder
 
 - **Nombre:** Cartel industrial
 - **Función:** Ambientación / identidad de marca del mundo
@@ -255,7 +356,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 
 ## Fondos (2)
 
-### `background_sky_industrial_placeholder`
+### `background_sky_industrial_placeholder` — ⬜ placeholder
 
 - **Nombre:** Cielo industrial
 - **Función:** Fondo lejano con parallax
@@ -264,7 +365,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** lateral
 - **Pivote:** top-left
 
-### `background_skyline_placeholder`
+### `background_skyline_placeholder` — ⬜ placeholder
 
 - **Nombre:** Skyline industrial lejano
 - **Función:** Capa media de parallax
@@ -275,7 +376,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 
 ## Destrucción (debris) (4)
 
-### `destruction_debris_wood_placeholder`
+### `destruction_debris_wood_placeholder` — ⬜ placeholder
 
 - **Nombre:** Fragmento de madera
 - **Función:** Debris visual tras rotura
@@ -285,7 +386,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Variantes:** 4 formas distintas
 
-### `destruction_debris_metal_placeholder`
+### `destruction_debris_metal_placeholder` — ⬜ placeholder
 
 - **Nombre:** Fragmento metálico
 - **Función:** Debris visual tras rotura
@@ -295,7 +396,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Variantes:** 4 formas distintas
 
-### `destruction_debris_concrete_placeholder`
+### `destruction_debris_concrete_placeholder` — ⬜ placeholder
 
 - **Nombre:** Fragmento de hormigón
 - **Función:** Debris visual tras rotura
@@ -305,7 +406,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Variantes:** 4 formas distintas
 
-### `destruction_shatter_glass_placeholder`
+### `destruction_shatter_glass_placeholder` — ⬜ placeholder
 
 - **Nombre:** Esquirla de cristal
 - **Función:** Debris visual de cristal
@@ -317,7 +418,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 
 ## FX (partículas) (4)
 
-### `fx_explosion_placeholder`
+### `fx_explosion_placeholder` — ⬜ placeholder
 
 - **Nombre:** Explosión
 - **Función:** Sprite/partícula de explosión
@@ -327,7 +428,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Animación:** secuencia de expansión + desvanecido
 
-### `fx_dust_placeholder`
+### `fx_dust_placeholder` — ⬜ placeholder
 
 - **Nombre:** Polvo de impacto
 - **Función:** Partícula de polvo en impactos y colapsos
@@ -337,7 +438,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Animación:** expansión + fade
 
-### `fx_spark_placeholder`
+### `fx_spark_placeholder` — ⬜ placeholder
 
 - **Nombre:** Chispa
 - **Función:** Partícula de impacto metálico
@@ -346,7 +447,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** lateral
 - **Pivote:** center
 
-### `fx_smoke_placeholder`
+### `fx_smoke_placeholder` — ⬜ placeholder
 
 - **Nombre:** Humo
 - **Función:** Post-explosión / incendio visual
@@ -358,7 +459,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 
 ## UI (9)
 
-### `ui_icon_impact_core`
+### `ui_icon_impact_core` — ⬜ placeholder
 
 - **Nombre:** Icono Impact Core
 - **Función:** Selector de proyectil (HUD)
@@ -367,7 +468,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_icon_drill_spike`
+### `ui_icon_drill_spike` — ⬜ placeholder
 
 - **Nombre:** Icono Drill Spike
 - **Función:** Selector de proyectil (HUD)
@@ -376,7 +477,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_icon_pulse_orb`
+### `ui_icon_pulse_orb` — ⬜ placeholder
 
 - **Nombre:** Icono Pulse Orb
 - **Función:** Selector de proyectil (HUD)
@@ -385,7 +486,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_logo_crashpoint`
+### `ui_logo_crashpoint` — ⬜ placeholder
 
 - **Nombre:** Logo CRASHPOINT
 - **Función:** Pantalla de título
@@ -394,7 +495,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_button_demolish`
+### `ui_button_demolish` — ⬜ placeholder
 
 - **Nombre:** Botón DEMOLISH
 - **Función:** CTA principal pantalla de título
@@ -404,7 +505,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Pivote:** center
 - **Estados:** idle → hover → pressed
 
-### `ui_medal_bronze`
+### `ui_medal_bronze` — ⬜ placeholder
 
 - **Nombre:** Medalla bronce
 - **Función:** Pantalla de resultado
@@ -413,7 +514,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_medal_silver`
+### `ui_medal_silver` — ⬜ placeholder
 
 - **Nombre:** Medalla plata
 - **Función:** Pantalla de resultado
@@ -422,7 +523,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_medal_gold`
+### `ui_medal_gold` — ⬜ placeholder
 
 - **Nombre:** Medalla oro
 - **Función:** Pantalla de resultado
@@ -431,7 +532,7 @@ CRASHPOINT VISUAL INTEGRATION PASS (sustitución de placeholders por el MEGA ZIP
 - **Orientación:** ui
 - **Pivote:** center
 
-### `ui_medal_crashpoint`
+### `ui_medal_crashpoint` — ⬜ placeholder
 
 - **Nombre:** Medalla CRASHPOINT (Perfect Collapse)
 - **Función:** Pantalla de resultado especial

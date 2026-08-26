@@ -42,7 +42,11 @@ export interface DecorSpec {
   assetId: string;
   color: string;
   strokeColor: string;
-  layer: 'far' | 'near';
+  /** 'far'/'near' draw behind all structural pieces; 'accent' draws after them (weak-point markers,
+   * gussets) so they read as details layered onto the structure rather than being hidden by it. */
+  layer: 'far' | 'near' | 'accent';
+  rotationDeg?: number;
+  flipX?: boolean;
 }
 
 export interface TowerLevelData {
