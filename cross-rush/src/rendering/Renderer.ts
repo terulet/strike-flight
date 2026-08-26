@@ -20,6 +20,7 @@ import { SpriteDecals } from './SpriteDecals';
 import { BikeConfig, SuspensionConfig, EngineConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
 import { SpriteImages, SpriteCalibration } from './SpriteAssets';
+import { computeGameplayZones } from '../gameplay/GameplayZones';
 
 /** Traduce un punto en espacio local del chasis (x=adelante, y=arriba, origen en el centro de masas) a mundo. */
 function localToWorld(bike: BikeState, local: Vec2): Vec2 {
@@ -102,6 +103,7 @@ export class Renderer {
     this.drawTerrain(camera, terrain, shake);
     this.drawTrackProps(camera, terrain, shake);
     this.drawAtmosphere(camera, track, shake);
+    this.drawGameplayFeatures(camera, track, shake);
     this.drawTrackGates(camera, track, shake);
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
@@ -248,6 +250,42 @@ export class Renderer {
 
     const uphillX = labelX('UPHILL');
     if (uphillX !== null) this.drawGroundSprite(camera, terrain, shake, uphillX + 6, 6.5, SpriteImages.pickupTruck);
+  }
+
+  /**
+   * Piezas de riesgo/recompensa (ver gameplay/GameplayZones.ts): a
+   * diferencia de drawTrackProps y drawAtmosphere, estas SI cambian como se
+   * juega (boost, hueco real, aro que hay que acertar) y por eso van
+   * colocadas por sector con intencion, nunca al azar. bump_gate y alt_ramp
+   * decoran un cambio real del heightfield (ver TrackBuilder/CanyonRun); no
+   * hace falta que GameplayZones sepa de ellas porque su "mecanica" ya la
+   * resuelve la fisica normal de la moto.
+   */
+  private drawGameplayFeatures(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+    const { terrain, labels } = track;
+    const labelX = (name: string): number | null => labels.find((l) => l.name === name)?.x ?? null;
+
+    const technicalX = labelX('TECHNICAL');
+    if (technicalX !== null) this.drawGroundSprite(camera, terrain, shake, technicalX + 2, 5.5, SpriteImages.bumpGate);
+
+    const uphillX = labelX('UPHILL');
+    if (uphillX !== null) this.drawGroundSprite(camera, terrain, shake, uphillX + 10, 7, SpriteImages.altRamp);
+
+    const zones = computeGameplayZones(track);
+    if (zones.speedPad) this.drawGroundSprite(camera, terrain, shake, zones.speedPad.x, 4.5, SpriteImages.speedPad);
+    if (zones.riskGap) {
+      const midGapX = zones.riskGap.startX + 12.5;
+      this.drawGroundSprite(camera, terrain, shake, midGapX, 22, SpriteImages.riskGap);
+    }
+    if (zones.flowRing) {
+      const img = SpriteImages.flowRing;
+      if (img.complete && img.naturalWidth > 0) {
+        const widthMeters = 4.5;
+        const scale = (widthMeters * camera.pixelsPerMeter) / img.naturalWidth;
+        const screenPos = this.worldToScreen(camera, zones.flowRing.x, zones.flowRing.y, shake);
+        this.drawRigidSprite(img, screenPos, 0, { x: img.naturalWidth / 2, y: img.naturalHeight / 2 }, scale);
+      }
+    }
   }
 
   /**

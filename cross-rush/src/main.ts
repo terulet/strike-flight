@@ -71,6 +71,22 @@ const race = new RaceManager(track, {
     }
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 10);
   },
+  onSpeedPad: () => {
+    // El sprite del pad ya esta pintado de forma permanente en el suelo
+    // (ver Renderer.drawGameplayFeatures); aqui solo el "chispazo" del boost.
+    audio.playBoostCue();
+    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 12);
+  },
+  onFlowRing: (hit) => {
+    if (!hit) return;
+    audio.playBoostCue();
+    camera.triggerLandingImpulse();
+    particles.spawnBurst(race.bike.x, race.bike.y, 16);
+  },
+  onRiskGapCleared: () => {
+    audio.playBoostCue();
+    particles.spawnBurst(race.bike.x, race.bike.y, 10);
+  },
 });
 
 hud.setBestTime(race.getBestTimeSeconds());

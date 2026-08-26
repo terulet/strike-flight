@@ -207,3 +207,26 @@ export const GhostConfig = {
   /** Cada cuantos segundos se muestrea la posicion para el fantasma. */
   sampleInterval: 1 / 20,
 } as const;
+
+/**
+ * Piezas de riesgo/recompensa (ver GameplayZones.ts): a diferencia de la
+ * decoracion, estas SI alteran la fisica o la puntuacion al pasar por
+ * encima/a traves de ellas. Colocadas por sector con intencion de diseno,
+ * nunca al azar.
+ */
+export const GameplayZoneConfig = {
+  speedPad: {
+    /** Empuje instantaneo de velocidad horizontal al pisarlo (m/s). */
+    boostVx: 6,
+    flowBonus: 8,
+  },
+  riskGap: {
+    /** Bonus de FLOW por saltar el hueco entero en vez de la linea segura corta. */
+    flowBonus: 16,
+  },
+  flowRing: {
+    flowBonus: 20,
+    /** Extiende el REDLINE en curso, o concede un empujon si aun no estaba activo. */
+    redlineExtendSeconds: 1.5,
+  },
+} as const;

@@ -61,4 +61,14 @@ export class FlowMeter {
   onTrick(): void {
     this.add(FlowConfig.trickBonus);
   }
+
+  /** Bonus generico de FLOW (piezas de riesgo/recompensa: speed_pad, risk_gap, flow_ring). */
+  bonus(amount: number): void {
+    this.add(amount);
+  }
+
+  /** Alarga el REDLINE en curso, o lo concede si aun no se habia alcanzado (flow_ring bien atravesado). */
+  extendRedline(seconds: number): void {
+    this.redlineTimer = Math.max(this.redlineTimer, seconds);
+  }
 }

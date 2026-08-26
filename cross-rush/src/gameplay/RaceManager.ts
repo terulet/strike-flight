@@ -16,7 +16,8 @@ import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector'
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
 import { GhostRecorder, saveBestGhost, GhostFrame } from './GhostRecorder';
 import { GameState, TrickResult } from './types';
-import { FlowConfig } from '../config/GameConfig';
+import { FlowConfig, GameplayZoneConfig } from '../config/GameConfig';
+import { computeGameplayZones, GameplayZones } from './GameplayZones';
 
 const COUNTDOWN_SECONDS = 3;
 
@@ -26,6 +27,10 @@ export interface RaceEventSink {
   onCrash?: () => void;
   onFinish?: () => void;
   onStateChange?: (state: GameState) => void;
+  onSpeedPad?: () => void;
+  /** true si se atraveso el aro dentro de la tolerancia, false si se paso de largo sin acertar la trayectoria. */
+  onFlowRing?: (hit: boolean) => void;
+  onRiskGapCleared?: () => void;
 }
 
 export interface RaceResultsSummary {
@@ -56,9 +61,15 @@ export class RaceManager {
   private bestTime: number | null;
   private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false };
 
+  private readonly zones: GameplayZones;
+  private speedPadTriggered = false;
+  private flowRingArmed = true;
+  private riskGapAwarded = false;
+
   constructor(private readonly track: TrackDefinition, private readonly sink: RaceEventSink = {}) {
     this.bestTime = loadBestTime();
     this.bike = createInitialBikeState(track.startX, track.startY);
+    this.zones = computeGameplayZones(track);
   }
 
   getBestTimeSeconds(): number | null {
@@ -90,6 +101,9 @@ export class RaceManager {
     this.flightTracker.reset();
     this.styleScore.reset();
     this.ghost.reset();
+    this.speedPadTriggered = false;
+    this.flowRingArmed = true;
+    this.riskGapAwarded = false;
   }
 
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
@@ -113,8 +127,11 @@ export class RaceManager {
 
     this.raceTime += dt;
 
+    const prevX = this.bike.x;
     const bikeInput: BikeInput = { throttle: input.throttle, brake: input.brake, lean: input.lean };
     this.bike = stepBike(this.bike, this.track.terrain, bikeInput, dt);
+
+    this.checkGameplayZones(prevX);
 
     this.ghost.record(this.raceTime, this.bike.x, this.bike.y, this.bike.angle, dt);
 
@@ -144,6 +161,44 @@ export class RaceManager {
     }
   }
 
+  /**
+   * Deteccion de las piezas de riesgo/recompensa que no dependen de un
+   * aterrizaje (ver GameplayZones): pad de velocidad (suelo) y aro de flow
+   * (aire). El hueco de riesgo se resuelve en handleLanding, porque su
+   * consecuencia depende de donde se aterriza, no de cruzar una x.
+   */
+  private checkGameplayZones(prevX: number): void {
+    const { speedPad, flowRing } = this.zones;
+    const x = this.bike.x;
+    const grounded = this.bike.front.inContact || this.bike.rear.inContact;
+
+    if (
+      speedPad &&
+      !this.speedPadTriggered &&
+      grounded &&
+      this.bike.vx > 0 &&
+      prevX < speedPad.x &&
+      x >= speedPad.x
+    ) {
+      this.speedPadTriggered = true;
+      this.bike = { ...this.bike, vx: this.bike.vx + GameplayZoneConfig.speedPad.boostVx };
+      this.flow.bonus(GameplayZoneConfig.speedPad.flowBonus);
+      this.sink.onSpeedPad?.();
+    }
+
+    const airborne = isAirborne(this.bike);
+    if (!airborne) this.flowRingArmed = true;
+    if (flowRing && airborne && this.flowRingArmed && prevX < flowRing.x && x >= flowRing.x) {
+      this.flowRingArmed = false;
+      const hit = Math.abs(this.bike.y - flowRing.y) <= flowRing.radius;
+      if (hit) {
+        this.flow.bonus(GameplayZoneConfig.flowRing.flowBonus);
+        this.flow.extendRedline(GameplayZoneConfig.flowRing.redlineExtendSeconds);
+      }
+      this.sink.onFlowRing?.(hit);
+    }
+  }
+
   private handleLanding(event: LandingEvent): void {
     this.flow.onLanding(event.quality);
     this.styleScore.registerLanding(event.quality, this.flow.scoreMultiplier);
@@ -152,6 +207,18 @@ export class RaceManager {
     if (event.quality === 'CRASH') {
       this.crash();
       return;
+    }
+
+    const riskGap = this.zones.riskGap;
+    if (
+      riskGap &&
+      !this.riskGapAwarded &&
+      this.bike.x >= riskGap.endX &&
+      this.bike.x <= riskGap.endX + 15
+    ) {
+      this.riskGapAwarded = true;
+      this.flow.bonus(GameplayZoneConfig.riskGap.flowBonus);
+      this.sink.onRiskGapCleared?.();
     }
 
     if (event.trick) {
@@ -212,5 +279,10 @@ export class RaceManager {
 
   get lastAppliedInput(): InputState {
     return this.lastInput;
+  }
+
+  /** Zonas de riesgo/recompensa ya calculadas (misma fuente que usa el render, ver GameplayZones). */
+  get gameplayZones(): GameplayZones {
+    return this.zones;
   }
 }

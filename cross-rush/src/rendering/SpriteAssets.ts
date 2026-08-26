@@ -54,6 +54,11 @@ import pickupTruckUrl from '../sprites/pickup_truck.png';
 import paddockTentUrl from '../sprites/paddock_tent.png';
 import marshalFlagUrl from '../sprites/marshal_flag.png';
 import photographerUrl from '../sprites/photographer.png';
+import speedPadUrl from '../sprites/speed_pad.png';
+import riskGapUrl from '../sprites/risk_gap.png';
+import altRampUrl from '../sprites/alt_ramp.png';
+import flowRingUrl from '../sprites/flow_ring.png';
+import bumpGateUrl from '../sprites/bump_gate.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -102,6 +107,11 @@ export const SpriteImages = {
   paddockTent: loadImage(paddockTentUrl),
   marshalFlag: loadImage(marshalFlagUrl),
   photographer: loadImage(photographerUrl),
+  speedPad: loadImage(speedPadUrl),
+  riskGap: loadImage(riskGapUrl),
+  altRamp: loadImage(altRampUrl),
+  flowRing: loadImage(flowRingUrl),
+  bumpGate: loadImage(bumpGateUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

@@ -86,4 +86,10 @@ export class AudioEngine {
     this.playBlip(90, 0.4, AudioConfig.crash.gain, 'square');
     this.playBlip(55, 0.5, AudioConfig.crash.gain * 0.8, 'sawtooth');
   }
+
+  /** Empujon de una pieza de riesgo/recompensa (speed_pad, flow_ring acertado, risk_gap superado). */
+  playBoostCue(): void {
+    this.playBlip(440, 0.1, AudioConfig.landing.gain, 'triangle');
+    this.playBlip(660, 0.14, AudioConfig.landing.gain, 'triangle');
+  }
 }
