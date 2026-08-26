@@ -1,0 +1,614 @@
+{
+  "game": "CRASHPOINT",
+  "level": "THE TOWER",
+  "generatedNote": "Machine-readable companion to docs/ASSET_REQUIREMENTS.md — same ids/fields, kept in sync by hand with src/assets/AssetManifest.ts.",
+  "assetCount": 43,
+  "assets": [
+    {
+      "id": "projectile_impact_core_placeholder",
+      "name": "Impact Core",
+      "category": "projectiles",
+      "function": "Proyectil pesado de impacto",
+      "width": 64,
+      "height": 64,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "animation": "rotación en vuelo (opcional)",
+      "finalFile": null
+    },
+    {
+      "id": "projectile_drill_spike_placeholder",
+      "name": "Drill Spike",
+      "category": "projectiles",
+      "function": "Proyectil perforante",
+      "width": 64,
+      "height": 32,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "animation": "rotación rápida en vuelo",
+      "finalFile": null
+    },
+    {
+      "id": "projectile_pulse_orb_placeholder",
+      "name": "Pulse Orb",
+      "category": "projectiles",
+      "function": "Proyectil de onda de choque",
+      "width": 48,
+      "height": 48,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "animation": "pulso/brillo continuo + flash al activarse",
+      "finalFile": null
+    },
+    {
+      "id": "projectile_launcher_placeholder",
+      "name": "Launcher",
+      "category": "props",
+      "function": "Dispositivo de lanzamiento del jugador (izquierda de pantalla)",
+      "width": 220,
+      "height": 220,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "states": [
+        "idle",
+        "aiming",
+        "firing"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "structure_column_concrete_placeholder",
+      "name": "Columna de hormigón",
+      "category": "structures",
+      "function": "Soporte vertical primario de la torre",
+      "width": 100,
+      "height": 400,
+      "transparency": false,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "states": [
+        "intact",
+        "damaged",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "structure_beam_metal_placeholder",
+      "name": "Viga metálica",
+      "category": "structures",
+      "function": "Soporte horizontal / unión entre plantas",
+      "width": 320,
+      "height": 40,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "damaged",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "structure_platform_wood_placeholder",
+      "name": "Plataforma de madera",
+      "category": "structures",
+      "function": "Suelo de planta, secundaria",
+      "width": 360,
+      "height": 28,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "damaged",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "structure_walkway_metal_placeholder",
+      "name": "Pasarela metálica",
+      "category": "structures",
+      "function": "Conexión entre plataformas",
+      "width": 260,
+      "height": 24,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "structure_joint_bolt_placeholder",
+      "name": "Unión / bisagra",
+      "category": "structures",
+      "function": "Punto de conexión visual entre piezas (indicador sutil de debilidad)",
+      "width": 24,
+      "height": 24,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "prop_crate_wood_placeholder",
+      "name": "Caja de madera",
+      "category": "props",
+      "function": "Prop dinámico ligero",
+      "width": 64,
+      "height": 64,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "small",
+        "large"
+      ],
+      "states": [
+        "intact",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_barrel_metal_placeholder",
+      "name": "Barril metálico",
+      "category": "props",
+      "function": "Prop dinámico rodante",
+      "width": 56,
+      "height": 72,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_gas_tank_placeholder",
+      "name": "Depósito de gas",
+      "category": "props",
+      "function": "Elemento reactivo explosivo",
+      "width": 90,
+      "height": 130,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "critical",
+        "exploded"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_glass_panel_placeholder",
+      "name": "Cristal industrial",
+      "category": "props",
+      "function": "Panel frágil, rotura inmediata",
+      "width": 140,
+      "height": 180,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "states": [
+        "intact",
+        "shattered"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_counterweight_placeholder",
+      "name": "Contrapeso",
+      "category": "props",
+      "function": "Masa suspendida por cable, libera carga al cortarse",
+      "width": 90,
+      "height": 90,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "prop_suspended_load_placeholder",
+      "name": "Carga suspendida (grúa)",
+      "category": "props",
+      "function": "Masa pesada colgada de la grúa",
+      "width": 120,
+      "height": 120,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "prop_generator_placeholder",
+      "name": "Generador",
+      "category": "props",
+      "function": "Maquinaria decorativa/reactiva",
+      "width": 130,
+      "height": 110,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "states": [
+        "intact",
+        "broken"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_pipe_placeholder",
+      "name": "Tubería industrial",
+      "category": "props",
+      "function": "Prop decorativo/dinámico",
+      "width": 220,
+      "height": 30,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "straight",
+        "elbow"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "prop_truck_placeholder",
+      "name": "Camión industrial",
+      "category": "props",
+      "function": "Vehículo decorativo en la base del escenario",
+      "width": 220,
+      "height": 110,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "finalFile": null
+    },
+    {
+      "id": "environment_crane_placeholder",
+      "name": "Grúa",
+      "category": "environment",
+      "function": "Estructura de grúa que sostiene la carga suspendida",
+      "width": 420,
+      "height": 360,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "states": [
+        "intact",
+        "collapsed"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "environment_cable_placeholder",
+      "name": "Cable",
+      "category": "environment",
+      "function": "Conexión tensora / contrapeso / carga de grúa",
+      "width": 12,
+      "height": 200,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-center",
+      "scaleNotes": "renderizado como segmento estirable, ver docs/SCALE.md",
+      "states": [
+        "intact",
+        "cut"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "environment_chain_placeholder",
+      "name": "Cadena",
+      "category": "environment",
+      "function": "Alternativa visual al cable en soportes pesados",
+      "width": 20,
+      "height": 200,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-center",
+      "states": [
+        "intact",
+        "cut"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "environment_ground_placeholder",
+      "name": "Suelo industrial",
+      "category": "environment",
+      "function": "Terreno base de la instalación",
+      "width": 1920,
+      "height": 120,
+      "transparency": false,
+      "orientation": "lateral",
+      "pivot": "top-left",
+      "finalFile": null
+    },
+    {
+      "id": "environment_decor_pipes_placeholder",
+      "name": "Tuberías decorativas de fondo",
+      "category": "environment",
+      "function": "Relleno visual no interactivo",
+      "width": 300,
+      "height": 500,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "finalFile": null
+    },
+    {
+      "id": "environment_decor_sign_placeholder",
+      "name": "Cartel industrial",
+      "category": "environment",
+      "function": "Ambientación / identidad de marca del mundo",
+      "width": 160,
+      "height": 90,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "background_sky_industrial_placeholder",
+      "name": "Cielo industrial",
+      "category": "backgrounds",
+      "function": "Fondo lejano con parallax",
+      "width": 1920,
+      "height": 1080,
+      "transparency": false,
+      "orientation": "lateral",
+      "pivot": "top-left",
+      "finalFile": null
+    },
+    {
+      "id": "background_skyline_placeholder",
+      "name": "Skyline industrial lejano",
+      "category": "backgrounds",
+      "function": "Capa media de parallax",
+      "width": 1920,
+      "height": 600,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "top-left",
+      "finalFile": null
+    },
+    {
+      "id": "destruction_debris_wood_placeholder",
+      "name": "Fragmento de madera",
+      "category": "destruction",
+      "function": "Debris visual tras rotura",
+      "width": 32,
+      "height": 32,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "4 formas distintas"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "destruction_debris_metal_placeholder",
+      "name": "Fragmento metálico",
+      "category": "destruction",
+      "function": "Debris visual tras rotura",
+      "width": 32,
+      "height": 32,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "4 formas distintas"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "destruction_debris_concrete_placeholder",
+      "name": "Fragmento de hormigón",
+      "category": "destruction",
+      "function": "Debris visual tras rotura",
+      "width": 32,
+      "height": 32,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "4 formas distintas"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "destruction_shatter_glass_placeholder",
+      "name": "Esquirla de cristal",
+      "category": "destruction",
+      "function": "Debris visual de cristal",
+      "width": 20,
+      "height": 20,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "variants": [
+        "4 formas distintas"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "fx_explosion_placeholder",
+      "name": "Explosión",
+      "category": "fx",
+      "function": "Sprite/partícula de explosión",
+      "width": 256,
+      "height": 256,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "animation": "secuencia de expansión + desvanecido",
+      "finalFile": null
+    },
+    {
+      "id": "fx_dust_placeholder",
+      "name": "Polvo de impacto",
+      "category": "fx",
+      "function": "Partícula de polvo en impactos y colapsos",
+      "width": 48,
+      "height": 48,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "animation": "expansión + fade",
+      "finalFile": null
+    },
+    {
+      "id": "fx_spark_placeholder",
+      "name": "Chispa",
+      "category": "fx",
+      "function": "Partícula de impacto metálico",
+      "width": 16,
+      "height": 16,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "fx_smoke_placeholder",
+      "name": "Humo",
+      "category": "fx",
+      "function": "Post-explosión / incendio visual",
+      "width": 96,
+      "height": 128,
+      "transparency": true,
+      "orientation": "lateral",
+      "pivot": "bottom-center",
+      "animation": "ascenso + disipación",
+      "finalFile": null
+    },
+    {
+      "id": "ui_icon_impact_core",
+      "name": "Icono Impact Core",
+      "category": "ui",
+      "function": "Selector de proyectil (HUD)",
+      "width": 96,
+      "height": 96,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_icon_drill_spike",
+      "name": "Icono Drill Spike",
+      "category": "ui",
+      "function": "Selector de proyectil (HUD)",
+      "width": 96,
+      "height": 96,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_icon_pulse_orb",
+      "name": "Icono Pulse Orb",
+      "category": "ui",
+      "function": "Selector de proyectil (HUD)",
+      "width": 96,
+      "height": 96,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_logo_crashpoint",
+      "name": "Logo CRASHPOINT",
+      "category": "ui",
+      "function": "Pantalla de título",
+      "width": 800,
+      "height": 260,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_button_demolish",
+      "name": "Botón DEMOLISH",
+      "category": "ui",
+      "function": "CTA principal pantalla de título",
+      "width": 320,
+      "height": 96,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "states": [
+        "idle",
+        "hover",
+        "pressed"
+      ],
+      "finalFile": null
+    },
+    {
+      "id": "ui_medal_bronze",
+      "name": "Medalla bronce",
+      "category": "ui",
+      "function": "Pantalla de resultado",
+      "width": 160,
+      "height": 160,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_medal_silver",
+      "name": "Medalla plata",
+      "category": "ui",
+      "function": "Pantalla de resultado",
+      "width": 160,
+      "height": 160,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_medal_gold",
+      "name": "Medalla oro",
+      "category": "ui",
+      "function": "Pantalla de resultado",
+      "width": 160,
+      "height": 160,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "finalFile": null
+    },
+    {
+      "id": "ui_medal_crashpoint",
+      "name": "Medalla CRASHPOINT (Perfect Collapse)",
+      "category": "ui",
+      "function": "Pantalla de resultado especial",
+      "width": 160,
+      "height": 160,
+      "transparency": true,
+      "orientation": "ui",
+      "pivot": "center",
+      "animation": "brillo especial",
+      "finalFile": null
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+node_modules
+dist
+*.log
+.vite
+
+# The root .gitignore blanket-ignores package.json/package-lock.json (a rule from the legacy
+# root game); this subproject needs both versioned, so un-ignore them here.
+!package.json
+!package-lock.json
