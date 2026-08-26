@@ -101,6 +101,7 @@ export class Renderer {
     this.drawBackdrop(camera, terrain, shake);
     this.drawTerrain(camera, terrain, shake);
     this.drawTrackProps(camera, terrain, shake);
+    this.drawAtmosphere(camera, track, shake);
     this.drawTrackGates(camera, track, shake);
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
@@ -221,6 +222,32 @@ export class Renderer {
       }
     }
     this.drawGroundSprite(camera, terrain, shake, terrain.endX, 11, SpriteImages.finishGate);
+  }
+
+  /**
+   * Vida de evento: publico, fotografo, comisario con bandera, carpa de
+   * boxes y pickup de asistencia. A proposito NO usan el reparto aleatorio
+   * de drawTrackProps -son 1-2 apariciones fijas en puntos con sentido
+   * narrativo (salida, meta, antes de la zona tecnica, junto al mega
+   * salto), no relleno que se repite cada ~26m-. No afectan a la fisica,
+   * son solo ambientacion.
+   */
+  private drawAtmosphere(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+    const { terrain, labels } = track;
+    const labelX = (name: string): number | null => labels.find((l) => l.name === name)?.x ?? null;
+
+    this.drawGroundSprite(camera, terrain, shake, track.startX + 9, 9, SpriteImages.crowd);
+    this.drawGroundSprite(camera, terrain, shake, terrain.endX - 7, 9, SpriteImages.crowd);
+    this.drawGroundSprite(camera, terrain, shake, Math.max(terrain.startX + 3, track.startX - 9), 8, SpriteImages.paddockTent);
+
+    const megaJumpX = labelX('MEGA_JUMP');
+    if (megaJumpX !== null) this.drawGroundSprite(camera, terrain, shake, megaJumpX - 5, 4.2, SpriteImages.photographer);
+
+    const technicalX = labelX('TECHNICAL');
+    if (technicalX !== null) this.drawGroundSprite(camera, terrain, shake, technicalX - 4, 4, SpriteImages.marshalFlag);
+
+    const uphillX = labelX('UPHILL');
+    if (uphillX !== null) this.drawGroundSprite(camera, terrain, shake, uphillX + 6, 6.5, SpriteImages.pickupTruck);
   }
 
   /**

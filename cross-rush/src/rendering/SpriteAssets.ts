@@ -49,6 +49,11 @@ import foregroundAUrl from '../sprites/foreground_a.png';
 import foregroundBUrl from '../sprites/foreground_b.png';
 import speedStreakUrl from '../sprites/speed_streak.png';
 import speedDebrisUrl from '../sprites/speed_debris.png';
+import crowdUrl from '../sprites/crowd.png';
+import pickupTruckUrl from '../sprites/pickup_truck.png';
+import paddockTentUrl from '../sprites/paddock_tent.png';
+import marshalFlagUrl from '../sprites/marshal_flag.png';
+import photographerUrl from '../sprites/photographer.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -92,6 +97,11 @@ export const SpriteImages = {
   foregroundB: loadImage(foregroundBUrl),
   speedStreak: loadImage(speedStreakUrl),
   speedDebris: loadImage(speedDebrisUrl),
+  crowd: loadImage(crowdUrl),
+  pickupTruck: loadImage(pickupTruckUrl),
+  paddockTent: loadImage(paddockTentUrl),
+  marshalFlag: loadImage(marshalFlagUrl),
+  photographer: loadImage(photographerUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */
