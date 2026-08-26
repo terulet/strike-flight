@@ -31,6 +31,9 @@ export interface RaceEventSink {
   /** true si se atraveso el aro dentro de la tolerancia, false si se paso de largo sin acertar la trayectoria. */
   onFlowRing?: (hit: boolean) => void;
   onRiskGapCleared?: () => void;
+  /** Puramente visual: bump_gate y alt_ramp ya afectan el juego via terreno real, esto solo dispara su chispazo. */
+  onAltRamp?: () => void;
+  onBumpGate?: () => void;
 }
 
 export interface RaceResultsSummary {
@@ -65,6 +68,8 @@ export class RaceManager {
   private speedPadTriggered = false;
   private flowRingArmed = true;
   private riskGapAwarded = false;
+  private altRampFxPlayed = false;
+  private bumpGateFxPlayed = false;
 
   constructor(private readonly track: TrackDefinition, private readonly sink: RaceEventSink = {}) {
     this.bestTime = loadBestTime();
@@ -104,6 +109,8 @@ export class RaceManager {
     this.speedPadTriggered = false;
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
+    this.altRampFxPlayed = false;
+    this.bumpGateFxPlayed = false;
   }
 
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
@@ -168,9 +175,18 @@ export class RaceManager {
    * consecuencia depende de donde se aterriza, no de cruzar una x.
    */
   private checkGameplayZones(prevX: number): void {
-    const { speedPad, flowRing } = this.zones;
+    const { speedPad, flowRing, altRamp, bumpGate } = this.zones;
     const x = this.bike.x;
     const grounded = this.bike.front.inContact || this.bike.rear.inContact;
+
+    if (bumpGate && !this.bumpGateFxPlayed && prevX < bumpGate.x && x >= bumpGate.x) {
+      this.bumpGateFxPlayed = true;
+      this.sink.onBumpGate?.();
+    }
+    if (altRamp && !this.altRampFxPlayed && prevX < altRamp.x && x >= altRamp.x) {
+      this.altRampFxPlayed = true;
+      this.sink.onAltRamp?.();
+    }
 
     if (
       speedPad &&

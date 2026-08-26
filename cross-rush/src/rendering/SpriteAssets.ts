@@ -59,6 +59,11 @@ import riskGapUrl from '../sprites/risk_gap.png';
 import altRampUrl from '../sprites/alt_ramp.png';
 import flowRingUrl from '../sprites/flow_ring.png';
 import bumpGateUrl from '../sprites/bump_gate.png';
+import speedPadFxUrl from '../sprites/speed_pad_fx.png';
+import altRampFxUrl from '../sprites/alt_ramp_fx.png';
+import bumpGateFxUrl from '../sprites/bump_gate_fx.png';
+import riskGapFxUrl from '../sprites/risk_gap_fx.png';
+import flowRingHitUrl from '../sprites/flow_ring_hit.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -112,6 +117,11 @@ export const SpriteImages = {
   altRamp: loadImage(altRampUrl),
   flowRing: loadImage(flowRingUrl),
   bumpGate: loadImage(bumpGateUrl),
+  speedPadFx: loadImage(speedPadFxUrl),
+  altRampFx: loadImage(altRampFxUrl),
+  bumpGateFx: loadImage(bumpGateFxUrl),
+  riskGapFx: loadImage(riskGapFxUrl),
+  flowRingHit: loadImage(flowRingHitUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

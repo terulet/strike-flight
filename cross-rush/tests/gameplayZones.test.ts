@@ -26,7 +26,10 @@ describe('GameplayZones (piezas de riesgo/recompensa)', () => {
     expect(zones.speedPad).not.toBeNull();
     expect(zones.riskGap).not.toBeNull();
     expect(zones.flowRing).not.toBeNull();
+    expect(zones.altRamp).not.toBeNull();
+    expect(zones.bumpGate).not.toBeNull();
 
+    const technicalX = track.labels.find((l) => l.name === 'TECHNICAL')!.x;
     const uphillX = track.labels.find((l) => l.name === 'UPHILL')!.x;
     const riskLineX = track.labels.find((l) => l.name === 'RISK_LINE_JUMP')!.x;
     const megaJumpX = track.labels.find((l) => l.name === 'MEGA_JUMP')!.x;
@@ -36,6 +39,8 @@ describe('GameplayZones (piezas de riesgo/recompensa)', () => {
     expect(zones.riskGap!.endX).toBeGreaterThan(zones.riskGap!.startX);
     expect(zones.flowRing!.x).toBeGreaterThan(megaJumpX);
     expect(zones.flowRing!.radius).toBeGreaterThan(0);
+    expect(zones.bumpGate!.x).toBeGreaterThan(technicalX);
+    expect(zones.altRamp!.x).toBeGreaterThan(uphillX);
   });
 
   it('speed_pad: da un empujon de velocidad y de FLOW una unica vez al pisarlo', () => {

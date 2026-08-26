@@ -262,16 +262,11 @@ export class Renderer {
    * resuelve la fisica normal de la moto.
    */
   private drawGameplayFeatures(camera: Camera, track: TrackDefinition, shake: Vec2): void {
-    const { terrain, labels } = track;
-    const labelX = (name: string): number | null => labels.find((l) => l.name === name)?.x ?? null;
-
-    const technicalX = labelX('TECHNICAL');
-    if (technicalX !== null) this.drawGroundSprite(camera, terrain, shake, technicalX + 2, 5.5, SpriteImages.bumpGate);
-
-    const uphillX = labelX('UPHILL');
-    if (uphillX !== null) this.drawGroundSprite(camera, terrain, shake, uphillX + 10, 7, SpriteImages.altRamp);
-
+    const { terrain } = track;
     const zones = computeGameplayZones(track);
+
+    if (zones.bumpGate) this.drawGroundSprite(camera, terrain, shake, zones.bumpGate.x, 5.5, SpriteImages.bumpGate);
+    if (zones.altRamp) this.drawGroundSprite(camera, terrain, shake, zones.altRamp.x, 7, SpriteImages.altRamp);
     if (zones.speedPad) this.drawGroundSprite(camera, terrain, shake, zones.speedPad.x, 4.5, SpriteImages.speedPad);
     if (zones.riskGap) {
       const midGapX = zones.riskGap.startX + 12.5;

@@ -76,16 +76,27 @@ const race = new RaceManager(track, {
     // (ver Renderer.drawGameplayFeatures); aqui solo el "chispazo" del boost.
     audio.playBoostCue();
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 12);
+    decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.speedPadFx);
   },
   onFlowRing: (hit) => {
     if (!hit) return;
     audio.playBoostCue();
     camera.triggerLandingImpulse();
     particles.spawnBurst(race.bike.x, race.bike.y, 16);
+    decals.spawn(race.bike.x, race.bike.y, SpriteImages.flowRingHit);
   },
   onRiskGapCleared: () => {
     audio.playBoostCue();
     particles.spawnBurst(race.bike.x, race.bike.y, 10);
+    decals.spawn(race.bike.x, race.bike.y, SpriteImages.riskGapFx);
+  },
+  onAltRamp: () => {
+    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
+    decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.altRampFx);
+  },
+  onBumpGate: () => {
+    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
+    decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.bumpGateFx);
   },
 });
 
