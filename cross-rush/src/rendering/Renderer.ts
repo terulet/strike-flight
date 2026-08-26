@@ -30,6 +30,12 @@ function hash(n: number): number {
   return s - Math.floor(s);
 }
 
+/**
+ * Paleta de marca: naranja/negro/rojo sobre canon de tierra, alineada con el
+ * key art de CROSS RUSH (casco y mono naranja quemado, chasis blanco/plata,
+ * acentos rojos en REDLINE). El entorno se queda en tonos tierra/roca
+ * naturales; lo que cambia de marca es la moto, el piloto y la UI.
+ */
 const PALETTE = {
   skyTop: '#3c5a78',
   skyHorizon: '#f0b874',
@@ -41,12 +47,13 @@ const PALETTE = {
   soilTop: '#a9744a',
   soilRim: '#e0aa6a',
   scrub: '#5c6b3e',
-  bikeFrame: '#e8eaef',
-  bikeFrameRedline: '#ffb199',
-  bikeAccent: '#ff8a3d',
-  bikeAccentRedline: '#ff5b3d',
-  riderSuit: '#2a6fb0',
-  riderHelmet: '#233046',
+  bikeFrame: '#eef0f4',
+  bikeFrameRedline: '#ffd9c2',
+  bikeAccent: '#ff6a1a',
+  bikeAccentRedline: '#ff2d2d',
+  riderSuit: '#ff6a1a',
+  riderSuitRedline: '#ff2d2d',
+  riderHelmet: '#181410',
   tire: '#1b1b1f',
   rim: '#c9ccd4',
   dust: '#d9c4a0',
@@ -315,7 +322,7 @@ export class Renderer {
     // --- Piloto: figura minima (casco + torso + brazo + pierna) apoyada en
     // el asiento, siguiendo la rotacion del chasis. Reconocible sin ser un
     // sprite: es lo que pide el brief para M1. ---
-    this.drawRider(camera, bike, shake, crashed);
+    this.drawRider(camera, bike, shake, crashed, isRedline);
 
     // --- Ruedas: neumatico con tacos y llanta con radios que giran segun la
     // distancia recorrida (rodadura aproximada, suficiente para el feel). ---
@@ -331,7 +338,7 @@ export class Renderer {
     }
   }
 
-  private drawRider(camera: Camera, bike: BikeState, shake: Vec2, crashed: boolean): void {
+  private drawRider(camera: Camera, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
     const { ctx } = this;
     const ppm = camera.pixelsPerMeter;
     const wb = BikeConfig.wheelBase;
@@ -357,7 +364,7 @@ export class Renderer {
     const pHand = toScreen(hand);
     const pFoot = toScreen(foot);
 
-    ctx.strokeStyle = crashed ? '#3a3a3f' : PALETTE.riderSuit;
+    ctx.strokeStyle = crashed ? '#3a3a3f' : isRedline ? PALETTE.riderSuitRedline : PALETTE.riderSuit;
     ctx.lineCap = 'round';
 
     // Pierna: cadera -> estribo.
@@ -381,11 +388,21 @@ export class Renderer {
     ctx.lineTo(pHand.x, pHand.y);
     ctx.stroke();
 
-    // Casco.
+    // Casco: base oscura con una franja de la marca (naranja o roja en
+    // REDLINE) para que se lea el kit incluso a este tamano tan pequeno.
+    const helmetR = Math.max(5, 0.2 * ppm);
     ctx.beginPath();
     ctx.fillStyle = crashed ? '#5c5c60' : PALETTE.riderHelmet;
-    ctx.arc(pHelmet.x, pHelmet.y, Math.max(5, 0.2 * ppm), 0, Math.PI * 2);
+    ctx.arc(pHelmet.x, pHelmet.y, helmetR, 0, Math.PI * 2);
     ctx.fill();
+    if (!crashed) {
+      ctx.beginPath();
+      ctx.fillStyle = isRedline ? PALETTE.riderSuitRedline : PALETTE.riderSuit;
+      ctx.arc(pHelmet.x, pHelmet.y, helmetR, -0.5, 0.5);
+      ctx.arc(pHelmet.x, pHelmet.y, helmetR * 0.55, 0.5, -0.5, true);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   private drawWheel(cx: number, cy: number, r: number, spin: number, contact: boolean, crashed: boolean): void {
