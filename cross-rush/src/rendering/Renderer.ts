@@ -176,6 +176,8 @@ export class Renderer {
       { image: SpriteImages.bannerFlag, widthMeters: 1.6 },
       { image: SpriteImages.cactusCluster, widthMeters: 2.6 },
       { image: SpriteImages.fenceBanner, widthMeters: 5.5 },
+      { image: SpriteImages.dangerFlags, widthMeters: 2.4 },
+      { image: SpriteImages.ropeBarrier, widthMeters: 4.8 },
     ];
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);

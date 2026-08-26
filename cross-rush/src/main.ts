@@ -66,7 +66,8 @@ const race = new RaceManager(track, {
       camera.triggerLandingImpulse();
       decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.landingImpact);
     } else if (event.quality === 'ROUGH' || event.quality === 'BAD') {
-      decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.dirtSpray);
+      const roughDecal = Math.random() < 0.5 ? SpriteImages.dirtSpray : SpriteImages.tireSkid;
+      decals.spawn(race.bike.x, race.bike.y - 0.2, roughDecal);
     }
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 10);
   },
