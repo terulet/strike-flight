@@ -42,8 +42,6 @@ const PALETTE = {
   skyTop: '#3c5a78',
   skyHorizon: '#f0b874',
   sunGlow: 'rgba(255, 214, 150, 0.35)',
-  farMountain: '#6b4f5e',
-  nearMountain: '#8a5a4a',
   rockDark: '#4a3323',
   rockMid: '#6b4a30',
   soilTop: '#a9744a',
@@ -230,36 +228,45 @@ export class Renderer {
     void camera;
   }
 
-  /** Capas de montanas/mesetas lejanas con parallax, para dar profundidad al canon. */
+  /**
+   * Dos capas de canon reales (bg_far/bg_mid) con parallax, en mosaico para
+   * cubrir toda la pista (~500m) con una imagen que en origen no es tan
+   * ancha. Como el arte no es literalmente repetible sin costura, cada
+   * tesela alterna con la siguiente en espejo (ping-pong): los bordes
+   * encajan exactos porque son la misma imagen reflejada, así que no se ve
+   * el corte -algo imperceptible a la distancia y velocidad de scroll de
+   * fondo, que ademas van con parallax bajo-.
+   */
   private drawBackdrop(camera: Camera, terrain: Terrain, shake: Vec2): void {
     const { ctx, canvas } = this;
-    const layers: Array<{ parallax: number; color: string; baseFrac: number; amp: number; seed: number }> = [
-      { parallax: 0.12, color: PALETTE.farMountain, baseFrac: 0.62, amp: 0.16, seed: 11 },
-      { parallax: 0.28, color: PALETTE.nearMountain, baseFrac: 0.7, amp: 0.13, seed: 47 },
+    const layers: Array<{ image: HTMLImageElement; parallax: number; heightFrac: number; baseFrac: number }> = [
+      { image: SpriteImages.bgFar, parallax: 0.1, heightFrac: 0.32, baseFrac: 0.66 },
+      { image: SpriteImages.bgMid, parallax: 0.22, heightFrac: 0.42, baseFrac: 0.74 },
     ];
 
     for (const layer of layers) {
-      const worldOffsetX = camera.x * layer.parallax;
-      const segment = 14;
-      const startIdx = Math.floor((worldOffsetX - canvas.width) / segment) - 1;
-      const endIdx = Math.ceil((worldOffsetX + canvas.width) / segment) + 1;
-
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height);
-      for (let i = startIdx; i <= endIdx; i++) {
-        const wx = i * segment;
-        const screenX = canvas.width / 2 + (wx - worldOffsetX) * camera.pixelsPerMeter * 0.6;
-        const h = layer.baseFrac + (hash(i + layer.seed) - 0.5) * layer.amp;
-        const screenY = canvas.height * h;
-        ctx.lineTo(screenX, screenY);
+      const img = layer.image;
+      if (!img.complete || img.naturalWidth === 0) continue;
+      const tileH = canvas.height * layer.heightFrac;
+      const tileW = (tileH / img.naturalHeight) * img.naturalWidth;
+      const baseline = canvas.height * layer.baseFrac;
+      const worldOffsetPx = camera.x * layer.parallax * camera.pixelsPerMeter;
+      const startTile = Math.floor((worldOffsetPx - canvas.width) / tileW) - 1;
+      const endTile = Math.ceil((worldOffsetPx + canvas.width) / tileW) + 1;
+      for (let i = startTile; i <= endTile; i++) {
+        const screenX = canvas.width / 2 + i * tileW - worldOffsetPx;
+        ctx.save();
+        if (i % 2 !== 0) {
+          // Tesela impar en espejo: mismo borde que la vecina, sin costura.
+          ctx.translate(screenX + tileW, baseline - tileH);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, 0, 0, tileW, tileH);
+        } else {
+          ctx.drawImage(img, screenX, baseline - tileH, tileW, tileH);
+        }
+        ctx.restore();
       }
-      ctx.lineTo(canvas.width, canvas.height);
-      ctx.closePath();
-      ctx.fillStyle = layer.color;
-      ctx.globalAlpha = 0.55;
-      ctx.fill();
     }
-    ctx.globalAlpha = 1;
     void terrain;
     void shake;
   }
@@ -375,12 +382,14 @@ export class Renderer {
     angle: number,
     pivotPx: { x: number; y: number },
     scale: number,
+    mirrorX = false,
   ): void {
     if (!image.complete || image.naturalWidth === 0) return;
     const { ctx } = this;
     ctx.save();
     ctx.translate(screenPos.x, screenPos.y);
     ctx.rotate(-angle);
+    if (mirrorX) ctx.scale(-1, 1);
     ctx.drawImage(image, -pivotPx.x * scale, -pivotPx.y * scale, image.naturalWidth * scale, image.naturalHeight * scale);
     ctx.restore();
   }
@@ -437,15 +446,41 @@ export class Renderer {
     const comScreen = this.worldToScreen(camera, bike.x, bike.y, shake);
     this.drawRigidSprite(SpriteImages.bikeBody, comScreen, bike.angle, comPixel, scale);
 
+    // Llama de REDLINE: sale del escape (mismo pixel de referencia que
+    // exhaustLocal, derivado igual que el asiento), apuntando siempre hacia
+    // atras del chasis -en espejo, para que el extremo ancho quede pegado
+    // al tubo y la punta se aleje-. Solo mientras dura el boost.
+    if (isRedline && !crashed) {
+      const exhaustLocal: Vec2 = { x: -0.88, y: -0.7 };
+      const exhaustScreen = this.localToScreen(camera, bike, shake, exhaustLocal);
+      const fx = SpriteImages.redlineFx;
+      const fxPxPerMeter = fx.naturalWidth > 0 ? fx.naturalWidth / 1.6 : 0;
+      const fxScale = fxPxPerMeter > 0 ? camera.pixelsPerMeter / fxPxPerMeter : 0;
+      this.drawRigidSprite(fx, exhaustScreen, bike.angle, { x: 0, y: fx.naturalHeight / 2 }, fxScale, true);
+    }
+
     this.ctx.restore();
 
     // Piloto: sentado sobre el asiento (punto fijo en espacio local del
-    // chasis), con su propia escala derivada de una altura asumida en
-    // cuclillas -sigue rotando en bloque con la moto-.
+    // chasis) mientras conduce; en crash se sustituye por una pose de
+    // caida separada de la moto (ver brief: "separar visualmente piloto y
+    // moto" en vez de solo recolorear al mismo piloto sentado).
     this.drawRider(camera, bike, shake, crashed, isRedline);
   }
 
   private drawRider(camera: Camera, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
+    if (crashed) {
+      // Pose de caida: no rota con el chasis ni se ancla al asiento -es
+      // precisamente lo contrario, un cuerpo ya separado de la moto-, solo
+      // se coloca junto a donde quedo tirada.
+      const crashImg = SpriteImages.riderCrash;
+      const crashPxPerMeter = crashImg.naturalHeight > 0 ? crashImg.naturalHeight / 1.1 : 0;
+      const crashScale = crashPxPerMeter > 0 ? camera.pixelsPerMeter / crashPxPerMeter : 0;
+      const crashScreen = this.worldToScreen(camera, bike.x + 1.9, bike.y + 0.9, shake);
+      this.drawRigidSprite(crashImg, crashScreen, -0.6, { x: 190, y: 170 }, crashScale);
+      return;
+    }
+
     // Punto del asiento en espacio local del chasis (metros desde el CoM),
     // derivado del pixel del asiento en bike_body.png (~260,160) con la
     // misma calibracion eje/escala que usa el chasis (ver drawBike): el CoM
@@ -458,7 +493,7 @@ export class Renderer {
     const riderPxPerMeter = riderImg.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
     const scale = riderPxPerMeter > 0 ? camera.pixelsPerMeter / riderPxPerMeter : 0;
 
-    const filter = crashed ? 'grayscale(0.7) brightness(0.75)' : isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
+    const filter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
     this.ctx.save();
     this.ctx.filter = filter;
     this.drawRigidSprite(riderImg, seatScreen, bike.angle, SpriteCalibration.rider.hipPivotPx, scale);

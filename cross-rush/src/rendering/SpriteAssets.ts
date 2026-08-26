@@ -30,6 +30,10 @@ import cactusClusterUrl from '../sprites/cactus_cluster.png';
 import rockClusterBUrl from '../sprites/rock_cluster_b.png';
 import jumpSignUrl from '../sprites/jump_sign.png';
 import fenceBannerUrl from '../sprites/fence_banner.png';
+import bgFarUrl from '../sprites/bg_far.png';
+import bgMidUrl from '../sprites/bg_mid.png';
+import riderCrashUrl from '../sprites/rider_crash.png';
+import redlineFxUrl from '../sprites/redline_fx.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -54,6 +58,10 @@ export const SpriteImages = {
   rockClusterB: loadImage(rockClusterBUrl),
   jumpSign: loadImage(jumpSignUrl),
   fenceBanner: loadImage(fenceBannerUrl),
+  bgFar: loadImage(bgFarUrl),
+  bgMid: loadImage(bgMidUrl),
+  riderCrash: loadImage(riderCrashUrl),
+  redlineFx: loadImage(redlineFxUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */
