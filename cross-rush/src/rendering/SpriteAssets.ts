@@ -44,6 +44,11 @@ import tireStackUrl from '../sprites/tire_stack.png';
 import boulderUrl from '../sprites/boulder.png';
 import rampSmallUrl from '../sprites/ramp_small.png';
 import tireMoundUrl from '../sprites/tire_mound.png';
+import ropeTireBarrierUrl from '../sprites/rope_tire_barrier.png';
+import foregroundAUrl from '../sprites/foreground_a.png';
+import foregroundBUrl from '../sprites/foreground_b.png';
+import speedStreakUrl from '../sprites/speed_streak.png';
+import speedDebrisUrl from '../sprites/speed_debris.png';
 
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -82,6 +87,11 @@ export const SpriteImages = {
   boulder: loadImage(boulderUrl),
   rampSmall: loadImage(rampSmallUrl),
   tireMound: loadImage(tireMoundUrl),
+  ropeTireBarrier: loadImage(ropeTireBarrierUrl),
+  foregroundA: loadImage(foregroundAUrl),
+  foregroundB: loadImage(foregroundBUrl),
+  speedStreak: loadImage(speedStreakUrl),
+  speedDebris: loadImage(speedDebrisUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

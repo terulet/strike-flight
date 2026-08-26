@@ -17,7 +17,7 @@ import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
 import { Camera } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { SpriteDecals } from './SpriteDecals';
-import { BikeConfig, SuspensionConfig } from '../config/GameConfig';
+import { BikeConfig, SuspensionConfig, EngineConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
 import { SpriteImages, SpriteCalibration } from './SpriteAssets';
 
@@ -105,8 +105,75 @@ export class Renderer {
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
     this.drawBike(camera, bike, isRedline, crashed, shake);
+    this.drawSpeedTrail(camera, bike, shake);
+    this.drawForeground(camera, shake);
 
     ctx.restore();
+  }
+
+  /**
+   * Estela de velocidad: polvo que se arrastra desde la moto cuando va muy
+   * rapido (no depende de FLOW/REDLINE, solo de la velocidad real), para
+   * que "ir a tope" se sienta distinto de "ir normal" incluso sin haber
+   * llegado a REDLINE. Mismo truco de espejo que la llama de REDLINE: el
+   * extremo denso queda junto a la moto y la cola se arrastra hacia atras.
+   */
+  private drawSpeedTrail(camera: Camera, bike: BikeState, shake: Vec2): void {
+    const speed = Math.abs(bike.vx);
+    const threshold = EngineConfig.topSpeed * 0.6;
+    if (speed < threshold) return;
+    const t = Math.min(1, (speed - threshold) / (EngineConfig.topSpeed - threshold));
+
+    const trailLocal: Vec2 = { x: -0.5, y: -0.95 };
+    const trailScreen = this.localToScreen(camera, bike, shake, trailLocal);
+    const facing = bike.vx >= 0 ? 1 : -1;
+
+    for (const [img, widthMeters, alphaScale] of [
+      [SpriteImages.speedStreak, 2.6, 0.7] as const,
+      [SpriteImages.speedDebris, 2.2, 0.5] as const,
+    ]) {
+      if (!img.complete || img.naturalWidth === 0) continue;
+      const pxPerMeter = img.naturalWidth / widthMeters;
+      const scale = camera.pixelsPerMeter / pxPerMeter;
+      this.ctx.save();
+      this.ctx.globalAlpha = t * alphaScale;
+      this.drawRigidSprite(img, trailScreen, facing > 0 ? 0 : Math.PI, { x: 0, y: img.naturalHeight / 2 }, scale, true);
+      this.ctx.restore();
+    }
+  }
+
+  /**
+   * Elementos de primer plano (rocas/cactus muy borrosos, ya vienen con
+   * motion blur "horneado" en el propio PNG) que pasan MAS rapido que la
+   * pista real -parallax > 1, como si estuvieran mas cerca de la camara
+   * que el propio terreno- y se anclan al borde inferior de la pantalla en
+   * vez de a la altura del suelo. Es pura sensacion de velocidad, no
+   * decoracion de la pista en si.
+   */
+  private drawForeground(camera: Camera, shake: Vec2): void {
+    const { ctx, canvas } = this;
+    const parallax = 1.35;
+    const spacing = 60;
+    const worldOffsetPx = camera.x * parallax * camera.pixelsPerMeter;
+    const halfWidthPx = canvas.width / 2 + 200;
+    const startSlot = Math.floor((worldOffsetPx - halfWidthPx) / (spacing * camera.pixelsPerMeter));
+    const endSlot = Math.ceil((worldOffsetPx + halfWidthPx) / (spacing * camera.pixelsPerMeter));
+
+    const pieces = [SpriteImages.foregroundA, SpriteImages.foregroundB];
+    for (let slot = startSlot; slot <= endSlot; slot++) {
+      const seed = slot * 0.077;
+      if (hash(seed) < 0.4) continue; // hueco: no siempre hay algo en primer plano
+      const img = pieces[Math.floor(hash(seed * 1.7) * pieces.length) % pieces.length];
+      if (!img.complete || img.naturalWidth === 0) continue;
+      const jitter = (hash(seed * 2.3) - 0.5) * spacing * 0.5;
+      const screenX = canvas.width / 2 + slot * spacing * camera.pixelsPerMeter - worldOffsetPx + jitter * camera.pixelsPerMeter;
+      const widthMeters = 8 + hash(seed * 3.1) * 3;
+      const scale = (widthMeters * camera.pixelsPerMeter) / img.naturalWidth;
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      ctx.drawImage(img, screenX - w / 2, canvas.height - h * 0.82, w, h);
+    }
+    void shake;
   }
 
   /** Dibuja un sprite anclado por su centro-inferior a un punto del suelo. */
@@ -185,6 +252,7 @@ export class Renderer {
       { image: SpriteImages.boulder, widthMeters: 3.6 },
       { image: SpriteImages.rampSmall, widthMeters: 3.8 },
       { image: SpriteImages.tireMound, widthMeters: 4.0 },
+      { image: SpriteImages.ropeTireBarrier, widthMeters: 4.4 },
     ];
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);
