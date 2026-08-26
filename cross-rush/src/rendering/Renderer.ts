@@ -12,11 +12,13 @@
  */
 
 import { Terrain } from '../physics/Terrain';
-import { BikeState, wheelAnchorWorld, wheelVisualCenterWorld } from '../physics/Bike';
+import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
 import { Camera } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
-import { BikeConfig } from '../config/GameConfig';
+import { SpriteDecals } from './SpriteDecals';
+import { BikeConfig, SuspensionConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
+import { SpriteImages, SpriteCalibration } from './SpriteAssets';
 
 /** Traduce un punto en espacio local del chasis (x=adelante, y=arriba, origen en el centro de masas) a mundo. */
 function localToWorld(bike: BikeState, local: Vec2): Vec2 {
@@ -31,10 +33,9 @@ function hash(n: number): number {
 }
 
 /**
- * Paleta de marca: naranja/negro/rojo sobre canon de tierra, alineada con el
- * key art de CROSS RUSH (casco y mono naranja quemado, chasis blanco/plata,
- * acentos rojos en REDLINE). El entorno se queda en tonos tierra/roca
- * naturales; lo que cambia de marca es la moto, el piloto y la UI.
+ * Paleta del entorno: tonos tierra/roca/cielo de un canon de motocross. La
+ * moto y el piloto ya no se dibujan vectorialmente (ver SpriteAssets.ts):
+ * son PNG reales generados a partir del key art de la marca.
  */
 const PALETTE = {
   skyTop: '#3c5a78',
@@ -47,15 +48,6 @@ const PALETTE = {
   soilTop: '#a9744a',
   soilRim: '#e0aa6a',
   scrub: '#5c6b3e',
-  bikeFrame: '#eef0f4',
-  bikeFrameRedline: '#ffd9c2',
-  bikeAccent: '#ff6a1a',
-  bikeAccentRedline: '#ff2d2d',
-  riderSuit: '#ff6a1a',
-  riderSuitRedline: '#ff2d2d',
-  riderHelmet: '#181410',
-  tire: '#1b1b1f',
-  rim: '#c9ccd4',
   dust: '#d9c4a0',
 } as const;
 
@@ -93,12 +85,13 @@ export class Renderer {
     terrain: Terrain;
     bike: BikeState;
     particles: ParticleSystem;
+    decals: SpriteDecals;
     flowValue: number;
     isRedline: boolean;
     crashed: boolean;
   }): void {
     const { ctx, canvas } = this;
-    const { camera, terrain, bike, particles, isRedline, crashed } = opts;
+    const { camera, terrain, bike, particles, decals, isRedline, crashed } = opts;
     const shake = camera.getShakeOffset();
 
     ctx.save();
@@ -107,10 +100,41 @@ export class Renderer {
     this.drawSky(camera);
     this.drawBackdrop(camera, terrain, shake);
     this.drawTerrain(camera, terrain, shake);
+    this.drawFinishGate(camera, terrain, shake);
     this.drawParticles(camera, particles, shake);
+    this.drawDecals(camera, decals, shake);
     this.drawBike(camera, bike, isRedline, crashed, shake);
 
     ctx.restore();
+  }
+
+  /** Arco de meta al final de la pista, apoyado en el suelo. */
+  private drawFinishGate(camera: Camera, terrain: Terrain, shake: Vec2): void {
+    const img = SpriteImages.finishGate;
+    if (!img.complete || img.naturalWidth === 0) return;
+    const gateWidthMeters = 11;
+    const scale = (gateWidthMeters * camera.pixelsPerMeter) / img.naturalWidth;
+    const groundX = terrain.endX;
+    const groundY = terrain.surfaceY(groundX);
+    const p = this.worldToScreen(camera, groundX, groundY, shake);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    this.ctx.drawImage(img, p.x - w / 2, p.y - h, w, h);
+  }
+
+  private drawDecals(camera: Camera, decals: SpriteDecals, shake: Vec2): void {
+    const { ctx } = this;
+    decals.forEachAlive((x, y, alpha, image) => {
+      if (!image.complete || image.naturalWidth === 0) return;
+      const p = this.worldToScreen(camera, x, y, shake);
+      const widthMeters = 3.2 * (1.15 - alpha * 0.15);
+      const scale = (widthMeters * camera.pixelsPerMeter) / image.naturalWidth;
+      const w = image.naturalWidth * scale;
+      const h = image.naturalHeight * scale;
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.drawImage(image, p.x - w / 2, p.y - h * 0.75, w, h);
+    });
+    ctx.globalAlpha = 1;
   }
 
   private drawSky(camera: Camera): void {
@@ -270,399 +294,107 @@ export class Renderer {
     return this.worldToScreen(camera, w.x, w.y, shake);
   }
 
-  /** Relleno (y opcionalmente contorno) de un poligono dado en puntos locales del chasis. */
-  private fillLocalPolygon(
-    camera: Camera,
-    bike: BikeState,
-    shake: Vec2,
-    points: Vec2[],
-    fillStyle: string,
-    strokeStyle?: string,
-    lineWidth = 1,
+  /**
+   * Dibuja una imagen "rigidamente atornillada" al chasis: se traslada a un
+   * punto de pantalla, se rota como el resto de la moto y se escala de forma
+   * uniforme, de modo que un pixel de la imagen fuente representa siempre la
+   * misma distancia en metros (parametro `scale`, pixeles de pantalla por
+   * pixel de imagen). `pivotPx` es el punto de la imagen (en pixeles nativos)
+   * que debe caer exactamente en `screenPos`.
+   */
+  private drawRigidSprite(
+    image: HTMLImageElement,
+    screenPos: { x: number; y: number },
+    angle: number,
+    pivotPx: { x: number; y: number },
+    scale: number,
   ): void {
+    if (!image.complete || image.naturalWidth === 0) return;
     const { ctx } = this;
-    const pts = points.map((p) => this.localToScreen(camera, bike, shake, p));
-    ctx.beginPath();
-    pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-    ctx.closePath();
-    ctx.fillStyle = fillStyle;
-    ctx.fill();
-    if (strokeStyle) {
-      ctx.lineWidth = lineWidth;
-      ctx.strokeStyle = strokeStyle;
-      ctx.stroke();
-    }
-  }
-
-  /** Circulo relleno en un punto local (nudillos de articulacion, guante...), radio en metros. */
-  private fillLocalCircle(
-    camera: Camera,
-    bike: BikeState,
-    shake: Vec2,
-    center: Vec2,
-    radiusMeters: number,
-    fillStyle: string,
-  ): void {
-    const { ctx } = this;
-    const p = this.localToScreen(camera, bike, shake, center);
-    ctx.beginPath();
-    ctx.fillStyle = fillStyle;
-    ctx.arc(p.x, p.y, Math.max(1, radiusMeters * camera.pixelsPerMeter), 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  /** Quad fino entre dos puntos locales (horquilla, basculante, tubo de escape...), con ancho en metros. */
-  private fillLocalBar(
-    camera: Camera,
-    bike: BikeState,
-    shake: Vec2,
-    from: Vec2,
-    to: Vec2,
-    width: number,
-    fillStyle: string,
-    strokeStyle?: string,
-  ): void {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const len = Math.max(1e-6, Math.hypot(dx, dy));
-    const nx = (-dy / len) * (width / 2);
-    const ny = (dx / len) * (width / 2);
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: from.x + nx, y: from.y + ny },
-        { x: to.x + nx, y: to.y + ny },
-        { x: to.x - nx, y: to.y - ny },
-        { x: from.x - nx, y: from.y - ny },
-      ],
-      fillStyle,
-      strokeStyle,
-      Math.max(1, width * 8),
-    );
+    ctx.save();
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(-angle);
+    ctx.drawImage(image, -pivotPx.x * scale, -pivotPx.y * scale, image.naturalWidth * scale, image.naturalHeight * scale);
+    ctx.restore();
   }
 
   private drawBike(camera: Camera, bike: BikeState, isRedline: boolean, crashed: boolean, shake: Vec2): void {
     const wb = BikeConfig.wheelBase;
-    const ch = BikeConfig.comHeight;
+    const { rearAxlePx, frontAxlePx } = SpriteCalibration.bike;
 
-    const frontAnchorW = wheelAnchorWorld(bike, 'front');
-    const rearAnchorW = wheelAnchorWorld(bike, 'rear');
+    // Un solo factor de escala para toda la moto (chasis + ambas ruedas):
+    // vienen de la misma foto original, asi que comparten los mismos
+    // pixeles-por-metro nativos. Lo calibramos con la distancia entre ejes
+    // de la imagen, que es la referencia mas fiable (ver assets-src/).
+    const spritePxPerMeter = (frontAxlePx.x - rearAxlePx.x) / wb;
+    const scale = camera.pixelsPerMeter / spritePxPerMeter;
+
     const frontWheelW = wheelVisualCenterWorld(bike, 'front');
     const rearWheelW = wheelVisualCenterWorld(bike, 'rear');
-    // wheelAnchorWorld/wheelVisualCenterWorld ya rotan por bike.angle; para
-    // dibujarlos junto al resto de la moto (que construimos en espacio local
-    // y rotamos todo de una vez) los pasamos de vuelta a espacio local.
-    const toLocal = (w: Vec2): Vec2 => {
-      const dx = w.x - bike.x;
-      const dy = w.y - bike.y;
-      const c = Math.cos(-bike.angle);
-      const s = Math.sin(-bike.angle);
-      return { x: dx * c - dy * s, y: dx * s + dy * c };
+
+    // Filtro de color para REDLINE/crash: como ahora son fotos y no vectores,
+    // en vez de recolorear geometria aplicamos un filtro de canvas sobre
+    // cada sprite de la moto (no sobre el fondo).
+    const filter = crashed ? 'grayscale(0.7) brightness(0.75)' : isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
+    this.ctx.save();
+    this.ctx.filter = filter;
+
+    // Ruedas primero (el chasis las tapa parcialmente por arriba, como en
+    // la foto original: guardabarros/horquilla por delante del neumatico).
+    this.drawRigidSprite(
+      SpriteImages.wheelRear,
+      this.worldToScreen(camera, rearWheelW.x, rearWheelW.y, shake),
+      bike.angle,
+      SpriteCalibration.wheelRear.pivotPx,
+      scale,
+    );
+    this.drawRigidSprite(
+      SpriteImages.wheelFront,
+      this.worldToScreen(camera, frontWheelW.x, frontWheelW.y, shake),
+      bike.angle,
+      SpriteCalibration.wheelFront.pivotPx,
+      scale,
+    );
+
+    // Chasis completo (deposito, asiento, carenados, motor, escape): una
+    // sola imagen rigida anclada por el punto medio del eje de ruedas. El
+    // pixel del eje en la foto es el centro de la RUEDA EN REPOSO, que
+    // cuelga del anclaje de la horquilla una distancia = restLength de la
+    // suspension (ver Bike.wheelVisualCenterWorld); hay que sumarla a
+    // comHeight o el chasis queda flotando por encima de donde deberia.
+    const restLengthAvg = (SuspensionConfig.front.restLength + SuspensionConfig.rear.restLength) / 2;
+    const comPixel = {
+      x: (rearAxlePx.x + frontAxlePx.x) / 2,
+      y: rearAxlePx.y - (BikeConfig.comHeight + restLengthAvg) * spritePxPerMeter,
     };
-    const frontAnchor = toLocal(frontAnchorW);
-    const rearAnchor = toLocal(rearAnchorW);
-    const frontWheel = toLocal(frontWheelW);
-    const rearWheel = toLocal(rearWheelW);
+    const comScreen = this.worldToScreen(camera, bike.x, bike.y, shake);
+    this.drawRigidSprite(SpriteImages.bikeBody, comScreen, bike.angle, comPixel, scale);
 
-    const bodyColor = crashed ? '#8a8a90' : isRedline ? PALETTE.bikeFrameRedline : PALETTE.bikeFrame;
-    const accentColor = crashed ? '#5c5c60' : isRedline ? PALETTE.bikeAccentRedline : PALETTE.bikeAccent;
-    const metal = crashed ? '#3a3a3d' : '#2b2b2e';
-    const outline = crashed ? '#3a3a3f' : '#1a1310';
+    this.ctx.restore();
 
-    // --- Basculante trasero y horquilla delantera: barras solidas (no
-    // lineas finas) desde el anclaje al centro visual real de cada rueda,
-    // que se acorta con la compresion de la suspension -asi un aterrizaje
-    // fuerte se ve "tragarse" recorrido de verdad. ---
-    this.fillLocalBar(camera, bike, shake, rearAnchor, rearWheel, ch * 0.22, metal, outline);
-    this.fillLocalBar(camera, bike, shake, frontAnchor, frontWheel, ch * 0.16, PALETTE.rim, outline);
-    this.fillLocalBar(camera, bike, shake, frontAnchor, frontWheel, ch * 0.16 * 0.55, metal, undefined);
-
-    // --- Motor: bloque solido entre ambas ruedas, con la culata como un
-    // circulo mas claro para dar volumen. ---
-    const engineCenter = { x: -wb * 0.06, y: -ch * 0.55 };
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: engineCenter.x - wb * 0.16, y: engineCenter.y - ch * 0.28 },
-        { x: engineCenter.x + wb * 0.14, y: engineCenter.y - ch * 0.3 },
-        { x: engineCenter.x + wb * 0.2, y: engineCenter.y + ch * 0.22 },
-        { x: engineCenter.x - wb * 0.12, y: engineCenter.y + ch * 0.3 },
-      ],
-      metal,
-      outline,
-      2,
-    );
-    {
-      const { ctx } = this;
-      const p = this.localToScreen(camera, bike, shake, { x: engineCenter.x + wb * 0.04, y: engineCenter.y + ch * 0.05 });
-      ctx.beginPath();
-      ctx.fillStyle = crashed ? '#55555a' : '#4a4a50';
-      ctx.arc(p.x, p.y, Math.max(2, ch * 0.16 * camera.pixelsPerMeter), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // --- Escape: tubo curvo del motor hacia atras, terminando en un
-    // silenciador cilindrico bajo el asiento (naranja quemado, como el
-    // key art de referencia). ---
-    const exhaustMid = { x: -wb * 0.28, y: -ch * 0.35 };
-    const exhaustEnd = { x: -wb * 0.55, y: -ch * 0.05 };
-    this.fillLocalBar(camera, bike, shake, engineCenter, exhaustMid, ch * 0.1, metal, outline);
-    this.fillLocalBar(camera, bike, shake, exhaustMid, exhaustEnd, ch * 0.16, accentColor, outline);
-
-    // --- Chasis / deposito / asiento: silueta continua desde el eje
-    // trasero, subiendo al asiento, al deposito (mas alto y redondeado) y
-    // bajando al tubo de direccion, en el color de carroceria de la marca. ---
-    const railRear = { x: -wb * 0.42, y: -ch * 0.25 };
-    const railFront = { x: wb * 0.3, y: -ch * 0.05 };
-    const seatBack = { x: -wb * 0.32, y: ch * 0.28 };
-    const seatFront = { x: -wb * 0.02, y: ch * 0.34 };
-    const tankTop = { x: wb * 0.14, y: ch * 0.92 };
-    const headTube = { x: wb * 0.4, y: ch * 0.28 };
-    // Silueta cerrada a media altura (no baja hasta el eje de las ruedas,
-    // para no tapar el motor/escape que se dibujan debajo): raiz trasera ->
-    // asiento -> deposito -> tubo de direccion -> raiz delantera.
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [railRear, seatBack, seatFront, tankTop, headTube, railFront],
-      bodyColor,
-      outline,
-      2,
-    );
-
-    // --- Carenado/radiador: cuna de color de marca alrededor del tubo de
-    // direccion, como los plasticos naranjas del key art. ---
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: wb * 0.16, y: ch * 0.55 },
-        { x: wb * 0.4, y: ch * 0.3 },
-        { x: wb * 0.34, y: -ch * 0.15 },
-        { x: wb * 0.1, y: -ch * 0.05 },
-      ],
-      accentColor,
-      outline,
-      1.5,
-    );
-
-    // --- Guardabarros: acompanan a cada horquilla/basculante, dan lectura
-    // inmediata de "esto es una moto de motocross". ---
-    const frontFenderDir = { x: frontWheel.x - frontAnchor.x, y: frontWheel.y - frontAnchor.y };
-    const frontFenderMid = { x: frontAnchor.x + frontFenderDir.x * 0.55, y: frontAnchor.y + frontFenderDir.y * 0.55 + ch * 0.22 };
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: frontFenderMid.x - wb * 0.16, y: frontFenderMid.y - ch * 0.06 },
-        { x: frontFenderMid.x + wb * 0.16, y: frontFenderMid.y + ch * 0.05 },
-        { x: frontFenderMid.x + wb * 0.12, y: frontFenderMid.y + ch * 0.22 },
-        { x: frontFenderMid.x - wb * 0.12, y: frontFenderMid.y + ch * 0.16 },
-      ],
-      accentColor,
-      outline,
-      1.5,
-    );
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: -wb * 0.42, y: ch * 0.3 },
-        { x: -wb * 0.2, y: ch * 0.42 },
-        { x: -wb * 0.22, y: ch * 0.58 },
-        { x: -wb * 0.44, y: ch * 0.48 },
-      ],
-      accentColor,
-      outline,
-      1.5,
-    );
-
-    // --- Piloto: encima del asiento/deposito, con el chasis ya dibujado
-    // debajo para que las piernas se apoyen visualmente en el estribo. ---
+    // Piloto: sentado sobre el asiento (punto fijo en espacio local del
+    // chasis), con su propia escala derivada de una altura asumida en
+    // cuclillas -sigue rotando en bloque con la moto-.
     this.drawRider(camera, bike, shake, crashed, isRedline);
-
-    // --- Ruedas: neumatico con tacos y llanta con radios que giran segun la
-    // distancia recorrida (rodadura aproximada, suficiente para el feel). ---
-    const wheelR = BikeConfig.wheelRadius * camera.pixelsPerMeter;
-    const spinFront = (frontWheelW.x / Math.max(0.05, BikeConfig.wheelRadius)) % (Math.PI * 2);
-    const spinRear = (rearWheelW.x / Math.max(0.05, BikeConfig.wheelRadius)) % (Math.PI * 2);
-    for (const [wheelW, contact, spin, disc] of [
-      [frontWheelW, bike.front.inContact, spinFront, true] as const,
-      [rearWheelW, bike.rear.inContact, spinRear, false] as const,
-    ]) {
-      const wp = this.worldToScreen(camera, wheelW.x, wheelW.y, shake);
-      this.drawWheel(wp.x, wp.y, wheelR, spin, contact, crashed, disc);
-    }
   }
 
   private drawRider(camera: Camera, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
-    const { ctx } = this;
-    const ppm = camera.pixelsPerMeter;
-    const wb = BikeConfig.wheelBase;
-    const ch = BikeConfig.comHeight;
-    const suit = crashed ? '#5c5c60' : isRedline ? PALETTE.riderSuitRedline : PALETTE.riderSuit;
-    const suitDark = crashed ? '#3a3a3f' : '#1a1310';
-    const skin = '#c98f65';
+    // Punto del asiento en espacio local del chasis (metros desde el CoM),
+    // derivado del pixel del asiento en bike_body.png (~260,160) con la
+    // misma calibracion eje/escala que usa el chasis (ver drawBike): el CoM
+    // fisico (comHeight+restLength por encima de la rueda en reposo) cae
+    // bastante mas arriba que el asiento visual, de ahi el valor negativo.
+    const seatLocal: Vec2 = { x: -0.25, y: -0.63 };
+    const seatScreen = this.localToScreen(camera, bike, shake, seatLocal);
 
-    // Puntos en espacio local del chasis: cadera sobre el asiento, hombro
-    // adelantado y arriba (postura de ataque), casco por encima del hombro,
-    // codo/mano hacia el manillar y rodilla/pie hacia el estribo. Todo rota
-    // como un bloque junto con el chasis.
-    const hip = { x: -wb * 0.1, y: ch * 0.55 };
-    const knee = { x: wb * 0.18, y: -ch * 0.02 };
-    const foot = { x: -wb * 0.02, y: -ch * 0.32 };
-    const shoulder = { x: wb * 0.1, y: ch * 1.15 };
-    const elbow = { x: wb * 0.28, y: ch * 0.92 };
-    const hand = { x: wb * 0.42, y: ch * 0.78 };
-    const helmet = { x: wb * 0.2, y: ch * 1.5 };
+    const riderImg = SpriteImages.rider;
+    const riderPxPerMeter = riderImg.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
+    const scale = riderPxPerMeter > 0 ? camera.pixelsPerMeter / riderPxPerMeter : 0;
 
-    // Muslo y pantorrilla (con volumen, no una linea), con las articulaciones
-    // redondeadas para que no se note el corte recto de cada barra, y bota
-    // en el pie.
-    this.fillLocalBar(camera, bike, shake, hip, knee, ch * 0.24, suit, suitDark);
-    this.fillLocalBar(camera, bike, shake, knee, foot, ch * 0.18, suit, suitDark);
-    this.fillLocalCircle(camera, bike, shake, knee, ch * 0.11, suit);
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: foot.x - wb * 0.07, y: foot.y + ch * 0.1 },
-        { x: foot.x + wb * 0.08, y: foot.y + ch * 0.07 },
-        { x: foot.x + wb * 0.06, y: foot.y - ch * 0.09 },
-        { x: foot.x - wb * 0.08, y: foot.y - ch * 0.06 },
-      ],
-      '#2a2420',
-      suitDark,
-      1.5,
-    );
-
-    // Torso: cadera -> hombro, con volumen (trapecio, mas ancho arriba).
-    this.fillLocalPolygon(
-      camera,
-      bike,
-      shake,
-      [
-        { x: hip.x - ch * 0.18, y: hip.y - ch * 0.05 },
-        { x: hip.x + ch * 0.16, y: hip.y - ch * 0.08 },
-        { x: shoulder.x + ch * 0.24, y: shoulder.y },
-        { x: shoulder.x - ch * 0.22, y: shoulder.y + ch * 0.05 },
-      ],
-      suit,
-      suitDark,
-      2,
-    );
-    // Franja pecho estilo carreras (contraste blanco/negro sobre el mono).
-    this.fillLocalBar(
-      camera,
-      bike,
-      shake,
-      { x: hip.x, y: hip.y + ch * 0.12 },
-      { x: shoulder.x, y: shoulder.y - ch * 0.08 },
-      ch * 0.12,
-      crashed ? '#4a4a4e' : '#161311',
-    );
-
-    // Brazo: hombro -> codo -> manillar, con codo redondeado y guante al final.
-    this.fillLocalBar(camera, bike, shake, shoulder, elbow, ch * 0.17, suit, suitDark);
-    this.fillLocalBar(camera, bike, shake, elbow, hand, ch * 0.13, suit, suitDark);
-    this.fillLocalCircle(camera, bike, shake, elbow, ch * 0.09, suit);
-    this.fillLocalCircle(camera, bike, shake, hand, ch * 0.11, crashed ? '#3a3a3f' : '#171310');
-
-    // Casco: base oscura con visera y una franja de la marca (naranja o roja
-    // en REDLINE), para leerse como un casco de motocross real.
-    const pHelmet = this.localToScreen(camera, bike, shake, helmet);
-    const helmetR = Math.max(5.5, 0.21 * ppm);
-    ctx.beginPath();
-    ctx.fillStyle = crashed ? '#5c5c60' : PALETTE.riderHelmet;
-    ctx.arc(pHelmet.x, pHelmet.y, helmetR, 0, Math.PI * 2);
-    ctx.fill();
-    if (!crashed) {
-      // Franja de marca en la parte superior/trasera del casco.
-      ctx.beginPath();
-      ctx.fillStyle = suit;
-      ctx.arc(pHelmet.x, pHelmet.y, helmetR, -0.5, 0.9);
-      ctx.arc(pHelmet.x, pHelmet.y, helmetR * 0.55, 0.9, -0.5, true);
-      ctx.closePath();
-      ctx.fill();
-      // Visera/gafas: banda clara al frente del casco.
-      const facing = Math.cos(bike.angle) >= 0 ? 1 : -1;
-      ctx.beginPath();
-      ctx.fillStyle = '#dfe6ee';
-      ctx.ellipse(
-        pHelmet.x + facing * helmetR * 0.35,
-        pHelmet.y + helmetR * 0.05,
-        helmetR * 0.55,
-        helmetR * 0.32,
-        0,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-    }
-    void skin;
-  }
-
-  private drawWheel(
-    cx: number,
-    cy: number,
-    r: number,
-    spin: number,
-    contact: boolean,
-    crashed: boolean,
-    withDisc: boolean,
-  ): void {
-    const { ctx } = this;
-    ctx.beginPath();
-    ctx.fillStyle = crashed ? '#2a2a2e' : PALETTE.tire;
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Tacos del neumatico (marcas radiales), giran con el avance de la moto.
-    const knobs = 10;
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.lineWidth = Math.max(1, r * 0.12);
-    for (let i = 0; i < knobs; i++) {
-      const a = spin + (i / knobs) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * r * 0.75, cy + Math.sin(a) * r * 0.75);
-      ctx.lineTo(cx + Math.cos(a) * r * 1.02, cy + Math.sin(a) * r * 1.02);
-      ctx.stroke();
-    }
-
-    // Disco de freno: solo en la rueda delantera, un aro oscuro justo
-    // detras de la llanta que asoma entre los radios (detalle rapido que
-    // vende mucho la sensacion de "moto real").
-    if (withDisc && !crashed) {
-      ctx.beginPath();
-      ctx.strokeStyle = '#8a8a90';
-      ctx.lineWidth = Math.max(1, r * 0.08);
-      ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Llanta con radios.
-    ctx.strokeStyle = contact ? PALETTE.rim : 'rgba(201,204,212,0.55)';
-    ctx.lineWidth = Math.max(1, r * 0.1);
-    for (let i = 0; i < 5; i++) {
-      const a = spin + (i / 5) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * r * 0.7, cy + Math.sin(a) * r * 0.7);
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.strokeStyle = contact ? '#111' : '#444';
-    ctx.lineWidth = Math.max(1.5, r * 0.14);
-    ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
-    ctx.stroke();
+    const filter = crashed ? 'grayscale(0.7) brightness(0.75)' : isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
+    this.ctx.save();
+    this.ctx.filter = filter;
+    this.drawRigidSprite(riderImg, seatScreen, bike.angle, SpriteCalibration.rider.hipPivotPx, scale);
+    this.ctx.restore();
   }
 }

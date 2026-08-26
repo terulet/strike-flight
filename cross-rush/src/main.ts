@@ -14,6 +14,8 @@ import { KeyboardInput } from './input/KeyboardInput';
 import { TouchInput } from './input/TouchInput';
 import { Camera } from './rendering/Camera';
 import { ParticleSystem } from './rendering/ParticleSystem';
+import { SpriteDecals } from './rendering/SpriteDecals';
+import { SpriteImages } from './rendering/SpriteAssets';
 import { Renderer } from './rendering/Renderer';
 import { AudioEngine } from './audio/AudioEngine';
 import { HUD } from './ui/HUD';
@@ -28,6 +30,7 @@ const track = buildCanyonRun();
 const renderer = new Renderer(canvas);
 const camera = new Camera();
 const particles = new ParticleSystem();
+const decals = new SpriteDecals();
 const audio = new AudioEngine();
 const hud = new HUD(uiOverlay);
 const debugOverlay = new DebugOverlay(uiOverlay);
@@ -48,6 +51,7 @@ const race = new RaceManager(track, {
       audio.playCrashCue();
       camera.triggerCrashImpulse();
       particles.spawnBurst(race.bike.x, race.bike.y, 18);
+      decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.landingImpact);
       const summary = race.getResultsSummary();
       resultsScreen.show(summary, true);
     } else if (state === 'FINISHED') {
@@ -60,6 +64,9 @@ const race = new RaceManager(track, {
     audio.playLandingCue(event.quality);
     if (event.quality === 'PERFECT' || event.quality === 'GOOD') {
       camera.triggerLandingImpulse();
+      decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.landingImpact);
+    } else if (event.quality === 'ROUGH' || event.quality === 'BAD') {
+      decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.dirtSpray);
     }
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 10);
   },
@@ -115,6 +122,7 @@ const loop = new GameLoop(
       lastRear = race.bike.rear.inContact;
 
       particles.update(dt);
+      decals.update(dt);
     },
     render: () => {
       renderer.resizeToDisplaySize();
@@ -126,6 +134,7 @@ const loop = new GameLoop(
         terrain: track.terrain,
         bike: race.bike,
         particles,
+        decals,
         flowValue: race.flow.value,
         isRedline: race.flow.isRedline,
         crashed: race.state === 'CRASHED',
