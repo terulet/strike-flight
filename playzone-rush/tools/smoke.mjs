@@ -55,9 +55,9 @@ async function enterSolo(page) {
   }
 }
 
-/** Salir del resultado. Por TEXTO: al ganar, CONTINUAR es el boton principal. */
+/** Salir del resultado por su accion estable, no por una etiqueta que cambia. */
 async function leaveResult(page) {
-  await page.getByText('CONTINUAR', { exact: true }).click();
+  await page.locator('.result .salir-resultado').click();
   await page.waitForSelector('.play', { state: 'detached', timeout: 10000 });
   await page.waitForSelector('.card');
 }
@@ -65,6 +65,13 @@ async function leaveResult(page) {
 
 await enterSolo(page);
 await page.waitForSelector('.card');
+// Medir la portada ya estable: el boot y el sorteo diario son secuencias
+// transitorias controladas por JS, no animaciones perpetuas de la home.
+await page.waitForFunction(
+  () => !document.querySelector('.boot') && !document.querySelector('.sorteo'),
+  { timeout: 10000 },
+);
+await page.waitForTimeout(200);
 
 async function infiniteAttentionAnimations(page) {
   return page.evaluate(() => document.getAnimations({ subtree: true }).filter((animation) => {
@@ -139,6 +146,7 @@ if (await rematch.isEnabled()) {
 
 // Volver a la portada
 await leaveResult(page);
+await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}06-home-after.png`, fullPage: true });
 log('vuelta a portada');
 

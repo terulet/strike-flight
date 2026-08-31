@@ -16,7 +16,8 @@
 import { launchBrowser } from './browser.mjs';
 import { playCurrent } from './bot.mjs';
 import { mkdir } from 'node:fs/promises';
-const OUT = new URL('../shots/', import.meta.url).pathname;
+const BASE = process.env.BASE ?? 'http://127.0.0.1:5173';
+const OUT = process.env.OUT ?? new URL('../shots/', import.meta.url).pathname;
 await mkdir(OUT, { recursive: true });
 const browser = await launchBrowser();
 const ok = [], fail = [];
@@ -26,7 +27,7 @@ const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, de
 const page = await ctx.newPage();
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));
-await page.goto('http://127.0.0.1:5173/?debug', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/?debug`, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => Boolean(window.__PZ?.app));
 await page.evaluate(() => { if (window.__PZ.app.mode === 'none') window.__PZ.app.playSolo(); });
 await page.waitForTimeout(300);
@@ -49,14 +50,14 @@ check('se ofrece la apuesta al terminar', await page.locator('.apuesta').count()
 const gana = await page.locator('.apuesta__cuenta--gana .apuesta__cuenta-valor').textContent();
 const pierde = await page.locator('.apuesta__cuenta--pierde .apuesta__cuenta-valor').textContent();
 check('se ven los numeros de lo que se juega', Boolean(gana && pierde), `x2=${gana}  x0.5=${pierde}`);
-await page.screenshot({ path: 'shots/apuesta-decision.png' });
+await page.screenshot({ path: `${OUT}apuesta-decision.png` });
 
 // ME LA JUEGO
 await page.locator('.apuesta__jugar').click();
 await page.waitForSelector('.reto', { timeout: 4000 });
 check('se abre el microdesafio', true);
 await page.waitForTimeout(700);
-await page.screenshot({ path: 'shots/apuesta-reto.png' });
+await page.screenshot({ path: `${OUT}apuesta-reto.png` });
 
 // Clavarlo: esperar a que la aguja este dentro de la zona.
 let clavado = false;
@@ -72,7 +73,7 @@ const gastada = await page.evaluate(() => !window.__PZ.app.tieneFicha);
 check('la ficha queda consumida', gastada);
 const desenlace = await page.locator('.apuesta__desenlace-titulo').textContent().catch(() => null);
 check('se ve el desenlace', Boolean(desenlace), desenlace ?? 'sin desenlace');
-await page.screenshot({ path: 'shots/apuesta-desenlace.png' });
+await page.screenshot({ path: `${OUT}apuesta-desenlace.png` });
 
 const nuevos = await page.evaluate(() => window.__PZ.app.me().total);
 check('la marca cambia tras apostar', nuevos !== puntos, `${puntos} -> ${nuevos}`);
@@ -82,7 +83,7 @@ await page.evaluate(() => window.__PZ.app.exitToHome());
 await page.waitForTimeout(400);
 const etiqueta = await page.locator('.tag--doblo, .tag--cayo').count();
 check('el ranking marca a quien se la jugo', etiqueta > 0);
-await page.screenshot({ path: 'shots/apuesta-ranking.png' });
+await page.screenshot({ path: `${OUT}apuesta-ranking.png` });
 
 // Y ya no se puede volver a apostar hoy.
 await page.evaluate(() => {
