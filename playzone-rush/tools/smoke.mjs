@@ -1,8 +1,10 @@
 // Recorrido manual automatizado en viewport de iPhone (393x852).
 import { launchBrowser } from './browser.mjs';
+import { mkdir } from 'node:fs/promises';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = process.env.OUT ?? new URL('../shots/', import.meta.url).pathname;
+await mkdir(OUT, { recursive: true });
 
 const log = (...a) => console.log('·', ...a);
 
@@ -63,6 +65,19 @@ async function leaveResult(page) {
 
 await enterSolo(page);
 await page.waitForSelector('.card');
+
+async function infiniteAttentionAnimations(page) {
+  return page.evaluate(() => document.getAnimations({ subtree: true }).filter((animation) => {
+    const timing = animation.effect?.getComputedTiming();
+    if (timing?.iterations !== Infinity) return false;
+    // La aurora de 26 s es ambiente, no una llamada de atencion.
+    return Number(timing.duration) < 25_000;
+  }).map((animation) => animation.animationName ?? 'unnamed'));
+}
+
+const attention = await infiniteAttentionAnimations(page);
+if (attention.length > 2) errors.push(`motion budget: ${attention.length} animaciones infinitas (${attention.join(', ')})`);
+log(`motion budget: ${attention.length}/2 (1 hero + 1 secundaria)`);
 log('portada cargada');
 await page.screenshot({ path: `${OUT}01-home.png` });
 
@@ -128,4 +143,14 @@ await page.screenshot({ path: `${OUT}06-home-after.png`, fullPage: true });
 log('vuelta a portada');
 
 console.log(errors.length ? `\nERRORES:\n${errors.join('\n')}` : '\nSIN ERRORES DE CONSOLA');
+
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.reload({ waitUntil: 'networkidle' });
+await enterSolo(page);
+await page.waitForSelector('.card');
+const reducedAttention = await infiniteAttentionAnimations(page);
+if (reducedAttention.length) errors.push(`reduced motion conserva animaciones infinitas: ${reducedAttention.join(', ')}`);
+
+console.log(errors.length ? `\nERRORES FINALES:\n${errors.join('\n')}` : '\nMOTION Y CONSOLA: OK');
 await browser.close();
+process.exit(errors.length ? 1 : 0);

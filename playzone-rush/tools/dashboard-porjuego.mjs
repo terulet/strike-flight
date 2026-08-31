@@ -10,9 +10,12 @@
  *   PZ_API=http://localhost:8788 BASE=http://localhost:5173 node tools/dashboard-porjuego.mjs
  */
 import { launchBrowser } from './browser.mjs';
+import { mkdir } from 'node:fs/promises';
 
 const API = process.env.PZ_API ?? 'http://localhost:8788';
 const BASE = process.env.BASE ?? 'http://localhost:5173';
+const OUT = process.env.OUT ?? new URL('../shots/', import.meta.url).pathname;
+await mkdir(OUT, { recursive: true });
 const ok = [];
 const fail = [];
 const check = (name, cond, detalle = '') => {
@@ -39,10 +42,9 @@ async function jugarVarias(
   token,
   gameId,
   n,
-  { revancha = 0, comparte = 0, oneMore = 0, closeLoss = 0, perfMala = false } = {},
+  { revancha = 0, comparte = 0, oneMore = 0, closeLoss = 0, perfMala = false, day = new Date().toISOString().slice(0, 10) } = {},
 ) {
   const eventos = [];
-  const day = new Date().toISOString().slice(0, 10);
   let ts = Date.now();
   for (let i = 0; i < n; i++) {
     eventos.push({ type: 'game_start', day, ts: ts++, gameId });
@@ -78,22 +80,18 @@ async function jugarVarias(
 }
 
 /** n filas de scores agotadas (3/3) para gameId, cada una con un jugador nuevo del grupo. */
-async function agotarIntentos(code, gameId, n) {
-  for (let i = 0; i < n; i++) {
+async function agotarIntentos(code, gameId, n, day) {
+  let sembradas = 0;
+  for (let i = 0; sembradas < n; i++) {
     const joined = await api('/api/groups/join', { code, name: `AI-${gameId}-${i}` });
-    await api(
-      '/api/scores',
-      {
-        attemptId: `seed-${gameId}-${i}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        gameId,
-        challengeId: 'c1',
-        day: new Date().toISOString().slice(0, 10),
-        score: 1500,
-        durationMs: 20_000,
-        attemptsUsed: 3,
-      },
-      tokenOf(joined.player),
-    );
+    for (const challengeId of ['c1', 'c2', 'c3']) {
+      if (sembradas >= n) break;
+      await api('/api/scores', {
+        attemptId: `seed-${gameId}-${i}-${challengeId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        gameId, challengeId, day, score: 1500, durationMs: 20_000, attemptsUsed: 3,
+      }, tokenOf(joined.player));
+      sembradas++;
+    }
   }
 }
 
@@ -101,15 +99,16 @@ console.log('Sembrando un grupo real: CARGA enganchando de verdad, FRENO a media
 const creado = await api('/api/groups', { name: 'Eloi' });
 const code = creado.group.code;
 const token = tokenOf(creado.player);
+const day = creado.snapshot.day;
 
 // 30 finishes cruza a senal PRELIMINAR (25+): con menos, el panel no marca
 // a nadie como "el mejor" aunque vaya primero, y esa comprobacion es justo
 // la que existe para pillar si esa regla se rompe.
-await jugarVarias(token, 'carga', 30, { revancha: 27, comparte: 18, oneMore: 24, closeLoss: 20, perfMala: false });
-await agotarIntentos(code, 'carga', 30);
-await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0, oneMore: 1, perfMala: true });
-await agotarIntentos(code, 'freno', 2); // pocas: que se note tambien en "agota 3/3"
-await jugarVarias(token, 'torre', 3, {}); // por debajo de la muestra minima a proposito
+await jugarVarias(token, 'carga', 30, { revancha: 27, comparte: 18, oneMore: 24, closeLoss: 20, perfMala: false, day });
+await agotarIntentos(code, 'carga', 30, day);
+await jugarVarias(token, 'freno', 9, { revancha: 1, comparte: 0, oneMore: 1, perfMala: true, day });
+await agotarIntentos(code, 'freno', 2, day); // pocas: que se note tambien en "agota 3/3"
+await jugarVarias(token, 'torre', 3, { day }); // por debajo de la muestra minima a proposito
 
 const browser = await launchBrowser();
 const context = await browser.newContext({ viewport: { width: 393, height: 852 } });
@@ -215,8 +214,8 @@ await page.waitForSelector('.boot', { state: 'detached', timeout: 5000 }).catch(
 await page.locator('.dash-games').scrollIntoViewIfNeeded();
 await page
   .locator('.dash-games')
-  .screenshot({ path: '/tmp/claude-0/-home-user-strike-flight/23ac4d6f-5b3e-5de4-9ed6-06319859e4c9/scratchpad/dashboard-porjuego-filas.png' });
-await page.screenshot({ path: '/tmp/claude-0/-home-user-strike-flight/23ac4d6f-5b3e-5de4-9ed6-06319859e4c9/scratchpad/dashboard-porjuego.png', fullPage: true });
+  .screenshot({ path: `${OUT}dashboard-porjuego-filas.png` });
+await page.screenshot({ path: `${OUT}dashboard-porjuego.png`, fullPage: true });
 console.log(`\nRESULTADO: ${ok.length} OK · ${fail.length} fallos`);
 if (fail.length) console.log('FALLOS:\n  ' + fail.join('\n  '));
 console.log(errores.length ? `\nERRORES DE PAGINA:\n  ${errores.join('\n  ')}` : '\nSin errores de pagina.');

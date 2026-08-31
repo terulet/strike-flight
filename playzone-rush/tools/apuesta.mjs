@@ -15,6 +15,9 @@
  */
 import { launchBrowser } from './browser.mjs';
 import { playCurrent } from './bot.mjs';
+import { mkdir } from 'node:fs/promises';
+const OUT = new URL('../shots/', import.meta.url).pathname;
+await mkdir(OUT, { recursive: true });
 const browser = await launchBrowser();
 const ok = [], fail = [];
 const check = (n, c, d='') => { (c?ok:fail).push(n); console.log(`${c?'  OK  ':' FALLO'} ${n}${d?' — '+d:''}`); };

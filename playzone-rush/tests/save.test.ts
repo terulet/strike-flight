@@ -12,6 +12,26 @@ import {
 import { createMemoryStore } from '../src/core/storage';
 
 describe('persistencia', () => {
+  it('una apuesta pendiente conserva isBet al recargar y no se convierte en cuarto intento', () => {
+    const pending = {
+      attemptId: 'apuesta-offline', day: '2026-08-23', challengeId: 'c1', gameId: 'pulse',
+      gameVersion: 1, isTest: false, isBet: true, score: 600, durationMs: 30_000,
+      attemptsUsed: 3, countsForRanking: true, ghost: null, queuedAt: 1, tries: 0,
+    };
+    const save = normalizeSave({ ...defaultSave(), outbox: [pending] });
+    expect(save.outbox[0]?.isBet).toBe(true);
+  });
+
+  it('un envio normal no se convierte en apuesta al normalizar', () => {
+    const normal = {
+      attemptId: 'intento-normal', day: '2026-08-23', challengeId: 'c1', gameId: 'pulse',
+      gameVersion: 1, score: 300, durationMs: 30_000, attemptsUsed: 1,
+      countsForRanking: true, ghost: null, queuedAt: 1, tries: 0,
+    };
+    const save = normalizeSave({ ...defaultSave(), outbox: [normal] });
+    expect(save.outbox[0]?.isBet).toBe(false);
+  });
+
   it('arranca limpio cuando no hay nada guardado', () => {
     const report = loadSaveFrom(createMemoryStore());
     expect(report.status).toBe('fresh');

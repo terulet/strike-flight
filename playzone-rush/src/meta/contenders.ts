@@ -78,7 +78,12 @@ export function myBestFor(
   snapshot: GroupSnapshot | null,
   myPlayerId: string | null,
 ): number {
-  const local = save.get().days[dayKey]?.challenges[challengeId]?.bestScore ?? 0;
+  const progress = save.get().days[dayKey]?.challenges[challengeId];
+  const local = progress?.bestScore ?? 0;
+  // Una apuesta sustituye la marca, tambien cuando se pierde. Mientras ese
+  // reenvio esta offline, el snapshot remoto conserva la marca antigua y un
+  // MAX() la resucitaria. Tras apostar, local es la ultima palabra.
+  if (progress?.apuesta) return local;
   if (!snapshot || !myPlayerId) return local;
   const remote =
     snapshot.scores.find((row) => row.playerId === myPlayerId && row.challengeId === challengeId)

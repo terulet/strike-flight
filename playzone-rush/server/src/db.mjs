@@ -213,6 +213,7 @@ export function createStore(db) {
         score = excluded.score, duration_ms = excluded.duration_ms,
         trace = excluded.trace, updated_at = excluded.updated_at
     `),
+    deleteGhost: db.prepare('DELETE FROM ghosts WHERE day = ? AND player_id = ? AND game_id = ?'),
     ghostsForGroupDay: db.prepare(`
       SELECT g.day, g.player_id, g.game_id, g.score, g.duration_ms, LENGTH(g.trace) AS bytes
       FROM ghosts g JOIN players p ON p.id = g.player_id

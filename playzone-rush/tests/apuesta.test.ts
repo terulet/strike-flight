@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   APUESTA_MS,
+  APUESTA_TENSION_CUES,
   FACTOR_GANA,
   FACTOR_PIERDE,
   avanzarApuesta,
@@ -35,6 +36,14 @@ function simular(estado = nuevaApuesta(() => 0.5), ms = APUESTA_MS) {
 }
 
 describe('multiplicadores', () => {
+  it('la tension final escala en tres golpes claros de sonido y haptica', () => {
+    expect(APUESTA_TENSION_CUES).toEqual([
+      { ms: 1500, intensity: 0, haptic: 'tick' },
+      { ms: 1000, intensity: 0.5, haptic: 'light' },
+      { ms: 500, intensity: 1, haptic: 'medium' },
+    ]);
+  });
+
   it('ganar dobla la puntuacion de ese reto', () => {
     const r = resolverApuesta(1000, true);
     expect(r.puntuacionFinal).toBe(2000);

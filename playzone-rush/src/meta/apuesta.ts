@@ -20,6 +20,13 @@
 /** Cuanto dura el microdesafio antes de darse por fallado. */
 export const APUESTA_MS = 5000;
 
+/** Tension final audiovisual, compartida por logica, UI y pruebas. */
+export const APUESTA_TENSION_CUES = [
+  { ms: 1500, intensity: 0, haptic: 'tick' },
+  { ms: 1000, intensity: 0.5, haptic: 'light' },
+  { ms: 500, intensity: 1, haptic: 'medium' },
+] as const;
+
 /** Multiplicadores. Ganar dobla; perder deja la mitad. */
 export const FACTOR_GANA = 2;
 export const FACTOR_PIERDE = 0.5;

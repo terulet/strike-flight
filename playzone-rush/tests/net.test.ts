@@ -290,6 +290,20 @@ describe('ranking con jugadores reales', () => {
     ] }, 'p-eloi')).toBe(999);
   });
 
+  it('tras perder DOBLE O NADA no resucita la marca remota anterior', () => {
+    const save = groupSave();
+    save.update(() => {
+      const progress = save.challenge(DAY, 'c1');
+      progress.bestScore = 700;
+      progress.apuesta = 'cayo';
+    });
+    const snapshot = fakeSnapshot({ scores: [{
+      playerId: 'p-eloi', challengeId: 'c1', gameId: 'pulse', bestScore: 1400,
+      attemptsUsed: 3, plays: 3, countsForRanking: true, updatedAt: 1,
+    }] });
+    expect(myBestFor(save, DAY, 'c1', snapshot, 'p-eloi')).toBe(700);
+  });
+
   it('el ranking mezcla mis marcas con las del grupo', () => {
     const save = groupSave();
     const plan = buildDailyPlan(DAY);

@@ -280,9 +280,16 @@ export function createApi(store, options = {}) {
       );
     }
 
+    // Una apuesta transforma la marca sin volver a jugar. El ghost anterior
+    // ya no representa esa puntuacion (ni al doblar ni al caer), asi que se
+    // elimina en vez de publicar una carrera imposible de reproducir.
+    if (payload.isBet) {
+      store.deleteGhost.run(day, player.id, payload.gameId);
+    }
+
     // El ghost solo se guarda si esta partida ha mejorado la marca del dia.
     let ghostStored = false;
-    if (payload.ghost && payload.score >= bestAfter && payload.score > 0) {
+    if (!payload.isBet && payload.ghost && payload.score >= bestAfter && payload.score > 0) {
       store.upsertGhost.run(
         day,
         player.id,

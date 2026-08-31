@@ -191,6 +191,14 @@ describe('resultados', () => {
       expect(store.scoreRow.get(api.serverDay(), eloi.id, 'c1').best_score).toBe(700);
     });
 
+    it('la apuesta elimina el ghost anterior porque ya no representa la marca final', () => {
+      const ghost = { trace: 'AAAA', durationMs: 30_000 };
+      play(eloi, { score: 1400, ghost });
+      expect(store.ghostRow.get(api.serverDay(), eloi.id, 'pulse')).toBeTruthy();
+      play(eloi, { score: 700, isBet: true, attemptsUsed: 3 });
+      expect(store.ghostRow.get(api.serverDay(), eloi.id, 'pulse')).toBeUndefined();
+    });
+
     it('el reenvio de la apuesta no cuenta como una tirada mas contra el limite', () => {
       play(eloi, { score: 100 });
       play(eloi, { score: 200 });

@@ -5,10 +5,12 @@
  * Deja las capturas en shots/.
  */
 import { launchBrowser } from './browser.mjs';
+import { mkdir } from 'node:fs/promises';
 import { launchGame, playCurrent, playDrift, playPulse, isOver, readState, salirDelResultado} from './bot.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const OUT = new URL('../shots/', import.meta.url).pathname;
+await mkdir(OUT, { recursive: true });
 const ok = [];
 const fail = [];
 const check = (name, condition, detail = '') => {

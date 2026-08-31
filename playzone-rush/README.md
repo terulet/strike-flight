@@ -17,7 +17,7 @@ entera solo de que hay versión nueva, registra sus errores, y tiene un panel de
 métricas de solo lectura para responder a la única pregunta que importa esta
 semana — **¿vuelve la gente sola, y vuelve por lo que hace otro?**
 
-- [Cómo desplegarlo](docs/DESPLIEGUE.md) · [Protocolo de la alfa de 7 días](docs/ALFA-7-DIAS.md) · [Features congeladas](docs/CONGELADO.md)
+- [Cómo desplegarlo](docs/DESPLIEGUE.md) · [Protocolo de la alfa de 7 días](docs/ALFA-7-DIAS.md) · [Puerta exacta de salida](docs/PUERTA-DE-SALIDA.md) · [Features congeladas](docs/CONGELADO.md)
 
 Es un proyecto **independiente**. No toca ni depende de los demás juegos de PLAYZONE
 (001, 002, 003…), que siguen viviendo en sus propios repositorios. La idea es que más
@@ -45,7 +45,7 @@ npm run dev          # solo frontend (el modo PROBAR SOLO funciona sin backend)
 npm run server       # solo backend
 npm run build        # comprueba tipos y genera dist/ (estático)
 npm run preview      # sirve la build de producción (con service worker)
-npm test             # 221 pruebas (cliente + backend)
+npm test             # 360 pruebas (cliente + backend)
 npm run test:server  # solo backend
 npm run typecheck
 ```

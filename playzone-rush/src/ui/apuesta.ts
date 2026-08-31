@@ -11,11 +11,11 @@
  *    la zona. Todo esta a la vista desde el primer instante: nada aparece por
  *    sorpresa. Si se falla, se ha fallado uno.
  */
-import { avanzarApuesta, dentroDeZona, nuevaApuesta, posicionVisible, resolverApuesta, APUESTA_MS, type ResultadoApuesta } from '../meta/apuesta';
+import { avanzarApuesta, dentroDeZona, nuevaApuesta, posicionVisible, resolverApuesta, APUESTA_MS, APUESTA_TENSION_CUES, type ResultadoApuesta } from '../meta/apuesta';
 import { formatScore } from '../meta/ranking';
 import { button, el } from './dom';
 import type { AudioBus } from '../core/audio';
-import type { Haptics, HapticPattern } from '../core/haptics';
+import type { Haptics } from '../core/haptics';
 
 export interface ApuestaHandlers {
   /** El jugador guarda la marca tal cual. */
@@ -87,12 +87,6 @@ export function renderDecision(options: ApuestaOptions, handlers: ApuestaHandler
  * no a tension creciente-, y se paran en 500ms para no pisar el sonido de
  * ganar o perder que ya suena en el propio 0.
  */
-const UMBRALES_APURA: { ms: number; haptic: HapticPattern }[] = [
-  { ms: 1500, haptic: 'tick' },
-  { ms: 1000, haptic: 'light' },
-  { ms: 500, haptic: 'medium' },
-];
-
 export function mostrarDesafio(options: ApuestaOptions, handlers: ApuestaHandlers): void {
   let estado = nuevaApuesta(Math.random);
   let resuelto = false;
@@ -154,10 +148,10 @@ export function mostrarDesafio(options: ApuestaOptions, handlers: ApuestaHandler
 
     // El mismo aprieto, en sonido y vibracion: cada umbral cruzado suena mas
     // agudo y golpea un poco mas fuerte que el anterior.
-    while (siguienteUmbral < UMBRALES_APURA.length && restante <= UMBRALES_APURA[siguienteUmbral].ms) {
-      const intensidad = siguienteUmbral / (UMBRALES_APURA.length - 1);
-      options.audio.play('apura', intensidad);
-      options.haptics.fire(UMBRALES_APURA[siguienteUmbral].haptic);
+    while (siguienteUmbral < APUESTA_TENSION_CUES.length && restante <= APUESTA_TENSION_CUES[siguienteUmbral].ms) {
+      const cue = APUESTA_TENSION_CUES[siguienteUmbral];
+      options.audio.play('apura', cue.intensity);
+      options.haptics.fire(cue.haptic);
       siguienteUmbral++;
     }
 

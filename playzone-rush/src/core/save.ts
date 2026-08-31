@@ -322,6 +322,10 @@ function normalizePending(raw: unknown): PendingScore | null {
     gameId: r.gameId.slice(0, 24),
     gameVersion: Math.max(1, Math.round(num(r.gameVersion, 1))),
     isTest: bool(r.isTest, false),
+    // DOBLE O NADA debe sobrevivir a una recarga. Si se pierde este campo,
+    // la cola reenvia la apuesta como un cuarto intento normal y el servidor
+    // responde 409 attempts_exhausted.
+    isBet: bool(r.isBet, false),
     score: Math.max(0, Math.round(num(r.score, 0))),
     durationMs: Math.max(0, Math.round(num(r.durationMs, 0))),
     attemptsUsed: Math.max(0, Math.round(num(r.attemptsUsed, 0))),
