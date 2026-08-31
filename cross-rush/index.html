@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>CROSS RUSH</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #0e0a08;
+        overflow: hidden;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: #f2f4f8;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      #ui-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #ui-overlay .clickable {
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="ui-overlay"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
