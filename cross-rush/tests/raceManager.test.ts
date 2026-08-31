@@ -58,17 +58,21 @@ describe('RaceManager', () => {
     expect(race.getResultsSummary().isNewBest).toBe(false);
   });
 
-  it('records a timed split at a macro-sector boundary', () => {
+  it('el corte vertical tiene un unico sector, de salida a meta', () => {
+    // Los sectores estan congelados hasta aprobar la conduccion; lo que se
+    // comprueba aqui es que el cronometraje por sectores sigue enganchado y
+    // cierra su unico tramo al cruzar la meta, no que haya cuatro.
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     driveToRacing(race);
-    const x = track.sectors[0].endX;
-    race.bike.x = x;
-    race.bike.y = track.terrain.surfaceY(x) + 0.9;
+    expect(race.currentSectorName).toBe('S1/1 SLICE');
+    expect(race.sectorSplits).toHaveLength(0);
+
+    race.bike.x = track.finishX;
+    race.bike.y = track.terrain.surfaceY(track.finishX) + 0.9;
     race.bike.vx = 5;
-    race.bike.vy = 0;
     race.step(SIM_DT, neutralInput());
-    expect(race.currentSectorName).toBe('S2/4 AIR LINE');
+    expect(race.state).toBe('FINISHED');
     expect(race.sectorSplits).toHaveLength(1);
   });
 

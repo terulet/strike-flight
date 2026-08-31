@@ -73,7 +73,7 @@ console.log('=== SALIDA DESDE PARADO (gas a fondo, llano) ===');
     seconds: 8,
     input: () => raw(true, false),
     onTick: (t, s) => {
-      if (timeTo20 === null && s.vx >= 20) timeTo20 = t;
+      if (timeTo20 === null && s.vx >= 15) timeTo20 = t;
       maxSlip = Math.max(maxSlip, s.rear.wheel.slip);
       maxRearLoad = Math.max(maxRearLoad, s.rear.load);
       minFrontLoad = Math.min(minFrontLoad, s.front.load);
@@ -81,7 +81,7 @@ console.log('=== SALIDA DESDE PARADO (gas a fondo, llano) ===');
       distance = s.x;
     },
   });
-  console.log(`  0 -> 20 m/s : ${timeTo20 === null ? 'NUNCA' : fmt(timeTo20) + ' s'}`);
+  console.log(`  0 -> 15 m/s : ${timeTo20 === null ? 'NUNCA' : fmt(timeTo20) + ' s'}`);
   console.log(`  vx final    : ${fmt(final.vx)} m/s (distancia ${fmt(distance, 1)} m en 8 s)`);
   console.log(`  patinaje max: ${fmt(maxSlip)} m/s de la rueda trasera`);
   console.log(`  carga tras. max ${fmt(maxRearLoad, 0)} N / delantera min ${fmt(minFrontLoad, 0)} N`);
@@ -122,7 +122,7 @@ console.log('\n=== FRENADA A FONDO DESDE 25 m/s ===');
   let minRearCompression = Infinity;
   let maxRearSkid = 0;
   let stopTime: number | null = null;
-  const brakeStart = 6;
+  const brakeStart = 5;
   run({
     terrain: flatTerrain(),
     seconds: 9,

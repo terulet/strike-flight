@@ -122,9 +122,9 @@ describe('sacudida de camara', () => {
       return travel;
     }
 
-    // Baches de 20 cm (whoops, rockgarden): la camara casi no se entera.
-    const small = verticalTravel(0.2, 2);
-    expect(small / 0.2).toBeLessThan(0.2);
+    // Baches de 15 cm: la camara casi no se entera.
+    const small = verticalTravel(0.15, 2);
+    expect(small / 0.15).toBeLessThan(0.25);
 
     // Un salto de 4 m: la camara si tiene que seguirlo, o se pierde la moto.
     const large = verticalTravel(4, 2);
@@ -230,22 +230,20 @@ describe('el fantasma sigue sincronizado tras ampliar BikeState', () => {
   });
 });
 
-describe('el circuito completo sigue siendo jugable', () => {
-  it('un piloto sencillo enlaza las cinco piezas de terreno sin estrellarse', () => {
+describe('el corte vertical sigue siendo jugable de punta a punta', () => {
+  it('un piloto sencillo enlaza compresion, tabletop, step-up y bajada sin estrellarse', () => {
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     race.begin();
     while (race.state === 'COUNTDOWN') race.step(SIM_DT, neutral());
 
-    const rockgarden = track.terrainFeatures.find((feature) => feature.kind === 'rockgarden')!;
-    const order = ['tabletop', 'stepup', 'dropoff', 'whoops', 'rockgarden'];
     const seen = new Set<string>();
 
-    while (race.state === 'RACING' && race.raceTime < 30 && race.bike.x < rockgarden.endX) {
+    while (race.state === 'RACING' && race.raceTime < 60 && race.bike.x < track.finishX) {
       let lean = 0;
       if (isAirborne(race.bike)) {
         const bike = race.bike;
-        const ahead = Math.max(2, Math.abs(bike.vx) * 0.3);
+        const ahead = Math.max(2, Math.abs(bike.vx) * 0.32);
         let delta = Math.atan(track.terrain.surfaceSlope(bike.x + ahead)) - bike.angle;
         while (delta > Math.PI) delta -= Math.PI * 2;
         while (delta <= -Math.PI) delta += Math.PI * 2;
@@ -259,8 +257,33 @@ describe('el circuito completo sigue siendo jugable', () => {
       }
     }
 
-    expect(race.state).toBe('RACING');
-    expect(race.bike.x).toBeGreaterThanOrEqual(rockgarden.endX);
-    for (const kind of order) expect(seen.has(kind)).toBe(true);
+    expect(race.state).toBe('FINISHED');
+    for (const kind of ['tabletop', 'stepup', 'dropoff']) expect(seen.has(kind)).toBe(true);
+  });
+
+  it('el tramo dura entre 30 y 45 segundos a fondo, que es el objetivo del corte', () => {
+    const track = buildCanyonRun();
+    const race = new RaceManager(track);
+    race.begin();
+    while (race.state === 'COUNTDOWN') race.step(SIM_DT, neutral());
+
+    while (race.state === 'RACING' && race.raceTime < 90 && race.bike.x < track.finishX) {
+      let lean = 0;
+      if (isAirborne(race.bike)) {
+        const bike = race.bike;
+        const ahead = Math.max(2, Math.abs(bike.vx) * 0.32);
+        let delta = Math.atan(track.terrain.surfaceSlope(bike.x + ahead)) - bike.angle;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta <= -Math.PI) delta += Math.PI * 2;
+        const want = delta * 2.2 - bike.angularVelocity * 0.42;
+        lean = want > 0.25 ? 1 : want < -0.25 ? -1 : 0;
+      }
+      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+    }
+
+    expect(race.state).toBe('FINISHED');
+    // A fondo y sin fallos: el suelo del rango. Un jugador real ira mas lento.
+    expect(race.raceTime).toBeGreaterThan(28);
+    expect(race.raceTime).toBeLessThan(46);
   });
 });

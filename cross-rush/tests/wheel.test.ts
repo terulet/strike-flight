@@ -53,26 +53,33 @@ function unwrappedDelta(from: number, to: number): number {
 
 describe('giro de rueda', () => {
   it('gira en proporcion a la distancia recorrida en llano, y en el sentido del avance', () => {
-    let totalFrontSpin = 0;
+    // Se acumulan giro y distancia SOLO mientras la rueda delantera toca el
+    // suelo. En el aire gira libre y pierde vueltas por el drag, asi que
+    // medir el recorrido entero compararia el vuelo, no la rodadura: acelerar
+    // a fondo levanta el morro y la delantera pasa un rato sin tocar.
+    let groundedSpin = 0;
+    let groundedDistance = 0;
     const final = drive(
       6,
       (t) => bools(t < 3, false),
       {
         onTick: (_t, next, prev) => {
-          totalFrontSpin += unwrappedDelta(prev.front.wheel.spin, next.front.wheel.spin);
+          if (!next.front.inContact || !prev.front.inContact) return;
+          groundedSpin += unwrappedDelta(prev.front.wheel.spin, next.front.wheel.spin);
+          groundedDistance += next.x - prev.x;
         },
       },
     );
 
-    const distance = final.x;
-    expect(distance).toBeGreaterThan(50); // se ha movido de verdad
+    expect(final.x).toBeGreaterThan(50); // se ha movido de verdad
+    expect(groundedDistance).toBeGreaterThan(20); // y buena parte con la rueda apoyada
 
     // Rodadura pura: giro = distancia / radio. La rueda delantera no recibe par
     // motor, asi que rueda limpia y la desviacion solo puede venir del
     // deslizamiento real, que en llano y sin frenar es minimo.
-    const expected = distance / BikeConfig.wheelRadius;
-    expect(totalFrontSpin).toBeGreaterThan(0); // avanzar en +x = spin positivo
-    expect(Math.abs(totalFrontSpin - expected) / expected).toBeLessThan(0.05);
+    const expected = groundedDistance / BikeConfig.wheelRadius;
+    expect(groundedSpin).toBeGreaterThan(0); // avanzar en +x = spin positivo
+    expect(Math.abs(groundedSpin - expected) / expected).toBeLessThan(0.05);
   });
 
   it('la rueda sigue girando a velocidad constante, no solo al acelerar', () => {

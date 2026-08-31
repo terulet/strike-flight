@@ -38,7 +38,21 @@ export const BikeConfig = {
    * tan largo que acelerar a fondo era un backflip garantizado.
    */
   anchorDropFromCom: -0.18,
-  wheelRadius: 0.28,
+  /**
+   * Radio del neumatico (m). NO es un numero elegido: sale del dibujo.
+   *
+   * En `bike_body.png` la separacion entre ejes mide 468.4 px y el radio del
+   * neumatico -medido ajustando un circulo al caucho, ver
+   * assets-src/extract_wheels.py- 126.1 px. Con una distancia entre ejes de
+   * 1.35 m, eso obliga a un radio de 0.363 m, o sea 0.73 m de diametro: la
+   * medida de una rueda de cross de 21 pulgadas con neumatico puesto.
+   *
+   * Estaba en 0.28, un 77% de lo que pide el arte. Con ese valor la fisica
+   * creia rodar sobre una rueda mucho mas pequena que la dibujada: la moto se
+   * hundia en el suelo, el punto de contacto no caia donde toca el neumatico y
+   * el giro de rueda no correspondia a la distancia recorrida a la vista.
+   */
+  wheelRadius: 0.3633,
   /**
    * Fraccion de la masa total que corresponde al piloto y que, por tanto,
    * puede desplazarse cuando el jugador mueve el cuerpo (ver RiderConfig).
@@ -60,8 +74,17 @@ export const EngineConfig = {
    * original (0-20 m/s en ~1.2 s) conservando el patinaje.
    */
   maxDriveForce: 4000,
-  /** Velocidad horizontal maxima "de motor" antes de que el par caiga (m/s). */
-  topSpeed: 34,
+  /**
+   * Velocidad horizontal maxima "de motor" antes de que el par caiga (m/s).
+   *
+   * Estaba en 34 m/s, o sea 122 km/h. Una moto de cross en circuito va a
+   * 60-80 km/h, y a 34 m/s el tramo entero se cruzaba en 13 s: los obstaculos
+   * pasaban borrosos, cualquier salto se iba de pantalla y no daba tiempo a
+   * leer el terreno, que es de lo que va el motocross. 19 m/s son 68 km/h:
+   * velocidad de circuito de verdad, y con la vista a 12.5 m de ancho el mundo
+   * sigue pasando a mas de pantalla y media por segundo.
+   */
+  topSpeed: 19,
   /** Curva simple: el par cae linealmente al acercarse a topSpeed. */
   torqueFalloffStart: 0.6, // fraccion de topSpeed en la que empieza a caer
 } as const;
@@ -81,8 +104,13 @@ export const BrakeConfig = {
  * bloqueo al frenar y, sobre todo, que las ruedas GIREN de forma visible.
  */
 export const WheelConfig = {
-  /** Momento de inercia de una rueda completa (llanta + neumatico), kg*m^2. */
-  inertia: 1.15,
+  /**
+   * Momento de inercia de una rueda completa (llanta + neumatico), kg*m^2.
+   * Para una rueda de cross de ~12 kg con la masa repartida cerca de la llanta
+   * y 0.363 m de radio, I ~ 0.7*m*r^2 = 1.1. Se deja algo por encima porque
+   * aqui la rueda tambien representa la inercia de la transmision.
+   */
+  inertia: 1.6,
   /**
    * Rigidez del acoplamiento neumatico-suelo: newtons de fuerza tangencial
    * por cada m/s de deslizamiento. Alta = el neumatico "agarra" enseguida y
@@ -99,7 +127,7 @@ export const WheelConfig = {
   /** Amortiguacion de la rueda libre en el aire (1/s). Conserva inercia, pero no eternamente. */
   airDrag: 0.22,
   /** Par de freno maximo por rueda (N*m). */
-  maxBrakeTorque: 620,
+  maxBrakeTorque: 810,
   /** El freno delantero muerde mas que el trasero, como en una moto real. */
   frontBrakeBias: 1.0,
   rearBrakeBias: 0.72,
@@ -329,6 +357,16 @@ export const CrashConfig = {
    */
   spinOutDuration: 0.14,
   /**
+   * Segundos que el piloto sigue montado DESPUES de declararse el choque.
+   *
+   * Separar a piloto y moto en el mismo fotograma en que salta el crash se lee
+   * como un fallo de ensamblaje, no como una caida: el cuerpo aparece de
+   * repente en otro sitio. Manteniendolo agarrado un cuarto de segundo, primero
+   * se ve el impacto y luego sale despedido, que es el orden en que ocurren las
+   * cosas.
+   */
+  riderDetachDelay: 0.25,
+  /**
    * Margen (m) por debajo del cual las puntas del chasis (ver ChassisGeometry)
    * se consideran clavadas en el terreno. Cero = tocar es chocar.
    *
@@ -410,8 +448,8 @@ export const CameraConfig = {
   smoothing: 6.5, // por segundo, mayor = sigue mas rapido
   /** Seguimiento vertical: mas lento que el horizontal, para no marear. */
   verticalSmoothing: 4.2,
-  lookAheadDistance: 3.2, // metros, escalado por velocidad
-  lookAheadSpeedFactor: 0.18,
+  lookAheadDistance: 3.6, // metros, escalado por velocidad
+  lookAheadSpeedFactor: 0.24,
   /** El sentido del look-ahead se suaviza: sin esto, un rebote con vx≈0 lo hace saltar de lado a lado. */
   facingSmoothing: 3.0,
   /**
@@ -419,7 +457,14 @@ export const CameraConfig = {
    * banda alrededor del objetivo, la camara no la persigue. Absorbe los
    * baches pequenos -whoops, rockgarden- sin que la imagen tiemble.
    */
-  verticalDeadZone: 0.55,
+  verticalDeadZone: 0.42,
+  /**
+   * Cuanto se sube el objetivo por encima de la moto (m). Deja la moto
+   * ligeramente por debajo del centro, que es donde tiene que estar en un
+   * lateral: se ve mas terreno por delante y por arriba, que es a donde se
+   * mira cuando saltas.
+   */
+  verticalLead: 0.55,
   landingImpulse: 0.35,
   crashImpulse: 0.9,
   impulseDecay: 8,
@@ -450,16 +495,16 @@ export const CameraConfig = {
   /**
    * Metros de pista visibles a lo ancho de la pantalla.
    *
-   * El zoom fijo de 34 px/m dejaba la moto en unos 70 pixeles: un 5% del ancho
-   * en un portatil y otro tanto en un movil. A ese tamano, un hundimiento de
-   * horquilla de 13 cm son 4 pixeles y el cuerpo del piloto se mueve 10: todo
-   * el trabajo de suspension, transferencia de peso y pose queda por debajo de
-   * lo que el ojo distingue mientras juega. Fijando METROS VISIBLES en vez de
-   * pixeles por metro, la moto ocupa siempre ~11% del ancho -tamano normal en
-   * un motocross 2D- en cualquier pantalla, y el zoom-out de vuelo sigue
-   * funcionando encima de eso.
+   * De aqui sale el tamano de la moto en pantalla, que es un requisito
+   * explicito: 14-18% del ancho en escritorio. La moto mide 2.0 m de punta a
+   * punta, asi que 12.5 m visibles la dejan en el 16%.
+   *
+   * El zoom fijo de 34 px/m que habia antes la dejaba en un 5%. A ese tamano,
+   * un hundimiento de horquilla de 13 cm son 4 pixeles y el cuerpo del piloto
+   * se mueve 10: todo el trabajo de suspension, pose y transferencia de peso
+   * queda por debajo de lo que el ojo distingue mientras juega.
    */
-  referenceViewMeters: 19,
+  referenceViewMeters: 12.5,
   /**
    * Metros visibles en una pantalla muy alta (movil en vertical).
    *
@@ -468,16 +513,22 @@ export const CameraConfig = {
    * que nadie mira. Encuadrando mas cerca en vertical, la moto vuelve a
    * leerse sin perder de vista el terreno que viene.
    */
-  portraitViewMeters: 14,
+  portraitViewMeters: 11,
   /** Relacion de aspecto por debajo de la cual se considera pantalla vertical. */
   portraitAspectRatio: 0.75,
   /** Topes de seguridad para pantallas extremas. */
-  minPixelsPerMeter: 26,
-  maxPixelsPerMeter: 110,
+  minPixelsPerMeter: 40,
+  maxPixelsPerMeter: 190,
   /** Airtime (s) a partir del cual empieza a alejar la camara. */
-  zoomOutAirtimeStart: 0.5,
-  zoomOutAirtimeFull: 1.6,
-  maxZoomOutFactor: 0.72, // multiplicador aplicado a pixelsPerMeter
+  zoomOutAirtimeStart: 0.35,
+  zoomOutAirtimeFull: 1.3,
+  /**
+   * Zoom-out en vuelo. Con la vista mucho mas cerrada que antes, un salto
+   * grande se sale de pantalla si la camara no abre: a 0.62 se pasa de 12.5 a
+   * 20 m visibles, suficiente para ver la caida entera sin que la moto deje de
+   * leerse.
+   */
+  maxZoomOutFactor: 0.62, // multiplicador aplicado a pixelsPerMeter
 } as const;
 
 export const TrackConfig = {

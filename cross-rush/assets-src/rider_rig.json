@@ -1,0 +1,105 @@
+{
+  "joints": {
+    "shoulder": [
+      158,
+      122
+    ],
+    "elbow": [
+      208,
+      152
+    ],
+    "fist": [
+      241,
+      174
+    ],
+    "hip": [
+      105,
+      226
+    ],
+    "knee": [
+      170,
+      282
+    ],
+    "ankle": [
+      190,
+      350
+    ],
+    "toe": [
+      243,
+      392
+    ],
+    "helmetTop": [
+      168,
+      8
+    ]
+  },
+  "pieces": {
+    "rider_arm_upper": {
+      "size": [
+        109,
+        96
+      ],
+      "pivotPx": [
+        38,
+        34
+      ],
+      "pivotJoint": "shoulder"
+    },
+    "rider_arm_fore": {
+      "size": [
+        94,
+        64
+      ],
+      "pivotPx": [
+        40,
+        16
+      ],
+      "pivotJoint": "elbow"
+    },
+    "rider_thigh": {
+      "size": [
+        117,
+        134
+      ],
+      "pivotPx": [
+        35,
+        44
+      ],
+      "pivotJoint": "hip"
+    },
+    "rider_shin": {
+      "size": [
+        130,
+        180
+      ],
+      "pivotPx": [
+        54,
+        42
+      ],
+      "pivotJoint": "knee"
+    },
+    "rider_torso": {
+      "size": [
+        262,
+        420
+      ],
+      "pivotPx": [
+        105,
+        226
+      ],
+      "pivotJoint": "hip",
+      "shoulderPx": [
+        158,
+        122
+      ]
+    }
+  },
+  "bonesPx": {
+    "upperArm": 58.3,
+    "forearm": 39.7,
+    "thigh": 85.8,
+    "shin": 70.9,
+    "hipToShoulder": 116.7,
+    "hipToHelmetTop": 226.9
+  }
+}

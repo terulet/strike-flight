@@ -12,15 +12,17 @@
  */
 
 import { Terrain } from '../physics/Terrain';
-import { TrackDefinition, TerrainFeatureKind } from '../tracks/CanyonRun';
+import { TrackDefinition } from '../tracks/CanyonRun';
 import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
 import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { SpriteDecals } from './SpriteDecals';
-import { BikeConfig, SuspensionConfig, EngineConfig } from '../config/GameConfig';
+import { BikeConfig, SuspensionConfig, EngineConfig, CrashConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
 import { SpriteImages, SpriteCalibration } from './SpriteAssets';
 import { computeGameplayZones } from '../gameplay/GameplayZones';
+import { riderPieceDraws, solveRiderRig } from './RiderRig';
+import { TerrainPainter } from './TerrainPainter';
 import { GhostFrame } from '../gameplay/GhostRecorder';
 
 /**
@@ -61,11 +63,13 @@ const PALETTE = {
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
+  private readonly terrainPainter: TerrainPainter;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No se pudo obtener el contexto 2D del canvas');
     this.ctx = ctx;
+    this.terrainPainter = new TerrainPainter(ctx);
   }
 
   /** Ancho del lienzo en pixeles de dispositivo (ya incluye devicePixelRatio). */
@@ -118,10 +122,13 @@ export class Renderer {
     flowValue: number;
     isRedline: boolean;
     crashed: boolean;
+    /** Segundos desde el choque, para separar al piloto despues del impacto. */
+    crashElapsed?: number;
     ghost: GhostFrame | null;
   }): void {
     const { ctx, canvas } = this;
     const { camera, track, bike, particles, decals, isRedline, crashed, ghost, shake } = opts;
+    const crashElapsed = opts.crashElapsed ?? 0;
     const terrain = track.terrain;
 
     ctx.save();
@@ -130,7 +137,13 @@ export class Renderer {
     this.drawSky(camera);
     this.drawBackdrop(camera, terrain, shake);
     this.drawTerrain(camera, terrain, shake);
-    this.drawTerrainFeatureSprites(camera, track, shake);
+    // Los PNG de obstaculo (terrain_tabletop y companyia) ya no se dibujan.
+    // Eran imagenes estiradas al rango x de cada pieza, asi que su silueta no
+    // tenia por que coincidir -y no coincidia- con la curva contra la que se
+    // choca: la moto aterrizaba sobre una cinta de tierra mientras el "suelo"
+    // dibujado era una pared de roca medio metro mas abajo. Es exactamente la
+    // sensacion de decorado pegado que habia que quitar. El relieve lo pone
+    // ahora TerrainPainter, derivado de la propia curva de colision.
     this.drawTrackProps(camera, track, shake);
     this.drawAtmosphere(camera, track, shake);
     this.drawGameplayFeatures(camera, track, shake);
@@ -138,77 +151,13 @@ export class Renderer {
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
     if (ghost) this.drawGhost(camera, ghost, shake);
-    this.drawBike(camera, bike, isRedline, crashed, shake);
+    this.drawBike(camera, bike, isRedline, crashed, shake, crashElapsed);
     this.drawSpeedTrail(camera, bike, shake);
     this.drawForeground(camera, shake);
 
     ctx.restore();
   }
 
-  private drawTerrainFeatureSprites(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
-    const images: Record<TerrainFeatureKind, HTMLImageElement> = {
-      tabletop: SpriteImages.terrainTabletop,
-      stepup: SpriteImages.terrainStepup,
-      dropoff: SpriteImages.terrainDropoff,
-      whoops: SpriteImages.terrainWhoops,
-      rockgarden: SpriteImages.terrainRockgarden,
-    };
-    const baseDepth: Record<TerrainFeatureKind, number> = {
-      tabletop: 1.2,
-      stepup: 1.3,
-      dropoff: 1.4,
-      whoops: 0.6,
-      rockgarden: 0.9,
-    };
-
-    for (const feature of track.terrainFeatures) {
-      const halfViewMeters = this.canvas.width / 2 / camera.pixelsPerMeter;
-      if (feature.endX < camera.x - halfViewMeters - 2 || feature.startX > camera.x + halfViewMeters + 2) continue;
-      const image = images[feature.kind];
-      if (!image.complete || image.naturalWidth === 0) continue;
-      const widthMeters = feature.endX - feature.startX;
-      const sampleCount = Math.max(12, Math.ceil(widthMeters / 0.35));
-      let minY = Number.POSITIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i <= sampleCount; i++) {
-        const x = feature.startX + (widthMeters * i) / sampleCount;
-        const y = track.terrain.surfaceY(x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-      const centerX = (feature.startX + feature.endX) / 2;
-      const bottomY = minY - baseDepth[feature.kind];
-      const bottomScreen = this.worldToScreen(camera, centerX, bottomY, shake);
-      this.ctx.drawImage(
-        image,
-        bottomScreen.x - (widthMeters * camera.pixelsPerMeter) / 2,
-        bottomScreen.y - (maxY - minY + baseDepth[feature.kind]) * camera.pixelsPerMeter,
-        widthMeters * camera.pixelsPerMeter,
-        (maxY - minY + baseDepth[feature.kind]) * camera.pixelsPerMeter,
-      );
-
-      this.ctx.save();
-      this.ctx.lineWidth = 2.5;
-      this.ctx.strokeStyle = PALETTE.soilRim;
-      this.ctx.beginPath();
-      for (let i = 0; i <= sampleCount; i++) {
-        const x = feature.startX + (widthMeters * i) / sampleCount;
-        const p = this.worldToScreen(camera, x, track.terrain.surfaceY(x), shake);
-        if (i === 0) this.ctx.moveTo(p.x, p.y);
-        else this.ctx.lineTo(p.x, p.y);
-      }
-      this.ctx.stroke();
-      this.ctx.restore();
-    }
-  }
-
-  /**
-   * Estela de velocidad: polvo que se arrastra desde la moto cuando va muy
-   * rapido (no depende de FLOW/REDLINE, solo de la velocidad real), para
-   * que "ir a tope" se sienta distinto de "ir normal" incluso sin haber
-   * llegado a REDLINE. Mismo truco de espejo que la llama de REDLINE: el
-   * extremo denso queda junto a la moto y la cola se arrastra hacia atras.
-   */
   private drawSpeedTrail(camera: CameraPose, bike: BikeState, shake: Vec2): void {
     const speed = Math.abs(bike.vx);
     const threshold = EngineConfig.topSpeed * 0.6;
@@ -503,81 +452,21 @@ export class Renderer {
     void shake;
   }
 
+  /**
+   * Suelo. Todo el trabajo esta en TerrainPainter, que lo construye por capas
+   * a partir de la misma curva contra la que se choca: estratos, tierra
+   * suelta, sombreado por pendiente, oclusion en los valles, roderas, cresta
+   * iluminada, piedras y matojos. Por construccion, lo que se ve es donde se
+   * choca.
+   */
   private drawTerrain(camera: CameraPose, terrain: Terrain, shake: Vec2): void {
-    const { ctx, canvas } = this;
-    const ppm = camera.pixelsPerMeter;
-    const halfWidthMeters = canvas.width / 2 / ppm;
-    const startX = Math.max(terrain.startX, camera.x - halfWidthMeters - 4);
-    const endX = Math.min(terrain.endX, camera.x + halfWidthMeters + 4);
-    const step = Math.max(0.15, 1 / ppm);
-
-    const surfacePoints: { x: number; y: number; p: { x: number; y: number } }[] = [];
-    for (let x = startX; x <= endX; x += step) {
-      const y = terrain.surfaceY(x);
-      surfacePoints.push({ x, y, p: this.worldToScreen(camera, x, y, shake) });
-    }
-    if (surfacePoints.length < 2) return;
-
-    // Relleno de tierra bajo la superficie, con vetas de roca en capas.
-    ctx.beginPath();
-    ctx.moveTo(surfacePoints[0].p.x, surfacePoints[0].p.y);
-    for (const sp of surfacePoints) ctx.lineTo(sp.p.x, sp.p.y);
-    ctx.lineTo(surfacePoints[surfacePoints.length - 1].p.x, canvas.height);
-    ctx.lineTo(surfacePoints[0].p.x, canvas.height);
-    ctx.closePath();
-    const fill = ctx.createLinearGradient(0, canvas.height * 0.35, 0, canvas.height);
-    fill.addColorStop(0, PALETTE.soilTop);
-    fill.addColorStop(0.35, PALETTE.rockMid);
-    fill.addColorStop(1, PALETTE.rockDark);
-    ctx.fillStyle = fill;
-    ctx.fill();
-
-    // Vetas de roca: un par de lineas onduladas por debajo de la superficie.
-    ctx.lineWidth = 1.5;
-    for (const depth of [1.2, 2.6]) {
-      ctx.beginPath();
-      let first = true;
-      for (const sp of surfacePoints) {
-        const p = this.worldToScreen(camera, sp.x, sp.y - depth, shake);
-        if (first) {
-          ctx.moveTo(p.x, p.y);
-          first = false;
-        } else ctx.lineTo(p.x, p.y);
-      }
-      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-      ctx.stroke();
-    }
-
-    // Linea de cresta iluminada (rim light) sobre la superficie.
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = PALETTE.soilRim;
-    ctx.beginPath();
-    surfacePoints.forEach((sp, i) => (i === 0 ? ctx.moveTo(sp.p.x, sp.p.y) : ctx.lineTo(sp.p.x, sp.p.y)));
-    ctx.stroke();
-
-    // Vegetacion muy escasa: matojos secos cada pocos metros, solo si el
-    // hueco es lo bastante ancho para no amontonarse en curvas cerradas.
-    const scrubSpacing = 9;
-    const firstBush = Math.floor(startX / scrubSpacing) * scrubSpacing;
-    for (let wx = firstBush; wx <= endX; wx += scrubSpacing) {
-      if (hash(wx * 0.37) < 0.45) continue;
-      const wy = terrain.surfaceY(wx);
-      const p = this.worldToScreen(camera, wx, wy, shake);
-      const scale = 0.6 + hash(wx) * 0.5;
-      this.drawScrub(p.x, p.y, scale);
-    }
-  }
-
-  private drawScrub(x: number, y: number, scale: number): void {
-    const { ctx } = this;
-    ctx.strokeStyle = PALETTE.scrub;
-    ctx.lineWidth = 2 * scale;
-    ctx.beginPath();
-    for (const dir of [-1, -0.4, 0.4, 1]) {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + dir * 6 * scale, y - 10 * scale);
-    }
-    ctx.stroke();
+    this.terrainPainter.paint(
+      camera,
+      terrain,
+      this.canvas.width,
+      this.canvas.height,
+      (x, y) => this.worldToScreen(camera, x, y, shake),
+    );
   }
 
   private drawParticles(camera: CameraPose, particles: ParticleSystem, shake: Vec2): void {
@@ -626,7 +515,29 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawBike(camera: CameraPose, bike: BikeState, isRedline: boolean, crashed: boolean, shake: Vec2): void {
+  /**
+   * Dibuja SOLO la moto, sin mundo. La usa el banco de comprobacion de
+   * ensamblaje (`rig-check.html`), que necesita poner la moto en poses
+   * construidas a mano -parada, cabeceando, en vuelo, tocando fondo, de
+   * caballito, caida- para verificar que ruedas, chasis y piloto siguen
+   * montados en su sitio en todas ellas.
+   */
+  drawBikeOnly(
+    camera: CameraPose,
+    bike: BikeState,
+    opts: { crashed?: boolean; isRedline?: boolean; crashElapsed?: number } = {},
+  ): void {
+    this.drawBike(camera, bike, opts.isRedline ?? false, opts.crashed ?? false, { x: 0, y: 0 }, opts.crashElapsed ?? 0);
+  }
+
+  private drawBike(
+    camera: CameraPose,
+    bike: BikeState,
+    isRedline: boolean,
+    crashed: boolean,
+    shake: Vec2,
+    crashElapsed = 0,
+  ): void {
     const wb = BikeConfig.wheelBase;
     const { rearAxlePx, frontAxlePx } = SpriteCalibration.bike;
 
@@ -647,8 +558,9 @@ export class Renderer {
     this.ctx.save();
     this.ctx.filter = filter;
 
-    // Ruedas primero (el chasis las tapa parcialmente por arriba, como en
-    // la foto original: guardabarros/horquilla por delante del neumatico).
+    // Ruedas primero (el chasis las tapa parcialmente por arriba: el
+    // guardabarros y la horquilla viven en bike_body.png y pasan por delante
+    // del neumatico).
     //
     // El angulo de cada rueda es el del chasis MAS su propio giro. Antes solo
     // se usaba `bike.angle`, y por eso las ruedas no se movian: giraban lo
@@ -657,19 +569,28 @@ export class Renderer {
     // El signo: en mundo, Y va hacia arriba y los angulos positivos son
     // antihorarios; avanzar hacia +x es rodar en sentido HORARIO, asi que el
     // giro propio (positivo = avanzando) se RESTA del angulo del chasis.
+    //
+    // Escala: la MISMA que el chasis. Las tres piezas salen de la misma foto,
+    // asi que compartir escala es lo unico que garantiza que cada rueda quede
+    // metida dentro de su horquilla y de su basculante. El radio fisico
+    // (BikeConfig.wheelRadius) esta derivado precisamente de esta escala, de
+    // modo que lo que colisiona y lo que se ve miden lo mismo.
+    const rearWheelScale = scale;
+    const frontWheelScale = scale;
+
     this.drawRigidSprite(
       SpriteImages.wheelRear,
       this.worldToScreen(camera, rearWheelW.x, rearWheelW.y, shake),
       bike.angle - bike.rear.wheel.spin,
       SpriteCalibration.wheelRear.pivotPx,
-      scale,
+      rearWheelScale,
     );
     this.drawRigidSprite(
       SpriteImages.wheelFront,
       this.worldToScreen(camera, frontWheelW.x, frontWheelW.y, shake),
       bike.angle - bike.front.wheel.spin,
       SpriteCalibration.wheelFront.pivotPx,
-      scale,
+      frontWheelScale,
     );
 
     // Chasis completo (deposito, asiento, carenados, motor, escape): una
@@ -705,7 +626,7 @@ export class Renderer {
     // chasis) mientras conduce; en crash se sustituye por una pose de
     // caida separada de la moto (ver brief: "separar visualmente piloto y
     // moto" en vez de solo recolorear al mismo piloto sentado).
-    this.drawRider(camera, bike, shake, crashed, isRedline);
+    this.drawRider(camera, bike, shake, crashed, isRedline, crashElapsed);
   }
 
   private drawGhost(camera: CameraPose, ghost: GhostFrame, shake: Vec2): void {
@@ -743,52 +664,54 @@ export class Renderer {
     this.ctx.restore();
   }
 
-  private drawRider(camera: CameraPose, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
-    if (crashed) {
+  private drawRider(
+    camera: CameraPose,
+    bike: BikeState,
+    shake: Vec2,
+    crashed: boolean,
+    isRedline: boolean,
+    crashElapsed = 0,
+  ): void {
+    // La separacion llega DESPUES del impacto, no con el. Durante el primer
+    // cuarto de segundo el piloto sigue montado -se ve el golpe- y solo luego
+    // sale despedido, alejandose y girando.
+    const detached = crashed && crashElapsed >= CrashConfig.riderDetachDelay;
+    if (detached) {
+      const since = crashElapsed - CrashConfig.riderDetachDelay;
       // Pose de caida: no rota con el chasis ni se ancla al asiento -es
       // precisamente lo contrario, un cuerpo ya separado de la moto-, solo
       // se coloca junto a donde quedo tirada.
       const crashImg = SpriteImages.riderCrash;
-      const crashPxPerMeter = crashImg.naturalHeight > 0 ? crashImg.naturalHeight / 1.1 : 0;
+      const crashPxPerMeter = crashImg.naturalHeight > 0 ? crashImg.naturalHeight / 1.7 : 0;
       const crashScale = crashPxPerMeter > 0 ? camera.pixelsPerMeter / crashPxPerMeter : 0;
-      const crashScreen = this.worldToScreen(camera, bike.x + 1.9, bike.y + 0.15, shake);
-      this.drawRigidSprite(crashImg, crashScreen, -0.6, { x: 190, y: 170 }, crashScale);
+      // Sale rodando hacia adelante y frena: parabola corta, no teletransporte.
+      const travel = Math.min(1.6, since * 3.4);
+      const drop = Math.min(0.35, since * 0.9);
+      const tumble = -0.35 - Math.min(1.5, since * 2.2);
+      const crashScreen = this.worldToScreen(camera, bike.x + 0.35 + travel, bike.y - 0.1 - drop, shake);
+      this.drawRigidSprite(crashImg, crashScreen, tumble, { x: 178, y: 210 }, crashScale);
       return;
     }
 
-    // Punto del asiento en espacio local del chasis (metros desde el centro de
-    // masas), derivado del pixel del asiento en bike_body.png (~255,142) con
-    // la misma calibracion eje/escala que usa el chasis (ver drawBike).
-    //
-    // Ojo al signo de la Y: al corregir la geometria de la moto el centro de
-    // masas bajo 0.73 m respecto al dibujo (ver BikeConfig.anchorDropFromCom),
-    // asi que el asiento pasa de estar 0.63 m POR DEBAJO del centro de masas a
-    // estar 0.10 m POR ENCIMA. Con el valor viejo el piloto quedaba medio
-    // metro por debajo de su moto.
-    //
-    // Sobre ese punto se suma la POSE del piloto (ver RiderPose.ts): un
-    // desplazamiento adelante/atras, uno vertical y un angulo de torso
-    // propios, todos independientes del chasis. Es la diferencia entre un
-    // muneco atornillado al asiento y alguien conduciendo: al frenar se va
-    // sobre el manillar, al acelerar se echa atras, al comerse un bache se
-    // hunde con la suspension y al despegar se estira.
-    const seatLocal: Vec2 = { x: SEAT_LOCAL.x + bike.rider.shiftX, y: SEAT_LOCAL.y + bike.rider.shiftY };
-    const seatScreen = this.localToScreen(camera, bike, shake, seatLocal);
+    // Piloto articulado: torso, brazo de dos huesos y pierna de dos huesos.
+    // Las manos van al manillar y los pies a la estribera por cinematica
+    // inversa (ver RiderRig.ts), asi que el cuerpo puede moverse todo lo que
+    // pida la pose sin despegarse nunca de la moto.
+    const geometry = solveRiderRig({ x: bike.x, y: bike.y }, bike.angle, bike.rider, camera.pixelsPerMeter);
 
-    const riderImg = SpriteImages.rider;
-    const riderPxPerMeter = riderImg.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
-    const scale = riderPxPerMeter > 0 ? camera.pixelsPerMeter / riderPxPerMeter : 0;
-
-    const filter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
-    this.ctx.save();
-    this.ctx.filter = filter;
-    this.drawRigidSprite(
-      riderImg,
-      seatScreen,
-      bike.angle + bike.rider.torsoAngle,
-      SpriteCalibration.rider.hipPivotPx,
-      scale,
-    );
-    this.ctx.restore();
+    const baseFilter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : '';
+    for (const piece of riderPieceDraws(geometry)) {
+      this.ctx.save();
+      const filter = [baseFilter, piece.filter ?? ''].filter(Boolean).join(' ');
+      this.ctx.filter = filter || 'none';
+      this.drawRigidSprite(
+        piece.image,
+        this.worldToScreen(camera, piece.world.x, piece.world.y, shake),
+        piece.angle,
+        piece.pivotPx,
+        geometry.scale,
+      );
+      this.ctx.restore();
+    }
   }
 }

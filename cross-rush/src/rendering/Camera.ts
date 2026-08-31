@@ -58,6 +58,14 @@ export class Camera {
   private previousShakeClock = 0;
   /** Sentido de avance suavizado, para que el look-ahead no salte al rebotar. */
   private facing = 1;
+  /**
+   * Objetivo vertical ENGANCHADO. La zona muerta se aplica aqui, no sobre la
+   * posicion de la camara: asi los baches pequenos no mueven el objetivo, pero
+   * la camara si converge exactamente a el. Aplicandola sobre la posicion, la
+   * camara se quedaba parada a media banda de distancia y la moto vivia
+   * permanentemente descentrada.
+   */
+  private anchorY = 0;
   private initialized = false;
 
   /**
@@ -93,6 +101,9 @@ export class Camera {
     this.shakeClock = 0;
     this.previousShakeClock = 0;
     this.facing = target.vx >= 0 ? 1 : -1;
+    this.anchorY = target.y + CameraConfig.verticalLead;
+    this.y = this.anchorY;
+    this.previousY = this.anchorY;
     this.initialized = true;
     this.pixelsPerMeter = this.baseZoom;
     this.previousPixelsPerMeter = this.pixelsPerMeter;
@@ -130,16 +141,18 @@ export class Camera {
     const desiredX = target.x + clamp(this.facing, -1, 1) * lookAhead * 0.4;
 
     // Zona muerta vertical: mientras la moto se mueva dentro de la banda, el
-    // objetivo vertical no se mueve. Es lo que evita que whoops y rockgarden
-    // conviertan la pantalla en una coctelera.
-    const rawDesiredY = target.y + 0.4;
-    const verticalError = rawDesiredY - this.y;
+    // objetivo enganchado no se mueve. Es lo que evita que cada bache
+    // convierta la pantalla en una coctelera, y a la vez deja que la camara se
+    // centre del todo cuando la moto se estabiliza.
+    const rawDesiredY = target.y + CameraConfig.verticalLead;
+    const verticalError = rawDesiredY - this.anchorY;
     const deadZone = CameraConfig.verticalDeadZone;
-    const desiredY =
-      Math.abs(verticalError) <= deadZone ? this.y : rawDesiredY - Math.sign(verticalError) * deadZone;
+    if (Math.abs(verticalError) > deadZone) {
+      this.anchorY = rawDesiredY - Math.sign(verticalError) * deadZone;
+    }
 
     this.x = lerp(this.x, desiredX, clamp(CameraConfig.smoothing * dt, 0, 1));
-    this.y = lerp(this.y, desiredY, clamp(CameraConfig.verticalSmoothing * dt, 0, 1));
+    this.y = lerp(this.y, this.anchorY, clamp(CameraConfig.verticalSmoothing * dt, 0, 1));
 
     this.impulse = Math.max(0, this.impulse - CameraConfig.impulseDecay * dt);
 

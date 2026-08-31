@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CROSS RUSH — comprobacion de ensamblaje</title>
+    <style>
+      html, body { margin: 0; background: #14100d; color: #f2f4f8; font-family: system-ui, sans-serif; }
+      h1 { font-size: 15px; margin: 12px 14px 4px; letter-spacing: 1px; }
+      p.note { font-size: 12px; margin: 0 14px 10px; color: #b6a99c; max-width: 900px; line-height: 1.5; }
+      #grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 14px 20px; }
+      figure { margin: 0; }
+      figcaption { font-size: 11px; color: #ffcba3; padding: 4px 2px 0; letter-spacing: 0.5px; }
+      canvas { display: block; background: #241a12; border: 1px solid #4a382a; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>COMPROBACION DE ENSAMBLAJE</h1>
+    <p class="note">
+      Cada recuadro dibuja la moto en un estado construido a mano, al mismo zoom.
+      Los marcadores son geometria de la fisica, no del dibujo: circulo hueco =
+      eje de rueda, cruz = punto de contacto con el suelo, punto = cadera del
+      piloto, linea = plano de rodadura. Si un sprite no cae encima de su
+      marcador, el ensamblaje esta mal.
+    </p>
+    <div id="grid"></div>
+    <script type="module" src="/src/tools/rigCheck.ts"></script>
+  </body>
+</html>

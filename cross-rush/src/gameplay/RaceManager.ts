@@ -88,6 +88,8 @@ export class RaceManager {
   private readonly zones: GameplayZones;
   /** Cuanto lleva la moto girando demasiado rapido con las ruedas en el suelo. */
   private spinOutElapsed = 0;
+  /** Segundos desde que se declaro el choque. El render lo usa para separar al piloto DESPUES del impacto, no en el mismo instante. */
+  private crashElapsed = 0;
   private speedPadTriggered = false;
   private flowRingArmed = true;
   private riskGapAwarded = false;
@@ -150,6 +152,7 @@ export class RaceManager {
     this.styleScore.reset();
     this.ghost.reset();
     this.spinOutElapsed = 0;
+    this.crashElapsed = 0;
     this.speedPadTriggered = false;
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
@@ -160,6 +163,7 @@ export class RaceManager {
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
   step(dt: number, input: InputState): void {
     this.lastInput = input;
+    if (this.state === 'CRASHED') this.crashElapsed += dt;
     // El suavizado corre SIEMPRE, tambien en cuenta atras y tras un crash: es
     // un filtro sobre el mando, no parte de la carrera. Si solo corriera
     // mientras se compite, el primer tick de "GO!" recibiria un escalon.
@@ -381,6 +385,11 @@ export class RaceManager {
   /** Entrada continua (0..1 / -1..1) realmente aplicada a la fisica este tick. */
   get smoothedInput(): SmoothedInput {
     return this.lastSmoothedInput;
+  }
+
+  /** Segundos transcurridos desde el choque. 0 si no se ha estrellado. */
+  get timeSinceCrash(): number {
+    return this.state === 'CRASHED' ? this.crashElapsed : 0;
   }
 
   /**

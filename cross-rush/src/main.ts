@@ -269,6 +269,7 @@ const loop = new GameLoop(
         flowValue: race.flow.value,
         isRedline: race.flow.isRedline,
         crashed: race.state === 'CRASHED',
+        crashElapsed: race.timeSinceCrash,
         ghost: race.getGhostPose(),
       });
 
