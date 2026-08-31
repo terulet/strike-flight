@@ -7,7 +7,8 @@
  * cronometro, sectores, el fantasma y el reinicio manual.
  */
 
-import { BikeInput, BikeState, createInitialBikeState, isAirborne, stepBike } from '../physics/Bike';
+import { BikeInput, BikeState, cloneBikeState, createInitialBikeState, isAirborne, lerpBikeState, stepBike } from '../physics/Bike';
+import { InputSmoother, SmoothedInput } from '../input/InputSmoothing';
 import { TrackDefinition } from '../tracks/CanyonRun';
 import { InputState } from '../input/InputManager';
 import { FlowMeter } from './FlowMeter';
@@ -16,7 +17,7 @@ import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector'
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
 import { GhostRecorder, saveBestGhost, loadBestGhost, sampleGhostAtTime, ghostTimeAtX, GhostFrame } from './GhostRecorder';
 import { GameState, TrickResult } from './types';
-import { FlowConfig, GameplayZoneConfig } from '../config/GameConfig';
+import { CrashConfig, FlowConfig, GameplayZoneConfig } from '../config/GameConfig';
 import { computeGameplayZones, GameplayZones } from './GameplayZones';
 
 const COUNTDOWN_SECONDS = 3;
@@ -61,6 +62,13 @@ export interface SectorSplit {
 export class RaceManager {
   state: GameState = 'READY';
   bike: BikeState;
+  /**
+   * Estado de la moto en el tick ANTERIOR. El render lo necesita para
+   * interpolar: sin el, a 60 Hz de pantalla y 120 Hz de simulacion se dibuja
+   * siempre el ultimo estado fijo y la moto avanza a saltos de tamano
+   * variable segun donde caiga cada frame. Eso es el microtiron.
+   */
+  previousBike: BikeState;
   raceTime = 0;
   countdownRemaining = COUNTDOWN_SECONDS;
   currentSectorIndex = 0;
@@ -74,8 +82,12 @@ export class RaceManager {
   private bestTime: number | null;
   private bestGhost: GhostFrame[] | null;
   private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false };
+  private readonly inputSmoother = new InputSmoother();
+  private lastSmoothedInput: SmoothedInput = { throttle: 0, brake: 0, lean: 0, throttlePressed: false, brakePressed: false };
 
   private readonly zones: GameplayZones;
+  /** Cuanto lleva la moto girando demasiado rapido con las ruedas en el suelo. */
+  private spinOutElapsed = 0;
   private speedPadTriggered = false;
   private flowRingArmed = true;
   private riskGapAwarded = false;
@@ -86,6 +98,7 @@ export class RaceManager {
     this.bestTime = loadBestTime();
     this.bestGhost = loadBestGhost();
     this.bike = createInitialBikeState(track.startX, track.startY);
+    this.previousBike = cloneBikeState(this.bike);
     this.zones = computeGameplayZones(track);
   }
 
@@ -122,6 +135,12 @@ export class RaceManager {
 
   private resetTransientState(): void {
     this.bike = createInitialBikeState(this.track.startX, this.track.startY);
+    // Prev = actual: si no, el primer frame tras un reinicio interpolaria
+    // entre la posicion de la carrera anterior y la salida, y la moto
+    // cruzaria media pista dibujada en un fotograma.
+    this.previousBike = cloneBikeState(this.bike);
+    this.inputSmoother.reset();
+    this.lastSmoothedInput = this.inputSmoother.current;
     this.raceTime = 0;
     this.countdownRemaining = COUNTDOWN_SECONDS;
     this.currentSectorIndex = 0;
@@ -130,6 +149,7 @@ export class RaceManager {
     this.flightTracker.reset();
     this.styleScore.reset();
     this.ghost.reset();
+    this.spinOutElapsed = 0;
     this.speedPadTriggered = false;
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
@@ -140,6 +160,10 @@ export class RaceManager {
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
   step(dt: number, input: InputState): void {
     this.lastInput = input;
+    // El suavizado corre SIEMPRE, tambien en cuenta atras y tras un crash: es
+    // un filtro sobre el mando, no parte de la carrera. Si solo corriera
+    // mientras se compite, el primer tick de "GO!" recibiria un escalon.
+    this.lastSmoothedInput = this.inputSmoother.update(input, dt);
 
     if (this.state === 'COUNTDOWN') {
       this.countdownRemaining -= dt;
@@ -159,7 +183,13 @@ export class RaceManager {
     this.raceTime += dt;
 
     const prevX = this.bike.x;
-    const bikeInput: BikeInput = { throttle: input.throttle, brake: input.brake, lean: input.lean };
+    const bikeInput: BikeInput = {
+      throttle: input.throttle,
+      brake: input.brake,
+      lean: input.lean,
+      smoothed: this.lastSmoothedInput,
+    };
+    this.previousBike = this.bike;
     this.bike = stepBike(this.bike, this.track.terrain, bikeInput, dt);
 
     this.checkGameplayZones(prevX);
@@ -177,9 +207,13 @@ export class RaceManager {
       this.handleLanding(landingEvent);
     }
 
+    // El trompo tiene que SOSTENERSE: un pico de un tick al aterrizar fuerte
+    // no es perder el control (ver CrashConfig.spinOutDuration).
+    this.spinOutElapsed = isSpinningOutOnGround(this.bike) ? this.spinOutElapsed + dt : 0;
+
     if (
       isChassisTouchingGround(this.bike, this.track.terrain) ||
-      isSpinningOutOnGround(this.bike)
+      this.spinOutElapsed >= CrashConfig.spinOutDuration
     ) {
       this.crash();
       return;
@@ -342,6 +376,22 @@ export class RaceManager {
 
   get lastAppliedInput(): InputState {
     return this.lastInput;
+  }
+
+  /** Entrada continua (0..1 / -1..1) realmente aplicada a la fisica este tick. */
+  get smoothedInput(): SmoothedInput {
+    return this.lastSmoothedInput;
+  }
+
+  /**
+   * Estado visual de la moto para un `alpha` de interpolacion 0..1, tal y como
+   * lo entrega `GameLoop.render(alpha)`. alpha 0 = tick anterior, 1 = tick
+   * actual. Todo lo que dibuja -chasis, ruedas, suspension, piloto- y la
+   * camara deben consumir ESTE estado, nunca `this.bike` directamente, o
+   * volvemos al microtiron.
+   */
+  getInterpolatedBike(alpha: number): BikeState {
+    return lerpBikeState(this.previousBike, this.bike, alpha);
   }
 
   /** Zonas de riesgo/recompensa ya calculadas (misma fuente que usa el render, ver GameplayZones). */

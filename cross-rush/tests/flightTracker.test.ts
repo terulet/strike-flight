@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FlightTracker } from '../src/gameplay/FlightTracker';
-import { BikeState } from '../src/physics/Bike';
+import { BikeState, createInitialBikeState } from '../src/physics/Bike';
 import { Terrain } from '../src/physics/Terrain';
 import { TrickConfig } from '../src/config/GameConfig';
 
@@ -12,28 +12,20 @@ function flatTerrain(): Terrain {
 }
 
 function airborneState(angle: number): BikeState {
-  return {
-    x: 0,
-    y: 5,
-    vx: 10,
-    vy: -1,
-    angle,
-    angularVelocity: 0,
-    front: { compression: 0, inContact: false, groundY: 0, contactX: 0 },
-    rear: { compression: 0, inContact: false, groundY: 0, contactX: 0 },
-  };
+  const state = createInitialBikeState(0, 5);
+  return { ...state, vx: 10, vy: -1, angle };
 }
 
 function landedState(angle: number, verticalSpeed: number, angularVelocity: number): BikeState {
+  const state = createInitialBikeState(0, 0);
   return {
-    x: 0,
-    y: 0,
+    ...state,
     vx: 10,
     vy: -verticalSpeed,
     angle,
     angularVelocity,
-    front: { compression: 0.1, inContact: true, groundY: 0, contactX: 0 },
-    rear: { compression: 0.1, inContact: true, groundY: 0, contactX: 0 },
+    front: { ...state.front, compression: 0.1, inContact: true },
+    rear: { ...state.rear, compression: 0.1, inContact: true },
   };
 }
 

@@ -21,7 +21,8 @@ import { AudioEngine } from './audio/AudioEngine';
 import { HUD } from './ui/HUD';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
-import { EngineConfig } from './config/GameConfig';
+import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
+import { EffectsConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiOverlay = document.getElementById('ui-overlay') as HTMLDivElement;
@@ -109,6 +110,12 @@ const resultsScreen = new ResultsScreen(uiOverlay, () => {
 let lastFront = false;
 let lastRear = false;
 let audioStarted = false;
+/** Restos fraccionarios de particulas de deslizamiento por rueda (ver ParticleSystem.spawnSlipDust). */
+let frontSlipCarry = 0;
+let rearSlipCarry = 0;
+/** Tiempo desde la ultima marca de derrape, por rueda. */
+let frontSkidCooldown = 0;
+let rearSkidCooldown = 0;
 
 function ensureAudioStarted(): void {
   if (audioStarted) return;
@@ -150,6 +157,7 @@ const loop = new GameLoop(
       if (!latestSplit || race.raceTime - latestSplit.totalTime > 2.5) hud.hideSectorSplit();
       if (race.state === 'COUNTDOWN') shownSectorSplits = 0;
 
+      // Golpe de tierra al TOCAR el suelo (flanco de contacto).
       if (race.bike.front.inContact && !lastFront) {
         particles.spawnDust(race.bike.front.contactX, race.bike.front.groundY, Math.abs(race.bike.vx));
       }
@@ -159,18 +167,80 @@ const loop = new GameLoop(
       lastFront = race.bike.front.inContact;
       lastRear = race.bike.rear.inContact;
 
+      // Y tierra continua mientras el neumatico DESLIZA de verdad: patinando
+      // al acelerar o bloqueado al frenar. Antes el polvo dependia solo de
+      // cruzar el umbral de contacto, asi que una salida a fondo quemando la
+      // rueda trasera no levantaba ni una mota.
+      if (race.bike.rear.inContact) {
+        rearSlipCarry = particles.spawnSlipDust(
+          race.bike.rear.contactX,
+          race.bike.rear.groundY,
+          race.bike.rear.wheel.slip,
+          dt,
+          rearSlipCarry,
+        );
+      } else {
+        rearSlipCarry = 0;
+      }
+      if (race.bike.front.inContact) {
+        frontSlipCarry = particles.spawnSlipDust(
+          race.bike.front.contactX,
+          race.bike.front.groundY,
+          race.bike.front.wheel.slip,
+          dt,
+          frontSlipCarry,
+        );
+      } else {
+        frontSlipCarry = 0;
+      }
+
+      // Marca de derrape: solo con la rueda bloqueada o patinando fuerte, y
+      // espaciada en el tiempo para no empapelar el suelo.
+      rearSkidCooldown = Math.max(0, rearSkidCooldown - dt);
+      frontSkidCooldown = Math.max(0, frontSkidCooldown - dt);
+      if (
+        race.bike.rear.inContact &&
+        Math.abs(race.bike.rear.wheel.slip) >= EffectsConfig.slip.skidMarkSlip &&
+        rearSkidCooldown <= 0
+      ) {
+        rearSkidCooldown = EffectsConfig.slip.skidMarkInterval;
+        decals.spawn(race.bike.rear.contactX, race.bike.rear.groundY + 0.05, SpriteImages.tireSkid);
+      }
+      if (
+        race.bike.front.inContact &&
+        Math.abs(race.bike.front.wheel.slip) >= EffectsConfig.slip.skidMarkSlip &&
+        frontSkidCooldown <= 0
+      ) {
+        frontSkidCooldown = EffectsConfig.slip.skidMarkInterval;
+        decals.spawn(race.bike.front.contactX, race.bike.front.groundY + 0.05, SpriteImages.tireSkid);
+      }
+
+      // La camara avanza en el PASO FIJO, con el estado de simulacion: asi es
+      // determinista y luego el render la interpola igual que a la moto.
+      camera.update(dt, { x: race.bike.x, y: race.bike.y, vx: race.bike.vx, vy: race.bike.vy }, race.flightTracker.currentAirTime);
+
       particles.update(dt);
       decals.update(dt);
     },
-    render: () => {
+    /**
+     * `alpha` es la fraccion de tick pendiente que entrega el GameLoop. Antes
+     * se ignoraba y se dibujaba siempre el ultimo estado fijo: con la
+     * simulacion a 120 Hz y la pantalla a 60, 90 o 144, cada frame caia en un
+     * punto distinto del tick y la moto avanzaba a saltos desiguales. Eso era
+     * el microtiron. Ahora TODO lo que se dibuja -moto, ruedas, suspension,
+     * piloto, camara y sacudida- sale del mismo estado interpolado.
+     */
+    render: (alpha) => {
       renderer.resizeToDisplaySize();
-      const airTime = race.flightTracker.currentAirTime;
-      camera.update(SIM_DT, { x: race.bike.x, y: race.bike.y, vx: race.bike.vx, vy: race.bike.vy }, airTime);
+      const bike = race.getInterpolatedBike(alpha);
+      const cameraPose = camera.getPose(alpha);
+      const shake = camera.getShakeOffset(alpha);
 
       renderer.render({
-        camera,
+        camera: cameraPose,
+        shake,
         track,
-        bike: race.bike,
+        bike,
         particles,
         decals,
         flowValue: race.flow.value,
@@ -185,8 +255,17 @@ const loop = new GameLoop(
         hud.showCenterMessage(race.countdownRemaining > 0.15 ? String(Math.ceil(race.countdownRemaining)) : 'GO!');
       }
 
-      const speedRatio = Math.min(1, Math.abs(race.bike.vx) / EngineConfig.topSpeed);
-      audio.updateEngine(speedRatio, input.getState().throttle);
+      // El motor suena a lo que hace la RUEDA, no a lo que hace la camara:
+      // vueltas reales de la trasera, gas continuo y carga (patinaje +
+      // cuanto peso lleva encima el eje motriz).
+      const smoothed = race.smoothedInput;
+      const slipLoad = Math.min(1, Math.abs(race.bike.rear.wheel.slip) / 4);
+      const axleLoad = Math.min(1, normalizedAxleLoad(race.bike, 'rear') / 1.6);
+      audio.updateEngine({
+        rpmRatio: engineRpmRatio(race.bike),
+        throttle: smoothed.throttle,
+        load: Math.max(slipLoad, axleLoad * smoothed.throttle),
+      });
 
       debugOverlay.update({
         fps,

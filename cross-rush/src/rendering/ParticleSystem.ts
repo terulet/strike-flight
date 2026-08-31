@@ -61,6 +61,43 @@ export class ParticleSystem {
     }
   }
 
+  /**
+   * Tierra levantada por el DESLIZAMIENTO real del neumatico, no por la
+   * velocidad del chasis. Es la diferencia que se ve: patinar parado echa
+   * tierra, y rodar limpio a 30 m/s no echa ninguna.
+   *
+   * `slip` es la velocidad de deslizamiento en m/s (positiva = la rueda gira
+   * mas rapido que el suelo, acelerando; negativa = bloqueada, frenando).
+   * `carry` es el resto fraccionario de particulas del tick anterior, para
+   * que un caudal de, por ejemplo, 0.4 particulas por tick no se redondee a
+   * cero y no salga nunca nada.
+   */
+  spawnSlipDust(x: number, y: number, slip: number, dt: number, carry: number): number {
+    const magnitude = Math.abs(slip);
+    const { minSlipToSpawn, fullSlip, maxParticlesPerSecond } = EffectsConfig.slip;
+    if (!Number.isFinite(magnitude) || magnitude < minSlipToSpawn) return 0;
+
+    const intensity = Math.min(1, (magnitude - minSlipToSpawn) / Math.max(0.001, fullSlip - minSlipToSpawn));
+    const wanted = carry + intensity * maxParticlesPerSecond * dt;
+    const count = Math.floor(wanted);
+
+    // La tierra sale disparada en contra del deslizamiento: si la rueda patina
+    // hacia adelante, el chorro va hacia atras, y al reves al bloquearse.
+    const direction = -Math.sign(slip);
+    for (let i = 0; i < count; i++) {
+      const spread = (Math.random() - 0.5) * 1.1;
+      const speed = 1.4 + intensity * 5.5 * Math.random();
+      this.spawnOne(
+        x,
+        y,
+        direction * speed * (0.7 + Math.random() * 0.6),
+        Math.abs(Math.sin(Math.PI * 0.5 + spread)) * speed * 0.75,
+        0.07 + Math.random() * 0.11 * (0.5 + intensity),
+      );
+    }
+    return wanted - count;
+  }
+
   spawnBurst(x: number, y: number, count: number): void {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI;

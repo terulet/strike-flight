@@ -8,7 +8,7 @@
 export interface InputState {
   throttle: boolean;
   brake: boolean;
-  /** -1 = inclinar atras, 0 = neutro, +1 = inclinar delante. */
+  /** +1 = levantar el morro (flecha arriba / W), 0 = neutro, -1 = hundirlo. */
   lean: number;
   /** Flanco de subida: true solo el frame en que se pulsa restart. */
   restartPressed: boolean;

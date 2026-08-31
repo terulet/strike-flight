@@ -9,9 +9,24 @@
 
 import { AudioConfig } from '../config/GameConfig';
 
+/** Lo que el motor necesita saber de la moto. Nada de esto es `vx`. */
+export interface EngineAudioState {
+  /** Revoluciones normalizadas 0..1, derivadas del giro REAL de la rueda trasera. */
+  rpmRatio: number;
+  /** Gas continuo 0..1. */
+  throttle: number;
+  /**
+   * Carga del motor 0..1: cuanto le esta costando. Sube al arrancar, al subir
+   * cuestas y al patinar; baja en rueda libre y en el aire.
+   */
+  load: number;
+}
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private engineOsc: OscillatorNode | null = null;
+  private engineDetuneOsc: OscillatorNode | null = null;
+  private engineDetuneGain: GainNode | null = null;
   private engineGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
   private started = false;
@@ -34,6 +49,18 @@ export class AudioEngine {
     this.engineOsc.connect(this.engineGain);
     this.engineGain.connect(this.masterGain);
     this.engineOsc.start();
+
+    // Segundo oscilador ligeramente desafinado: una sierra sola suena a
+    // zumbador de microondas; dos batiendo entre si suenan a monocilindrico.
+    this.engineDetuneOsc = this.ctx.createOscillator();
+    this.engineDetuneOsc.type = 'square';
+    this.engineDetuneGain = this.ctx.createGain();
+    this.engineDetuneGain.gain.value = AudioConfig.engine.baseGain * AudioConfig.engine.detuneGain;
+    this.engineDetuneOsc.frequency.value = AudioConfig.engine.baseFrequency * AudioConfig.engine.detuneRatio;
+    this.engineDetuneOsc.connect(this.engineDetuneGain);
+    this.engineDetuneGain.connect(this.masterGain);
+    this.engineDetuneOsc.start();
+
     this.started = true;
   }
 
@@ -45,16 +72,36 @@ export class AudioEngine {
     this.ctx?.resume();
   }
 
-  updateEngine(speedRatio: number, throttling: boolean): void {
+  /**
+   * Motor ligado a la moto, no a la camara.
+   *
+   * El tono lo marcan las revoluciones REALES de la rueda trasera, asi que la
+   * moto sube de vueltas cuando patina parada y las pierde cuando el neumatico
+   * se bloquea al frenar: dos cosas que con el modelo anterior (tono = |vx|)
+   * sonaban exactamente al reves de lo que se veia. El gas anade un empujon de
+   * tono por encima -el motor "estira" antes de que la moto responda- y la
+   * carga abre el volumen.
+   */
+  updateEngine(state: EngineAudioState): void {
     if (!this.ctx || !this.engineOsc || !this.engineGain) return;
-    const clamped = Math.max(0, Math.min(1, speedRatio));
-    const freq = AudioConfig.engine.baseFrequency + clamped * (AudioConfig.engine.maxFrequency - AudioConfig.engine.baseFrequency);
-    const gain =
-      AudioConfig.engine.baseGain +
-      (throttling ? 1 : 0.4) * clamped * (AudioConfig.engine.maxGain - AudioConfig.engine.baseGain);
+    const cfg = AudioConfig.engine;
+    const rpm = Math.max(0, Math.min(1, Number.isFinite(state.rpmRatio) ? state.rpmRatio : 0));
+    const throttle = Math.max(0, Math.min(1, Number.isFinite(state.throttle) ? state.throttle : 0));
+    const load = Math.max(0, Math.min(1, Number.isFinite(state.load) ? state.load : 0));
+
+    const pitchRatio = Math.min(1, rpm + throttle * cfg.throttleLift * (1 - rpm));
+    const freq = cfg.baseFrequency + pitchRatio * (cfg.maxFrequency - cfg.baseFrequency);
+
+    const openness = Math.min(1, 0.35 * rpm + 0.4 * throttle + cfg.loadGain * load);
+    const gain = cfg.baseGain + openness * (cfg.maxGain - cfg.baseGain);
+
     const now = this.ctx.currentTime;
-    this.engineOsc.frequency.setTargetAtTime(freq, now, 0.05);
-    this.engineGain.gain.setTargetAtTime(gain, now, 0.08);
+    this.engineOsc.frequency.setTargetAtTime(freq, now, cfg.frequencyGlide);
+    this.engineGain.gain.setTargetAtTime(gain, now, 0.06);
+    if (this.engineDetuneOsc && this.engineDetuneGain) {
+      this.engineDetuneOsc.frequency.setTargetAtTime(freq * cfg.detuneRatio, now, cfg.frequencyGlide);
+      this.engineDetuneGain.gain.setTargetAtTime(gain * cfg.detuneGain, now, 0.06);
+    }
   }
 
   private playBlip(frequency: number, duration: number, gain: number, type: OscillatorType): void {

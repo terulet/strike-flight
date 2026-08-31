@@ -14,7 +14,7 @@
 import { Terrain } from '../physics/Terrain';
 import { TrackDefinition, TerrainFeatureKind } from '../tracks/CanyonRun';
 import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
-import { Camera } from './Camera';
+import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { SpriteDecals } from './SpriteDecals';
 import { BikeConfig, SuspensionConfig, EngineConfig } from '../config/GameConfig';
@@ -71,7 +71,7 @@ export class Renderer {
     }
   }
 
-  private worldToScreen(camera: Camera, wx: number, wy: number, shake: Vec2): { x: number; y: number } {
+  private worldToScreen(camera: CameraPose, wx: number, wy: number, shake: Vec2): { x: number; y: number } {
     const cx = this.canvas.width / 2;
     const cy = this.canvas.height / 2;
     const ppm = camera.pixelsPerMeter;
@@ -81,8 +81,19 @@ export class Renderer {
     };
   }
 
+  /**
+   * Dibuja un fotograma.
+   *
+   * `camera` y `bike` llegan YA INTERPOLADOS (ver RaceManager.getInterpolatedBike
+   * y Camera.getPose): el renderer no vuelve a mirar el estado "vivo" de la
+   * simulacion en ningun sitio, porque mezclar estado interpolado con estado
+   * del ultimo tick es exactamente lo que produce el temblor que se queria
+   * quitar. Lo mismo con `shake`, que ahora es una funcion del reloj de
+   * simulacion y no un `Math.random()` distinto en cada frame.
+   */
   render(opts: {
-    camera: Camera;
+    camera: CameraPose;
+    shake: Vec2;
     track: TrackDefinition;
     bike: BikeState;
     particles: ParticleSystem;
@@ -93,9 +104,8 @@ export class Renderer {
     ghost: GhostFrame | null;
   }): void {
     const { ctx, canvas } = this;
-    const { camera, track, bike, particles, decals, isRedline, crashed, ghost } = opts;
+    const { camera, track, bike, particles, decals, isRedline, crashed, ghost, shake } = opts;
     const terrain = track.terrain;
-    const shake = camera.getShakeOffset();
 
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -118,7 +128,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawTerrainFeatureSprites(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+  private drawTerrainFeatureSprites(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const images: Record<TerrainFeatureKind, HTMLImageElement> = {
       tabletop: SpriteImages.terrainTabletop,
       stepup: SpriteImages.terrainStepup,
@@ -182,7 +192,7 @@ export class Renderer {
    * llegado a REDLINE. Mismo truco de espejo que la llama de REDLINE: el
    * extremo denso queda junto a la moto y la cola se arrastra hacia atras.
    */
-  private drawSpeedTrail(camera: Camera, bike: BikeState, shake: Vec2): void {
+  private drawSpeedTrail(camera: CameraPose, bike: BikeState, shake: Vec2): void {
     const speed = Math.abs(bike.vx);
     const threshold = EngineConfig.topSpeed * 0.6;
     if (speed < threshold) return;
@@ -214,7 +224,7 @@ export class Renderer {
    * vez de a la altura del suelo. Es pura sensacion de velocidad, no
    * decoracion de la pista en si.
    */
-  private drawForeground(camera: Camera, shake: Vec2): void {
+  private drawForeground(camera: CameraPose, shake: Vec2): void {
     const { ctx, canvas } = this;
     const parallax = 1.35;
     const spacing = 60;
@@ -242,7 +252,7 @@ export class Renderer {
 
   /** Dibuja un sprite anclado por su centro-inferior a un punto del suelo. */
   private drawGroundSprite(
-    camera: Camera,
+    camera: CameraPose,
     terrain: Terrain,
     shake: Vec2,
     x: number,
@@ -278,7 +288,7 @@ export class Renderer {
    * decora), un arco de checkpoint en el resto de sectores intermedios, y
    * el arco de meta al final.
    */
-  private drawTrackGates(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+  private drawTrackGates(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain, labels } = track;
     this.drawGroundSprite(camera, terrain, shake, track.startX, 9, SpriteImages.startGate);
     for (const label of labels) {
@@ -300,7 +310,7 @@ export class Renderer {
    * salto), no relleno que se repite cada ~26m-. No afectan a la fisica,
    * son solo ambientacion.
    */
-  private drawAtmosphere(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+  private drawAtmosphere(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain, labels } = track;
     const labelX = (name: string): number | null => labels.find((l) => l.name === name)?.x ?? null;
 
@@ -327,7 +337,7 @@ export class Renderer {
    * hace falta que GameplayZones sepa de ellas porque su "mecanica" ya la
    * resuelve la fisica normal de la moto.
    */
-  private drawGameplayFeatures(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+  private drawGameplayFeatures(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain } = track;
     const zones = computeGameplayZones(track);
 
@@ -355,7 +365,7 @@ export class Renderer {
    * frame). Mas espaciados que los matojos de drawTerrain -son piezas
    * grandes, no relleno-.
    */
-  private drawTrackProps(camera: Camera, track: TrackDefinition, shake: Vec2): void {
+  private drawTrackProps(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain } = track;
     const ppm = camera.pixelsPerMeter;
     const halfWidthMeters = this.canvas.width / 2 / ppm;
@@ -392,7 +402,7 @@ export class Renderer {
     }
   }
 
-  private drawDecals(camera: Camera, decals: SpriteDecals, shake: Vec2): void {
+  private drawDecals(camera: CameraPose, decals: SpriteDecals, shake: Vec2): void {
     const { ctx } = this;
     decals.forEachAlive((x, y, alpha, image) => {
       if (!image.complete || image.naturalWidth === 0) return;
@@ -407,7 +417,7 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawSky(camera: Camera): void {
+  private drawSky(camera: CameraPose): void {
     const { ctx, canvas } = this;
     const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
     sky.addColorStop(0, PALETTE.skyTop);
@@ -442,7 +452,7 @@ export class Renderer {
    * el corte -algo imperceptible a la distancia y velocidad de scroll de
    * fondo, que ademas van con parallax bajo-.
    */
-  private drawBackdrop(camera: Camera, terrain: Terrain, shake: Vec2): void {
+  private drawBackdrop(camera: CameraPose, terrain: Terrain, shake: Vec2): void {
     const { ctx, canvas } = this;
     const layers: Array<{ image: HTMLImageElement; parallax: number; heightFrac: number; baseFrac: number }> = [
       { image: SpriteImages.bgFar, parallax: 0.1, heightFrac: 0.32, baseFrac: 0.66 },
@@ -476,7 +486,7 @@ export class Renderer {
     void shake;
   }
 
-  private drawTerrain(camera: Camera, terrain: Terrain, shake: Vec2): void {
+  private drawTerrain(camera: CameraPose, terrain: Terrain, shake: Vec2): void {
     const { ctx, canvas } = this;
     const ppm = camera.pixelsPerMeter;
     const halfWidthMeters = canvas.width / 2 / ppm;
@@ -553,7 +563,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private drawParticles(camera: Camera, particles: ParticleSystem, shake: Vec2): void {
+  private drawParticles(camera: CameraPose, particles: ParticleSystem, shake: Vec2): void {
     const { ctx } = this;
     particles.forEachAlive((x, y, alpha, size) => {
       const p = this.worldToScreen(camera, x, y, shake);
@@ -568,7 +578,7 @@ export class Renderer {
   }
 
   /** Punto en espacio local del chasis -> coordenadas de pantalla, en un solo paso. */
-  private localToScreen(camera: Camera, bike: BikeState, shake: Vec2, local: Vec2): { x: number; y: number } {
+  private localToScreen(camera: CameraPose, bike: BikeState, shake: Vec2, local: Vec2): { x: number; y: number } {
     const w = localToWorld(bike, local);
     return this.worldToScreen(camera, w.x, w.y, shake);
   }
@@ -599,7 +609,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawBike(camera: Camera, bike: BikeState, isRedline: boolean, crashed: boolean, shake: Vec2): void {
+  private drawBike(camera: CameraPose, bike: BikeState, isRedline: boolean, crashed: boolean, shake: Vec2): void {
     const wb = BikeConfig.wheelBase;
     const { rearAxlePx, frontAxlePx } = SpriteCalibration.bike;
 
@@ -622,17 +632,25 @@ export class Renderer {
 
     // Ruedas primero (el chasis las tapa parcialmente por arriba, como en
     // la foto original: guardabarros/horquilla por delante del neumatico).
+    //
+    // El angulo de cada rueda es el del chasis MAS su propio giro. Antes solo
+    // se usaba `bike.angle`, y por eso las ruedas no se movian: giraban lo
+    // que giraba la moto entera, es decir, nada mientras se conduce recto.
+    //
+    // El signo: en mundo, Y va hacia arriba y los angulos positivos son
+    // antihorarios; avanzar hacia +x es rodar en sentido HORARIO, asi que el
+    // giro propio (positivo = avanzando) se RESTA del angulo del chasis.
     this.drawRigidSprite(
       SpriteImages.wheelRear,
       this.worldToScreen(camera, rearWheelW.x, rearWheelW.y, shake),
-      bike.angle,
+      bike.angle - bike.rear.wheel.spin,
       SpriteCalibration.wheelRear.pivotPx,
       scale,
     );
     this.drawRigidSprite(
       SpriteImages.wheelFront,
       this.worldToScreen(camera, frontWheelW.x, frontWheelW.y, shake),
-      bike.angle,
+      bike.angle - bike.front.wheel.spin,
       SpriteCalibration.wheelFront.pivotPx,
       scale,
     );
@@ -646,7 +664,7 @@ export class Renderer {
     const restLengthAvg = (SuspensionConfig.front.restLength + SuspensionConfig.rear.restLength) / 2;
     const comPixel = {
       x: (rearAxlePx.x + frontAxlePx.x) / 2,
-      y: rearAxlePx.y - (BikeConfig.comHeight + restLengthAvg) * spritePxPerMeter,
+      y: rearAxlePx.y - (BikeConfig.anchorDropFromCom + restLengthAvg) * spritePxPerMeter,
     };
     const comScreen = this.worldToScreen(camera, bike.x, bike.y, shake);
     this.drawRigidSprite(SpriteImages.bikeBody, comScreen, bike.angle, comPixel, scale);
@@ -673,25 +691,31 @@ export class Renderer {
     this.drawRider(camera, bike, shake, crashed, isRedline);
   }
 
-  private drawGhost(camera: Camera, ghost: GhostFrame, shake: Vec2): void {
+  private drawGhost(camera: CameraPose, ghost: GhostFrame, shake: Vec2): void {
     const { rearAxlePx, frontAxlePx } = SpriteCalibration.bike;
     const spritePxPerMeter = (frontAxlePx.x - rearAxlePx.x) / BikeConfig.wheelBase;
     const scale = camera.pixelsPerMeter / spritePxPerMeter;
     const restLength = (SuspensionConfig.front.restLength + SuspensionConfig.rear.restLength) / 2;
-    const axleY = -(BikeConfig.comHeight + restLength);
+    const axleY = -(BikeConfig.anchorDropFromCom + restLength);
     const axleOffset = BikeConfig.wheelBase / 2;
     const rearOffset = rotateVec({ x: -axleOffset, y: axleY }, ghost.rotation);
     const frontOffset = rotateVec({ x: axleOffset, y: axleY }, ghost.rotation);
     const comPixel = {
       x: (rearAxlePx.x + frontAxlePx.x) / 2,
-      y: rearAxlePx.y - (BikeConfig.comHeight + restLength) * spritePxPerMeter,
+      y: rearAxlePx.y - (BikeConfig.anchorDropFromCom + restLength) * spritePxPerMeter,
     };
 
     this.ctx.save();
     this.ctx.globalAlpha = 0.32;
     this.ctx.filter = 'grayscale(1) sepia(1) saturate(7) hue-rotate(135deg) brightness(1.35)';
-    this.drawRigidSprite(SpriteImages.wheelRear, this.worldToScreen(camera, ghost.x + rearOffset.x, ghost.y + rearOffset.y, shake), ghost.rotation, SpriteCalibration.wheelRear.pivotPx, scale);
-    this.drawRigidSprite(SpriteImages.wheelFront, this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation, SpriteCalibration.wheelFront.pivotPx, scale);
+    // El fantasma solo guarda (t, x, y, rotacion): ampliar su formato para
+    // meter el angulo de rueda invalidaria los records ya guardados en
+    // localStorage. Como en rodadura pura el giro es exactamente
+    // distancia/radio, se deriva de la x y queda sincronizado sin tocar el
+    // formato ni romper el ghost de nadie.
+    const ghostSpin = ghost.x / BikeConfig.wheelRadius;
+    this.drawRigidSprite(SpriteImages.wheelRear, this.worldToScreen(camera, ghost.x + rearOffset.x, ghost.y + rearOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelRear.pivotPx, scale);
+    this.drawRigidSprite(SpriteImages.wheelFront, this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelFront.pivotPx, scale);
     this.drawRigidSprite(SpriteImages.bikeBody, this.worldToScreen(camera, ghost.x, ghost.y, shake), ghost.rotation, comPixel, scale);
 
     const seatOffset = rotateVec({ x: -0.25, y: -0.63 }, ghost.rotation);
@@ -702,7 +726,7 @@ export class Renderer {
     this.ctx.restore();
   }
 
-  private drawRider(camera: Camera, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
+  private drawRider(camera: CameraPose, bike: BikeState, shake: Vec2, crashed: boolean, isRedline: boolean): void {
     if (crashed) {
       // Pose de caida: no rota con el chasis ni se ancla al asiento -es
       // precisamente lo contrario, un cuerpo ya separado de la moto-, solo
@@ -717,10 +741,15 @@ export class Renderer {
 
     // Punto del asiento en espacio local del chasis (metros desde el CoM),
     // derivado del pixel del asiento en bike_body.png (~260,160) con la
-    // misma calibracion eje/escala que usa el chasis (ver drawBike): el CoM
-    // fisico (comHeight+restLength por encima de la rueda en reposo) cae
-    // bastante mas arriba que el asiento visual, de ahi el valor negativo.
-    const seatLocal: Vec2 = { x: -0.25, y: -0.63 };
+    // misma calibracion eje/escala que usa el chasis (ver drawBike).
+    //
+    // Sobre ese punto se suma la POSE del piloto (ver RiderPose.ts): un
+    // desplazamiento adelante/atras, uno vertical y un angulo de torso
+    // propios, todos independientes del chasis. Es la diferencia entre un
+    // muneco atornillado al asiento y alguien conduciendo: al frenar se va
+    // sobre el manillar, al acelerar se echa atras, al comerse un bache se
+    // hunde con la suspension y al despegar se estira.
+    const seatLocal: Vec2 = { x: -0.25 + bike.rider.shiftX, y: -0.63 + bike.rider.shiftY };
     const seatScreen = this.localToScreen(camera, bike, shake, seatLocal);
 
     const riderImg = SpriteImages.rider;
@@ -730,7 +759,13 @@ export class Renderer {
     const filter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
     this.ctx.save();
     this.ctx.filter = filter;
-    this.drawRigidSprite(riderImg, seatScreen, bike.angle, SpriteCalibration.rider.hipPivotPx, scale);
+    this.drawRigidSprite(
+      riderImg,
+      seatScreen,
+      bike.angle + bike.rider.torsoAngle,
+      SpriteCalibration.rider.hipPivotPx,
+      scale,
+    );
     this.ctx.restore();
   }
 }

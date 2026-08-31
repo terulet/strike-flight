@@ -16,7 +16,7 @@ function driveToRacing(race: RaceManager): void {
   }
 }
 
-const restHeight = BikeConfig.comHeight + (SuspensionConfig.front.restLength + SuspensionConfig.rear.restLength) / 2;
+const restHeight = BikeConfig.anchorDropFromCom + (SuspensionConfig.front.restLength + SuspensionConfig.rear.restLength) / 2;
 
 describe('GameplayZones (piezas de riesgo/recompensa)', () => {
   it('coloca las 3 zonas detectables en un orden coherente con la pista', () => {
