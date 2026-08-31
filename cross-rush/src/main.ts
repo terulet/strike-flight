@@ -270,7 +270,9 @@ const loop = new GameLoop(
       debugOverlay.update({
         fps,
         simTicksLastFrame: simTicksThisFrame,
-        bike: race.bike,
+        // El mismo estado que se acaba de dibujar, para que lo que dice el
+        // panel y lo que se ve en pantalla no puedan discrepar.
+        bike,
         flow: race.flow.value,
         sector: race.currentSectorName,
         raceTime: race.raceTime,
