@@ -133,9 +133,29 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+// Metadatos estaticos de la pista para el arnes de QA visual: le permiten
+// saber donde empieza y acaba cada pieza de terreno sin duplicar la
+// definicion de la pista en el script de captura.
+(window as unknown as { __crossRushTrack?: unknown }).__crossRushTrack = {
+  startX: track.startX,
+  finishX: track.finishX,
+  features: track.terrainFeatures.map((feature) => ({
+    kind: feature.kind,
+    startX: feature.startX,
+    endX: feature.endX,
+  })),
+  // Consultas de terreno de solo lectura, para que el piloto automatico del
+  // QA pueda mirar la pendiente que viene igual que hace un jugador con los
+  // ojos. Sin esto tendria que adivinar por la trayectoria y se clava en el
+  // primer step-up, que es un problema del arnes y no del juego.
+  surfaceY: (x: number) => track.terrain.surfaceY(x),
+  surfaceSlope: (x: number) => track.terrain.surfaceSlope(x),
+};
+
 race.begin();
 
 let fps = 0;
+let qaFrameCounter = 0;
 let fpsAccumulator = 0;
 let fpsFrames = 0;
 let simTicksThisFrame = 0;
@@ -232,6 +252,9 @@ const loop = new GameLoop(
      */
     render: (alpha) => {
       renderer.resizeToDisplaySize();
+      // El zoom se deriva del ancho real del lienzo, para que la moto ocupe la
+      // misma fraccion de pantalla en escritorio y en movil.
+      camera.setViewportSize(renderer.viewportWidthPx, renderer.viewportHeightPx);
       const bike = race.getInterpolatedBike(alpha);
       const cameraPose = camera.getPose(alpha);
       const shake = camera.getShakeOffset(alpha);
@@ -266,6 +289,50 @@ const loop = new GameLoop(
         throttle: smoothed.throttle,
         load: Math.max(slipLoad, axleLoad * smoothed.throttle),
       });
+
+      // Gancho de QA, solo lectura. Publica el ultimo estado REALMENTE
+      // dibujado -no el de la simulacion- para que el arnes de captura
+      // (tools/visual-qa.mjs) pueda comprobar sobre la build de verdad que las
+      // ruedas giran, que el piloto reacciona y que el avance entre
+      // fotogramas es uniforme. El juego no lo lee nunca.
+      (window as unknown as { __crossRushFrame?: unknown }).__crossRushFrame = {
+        frame: qaFrameCounter++,
+        alpha,
+        t: race.raceTime,
+        state: race.state,
+        x: bike.x,
+        y: bike.y,
+        // La x del ULTIMO TICK, sin interpolar: es lo que se dibujaba antes.
+        // Publicarla permite al QA comparar las dos series y demostrar la
+        // mejora en vez de afirmarla.
+        rawX: race.bike.x,
+        rawY: race.bike.y,
+        vx: bike.vx,
+        vy: bike.vy,
+        angle: bike.angle,
+        angularVelocity: bike.angularVelocity,
+        frontContact: bike.front.inContact,
+        rearContact: bike.rear.inContact,
+        frontSpin: bike.front.wheel.spin,
+        rearSpin: bike.rear.wheel.spin,
+        frontSpinRate: bike.front.wheel.spinRate,
+        rearSpinRate: bike.rear.wheel.spinRate,
+        rearSlip: bike.rear.wheel.slip,
+        frontCompression: bike.front.compression,
+        rearCompression: bike.rear.compression,
+        frontLoad: normalizedAxleLoad(bike, 'front'),
+        rearLoad: normalizedAxleLoad(bike, 'rear'),
+        riderShiftX: bike.rider.shiftX,
+        riderShiftY: bike.rider.shiftY,
+        riderTorso: bike.rider.torsoAngle,
+        throttle: bike.throttleAmount,
+        brake: bike.brakeAmount,
+        lean: bike.leanAmount,
+        cameraX: cameraPose.x,
+        cameraY: cameraPose.y,
+        shakeX: shake.x,
+        shakeY: shake.y,
+      };
 
       debugOverlay.update({
         fps,

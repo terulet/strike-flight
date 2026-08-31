@@ -23,6 +23,13 @@ import { SpriteImages, SpriteCalibration } from './SpriteAssets';
 import { computeGameplayZones } from '../gameplay/GameplayZones';
 import { GhostFrame } from '../gameplay/GhostRecorder';
 
+/**
+ * Punto del asiento en espacio local del chasis, en metros desde el centro de
+ * masas. Sale del pixel del asiento en bike_body.png (~255,142) traducido con
+ * la calibracion de ejes del sprite; lo usan la moto y el fantasma.
+ */
+const SEAT_LOCAL: Vec2 = { x: -0.25, y: 0.1 };
+
 /** Traduce un punto en espacio local del chasis (x=adelante, y=arriba, origen en el centro de masas) a mundo. */
 function localToWorld(bike: BikeState, local: Vec2): Vec2 {
   const r = rotateVec(local, bike.angle);
@@ -59,6 +66,16 @@ export class Renderer {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No se pudo obtener el contexto 2D del canvas');
     this.ctx = ctx;
+  }
+
+  /** Ancho del lienzo en pixeles de dispositivo (ya incluye devicePixelRatio). */
+  get viewportWidthPx(): number {
+    return this.canvas.width;
+  }
+
+  /** Alto del lienzo en pixeles de dispositivo. */
+  get viewportHeightPx(): number {
+    return this.canvas.height;
   }
 
   resizeToDisplaySize(): void {
@@ -198,7 +215,7 @@ export class Renderer {
     if (speed < threshold) return;
     const t = Math.min(1, (speed - threshold) / (EngineConfig.topSpeed - threshold));
 
-    const trailLocal: Vec2 = { x: -0.5, y: -0.95 };
+    const trailLocal: Vec2 = { x: -0.5, y: -0.22 };
     const trailScreen = this.localToScreen(camera, bike, shake, trailLocal);
     const facing = bike.vx >= 0 ? 1 : -1;
 
@@ -674,7 +691,7 @@ export class Renderer {
     // atras del chasis -en espejo, para que el extremo ancho quede pegado
     // al tubo y la punta se aleje-. Solo mientras dura el boost.
     if (isRedline && !crashed) {
-      const exhaustLocal: Vec2 = { x: -0.88, y: -0.7 };
+      const exhaustLocal: Vec2 = { x: -0.88, y: 0.03 };
       const exhaustScreen = this.localToScreen(camera, bike, shake, exhaustLocal);
       const fx = SpriteImages.redlineFx;
       const fxPxPerMeter = fx.naturalWidth > 0 ? fx.naturalWidth / 1.6 : 0;
@@ -718,7 +735,7 @@ export class Renderer {
     this.drawRigidSprite(SpriteImages.wheelFront, this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelFront.pivotPx, scale);
     this.drawRigidSprite(SpriteImages.bikeBody, this.worldToScreen(camera, ghost.x, ghost.y, shake), ghost.rotation, comPixel, scale);
 
-    const seatOffset = rotateVec({ x: -0.25, y: -0.63 }, ghost.rotation);
+    const seatOffset = rotateVec(SEAT_LOCAL, ghost.rotation);
     const riderImg = SpriteImages.rider;
     const riderPxPerMeter = riderImg.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
     const riderScale = riderPxPerMeter > 0 ? camera.pixelsPerMeter / riderPxPerMeter : 0;
@@ -734,14 +751,20 @@ export class Renderer {
       const crashImg = SpriteImages.riderCrash;
       const crashPxPerMeter = crashImg.naturalHeight > 0 ? crashImg.naturalHeight / 1.1 : 0;
       const crashScale = crashPxPerMeter > 0 ? camera.pixelsPerMeter / crashPxPerMeter : 0;
-      const crashScreen = this.worldToScreen(camera, bike.x + 1.9, bike.y + 0.9, shake);
+      const crashScreen = this.worldToScreen(camera, bike.x + 1.9, bike.y + 0.15, shake);
       this.drawRigidSprite(crashImg, crashScreen, -0.6, { x: 190, y: 170 }, crashScale);
       return;
     }
 
-    // Punto del asiento en espacio local del chasis (metros desde el CoM),
-    // derivado del pixel del asiento en bike_body.png (~260,160) con la
-    // misma calibracion eje/escala que usa el chasis (ver drawBike).
+    // Punto del asiento en espacio local del chasis (metros desde el centro de
+    // masas), derivado del pixel del asiento en bike_body.png (~255,142) con
+    // la misma calibracion eje/escala que usa el chasis (ver drawBike).
+    //
+    // Ojo al signo de la Y: al corregir la geometria de la moto el centro de
+    // masas bajo 0.73 m respecto al dibujo (ver BikeConfig.anchorDropFromCom),
+    // asi que el asiento pasa de estar 0.63 m POR DEBAJO del centro de masas a
+    // estar 0.10 m POR ENCIMA. Con el valor viejo el piloto quedaba medio
+    // metro por debajo de su moto.
     //
     // Sobre ese punto se suma la POSE del piloto (ver RiderPose.ts): un
     // desplazamiento adelante/atras, uno vertical y un angulo de torso
@@ -749,7 +772,7 @@ export class Renderer {
     // muneco atornillado al asiento y alguien conduciendo: al frenar se va
     // sobre el manillar, al acelerar se echa atras, al comerse un bache se
     // hunde con la suspension y al despegar se estira.
-    const seatLocal: Vec2 = { x: -0.25 + bike.rider.shiftX, y: -0.63 + bike.rider.shiftY };
+    const seatLocal: Vec2 = { x: SEAT_LOCAL.x + bike.rider.shiftX, y: SEAT_LOCAL.y + bike.rider.shiftY };
     const seatScreen = this.localToScreen(camera, bike, shake, seatLocal);
 
     const riderImg = SpriteImages.rider;

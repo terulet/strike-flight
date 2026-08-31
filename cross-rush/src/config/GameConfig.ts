@@ -441,7 +441,39 @@ export const CameraConfig = {
     /** Amplitud maxima en metros con impulso 1. */
     amplitudeMeters: 0.36,
   },
+  /**
+   * Zoom de referencia (px por metro) cuando no se conoce el ancho del lienzo
+   * -tests, arranque-. En cuanto el renderer informa del ancho real, manda
+   * `referenceViewMeters`.
+   */
   baseZoomPixelsPerMeter: 34,
+  /**
+   * Metros de pista visibles a lo ancho de la pantalla.
+   *
+   * El zoom fijo de 34 px/m dejaba la moto en unos 70 pixeles: un 5% del ancho
+   * en un portatil y otro tanto en un movil. A ese tamano, un hundimiento de
+   * horquilla de 13 cm son 4 pixeles y el cuerpo del piloto se mueve 10: todo
+   * el trabajo de suspension, transferencia de peso y pose queda por debajo de
+   * lo que el ojo distingue mientras juega. Fijando METROS VISIBLES en vez de
+   * pixeles por metro, la moto ocupa siempre ~11% del ancho -tamano normal en
+   * un motocross 2D- en cualquier pantalla, y el zoom-out de vuelo sigue
+   * funcionando encima de eso.
+   */
+  referenceViewMeters: 19,
+  /**
+   * Metros visibles en una pantalla muy alta (movil en vertical).
+   *
+   * En 393x852 el ancho es el lado corto, asi que mantener 19 m a lo ancho
+   * deja la moto en unos 43 px de CSS mientras sobran mas de 30 m de altura
+   * que nadie mira. Encuadrando mas cerca en vertical, la moto vuelve a
+   * leerse sin perder de vista el terreno que viene.
+   */
+  portraitViewMeters: 14,
+  /** Relacion de aspecto por debajo de la cual se considera pantalla vertical. */
+  portraitAspectRatio: 0.75,
+  /** Topes de seguridad para pantallas extremas. */
+  minPixelsPerMeter: 26,
+  maxPixelsPerMeter: 110,
   /** Airtime (s) a partir del cual empieza a alejar la camara. */
   zoomOutAirtimeStart: 0.5,
   zoomOutAirtimeFull: 1.6,

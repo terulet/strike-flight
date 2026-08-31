@@ -9,6 +9,14 @@
 
 import { InputSource, InputState, neutralInputState } from './InputManager';
 
+/**
+ * Margen inferior de los botones (px). No es estetico: la barra de FLOW del
+ * HUD vive abajo a la izquierda y ocupa unos 40 px, asi que con el margen de
+ * 12 px original los botones de aire se le montaban encima en vertical. Los
+ * dos grupos de control usan el mismo valor para quedar alineados.
+ */
+const CONTROLS_BOTTOM_MARGIN_PX = 64;
+
 interface TouchZone {
   el: HTMLElement;
   active: boolean;
@@ -43,7 +51,13 @@ export class TouchInput implements InputSource {
     tiltZone.style.display = 'flex';
     tiltZone.style.width = '40%';
     tiltZone.style.height = '35%';
-    tiltZone.style.margin = '0 0 12px 12px';
+    // Los botones tienen altura fija, asi que sin esto se pegan ARRIBA de una
+    // zona que ocupa el 35% de la pantalla y acaban flotando en mitad del
+    // area de juego: en un movil de 393x852 quedaban 232 px por encima del
+    // gas y el freno, tapando la pista. Alineados abajo, los dos grupos de
+    // control quedan a la misma altura y el area de juego queda libre.
+    tiltZone.style.alignItems = 'flex-end';
+    tiltZone.style.margin = `0 0 ${CONTROLS_BOTTOM_MARGIN_PX}px 12px`;
 
     const backZone = this.makeZone('◀ AIRE');
     const forwardZone = this.makeZone('AIRE ▶');
@@ -55,7 +69,7 @@ export class TouchInput implements InputSource {
     pedalZone.style.pointerEvents = 'auto';
     pedalZone.style.display = 'flex';
     pedalZone.style.gap = '10px';
-    pedalZone.style.margin = '0 12px 12px 0';
+    pedalZone.style.margin = `0 12px ${CONTROLS_BOTTOM_MARGIN_PX}px 0`;
 
     const brakeBtn = this.makeZone('FRENO');
     const gasBtn = this.makeZone('GAS');

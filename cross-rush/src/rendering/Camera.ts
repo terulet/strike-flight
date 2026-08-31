@@ -40,10 +40,16 @@ export class Camera {
   x = 0;
   y = 0;
   pixelsPerMeter: number = CameraConfig.baseZoomPixelsPerMeter;
-
   private previousX = 0;
   private previousY = 0;
   private previousPixelsPerMeter: number = CameraConfig.baseZoomPixelsPerMeter;
+
+  /**
+   * Zoom base en px/m, derivado del ancho real del lienzo (ver
+   * CameraConfig.referenceViewMeters). Hasta que el renderer informa del
+   * tamano se usa el valor de referencia de la config.
+   */
+  private baseZoom: number = CameraConfig.baseZoomPixelsPerMeter;
 
   private impulse = 0;
   private previousImpulse = 0;
@@ -53,6 +59,29 @@ export class Camera {
   /** Sentido de avance suavizado, para que el look-ahead no salte al rebotar. */
   private facing = 1;
   private initialized = false;
+
+  /**
+   * El renderer informa del tamano del lienzo EN PIXELES DE DISPOSITIVO (ya
+   * multiplicado por devicePixelRatio) para que la moto ocupe una fraccion
+   * util de la pantalla tanto en un portatil como en un movil en vertical.
+   */
+  setViewportSize(widthPx: number, heightPx: number): void {
+    if (!Number.isFinite(widthPx) || widthPx <= 0) return;
+    const aspect = Number.isFinite(heightPx) && heightPx > 0 ? widthPx / heightPx : 16 / 9;
+    // En vertical se encuadra mas cerca: el ancho es el lado corto y mantener
+    // los mismos metros a lo ancho deja la moto diminuta (ver config).
+    const t = clamp(aspect / CameraConfig.portraitAspectRatio, 0, 1);
+    const metersVisible = lerp(CameraConfig.portraitViewMeters, CameraConfig.referenceViewMeters, t);
+    this.baseZoom = clamp(
+      widthPx / metersVisible,
+      CameraConfig.minPixelsPerMeter,
+      CameraConfig.maxPixelsPerMeter,
+    );
+    if (!this.initialized) {
+      this.pixelsPerMeter = this.baseZoom;
+      this.previousPixelsPerMeter = this.baseZoom;
+    }
+  }
 
   reset(target: CameraTarget): void {
     this.x = target.x;
@@ -65,7 +94,7 @@ export class Camera {
     this.previousShakeClock = 0;
     this.facing = target.vx >= 0 ? 1 : -1;
     this.initialized = true;
-    this.pixelsPerMeter = CameraConfig.baseZoomPixelsPerMeter;
+    this.pixelsPerMeter = this.baseZoom;
     this.previousPixelsPerMeter = this.pixelsPerMeter;
   }
 
@@ -121,11 +150,7 @@ export class Camera {
       1,
     );
     const targetZoomFactor = lerp(1, CameraConfig.maxZoomOutFactor, zoomT);
-    this.pixelsPerMeter = lerp(
-      this.pixelsPerMeter,
-      CameraConfig.baseZoomPixelsPerMeter * targetZoomFactor,
-      clamp(4 * dt, 0, 1),
-    );
+    this.pixelsPerMeter = lerp(this.pixelsPerMeter, this.baseZoom * targetZoomFactor, clamp(4 * dt, 0, 1));
   }
 
   /** Pose interpolada entre el tick anterior y el actual, para dibujar. */
