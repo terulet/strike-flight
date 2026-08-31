@@ -48,9 +48,9 @@ export const GROUND_PALETTE = {
   looseTopShadow: '#7d5130',
   strata: [
     { depth: 0.0, color: '#9c6339' },
-    { depth: 0.75, color: '#7d4e2f' },
-    { depth: 1.9, color: '#5f3a25' },
-    { depth: 4.2, color: '#452a1b' },
+    { depth: 0.75, color: '#8c5733' },
+    { depth: 1.9, color: '#78482a' },
+    { depth: 4.2, color: '#4e301e' },
     { depth: 9.0, color: '#2e1c12' },
   ],
   rimLight: '#ffd39a',
@@ -97,7 +97,13 @@ export class TerrainPainter {
     const halfWidthMeters = canvasWidth / 2 / camera.pixelsPerMeter;
     const startX = Math.max(terrain.startX, camera.x - halfWidthMeters - 3);
     const endX = Math.min(terrain.endX, camera.x + halfWidthMeters + 3);
-    const step = Math.max(0.05, 1 / camera.pixelsPerMeter);
+    // Una muestra cada 3 px. Con una por pixel eran ~1400 puntos, y TODAS las
+    // capas del suelo recorren esta lista: entre estratos, sombreado y
+    // roderas salian mas de 20.000 operaciones de trazado por fotograma, la
+    // segunda parte mas cara del render. A 3 px la cresta se sigue viendo
+    // curva -es menos que el grosor de la propia linea de cresta- y el coste
+    // baja a un tercio.
+    const step = Math.max(0.05, 3 / camera.pixelsPerMeter);
 
     const samples: SurfaceSample[] = [];
     for (let x = startX; x <= endX; x += step) {
@@ -160,8 +166,20 @@ export class TerrainPainter {
     // Las bandas ondulan: un estrato perfectamente paralelo a la superficie
     // delata que es un truco de dibujo. La ondulacion es funcion de x, asi que
     // esta clavada al mundo y no se desliza con la camara.
+    //
+    // Las dos primeras componentes tienen periodos de 74 y 27 m: se
+    // calibraron con una camara que veia 30 m de pista. Con el encuadre
+    // actual -unos 10 m- esas ondas son casi rectas y los estratos volvian a
+    // parecer las franjas de una carretera. Las dos ultimas, de 10 y 4,8 m,
+    // son las que de verdad ondulan dentro de la pantalla, y llevan un suelo
+    // independiente de la profundidad para que tambien se note en el estrato
+    // mas somero.
     const wobble = (depth: number, x: number): number =>
-      depth + Math.sin(x * 0.085 + depth) * depth * 0.16 + Math.sin(x * 0.23 + depth * 2.1) * depth * 0.07;
+      depth +
+      Math.sin(x * 0.085 + depth) * depth * 0.16 +
+      Math.sin(x * 0.23 + depth * 2.1) * depth * 0.07 +
+      Math.sin(x * 0.62 + depth * 3.7) * (0.13 + depth * 0.09) +
+      Math.sin(x * 1.31 + depth * 1.3) * (0.05 + depth * 0.04);
 
     for (let i = strata.length - 2; i >= 0; i--) {
       const top = strata[i].depth;
@@ -178,6 +196,122 @@ export class TerrainPainter {
   }
 
   /**
+   * Piedras y motas ENTERRADAS, repartidas por toda la profundidad visible.
+   *
+   * Los estratos por si solos dejan el metro y medio de tierra que se ve bajo
+   * la moto como dos planchas de color liso: leido de un vistazo, eso sigue
+   * siendo una carretera oscura y no un corte de terreno. Estas piedras son
+   * lo que le da materia. Van sobre una reticula en coordenadas de MUNDO, asi
+   * que se quedan quietas en el suelo mientras la camara pasa.
+   */
+  private drawSubsoilTexture(
+    samples: SurfaceSample[],
+    camera: CameraPose,
+    canvasHeight: number,
+    toScreen: (x: number, y: number) => { x: number; y: number },
+  ): void {
+    const { ctx } = this;
+    if (samples.length === 0) return;
+    const startX = samples[0].x;
+    const endX = samples[samples.length - 1].x;
+    const ppm = camera.pixelsPerMeter;
+    const cell = 0.33;
+    // Solo hasta donde llega el borde inferior de la pantalla: por debajo no
+    // lo ve nadie.
+    const rows = Math.ceil(canvasHeight / ppm / cell);
+    const firstCol = Math.floor(startX / cell);
+    const lastCol = Math.ceil(endX / cell);
+
+    for (let gx = firstCol; gx <= lastCol; gx++) {
+      for (let gy = 0; gy < rows; gy++) {
+        const seed = gx * 131.7 + gy * 57.31;
+        const roll = hash(seed);
+        if (roll < 0.4) continue;
+        const wx = (gx + hash(seed * 2.13)) * cell;
+        if (wx < startX || wx > endX) continue;
+        const depth = 0.34 + (gy + hash(seed * 3.37)) * cell;
+        const surfaceY = terrainYAt(samples, wx, startX, endX);
+        const p = toScreen(wx, surfaceY - depth);
+        if (p.y > canvasHeight + 8) continue;
+        const size = Math.max(1, (0.013 + hash(seed * 5.11) * 0.085) * ppm);
+        // Cuanto mas honda, mas apagada: la luz no llega al fondo del corte.
+        const fade = Math.max(0.25, 1 - depth * 0.12);
+        ctx.fillStyle = roll > 0.82 ? `rgba(198, 152, 106, ${0.17 * fade})` : `rgba(44, 26, 15, ${0.3 * fade})`;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, size, size * 0.66, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  /**
+   * Vetas de erosion: chorretones verticales cortos que cuelgan de la cresta.
+   * Es como se ve un corte de tierra de verdad -el agua se lleva el material
+   * por lineas, no de forma uniforme- y rompe la horizontalidad de los
+   * estratos, que es justo lo que hacia que el suelo se leyera como una
+   * carretera pintada.
+   */
+  private drawErosionStreaks(
+    samples: SurfaceSample[],
+    camera: CameraPose,
+    toScreen: (x: number, y: number) => { x: number; y: number },
+  ): void {
+    const { ctx } = this;
+    if (samples.length === 0) return;
+    const startX = samples[0].x;
+    const endX = samples[samples.length - 1].x;
+    const ppm = camera.pixelsPerMeter;
+    const spacing = 0.31;
+    const first = Math.floor(startX / spacing) * spacing;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (let wx = first; wx <= endX; wx += spacing) {
+      const roll = hash(wx * 23.7);
+      if (roll < 0.45) continue;
+      const x = wx + (hash(wx * 4.9) - 0.5) * spacing;
+      if (x < startX || x > endX) continue;
+      const top = terrainYAt(samples, x, startX, endX) - 0.12;
+      const length = 0.25 + hash(wx * 11.3) * 1.15;
+      const a = toScreen(x, top);
+      const b = toScreen(x, top - length);
+      ctx.strokeStyle = roll > 0.86 ? 'rgba(214, 168, 118, 0.13)' : 'rgba(46, 27, 15, 0.16)';
+      ctx.lineWidth = Math.max(1, (0.02 + hash(wx * 6.7) * 0.05) * ppm);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Degradado de profundidad sobre TODA la tierra visible. Las bandas de
+   * estrato son colores planos; sin este velo, el metro y medio que se ve
+   * bajo la moto es una plancha de color uniforme por muy texturada que este.
+   */
+  private drawDepthShading(samples: SurfaceSample[], canvasHeight: number): void {
+    const { ctx } = this;
+    const topScreenY = Math.min(...samples.map((sample) => sample.screen.y));
+    const gradient = ctx.createLinearGradient(0, topScreenY, 0, canvasHeight);
+    gradient.addColorStop(0, 'rgba(255, 214, 170, 0.1)');
+    gradient.addColorStop(0.18, 'rgba(30, 17, 8, 0)');
+    gradient.addColorStop(1, 'rgba(22, 12, 5, 0.5)');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(samples[0].screen.x, samples[0].screen.y);
+    for (const sample of samples) ctx.lineTo(sample.screen.x, sample.screen.y);
+    ctx.lineTo(samples[samples.length - 1].screen.x, canvasHeight);
+    ctx.lineTo(samples[0].screen.x, canvasHeight);
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, topScreenY, ctx.canvas.width, canvasHeight - topScreenY);
+    ctx.restore();
+  }
+
+  /**
    * Sombreado por pendiente sobre la banda de tierra suelta.
    *
    * Cada tramo se pinta por separado con la luminosidad que le corresponde
@@ -190,7 +324,7 @@ export class TerrainPainter {
     toScreen: (x: number, y: number) => { x: number; y: number },
   ): void {
     const { ctx } = this;
-    const chunk = 6; // tramos de 6 muestras: suficiente resolucion, pocos draws
+    const chunk = 3; // ~9 px de mundo por tramo (ver sampleSurface): forma suficiente, pocos draws
     for (let i = 0; i + chunk < samples.length; i += chunk) {
       const slice = samples.slice(i, i + chunk + 1);
       const mid = slice[Math.floor(slice.length / 2)];
@@ -213,7 +347,7 @@ export class TerrainPainter {
       }
       ctx.closePath();
       ctx.fillStyle = lit > 0.5 ? GROUND_PALETTE.looseTop : GROUND_PALETTE.looseTopShadow;
-      ctx.globalAlpha = 0.55 + Math.abs(lit - 0.5) * 0.9;
+      ctx.globalAlpha = 0.4 + Math.abs(lit - 0.5) * 0.8;
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -229,9 +363,9 @@ export class TerrainPainter {
     toScreen: (x: number, y: number) => { x: number; y: number },
   ): void {
     const { ctx } = this;
-    const span = 8;
+    const span = 3;
     const depth = 0.9;
-    for (let i = span; i < samples.length - span; i += 4) {
+    for (let i = span; i < samples.length - span; i += 2) {
       const curvature = (samples[i + span].slope - samples[i - span].slope) / (samples[i + span].x - samples[i - span].x);
       if (curvature <= 0.02) continue;
       const strength = Math.min(0.42, curvature * 0.5);
@@ -268,14 +402,14 @@ export class TerrainPainter {
     const startX = samples[0].x;
     const endX = samples[samples.length - 1].x;
     const ppm = camera.pixelsPerMeter;
-    const spacing = 0.14;
+    const spacing = 0.085;
     const first = Math.floor(startX / spacing) * spacing;
 
     for (let wx = first; wx <= endX; wx += spacing) {
       const roll = hash(wx * 17.3);
-      if (roll < 0.42) continue;
-      const depth = 0.03 + hash(wx * 5.1) * 0.26;
-      const size = Math.max(0.7, (0.012 + hash(wx * 9.4) * 0.02) * ppm);
+      if (roll < 0.3) continue;
+      const depth = 0.02 + hash(wx * 5.1) * 0.32;
+      const size = Math.max(1, (0.016 + hash(wx * 9.4) * 0.026) * ppm);
       const p = toScreen(wx, terrainYAt(samples, wx, startX, endX) - depth);
       ctx.fillStyle = roll > 0.72 ? GROUND_PALETTE.grainLight : GROUND_PALETTE.grainDark;
       ctx.fillRect(p.x, p.y, size, size);
@@ -337,9 +471,27 @@ export class TerrainPainter {
     ctx.strokeStyle = GROUND_PALETTE.rimShade;
     ctx.lineWidth = Math.max(1.5, 0.045 * camera.pixelsPerMeter);
     trace(0.05);
+    // La linea de cresta NO va uniforme. Trazada de un tirón, sobre un tramo
+    // llano queda una raya clara perfectamente recta de lado a lado de la
+    // pantalla: el ojo la lee como el bordillo de una carretera, que es
+    // exactamente la sensacion que habia que quitar. Aqui se traza a
+    // segmentos con opacidad y grosor variables -deterministas en x, asi que
+    // no parpadean al avanzar-, y lo que queda es un borde de tierra
+    // iluminado de forma irregular.
     ctx.strokeStyle = GROUND_PALETTE.rimLight;
-    ctx.lineWidth = Math.max(1.5, 0.03 * camera.pixelsPerMeter);
-    trace(0);
+    const baseWidth = Math.max(1.5, 0.03 * camera.pixelsPerMeter);
+    for (let i = 0; i < samples.length - 1; i++) {
+      const a = samples[i];
+      const b = samples[i + 1];
+      const n = hash(Math.floor(a.x * 2.6));
+      ctx.globalAlpha = 0.25 + n * 0.75;
+      ctx.lineWidth = baseWidth * (0.55 + n * 0.75);
+      ctx.beginPath();
+      ctx.moveTo(a.screen.x, a.screen.y);
+      ctx.lineTo(b.screen.x, b.screen.y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
@@ -356,11 +508,11 @@ export class TerrainPainter {
     const ppm = camera.pixelsPerMeter;
 
     // Piedras: cada 0.8 m aproximadamente, con salto determinista.
-    const spacing = 1.15;
+    const spacing = 0.85;
     const first = Math.floor(startX / spacing) * spacing;
     for (let wx = first; wx <= endX; wx += spacing) {
       const roll = hash(wx * 3.11);
-      if (roll < 0.62) continue;
+      if (roll < 0.4) continue;
       const jitter = (hash(wx * 7.7) - 0.5) * spacing * 0.8;
       const x = wx + jitter;
       if (x < startX || x > endX) continue;
@@ -413,6 +565,9 @@ export class TerrainPainter {
     if (samples.length < 2) return samples;
 
     this.drawStrata(samples, canvasHeight, toScreen);
+    this.drawSubsoilTexture(samples, camera, canvasHeight, toScreen);
+    this.drawErosionStreaks(samples, camera, toScreen);
+    this.drawDepthShading(samples, canvasHeight);
     this.drawSlopeShading(samples, 0.34, toScreen);
     this.drawConcaveOcclusion(samples, toScreen);
     this.drawTopsoilGrain(samples, camera, toScreen);

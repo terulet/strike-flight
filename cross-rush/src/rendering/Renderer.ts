@@ -13,7 +13,8 @@
 
 import { Terrain } from '../physics/Terrain';
 import { TrackDefinition } from '../tracks/CanyonRun';
-import { BikeState, wheelVisualCenterWorld } from '../physics/Bike';
+import { BikeState, wheelAnchorWorld, wheelVisualCenterWorld } from '../physics/Bike';
+import { Sprite, filteredSprite, scaledSprite, spriteHeight, spriteReady, spriteWidth } from './SpriteFilters';
 import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { SpriteDecals } from './SpriteDecals';
@@ -60,6 +61,12 @@ const PALETTE = {
   scrub: '#5c6b3e',
   dust: '#d9c4a0',
 } as const;
+
+/** Lavado y oscurecido del mobiliario de pista, horneado una sola vez por sprite. */
+const PROP_FILTER = 'saturate(0.82) brightness(0.92)';
+/** Tinte azulado del fantasma, horneado igual que el resto. */
+const GHOST_FILTER = 'grayscale(1) sepia(1) saturate(7) hue-rotate(135deg) brightness(1.35)';
+const ghostTint = (image: HTMLImageElement): Sprite => filteredSprite(image, GHOST_FILTER);
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -126,14 +133,15 @@ export class Renderer {
     crashElapsed?: number;
     ghost: GhostFrame | null;
   }): void {
-    const { ctx, canvas } = this;
+    const { ctx } = this;
     const { camera, track, bike, particles, decals, isRedline, crashed, ghost, shake } = opts;
     const crashElapsed = opts.crashElapsed ?? 0;
     const terrain = track.terrain;
 
     ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    // Sin clearRect: el cielo cubre el lienzo entero en la linea siguiente, y
+    // borrar un millon de pixeles para volver a pintarlos cuesta lo mismo que
+    // pintarlos.
     this.drawSky(camera);
     this.drawBackdrop(camera, terrain, shake);
     this.drawTerrain(camera, terrain, shake);
@@ -151,6 +159,7 @@ export class Renderer {
     this.drawParticles(camera, particles, shake);
     this.drawDecals(camera, decals, shake);
     if (ghost) this.drawGhost(camera, ghost, shake);
+    this.drawWheelContactShadows(camera, terrain, bike, shake);
     this.drawBike(camera, bike, isRedline, crashed, shake, crashElapsed);
     this.drawSpeedTrail(camera, bike, shake);
     this.drawForeground(camera, shake);
@@ -183,38 +192,49 @@ export class Renderer {
   }
 
   /**
-   * Elementos de primer plano (rocas/cactus muy borrosos, ya vienen con
+   * Elementos de primer plano (rocas/matojos muy borrosos, ya vienen con
    * motion blur "horneado" en el propio PNG) que pasan MAS rapido que la
-   * pista real -parallax > 1, como si estuvieran mas cerca de la camara
-   * que el propio terreno- y se anclan al borde inferior de la pantalla en
-   * vez de a la altura del suelo. Es pura sensacion de velocidad, no
-   * decoracion de la pista en si.
+   * pista real -parallax > 1, como si estuvieran mas cerca de la camara que
+   * el propio terreno- y se anclan al borde inferior de la pantalla.
+   *
+   * Estan calibrados para el encuadre CERRADO de ahora (la moto ocupa el
+   * 14-18% del ancho, ver CameraConfig): con los 8-11 m de ancho que tenian
+   * cuando la camara veia 30 m, cada pieza era un borron marron que cruzaba
+   * media pantalla por delante de la moto. Ahora asoman solo por el borde
+   * inferior -`FOREGROUND_REVEAL` del alto de la pieza- y van a media
+   * opacidad: siguen dando velocidad periferica sin ensuciar la lectura.
    */
   private drawForeground(camera: CameraPose, shake: Vec2): void {
     const { ctx, canvas } = this;
     const parallax = 1.35;
-    const spacing = 60;
+    const spacing = 46;
     const worldOffsetPx = camera.x * parallax * camera.pixelsPerMeter;
     const halfWidthPx = canvas.width / 2 + 200;
     const startSlot = Math.floor((worldOffsetPx - halfWidthPx) / (spacing * camera.pixelsPerMeter));
     const endSlot = Math.ceil((worldOffsetPx + halfWidthPx) / (spacing * camera.pixelsPerMeter));
 
     const pieces = [SpriteImages.foregroundA, SpriteImages.foregroundB];
+    ctx.save();
+    ctx.globalAlpha = 0.42;
     for (let slot = startSlot; slot <= endSlot; slot++) {
       const seed = slot * 0.077;
-      if (hash(seed) < 0.4) continue; // hueco: no siempre hay algo en primer plano
+      if (hash(seed) < 0.55) continue; // hueco: la mayor parte del rato no hay nada delante
       const img = pieces[Math.floor(hash(seed * 1.7) * pieces.length) % pieces.length];
       if (!img.complete || img.naturalWidth === 0) continue;
       const jitter = (hash(seed * 2.3) - 0.5) * spacing * 0.5;
       const screenX = canvas.width / 2 + slot * spacing * camera.pixelsPerMeter - worldOffsetPx + jitter * camera.pixelsPerMeter;
-      const widthMeters = 8 + hash(seed * 3.1) * 3;
+      const widthMeters = 3.2 + hash(seed * 3.1) * 1.6;
       const scale = (widthMeters * camera.pixelsPerMeter) / img.naturalWidth;
       const w = img.naturalWidth * scale;
       const h = img.naturalHeight * scale;
-      ctx.drawImage(img, screenX - w / 2, canvas.height - h * 0.82, w, h);
+      ctx.drawImage(img, screenX - w / 2, canvas.height - h * Renderer.FOREGROUND_REVEAL, w, h);
     }
+    ctx.restore();
     void shake;
   }
+
+  /** Fraccion del alto de una pieza de primer plano que asoma por el borde inferior. */
+  private static readonly FOREGROUND_REVEAL = 0.3;
 
   /** Dibuja un sprite anclado por su centro-inferior a un punto del suelo. */
   private drawGroundSprite(
@@ -223,22 +243,23 @@ export class Renderer {
     shake: Vec2,
     x: number,
     widthMeters: number,
-    image: HTMLImageElement,
+    image: Sprite,
   ): void {
-    if (!image.complete || image.naturalWidth === 0) return;
-    const scale = (widthMeters * camera.pixelsPerMeter) / image.naturalWidth;
+    if (!spriteReady(image)) return;
+    const scale = (widthMeters * camera.pixelsPerMeter) / spriteWidth(image);
     const groundY = terrain.surfaceY(x);
     const p = this.worldToScreen(camera, x, groundY, shake);
-    const w = image.naturalWidth * scale;
-    const h = image.naturalHeight * scale;
+    const w = spriteWidth(image) * scale;
+    const h = spriteHeight(image) * scale;
     this.ctx.drawImage(image, p.x - w / 2, p.y - h, w, h);
   }
 
-  /** Nombres de sector que empiezan con un salto: ahi va el cartel de "JUMP", no un arco de checkpoint. */
+  /** Nombres de sector que empiezan con un salto: ahi va el cartel de "JUMP" que telegrafia lo que viene. */
   private static readonly JUMP_SECTORS = new Set([
     'TABLETOP',
     'STEP_UP',
     'DROP_OFF',
+    'DESCENT',
     'JUMP_SIMPLE',
     'DOUBLE_JUMP',
     'RISK_LINE_JUMP',
@@ -246,52 +267,43 @@ export class Renderer {
     'MEGA_JUMP',
   ]);
 
-  private static readonly NO_GATE_SECTORS = new Set(['BUMPS', 'WHOOPS', 'ROCK_GARDEN']);
-
   /**
-   * Arcos y carteles de la pista: salida al principio, un cartel de "JUMP"
-   * al entrar en cada tramo de salto (telegrafia lo que viene, no solo
-   * decora), un arco de checkpoint en el resto de sectores intermedios, y
-   * el arco de meta al final.
+   * Arcos y carteles de la pista: arco de salida, un cartel de "JUMP" antes
+   * de cada pieza de salto y el arco de meta EN la linea de meta.
+   *
+   * Ya no hay arcos de checkpoint intermedios. Eran uno por cada etiqueta de
+   * sector, y con el encuadre cerrado de ahora un arco de 8 m ocupa mas que
+   * la pantalla entera: la moto desaparecia literalmente detras del cartel
+   * cada pocos segundos. Ademas los sectores estan congelados en el corte
+   * vertical, asi que anunciar "CHECKPOINT" prometia una mecanica que no
+   * existe. Los tres carteles que quedan marcan cosas reales: donde empieza
+   * la carrera, donde hay un salto y donde acaba.
    */
   private drawTrackGates(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain, labels } = track;
-    this.drawGroundSprite(camera, terrain, shake, track.startX, 9, SpriteImages.startGate);
+    this.drawGroundSprite(camera, terrain, shake, track.startX, 6.5, SpriteImages.startGate);
     for (const label of labels) {
-      if (label.name === 'START' || label.name === 'FINISH' || Renderer.NO_GATE_SECTORS.has(label.name)) continue;
-      if (Renderer.JUMP_SECTORS.has(label.name)) {
-        this.drawGroundSprite(camera, terrain, shake, label.x - 3, 5.5, SpriteImages.jumpSign);
-      } else {
-        this.drawGroundSprite(camera, terrain, shake, label.x, 8, SpriteImages.checkpointGate);
-      }
+      if (!Renderer.JUMP_SECTORS.has(label.name)) continue;
+      this.drawGroundSprite(camera, terrain, shake, label.x - 4.5, 3.2, SpriteImages.jumpSign);
     }
-    this.drawGroundSprite(camera, terrain, shake, terrain.endX, 11, SpriteImages.finishGate);
+    // La meta va donde para el crono, no al final del terreno: antes se
+    // dibujaba en `terrain.endX`, 26 m mas alla, y se cruzaba la linea sin
+    // ver nada.
+    this.drawGroundSprite(camera, terrain, shake, track.finishX, 7, SpriteImages.finishGate);
   }
 
   /**
-   * Vida de evento: publico, fotografo, comisario con bandera, carpa de
-   * boxes y pickup de asistencia. A proposito NO usan el reparto aleatorio
-   * de drawTrackProps -son 1-2 apariciones fijas en puntos con sentido
-   * narrativo (salida, meta, antes de la zona tecnica, junto al mega
-   * salto), no relleno que se repite cada ~26m-. No afectan a la fisica,
-   * son solo ambientacion.
+   * Vida de evento: publico en salida y meta y carpa de boxes detras de la
+   * parrilla. A proposito NO usan el reparto aleatorio de drawTrackProps
+   * -son apariciones fijas en puntos con sentido narrativo-, y van
+   * colocadas FUERA del corredor por el que se pasa rodando para no comerse
+   * el encuadre. No afectan a la fisica.
    */
   private drawAtmosphere(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
-    const { terrain, labels } = track;
-    const labelX = (name: string): number | null => labels.find((l) => l.name === name)?.x ?? null;
-
-    this.drawGroundSprite(camera, terrain, shake, track.startX + 9, 9, SpriteImages.crowd);
-    this.drawGroundSprite(camera, terrain, shake, terrain.endX - 7, 9, SpriteImages.crowd);
-    this.drawGroundSprite(camera, terrain, shake, Math.max(terrain.startX + 3, track.startX - 9), 8, SpriteImages.paddockTent);
-
-    const megaJumpX = labelX('MEGA_JUMP');
-    if (megaJumpX !== null) this.drawGroundSprite(camera, terrain, shake, megaJumpX - 5, 4.2, SpriteImages.photographer);
-
-    const technicalX = labelX('TECHNICAL');
-    if (technicalX !== null) this.drawGroundSprite(camera, terrain, shake, technicalX - 4, 4, SpriteImages.marshalFlag);
-
-    const uphillX = labelX('UPHILL');
-    if (uphillX !== null) this.drawGroundSprite(camera, terrain, shake, uphillX + 6, 6.5, SpriteImages.pickupTruck);
+    const { terrain } = track;
+    this.drawGroundSprite(camera, terrain, shake, Math.max(terrain.startX + 3, track.startX - 12), 5.5, SpriteImages.paddockTent);
+    this.drawGroundSprite(camera, terrain, shake, track.startX - 5, 6, SpriteImages.crowd);
+    this.drawGroundSprite(camera, terrain, shake, track.finishX + 9, 6, SpriteImages.crowd);
   }
 
   /**
@@ -337,34 +349,39 @@ export class Renderer {
     const halfWidthMeters = this.canvas.width / 2 / ppm;
     const startX = Math.max(terrain.startX, camera.x - halfWidthMeters - 6);
     const endX = Math.min(terrain.endX, camera.x + halfWidthMeters + 6);
-    const spacing = 26;
+    const spacing = 32;
     const firstSlot = Math.floor(startX / spacing) * spacing;
+    // Anchos a escala del encuadre CERRADO: con 12,5 m de vista, una pieza de
+    // 4,5 m ocupaba mas de un tercio de la pantalla y competia con la moto.
+    // Ahora ninguna pasa de 2,6 m, que es el doble de la moto y se lee como
+    // lo que es: mobiliario de pista al borde del trazado.
     const props: Array<{ image: HTMLImageElement; widthMeters: number }> = [
-      { image: SpriteImages.barrier, widthMeters: 4.2 },
-      { image: SpriteImages.rockClusterA, widthMeters: 4.5 },
-      { image: SpriteImages.rockClusterB, widthMeters: 4.5 },
-      { image: SpriteImages.bannerFlag, widthMeters: 1.6 },
-      { image: SpriteImages.cactusCluster, widthMeters: 2.6 },
-      { image: SpriteImages.fenceBanner, widthMeters: 5.5 },
-      { image: SpriteImages.dangerFlags, widthMeters: 2.4 },
-      { image: SpriteImages.ropeBarrier, widthMeters: 4.8 },
-      { image: SpriteImages.brokenBarrier, widthMeters: 4.8 },
-      { image: SpriteImages.rampDeco, widthMeters: 4.5 },
-      { image: SpriteImages.logObstacle, widthMeters: 4.2 },
-      { image: SpriteImages.tireStack, widthMeters: 3.4 },
-      { image: SpriteImages.boulder, widthMeters: 3.6 },
-      { image: SpriteImages.rampSmall, widthMeters: 3.8 },
-      { image: SpriteImages.tireMound, widthMeters: 4.0 },
-      { image: SpriteImages.ropeTireBarrier, widthMeters: 4.4 },
+      { image: SpriteImages.barrier, widthMeters: 2.4 },
+      { image: SpriteImages.rockClusterA, widthMeters: 2.2 },
+      { image: SpriteImages.rockClusterB, widthMeters: 2.2 },
+      { image: SpriteImages.bannerFlag, widthMeters: 1.1 },
+      { image: SpriteImages.cactusCluster, widthMeters: 1.6 },
+      { image: SpriteImages.fenceBanner, widthMeters: 2.6 },
+      { image: SpriteImages.dangerFlags, widthMeters: 1.4 },
+      { image: SpriteImages.ropeBarrier, widthMeters: 2.5 },
+      { image: SpriteImages.brokenBarrier, widthMeters: 2.5 },
+      { image: SpriteImages.logObstacle, widthMeters: 2.0 },
+      { image: SpriteImages.tireStack, widthMeters: 1.7 },
+      { image: SpriteImages.boulder, widthMeters: 1.8 },
+      { image: SpriteImages.tireMound, widthMeters: 2.0 },
+      { image: SpriteImages.ropeTireBarrier, widthMeters: 2.3 },
     ];
+    // Ligeramente lavados y oscurecidos: quedan por detras del plano de la
+    // moto sin necesidad de otra capa de parallax. El filtro va horneado en
+    // el sprite (ver SpriteFilters.ts), no aplicado en cada dibujo.
     for (let slot = firstSlot; slot <= endX; slot += spacing) {
       const r = hash(slot * 0.091);
-      if (r < 0.25) continue; // hueco: no todos los tramos llevan decoracion
+      if (r < 0.42) continue; // hueco: la mayoria de los tramos van limpios
       const prop = props[Math.floor(hash(slot * 0.133) * props.length) % props.length];
       const x = slot + (hash(slot * 0.211) - 0.5) * spacing * 0.4;
       if (x < terrain.startX + 6 || x > terrain.endX - 6) continue;
       if (track.terrainFeatures.some((feature) => x > feature.startX - 2 && x < feature.endX + 2)) continue;
-      this.drawGroundSprite(camera, terrain, shake, x, prop.widthMeters, prop.image);
+      this.drawGroundSprite(camera, terrain, shake, x, prop.widthMeters, filteredSprite(prop.image, PROP_FILTER));
     }
   }
 
@@ -383,29 +400,54 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawSky(camera: CameraPose): void {
-    const { ctx, canvas } = this;
-    const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  /**
+   * Cielo: degradado vertical mas resplandor de sol bajo. Los dos dependen
+   * SOLO del tamano del lienzo, asi que se hornean una vez y a partir de ahi
+   * el cielo es una copia. Rellenar dos degradados de pantalla completa en
+   * cada fotograma costaba, medido, tanto como dibujar el terreno entero.
+   */
+  private skyCache: { canvas: HTMLCanvasElement; width: number; height: number } | null = null;
+
+  private skyLayer(): HTMLCanvasElement | null {
+    const { canvas } = this;
+    if (this.skyCache && this.skyCache.width === canvas.width && this.skyCache.height === canvas.height) {
+      return this.skyCache.canvas;
+    }
+    const baked = document.createElement('canvas');
+    baked.width = canvas.width;
+    baked.height = canvas.height;
+    const ctx = baked.getContext('2d');
+    if (!ctx) return null;
+
+    const sky = ctx.createLinearGradient(0, 0, 0, baked.height);
     sky.addColorStop(0, PALETTE.skyTop);
     sky.addColorStop(0.65, PALETTE.skyHorizon);
     sky.addColorStop(1, PALETTE.skyHorizon);
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, baked.width, baked.height);
 
     // Resplandor de sol bajo, fijo respecto a la camara para dar sensacion de
     // "tarde en el canon" sin que se note que en realidad no hay sol real.
     const glow = ctx.createRadialGradient(
-      canvas.width * 0.72,
-      canvas.height * 0.42,
+      baked.width * 0.72,
+      baked.height * 0.42,
       0,
-      canvas.width * 0.72,
-      canvas.height * 0.42,
-      canvas.width * 0.5,
+      baked.width * 0.72,
+      baked.height * 0.42,
+      baked.width * 0.5,
     );
     glow.addColorStop(0, PALETTE.sunGlow);
     glow.addColorStop(1, 'rgba(255, 214, 150, 0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, baked.width, baked.height);
+
+    this.skyCache = { canvas: baked, width: canvas.width, height: canvas.height };
+    return baked;
+  }
+
+  private drawSky(camera: CameraPose): void {
+    const baked = this.skyLayer();
+    if (baked) this.ctx.drawImage(baked, 0, 0);
     void camera;
   }
 
@@ -420,16 +462,51 @@ export class Renderer {
    */
   private drawBackdrop(camera: CameraPose, terrain: Terrain, shake: Vec2): void {
     const { ctx, canvas } = this;
-    const layers: Array<{ image: HTMLImageElement; parallax: number; heightFrac: number; baseFrac: number }> = [
-      { image: SpriteImages.bgFar, parallax: 0.1, heightFrac: 0.32, baseFrac: 0.66 },
-      { image: SpriteImages.bgMid, parallax: 0.22, heightFrac: 0.42, baseFrac: 0.74 },
+    /**
+     * `filter` es bruma atmosferica, no capricho. El fondo venia igual de
+     * saturado y de contrastado que la pista, asi que la moto competia con un
+     * canon entero por la atencion y el suelo se confundia con la llanura
+     * pintada detras. Restandole saturacion y contraste a lo lejano, la
+     * profundidad se lee sola y la moto se separa del fondo, que es un
+     * requisito explicito.
+     */
+    const layers: Array<{
+      image: HTMLImageElement;
+      parallax: number;
+      heightFrac: number;
+      baseFrac: number;
+      filter: string;
+      haze: number;
+    }> = [
+      {
+        image: SpriteImages.bgFar,
+        parallax: 0.1,
+        heightFrac: 0.32,
+        baseFrac: 0.66,
+        filter: 'saturate(0.52) brightness(1.06) contrast(0.82)',
+        haze: 0.3,
+      },
+      {
+        image: SpriteImages.bgMid,
+        parallax: 0.22,
+        heightFrac: 0.42,
+        baseFrac: 0.74,
+        filter: 'saturate(0.72) brightness(0.97) contrast(0.9)',
+        haze: 0.16,
+      },
     ];
 
     for (const layer of layers) {
-      const img = layer.image;
-      if (!img.complete || img.naturalWidth === 0) continue;
+      // Horneado, no en caliente: el filtro (`ctx.filter`) Y el reescalado de
+      // estas dos capas -que cubren la pantalla entera, varias teselas cada
+      // una, en cada fotograma- eran juntos la mitad del coste del render y
+      // hundian el juego a 5 fps. Ver SpriteFilters.ts.
+      const source = layer.image;
+      if (!source.complete || source.naturalWidth === 0) continue;
+      ctx.save();
       const tileH = canvas.height * layer.heightFrac;
-      const tileW = (tileH / img.naturalHeight) * img.naturalWidth;
+      const tileW = (tileH / source.naturalHeight) * source.naturalWidth;
+      const img = scaledSprite(source, layer.filter, tileW, tileH);
       const baseline = canvas.height * layer.baseFrac;
       const worldOffsetPx = camera.x * layer.parallax * camera.pixelsPerMeter;
       const startTile = Math.floor((worldOffsetPx - canvas.width) / tileW) - 1;
@@ -447,6 +524,15 @@ export class Renderer {
         }
         ctx.restore();
       }
+      ctx.restore();
+
+      // Velo calido sobre la capa: es la bruma del valle, y ademas apaga el
+      // borde inferior para que no corte en seco contra la capa siguiente.
+      const veil = ctx.createLinearGradient(0, baseline - tileH, 0, baseline);
+      veil.addColorStop(0, `rgba(238, 190, 140, ${layer.haze * 0.55})`);
+      veil.addColorStop(1, `rgba(238, 190, 140, ${layer.haze})`);
+      ctx.fillStyle = veil;
+      ctx.fillRect(0, baseline - tileH, canvas.width, tileH);
     }
     void terrain;
     void shake;
@@ -469,18 +555,70 @@ export class Renderer {
     );
   }
 
+  /**
+   * Particulas. Cada tipo se pinta distinto para que se distingan de un
+   * vistazo: los terrones son opacos y con borde, el polvo es un halo suave
+   * que se expande, la frenada va mas gris y baja, y el impacto arranca casi
+   * blanco. Sin esa diferencia todo acaba siendo la misma nube beige.
+   */
   private drawParticles(camera: CameraPose, particles: ParticleSystem, shake: Vec2): void {
     const { ctx } = this;
-    particles.forEachAlive((x, y, alpha, size) => {
+    ctx.save();
+    particles.forEachAlive((x, y, alpha, size, kind) => {
       const p = this.worldToScreen(camera, x, y, shake);
-      ctx.globalAlpha = alpha * 0.65;
-      ctx.fillStyle = PALETTE.dust;
-      const r = size * camera.pixelsPerMeter;
+      const radius = Math.max(0.6, size * camera.pixelsPerMeter);
+
+      if (kind === 'dirt') {
+        // Terron: opaco, con una cara iluminada arriba.
+        ctx.globalAlpha = Math.min(1, alpha * 1.15);
+        ctx.fillStyle = '#5a3c25';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, radius, radius * 0.82, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(214, 170, 120, 0.7)';
+        ctx.beginPath();
+        ctx.ellipse(p.x - radius * 0.22, p.y - radius * 0.26, radius * 0.5, radius * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+      if (kind === 'impact') {
+        gradient.addColorStop(0, `rgba(255, 238, 210, ${alpha * 0.9})`);
+        gradient.addColorStop(0.55, `rgba(222, 188, 146, ${alpha * 0.5})`);
+      } else if (kind === 'brake') {
+        gradient.addColorStop(0, `rgba(198, 178, 156, ${alpha * 0.62})`);
+        gradient.addColorStop(0.55, `rgba(160, 140, 120, ${alpha * 0.3})`);
+      } else {
+        gradient.addColorStop(0, `rgba(228, 199, 160, ${alpha * 0.72})`);
+        gradient.addColorStop(0.55, `rgba(196, 163, 124, ${alpha * 0.34})`);
+      }
+      gradient.addColorStop(1, 'rgba(196, 163, 124, 0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.fill();
     });
-    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  private drawRigidSprite(
+    image: Sprite,
+    screenPos: { x: number; y: number },
+    angle: number,
+    pivotPx: { x: number; y: number },
+    scale: number,
+    mirrorX = false,
+  ): void {
+    if (!spriteReady(image)) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(-angle);
+    if (mirrorX) ctx.scale(-1, 1);
+    ctx.drawImage(image, -pivotPx.x * scale, -pivotPx.y * scale, spriteWidth(image) * scale, spriteHeight(image) * scale);
+    ctx.restore();
   }
 
   /** Punto en espacio local del chasis -> coordenadas de pantalla, en un solo paso. */
@@ -490,28 +628,34 @@ export class Renderer {
   }
 
   /**
-   * Dibuja una imagen "rigidamente atornillada" al chasis: se traslada a un
-   * punto de pantalla, se rota como el resto de la moto y se escala de forma
-   * uniforme, de modo que un pixel de la imagen fuente representa siempre la
-   * misma distancia en metros (parametro `scale`, pixeles de pantalla por
-   * pixel de imagen). `pivotPx` es el punto de la imagen (en pixeles nativos)
-   * que debe caer exactamente en `screenPos`.
+   * Sombra de contacto de cada rueda: una elipse en el SUELO, no bajo el
+   * sprite. Se estrecha y se oscurece cuando la rueda esta cerca y se abre y
+   * se difumina cuando esta en el aire, que es lo que hace que un salto se lea
+   * como un salto y no como la moto flotando.
    */
-  private drawRigidSprite(
-    image: HTMLImageElement,
-    screenPos: { x: number; y: number },
-    angle: number,
-    pivotPx: { x: number; y: number },
-    scale: number,
-    mirrorX = false,
-  ): void {
-    if (!image.complete || image.naturalWidth === 0) return;
+  private drawWheelContactShadows(camera: CameraPose, terrain: Terrain, bike: BikeState, shake: Vec2): void {
     const { ctx } = this;
     ctx.save();
-    ctx.translate(screenPos.x, screenPos.y);
-    ctx.rotate(-angle);
-    if (mirrorX) ctx.scale(-1, 1);
-    ctx.drawImage(image, -pivotPx.x * scale, -pivotPx.y * scale, image.naturalWidth * scale, image.naturalHeight * scale);
+    for (const side of ['rear', 'front'] as const) {
+      const centre = wheelVisualCenterWorld(bike, side);
+      const groundY = terrain.surfaceY(centre.x);
+      const height = Math.max(0, centre.y - BikeConfig.wheelRadius - groundY);
+      // Mas de dos metros de altura: la sombra ya no aporta nada.
+      if (height > 2.2) continue;
+      const t = Math.min(1, height / 2.2);
+      const radius = BikeConfig.wheelRadius * (0.95 + t * 1.5);
+      const alpha = (1 - t) * 0.42;
+      const p = this.worldToScreen(camera, centre.x, groundY + 0.015, shake);
+      const rx = radius * camera.pixelsPerMeter;
+      const ry = rx * 0.26;
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
+      gradient.addColorStop(0, `rgba(28, 16, 8, ${alpha})`);
+      gradient.addColorStop(1, 'rgba(28, 16, 8, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -555,8 +699,8 @@ export class Renderer {
     // en vez de recolorear geometria aplicamos un filtro de canvas sobre
     // cada sprite de la moto (no sobre el fondo).
     const filter = crashed ? 'grayscale(0.7) brightness(0.75)' : isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : 'none';
+    const tinted = (image: HTMLImageElement): Sprite => filteredSprite(image, filter);
     this.ctx.save();
-    this.ctx.filter = filter;
 
     // Ruedas primero (el chasis las tapa parcialmente por arriba: el
     // guardabarros y la horquilla viven en bike_body.png y pasan por delante
@@ -578,20 +722,32 @@ export class Renderer {
     const rearWheelScale = scale;
     const frontWheelScale = scale;
 
+    // Barra de horquilla y basculante, DEBAJO de las ruedas y del chasis. El
+    // PNG del chasis trae su horquilla pintada en la posicion de reposo, asi
+    // que en reposo estas barras quedan tapadas por el neumatico y por el
+    // propio chasis y no se ven. En cuanto la suspension se extiende -en
+    // vuelo, sobre todo- la rueda se aleja del anclaje y sin ellas aparecia
+    // un hueco entre el pie de horquilla y el neumatico: la moto se veia
+    // desmontada justo en el momento mas visible del juego. Van del anclaje
+    // real al eje real, asi que por construccion no puede haber hueco en
+    // ningun estado.
+    this.drawSuspensionLinks(camera, bike, shake);
+
     this.drawRigidSprite(
-      SpriteImages.wheelRear,
+      tinted(SpriteImages.wheelRear),
       this.worldToScreen(camera, rearWheelW.x, rearWheelW.y, shake),
       bike.angle - bike.rear.wheel.spin,
       SpriteCalibration.wheelRear.pivotPx,
       rearWheelScale,
     );
     this.drawRigidSprite(
-      SpriteImages.wheelFront,
+      tinted(SpriteImages.wheelFront),
       this.worldToScreen(camera, frontWheelW.x, frontWheelW.y, shake),
       bike.angle - bike.front.wheel.spin,
       SpriteCalibration.wheelFront.pivotPx,
       frontWheelScale,
     );
+
 
     // Chasis completo (deposito, asiento, carenados, motor, escape): una
     // sola imagen rigida anclada por el punto medio del eje de ruedas. El
@@ -605,7 +761,7 @@ export class Renderer {
       y: rearAxlePx.y - (BikeConfig.anchorDropFromCom + restLengthAvg) * spritePxPerMeter,
     };
     const comScreen = this.worldToScreen(camera, bike.x, bike.y, shake);
-    this.drawRigidSprite(SpriteImages.bikeBody, comScreen, bike.angle, comPixel, scale);
+    this.drawRigidSprite(tinted(SpriteImages.bikeBody), comScreen, bike.angle, comPixel, scale);
 
     // Llama de REDLINE: sale del escape (mismo pixel de referencia que
     // exhaustLocal, derivado igual que el asiento), apuntando siempre hacia
@@ -629,6 +785,41 @@ export class Renderer {
     this.drawRider(camera, bike, shake, crashed, isRedline, crashElapsed);
   }
 
+  /**
+   * Une cada eje con su anclaje en el chasis: horquilla delante, basculante
+   * detras. La longitud es exactamente `restLength - compression`, la misma
+   * que usa la fisica para colocar la rueda (ver Bike.wheelVisualCenterWorld).
+   */
+  private drawSuspensionLinks(camera: CameraPose, bike: BikeState, shake: Vec2): void {
+    const { ctx } = this;
+    const ppm = camera.pixelsPerMeter;
+    const links = [
+      { side: 'rear' as const, width: 0.1, core: 0.05, coreColor: '#3b3630' },
+      { side: 'front' as const, width: 0.085, core: 0.042, coreColor: '#8d7038' },
+    ];
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const link of links) {
+      const anchor = wheelAnchorWorld(bike, link.side);
+      const axle = wheelVisualCenterWorld(bike, link.side);
+      const a = this.worldToScreen(camera, anchor.x, anchor.y, shake);
+      const b = this.worldToScreen(camera, axle.x, axle.y, shake);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = '#171310';
+      ctx.lineWidth = link.width * ppm;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = link.coreColor;
+      ctx.lineWidth = link.core * ppm;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   private drawGhost(camera: CameraPose, ghost: GhostFrame, shake: Vec2): void {
     const { rearAxlePx, frontAxlePx } = SpriteCalibration.bike;
     const spritePxPerMeter = (frontAxlePx.x - rearAxlePx.x) / BikeConfig.wheelBase;
@@ -645,16 +836,15 @@ export class Renderer {
 
     this.ctx.save();
     this.ctx.globalAlpha = 0.32;
-    this.ctx.filter = 'grayscale(1) sepia(1) saturate(7) hue-rotate(135deg) brightness(1.35)';
     // El fantasma solo guarda (t, x, y, rotacion): ampliar su formato para
     // meter el angulo de rueda invalidaria los records ya guardados en
     // localStorage. Como en rodadura pura el giro es exactamente
     // distancia/radio, se deriva de la x y queda sincronizado sin tocar el
     // formato ni romper el ghost de nadie.
     const ghostSpin = ghost.x / BikeConfig.wheelRadius;
-    this.drawRigidSprite(SpriteImages.wheelRear, this.worldToScreen(camera, ghost.x + rearOffset.x, ghost.y + rearOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelRear.pivotPx, scale);
-    this.drawRigidSprite(SpriteImages.wheelFront, this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelFront.pivotPx, scale);
-    this.drawRigidSprite(SpriteImages.bikeBody, this.worldToScreen(camera, ghost.x, ghost.y, shake), ghost.rotation, comPixel, scale);
+    this.drawRigidSprite(ghostTint(SpriteImages.wheelRear), this.worldToScreen(camera, ghost.x + rearOffset.x, ghost.y + rearOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelRear.pivotPx, scale);
+    this.drawRigidSprite(ghostTint(SpriteImages.wheelFront), this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelFront.pivotPx, scale);
+    this.drawRigidSprite(ghostTint(SpriteImages.bikeBody), this.worldToScreen(camera, ghost.x, ghost.y, shake), ghost.rotation, comPixel, scale);
 
     const seatOffset = rotateVec(SEAT_LOCAL, ghost.rotation);
     const riderImg = SpriteImages.rider;
@@ -701,17 +891,14 @@ export class Renderer {
 
     const baseFilter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : '';
     for (const piece of riderPieceDraws(geometry)) {
-      this.ctx.save();
       const filter = [baseFilter, piece.filter ?? ''].filter(Boolean).join(' ');
-      this.ctx.filter = filter || 'none';
       this.drawRigidSprite(
-        piece.image,
+        filteredSprite(piece.image, filter),
         this.worldToScreen(camera, piece.world.x, piece.world.y, shake),
         piece.angle,
         piece.pivotPx,
         geometry.scale,
       );
-      this.ctx.restore();
     }
   }
 }

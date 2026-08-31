@@ -109,8 +109,10 @@ export class Camera {
     this.previousPixelsPerMeter = this.pixelsPerMeter;
   }
 
-  triggerLandingImpulse(): void {
-    this.impulse = Math.max(this.impulse, CameraConfig.landingImpulse);
+  /** `strength` en 0..1: un aterrizaje suave apenas mueve la camara. */
+  triggerLandingImpulse(strength = 1): void {
+    const clamped = clamp(Number.isFinite(strength) ? strength : 1, 0, 1);
+    this.impulse = Math.max(this.impulse, CameraConfig.landingImpulse * (0.35 + clamped * 0.9));
   }
 
   triggerCrashImpulse(): void {

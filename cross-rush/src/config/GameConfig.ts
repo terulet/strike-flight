@@ -640,3 +640,21 @@ export const GameplayZoneConfig = {
     redlineExtendSeconds: 1.5,
   },
 } as const;
+
+/**
+ * Salida de carrera. La cuenta atras deja de ser tres numeros sobre una moto
+ * congelada: la moto se posa en la parrilla mientras corre, y al "GO!" recibe
+ * un golpe de suspension para que el arranque se NOTE.
+ */
+export const RaceStartConfig = {
+  /**
+   * Impulso vertical hacia abajo aplicado al chasis en el instante de salida
+   * (m/s). Hunde los dos muelles de golpe y el rebote sale solo de la propia
+   * suspension, asi que es una reaccion real y no una animacion pegada.
+   * Pequeno a proposito: 1,1 m/s comprime de forma bien visible sin llegar a
+   * tocar el tope ni robar agarre en el primer metro.
+   */
+  launchDip: 1.1,
+  /** Particulas de tierra que levanta la salida, por rueda. */
+  launchDustParticles: 14,
+} as const;

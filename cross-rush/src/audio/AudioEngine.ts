@@ -120,18 +120,88 @@ export class AudioEngine {
     osc.stop(now + duration + 0.02);
   }
 
-  playLandingCue(quality: 'PERFECT' | 'GOOD' | 'ROUGH' | 'BAD' | 'CRASH'): void {
+  /**
+   * Golpe de tierra: un ruido de banda ancha filtrado y corto. Es lo que suena
+   * cuando una rueda se clava en el suelo, y ningun oscilador lo imita: un
+   * tono puro suena a videojuego de 1980, no a impacto.
+   */
+  private playThump(strength: number): void {
+    if (!this.ctx || !this.masterGain) return;
+    const ctx = this.ctx;
+    const duration = 0.16 + strength * 0.14;
+    const frames = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) {
+      // Ruido con envolvente exponencial: ataque instantaneo y cola corta.
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / frames, 2.4);
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    // Paso bajo: la tierra absorbe los agudos, la piedra no.
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 260 + strength * 520;
+    filter.Q.value = 0.9;
+    const gain = ctx.createGain();
+    gain.gain.value = AudioConfig.landing.gain * (0.5 + strength * 1.2);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    source.start();
+    source.stop(ctx.currentTime + duration + 0.02);
+  }
+
+  /**
+   * Aterrizaje. `strength` en 0..1 lo pone quien lo llama a partir de la
+   * velocidad de impacto: el mismo evento suena distinto si se posa o si se
+   * estampa, que es lo que hace que el sonido informe en vez de decorar.
+   */
+  playLandingCue(quality: 'PERFECT' | 'GOOD' | 'ROUGH' | 'BAD' | 'CRASH', strength = 0.5): void {
     if (quality === 'CRASH') {
       this.playCrashCue();
       return;
     }
-    const freqByQuality: Record<string, number> = { PERFECT: 520, GOOD: 380, ROUGH: 260, BAD: 180 };
-    this.playBlip(freqByQuality[quality] ?? 220, 0.18, AudioConfig.landing.gain, 'triangle');
+    this.playThump(Math.max(0, Math.min(1, strength)));
+    // Y encima del golpe, una nota corta que dice si ha estado bien o mal.
+    const freqByQuality: Record<string, number> = { PERFECT: 620, GOOD: 430, ROUGH: 240, BAD: 165 };
+    this.playBlip(freqByQuality[quality] ?? 220, 0.14, AudioConfig.landing.gain * 0.55, 'triangle');
   }
 
   playCrashCue(): void {
+    this.playThump(1);
     this.playBlip(90, 0.4, AudioConfig.crash.gain, 'square');
     this.playBlip(55, 0.5, AudioConfig.crash.gain * 0.8, 'sawtooth');
+  }
+
+  /**
+   * Cuenta atras. Los tres numeros son un pitido seco; el "GO" es otra cosa:
+   * dos notas a la vez y un golpe grave debajo, para que la salida se oiga
+   * como un banderazo y no como el cuarto pitido de la serie.
+   */
+  playCountdownCue(final: boolean): void {
+    if (!final) {
+      this.playBlip(440, 0.12, AudioConfig.landing.gain * 0.7, 'square');
+      return;
+    }
+    this.playBlip(880, 0.34, AudioConfig.landing.gain * 0.85, 'square');
+    this.playBlip(1320, 0.24, AudioConfig.landing.gain * 0.45, 'triangle');
+    this.playThump(0.55);
+  }
+
+  /**
+   * Meta: arpegio ascendente corto. Se dispara al cruzar la linea, antes de
+   * que aparezca el panel de resultados, para que el final de carrera tenga
+   * un instante propio.
+   */
+  playFinishCue(): void {
+    this.playThump(0.7);
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      window.setTimeout(() => this.playBlip(freq, 0.28, AudioConfig.landing.gain * 0.7, 'triangle'), i * 90);
+    });
   }
 
   /** Empujon de una pieza de riesgo/recompensa (speed_pad, flow_ring acertado, risk_gap superado). */

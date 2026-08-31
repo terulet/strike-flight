@@ -22,7 +22,7 @@ import { HUD } from './ui/HUD';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
-import { EffectsConfig } from './config/GameConfig';
+import { BikeConfig, EffectsConfig, RaceStartConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiOverlay = document.getElementById('ui-overlay') as HTMLDivElement;
@@ -41,6 +41,9 @@ const input = new InputManager([keyboardInput, touchInput]);
 
 hud.setBestTime(null);
 
+/** Margen entre cruzar la meta y abrir el panel de resultados (ms). */
+const FINISH_PANEL_DELAY_MS = 950;
+
 const race = new RaceManager(track, {
   onStateChange: (state) => {
     if (state === 'COUNTDOWN') {
@@ -56,21 +59,48 @@ const race = new RaceManager(track, {
       const summary = race.getResultsSummary();
       resultsScreen.show(summary, true);
     } else if (state === 'FINISHED') {
-      const summary = race.getResultsSummary();
-      resultsScreen.show(summary, false);
+      // La meta tiene su propio instante ANTES del panel: cartel, sonido,
+      // sacudida y tierra. Si el panel salta en el mismo fotograma en que se
+      // corta la linea, la carrera no termina, se interrumpe.
+      audio.playFinishCue();
+      camera.triggerLandingImpulse(0.6);
+      particles.spawnLandingImpact(race.bike.rear.contactX, race.bike.rear.groundY, 0.8);
+      hud.showCenterMessage('META', true);
       hud.setBestTime(race.getBestTimeSeconds());
+      const summary = race.getResultsSummary();
+      window.setTimeout(() => {
+        if (race.state !== 'FINISHED') return; // ya se ha reiniciado
+        hud.hideCenterMessage();
+        resultsScreen.show(summary, false);
+      }, FINISH_PANEL_DELAY_MS);
     }
   },
+  onRaceStart: () => {
+    // Salida: el golpe de suspension lo aplica RaceManager sobre la fisica;
+    // aqui van el polvo de las dos ruedas y la sacudida de camara que lo
+    // acompanan.
+    camera.triggerLandingImpulse(0.5);
+    particles.spawnBurst(race.bike.rear.contactX, race.bike.rear.groundY, RaceStartConfig.launchDustParticles);
+    particles.spawnBurst(race.bike.front.contactX, race.bike.front.groundY, Math.round(RaceStartConfig.launchDustParticles * 0.6));
+  },
   onLanding: (event) => {
-    audio.playLandingCue(event.quality);
+    // La fuerza del golpe sale de la velocidad de impacto, no de la etiqueta
+    // de calidad: asi el mismo aterrizaje "GOOD" suena y se ve distinto si se
+    // posa o si se estampa.
+    const impact = Math.min(1, Math.abs(landingVerticalSpeed) / 13);
+    audio.playLandingCue(event.quality, impact);
+    camera.triggerLandingImpulse(impact);
+
+    const contactX = race.bike.rear.inContact ? race.bike.rear.contactX : race.bike.x;
+    const contactY = race.bike.rear.inContact ? race.bike.rear.groundY : race.bike.y - 0.4;
+    particles.spawnLandingImpact(contactX, contactY, impact);
+
     if (event.quality === 'PERFECT' || event.quality === 'GOOD') {
-      camera.triggerLandingImpulse();
-      decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.landingImpact);
+      decals.spawn(contactX, contactY + 0.05, SpriteImages.landingImpact);
     } else if (event.quality === 'ROUGH' || event.quality === 'BAD') {
       const roughDecal = Math.random() < 0.5 ? SpriteImages.dirtSpray : SpriteImages.tireSkid;
-      decals.spawn(race.bike.x, race.bike.y - 0.2, roughDecal);
+      decals.spawn(contactX, contactY + 0.05, roughDecal);
     }
-    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 10);
   },
   onSpeedPad: () => {
     // El sprite del pad ya esta pintado de forma permanente en el suelo
@@ -109,6 +139,12 @@ const resultsScreen = new ResultsScreen(uiOverlay, () => {
 
 let lastFront = false;
 let lastRear = false;
+/**
+ * Velocidad vertical del ultimo instante EN EL AIRE. En el tick en que se
+ * detecta el aterrizaje la suspension ya ha absorbido parte del golpe, asi
+ * que leer vy en ese momento subestima el impacto.
+ */
+let landingVerticalSpeed = 0;
 let audioStarted = false;
 /** Restos fraccionarios de particulas de deslizamiento por rueda (ver ParticleSystem.spawnSlipDust). */
 let frontSlipCarry = 0;
@@ -116,6 +152,11 @@ let rearSlipCarry = 0;
 /** Tiempo desde la ultima marca de derrape, por rueda. */
 let frontSkidCooldown = 0;
 let rearSkidCooldown = 0;
+/** Restos fraccionarios del polvo continuo de rodadura y de frenada. */
+let rollingDustCarry = 0;
+let brakeDustCarry = 0;
+/** Ultimo estado visto de la cuenta atras, para pitar una sola vez por numero. */
+let lastCountdownBeep = -1;
 
 function ensureAudioStarted(): void {
   if (audioStarted) return;
@@ -139,6 +180,11 @@ window.addEventListener('keydown', (event) => {
 (window as unknown as { __crossRushTrack?: unknown }).__crossRushTrack = {
   startX: track.startX,
   finishX: track.finishX,
+  // El radio de rueda se publica en vez de copiarse en el arnes: es el numero
+  // con el que se comprueba la rodadura pura (giro = distancia / radio), y una
+  // copia a mano se queda desfasada en cuanto se recalibra el arte -paso
+  // exactamente eso-, y entonces el informe acusa al juego de un fallo suyo.
+  wheelRadius: BikeConfig.wheelRadius,
   features: track.terrainFeatures.map((feature) => ({
     kind: feature.kind,
     startX: feature.startX,
@@ -166,6 +212,7 @@ const loop = new GameLoop(
     step: (dt) => {
       simTicksThisFrame += 1;
       const inputState = input.getState();
+      if (!race.bike.front.inContact && !race.bike.rear.inContact) landingVerticalSpeed = race.bike.vy;
       race.step(dt, inputState);
 
       if (race.sectorSplits.length > shownSectorSplits) {
@@ -212,6 +259,41 @@ const loop = new GameLoop(
         );
       } else {
         frontSlipCarry = 0;
+      }
+
+      // Polvo continuo de rodadura: lo gobierna el ESFUERZO que pasa por la
+      // rueda trasera -gas y carga-, no la velocidad. Salir de parado a fondo
+      // levanta tierra aunque la moto casi no se mueva; rodar lanzado por una
+      // recta sin tocar nada, apenas.
+      if (race.bike.rear.inContact) {
+        const effort = Math.max(
+          race.bike.throttleAmount * Math.min(1, normalizedAxleLoad(race.bike, 'rear') / 1.4),
+          Math.min(1, Math.abs(race.bike.rear.wheel.slip) / 3),
+        );
+        rollingDustCarry = particles.spawnRollingDust(
+          race.bike.rear.contactX,
+          race.bike.rear.groundY,
+          race.bike.vx,
+          effort,
+          dt,
+          rollingDustCarry,
+        );
+      } else {
+        rollingDustCarry = 0;
+      }
+
+      // Polvo de frenada: sale hacia adelante y bajo, y solo con la delantera
+      // apoyada y freno de verdad.
+      if (race.bike.front.inContact && race.bike.brakeAmount > 0.3 && Math.abs(race.bike.vx) > 3) {
+        brakeDustCarry = particles.spawnBrakeDust(
+          race.bike.front.contactX,
+          race.bike.front.groundY,
+          race.bike.vx,
+          dt,
+          brakeDustCarry,
+        );
+      } else {
+        brakeDustCarry = 0;
       }
 
       // Marca de derrape: solo con la rueda bloqueada o patinando fuerte, y
@@ -276,7 +358,16 @@ const loop = new GameLoop(
       hud.update(race.raceTime, race.currentSectorName, race.flow.value, race.flow.isRedline, race.getLiveDeltaSeconds());
 
       if (race.state === 'COUNTDOWN') {
-        hud.showCenterMessage(race.countdownRemaining > 0.15 ? String(Math.ceil(race.countdownRemaining)) : 'GO!');
+        const remaining = race.countdownRemaining;
+        hud.showCenterMessage(remaining > 0.15 ? String(Math.ceil(remaining)) : '¡YA!', remaining <= 0.15);
+        // Un pitido por numero, y uno mas agudo y largo en el GO.
+        const step = remaining > 0.15 ? Math.ceil(remaining) : 0;
+        if (step !== lastCountdownBeep) {
+          lastCountdownBeep = step;
+          if (audioStarted) audio.playCountdownCue(step === 0);
+        }
+      } else if (race.state === 'RACING') {
+        lastCountdownBeep = -1;
       }
 
       // El motor suena a lo que hace la RUEDA, no a lo que hace la camara:

@@ -17,7 +17,7 @@ import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector'
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
 import { GhostRecorder, saveBestGhost, loadBestGhost, sampleGhostAtTime, ghostTimeAtX, GhostFrame } from './GhostRecorder';
 import { GameState, TrickResult } from './types';
-import { CrashConfig, FlowConfig, GameplayZoneConfig } from '../config/GameConfig';
+import { CrashConfig, FlowConfig, GameplayZoneConfig, RaceStartConfig } from '../config/GameConfig';
 import { computeGameplayZones, GameplayZones } from './GameplayZones';
 
 const COUNTDOWN_SECONDS = 3;
@@ -28,6 +28,8 @@ export interface RaceEventSink {
   onCrash?: () => void;
   onFinish?: () => void;
   onStateChange?: (state: GameState) => void;
+  /** Instante exacto de la salida, ya con el golpe de suspension aplicado. */
+  onRaceStart?: () => void;
   onSpeedPad?: () => void;
   /** true si se atraveso el aro dentro de la tolerancia, false si se paso de largo sin acertar la trayectoria. */
   onFlowRing?: (hit: boolean) => void;
@@ -171,8 +173,23 @@ export class RaceManager {
 
     if (this.state === 'COUNTDOWN') {
       this.countdownRemaining -= dt;
+      // La moto NO esta congelada en la parrilla: se simula con el mando
+      // neutro, asi que cae a su altura de reposo, la suspension rebota y se
+      // queda planta antes de que acabe la cuenta. Antes flotaba inmovil
+      // durante tres segundos y se soltaba de golpe al empezar.
+      this.previousBike = this.bike;
+      this.bike = stepBike(
+        this.bike,
+        this.track.terrain,
+        { throttle: false, brake: false, lean: 0, smoothed: this.lastSmoothedInput },
+        dt,
+      );
       if (this.countdownRemaining <= 0) {
+        // Golpe de salida: un empujon vertical hacia abajo. La compresion y
+        // el rebote los produce la propia suspension.
+        this.bike = { ...this.bike, vy: this.bike.vy - RaceStartConfig.launchDip };
         this.setState('RACING');
+        this.sink.onRaceStart?.();
       }
       return;
     }

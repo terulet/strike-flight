@@ -27,6 +27,13 @@ export class ResultsScreen {
     this.root.style.justifyContent = 'center';
     this.root.style.background = 'rgba(6, 8, 14, 0.78)';
     this.root.style.pointerEvents = 'none';
+    // Safe areas: en iPhone/iPad la tarjeta no puede quedar debajo del notch
+    // ni de la barra de gestos, y en horizontal tampoco bajo las esquinas.
+    this.root.style.padding =
+      'calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 12px) ' +
+      'calc(env(safe-area-inset-bottom, 0px) + 12px) calc(env(safe-area-inset-left, 0px) + 12px)';
+    this.root.style.boxSizing = 'border-box';
+    this.root.style.overflow = 'auto';
     container.appendChild(this.root);
   }
 
@@ -39,7 +46,7 @@ export class ResultsScreen {
     card.style.background = 'linear-gradient(180deg, #1c1a17, #100e0c)';
     card.style.border = `1px solid ${crashed ? 'rgba(255,45,45,0.35)' : 'rgba(255,106,26,0.35)'}`;
     card.style.borderRadius = '14px';
-    card.style.padding = '28px 34px';
+    card.style.padding = '24px 30px';
     card.style.color = '#fff';
     card.style.minWidth = '280px';
     card.style.textAlign = 'center';
@@ -58,7 +65,7 @@ export class ResultsScreen {
     card.appendChild(brand);
 
     const title = document.createElement('div');
-    title.textContent = crashed ? 'CRASH' : 'META';
+    title.textContent = crashed ? 'CAIDA' : 'META';
     title.style.fontSize = '28px';
     title.style.fontWeight = '900';
     title.style.fontStyle = 'italic';
@@ -68,7 +75,7 @@ export class ResultsScreen {
 
     if (summary.isNewBest && !crashed) {
       const newBest = document.createElement('div');
-      newBest.textContent = 'NEW BEST!';
+      newBest.textContent = 'NUEVO RECORD';
       newBest.style.color = BRAND.orangeSoft;
       newBest.style.fontWeight = '800';
       newBest.style.marginBottom = '10px';
@@ -76,22 +83,27 @@ export class ResultsScreen {
     }
 
     const rows: Array<[string, string]> = [
-      ['TIME', summary.time],
-      ['BEST', summary.best ?? '--:--.---'],
+      ['TIEMPO', summary.time],
+      ['RECORD', summary.best ?? '--:--.---'],
       [
         'DELTA',
         summary.deltaSeconds === null
           ? '--'
           : `${summary.deltaSeconds >= 0 ? '+' : ''}${summary.deltaSeconds.toFixed(3)}s`,
       ],
-      ['PERFECT LANDINGS', String(summary.perfectLandings)],
-      ['TRICKS', String(summary.tricks)],
+      ['ATERRIZAJES PERFECTOS', String(summary.perfectLandings)],
+      ['TRUCOS', String(summary.tricks)],
       ['FLOW', `${summary.flow.toFixed(0)}%`],
-      ['STYLE SCORE', String(summary.styleScore)],
+      ['ESTILO', String(summary.styleScore)],
     ];
-    for (const split of summary.sectorSplits) {
-      const delta = split.deltaSeconds === null ? '' : ` (${split.deltaSeconds >= 0 ? '+' : ''}${split.deltaSeconds.toFixed(3)})`;
-      rows.push([`S${split.sectorIndex + 1} ${split.name}`, `${formatTime(split.sectorTime)}${delta}`]);
+    // Con los sectores congelados la pista tiene uno solo, y su parcial es el
+    // tiempo total repetido: una fila que no dice nada. Solo se listan si de
+    // verdad hay varios.
+    if (summary.sectorSplits.length > 1) {
+      for (const split of summary.sectorSplits) {
+        const delta = split.deltaSeconds === null ? '' : ` (${split.deltaSeconds >= 0 ? '+' : ''}${split.deltaSeconds.toFixed(3)})`;
+        rows.push([`S${split.sectorIndex + 1} ${split.name}`, `${formatTime(split.sectorTime)}${delta}`]);
+      }
     }
 
     const table = document.createElement('div');
@@ -124,6 +136,11 @@ export class ResultsScreen {
     btn.style.padding = '10px 22px';
     btn.style.borderRadius = '8px';
     btn.style.cursor = 'pointer';
+    // 44 px es el minimo tactil comodo; el boton anterior se quedaba en 36.
+    btn.style.minHeight = '46px';
+    btn.style.minWidth = '190px';
+    btn.style.fontSize = '15px';
+    btn.style.touchAction = 'manipulation';
     btn.addEventListener('click', () => this.onRestart());
     card.appendChild(btn);
 

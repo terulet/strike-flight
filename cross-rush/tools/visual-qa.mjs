@@ -45,7 +45,14 @@ function resolveChromium() {
 
 const BASE_URL = process.argv[2] ?? 'http://127.0.0.1:4173/';
 const OUT_DIR = path.resolve('artifacts/qa');
-const WHEEL_RADIUS = 0.28;
+/**
+ * Radio de rueda de reserva. El valor bueno llega del juego
+ * (`window.__crossRushTrack.wheelRadius`); esta constante solo cubre una build
+ * antigua que aun no lo publique. Estaba copiada a mano y se quedo en 0.28
+ * cuando el radio se recalibro a partir del arte, asi que el informe acusaba
+ * al juego de perder un 25% del giro que en realidad si daba.
+ */
+const FALLBACK_WHEEL_RADIUS = 0.3633;
 /** Paso fijo de simulacion del juego (SIM_HZ = 120). */
 const SIM_DT = 1 / 120;
 
@@ -230,8 +237,14 @@ async function recordRacingFrames(page, ms, minFrames = 12, attempts = 6) {
     await page
       .waitForFunction(() => window.__crossRushFrame?.state === 'RACING', null, { timeout: 20000 })
       .catch(() => {});
-    const frames = racing(await recordFrames(page, ms));
+    const all = await recordFrames(page, ms);
+    const frames = racing(all);
     if (frames.length >= minFrames) return frames;
+    if (process.env.QA_DEBUG) {
+      const counts = {};
+      for (const f of all) counts[f.state] = (counts[f.state] ?? 0) + 1;
+      console.log('DEBUG recordRacingFrames', attempt, 'total', all.length, JSON.stringify(counts));
+    }
   }
   return [];
 }
@@ -436,7 +449,8 @@ async function runProfile(browser, profile) {
     groundedFrontSpin += unwrapTotal([launchFrames[i - 1].frontSpin, launchFrames[i].frontSpin]);
     groundedDistance += launchFrames[i].x - launchFrames[i - 1].x;
   }
-  const expectedSpin = groundedDistance / WHEEL_RADIUS;
+  const wheelRadius = track.wheelRadius ?? FALLBACK_WHEEL_RADIUS;
+  const expectedSpin = groundedDistance / wheelRadius;
 
   check(profile.name, 'las dos ruedas giran', Math.abs(totalRearSpin) > 20 && Math.abs(totalFrontSpin) > 20,
     `trasera ${totalRearSpin.toFixed(0)} rad, delantera ${totalFrontSpin.toFixed(0)} rad en ${launchFrames.length} fotogramas`);
@@ -590,7 +604,7 @@ async function runProfile(browser, profile) {
       ? 'no se logro medir con las dos ruedas en el suelo'
       : `carga delantera media, moto quieta y apoyada: peso atras x${measured.back.toFixed(2)}, peso delante x${measured.forward.toFixed(2)}`);
 
-  // --- 5. LAS CINCO PIEZAS DE TERRENO -------------------------------------
+  // --- 5. LAS PIEZAS DE TERRENO DEL CORTE VERTICAL -------------------------
   const seen = new Set();
   const runFrames = [];
   const deadline = Date.now() + 45000;
@@ -608,7 +622,7 @@ async function runProfile(browser, profile) {
     }
   }
   const racedFrames = racing(runFrames);
-  check(profile.name, 'se recorren las cinco piezas de terreno', seen.size === track.features.length,
+  check(profile.name, `se recorren las ${track.features.length} piezas de terreno`, seen.size === track.features.length,
     `vistas: ${[...seen].join(', ') || 'ninguna'}`);
 
   const airFrames = racedFrames.filter(airborne);

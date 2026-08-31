@@ -126,7 +126,7 @@ alpha recorre todo el rango (0.00 a 1.00) y la diferencia se mide.
 
 | Comprobación | Escritorio | Móvil |
 |---|---|---|
-| Las cinco piezas de terreno recorridas | tabletop, stepup, dropoff, whoops, rockgarden | idem |
+| Las piezas de terreno recorridas | tabletop, stepup, dropoff (whoops y rockgarden estan congelados) | idem |
 | Fotogramas en vuelo / totales | 204 / 440 | 195 / 410 |
 | Compresión trasera máxima al recibir | 0.400 m | 0.400 m |
 | Un morro clavado provoca crash | sí | sí |
@@ -167,3 +167,29 @@ irregular es el peor caso para la interpolación, y aun así el error dibujado e
 del 0.2%—, pero **el rendimiento observado aquí no es representativo de un
 equipo o un móvil reales** con composición por GPU. El frame pacing en hardware
 de verdad queda pendiente de comprobar en el entorno del propietario.
+
+## Secuencia de evidencia (fases 4 y 5)
+
+`node tools/evidence-shots.mjs <url> [desktop|movil]` recorre la pista con un
+piloto automatico y captura los cinco estados que pide el cierre del mandato,
+en 1366x768 y en 393x852:
+
+| Captura | Que demuestra |
+| --- | --- |
+| `1-quieta` | Moto posada en la parrilla durante la cuenta atras, con la suspension ya asentada. |
+| `2-acelerando` | Rueda trasera patinando, polvo de rodadura, caballito de salida. |
+| `3-frenando` | Horquilla hundida, polvo de frenada hacia adelante, marcas de derrape. |
+| `4-saltando` | Vuelo con la suspension extendida y la horquilla unida a la rueda. |
+| `5-aterrizando` | Golpe de aterrizaje: tierra proyectada, sombra de contacto y compresion. |
+| `6-meta` / `7-resultados` | Cartel de meta y panel final. |
+
+Las capturas de la ultima pasada estan en `docs/qa/secuencia/`.
+
+### Rendimiento
+
+El render se mide con Chromium sin GPU (rasterizado por software), que es el
+peor caso razonable. Referencia en 1366x768: **~65 fps**. Venia de 5 fps: el
+culpable era `ctx.filter` aplicado en caliente sobre las capas de fondo, que
+cubren la pantalla entera y se redibujaban con el filtro en cada fotograma.
+Ahora los filtros y el reescalado van horneados (`src/rendering/SpriteFilters.ts`)
+y el cielo se cachea en un lienzo aparte.
