@@ -65,7 +65,12 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
     megaJumpX !== null
       ? {
           x: megaJumpX + 20, // hacia la mitad del hueco (rampa de 9m + medio valle de 22m)
-          y: track.terrain.surfaceY(megaJumpX + 9) + 4.2, // altura aprox. de la trayectoria en un salto bien dado
+          // Altura real de la trayectoria en ese punto, no una estimacion a
+          // ojo: saliendo del kicker a ~21 m/s con unos 9 m/s de componente
+          // vertical, la moto pasa por aqui unos 2,2 m por encima del labio.
+          // Con los 4,2 m que habia antes el aro quedaba por encima de la
+          // parabola y no se podia atravesar ni haciendolo todo bien.
+          y: track.terrain.surfaceY(megaJumpX + 9) + 2.4,
           radius: 2.6,
         }
       : null;

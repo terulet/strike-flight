@@ -22,6 +22,14 @@ export interface GameLoopCallbacks {
 
 export class GameLoop {
   private accumulator = 0;
+  /**
+   * Escala de tiempo, 0..1. Es lo que hace la CAMARA LENTA de los saltos
+   * grandes: no se toca la fisica -que sigue corriendo a paso fijo y da los
+   * mismos resultados-, solo se le entrega menos tiempo real por fotograma.
+   * Por eso el crono de vuelta no se falsea: cuenta segundos simulados, y de
+   * esos pasan los mismos.
+   */
+  private timeScale = 1;
   private lastTime: number | null = null;
   private rafHandle: number | null = null;
   private running = false;
@@ -38,6 +46,11 @@ export class GameLoop {
       this.rafHandle = requestAnimationFrame(loop);
     };
     this.rafHandle = requestAnimationFrame(loop);
+  }
+
+  /** 1 = tiempo real. Valores menores ralentizan la simulacion sin alterarla. */
+  setTimeScale(scale: number): void {
+    this.timeScale = Number.isFinite(scale) ? Math.min(1, Math.max(0.05, scale)) : 1;
   }
 
   stop(): void {
@@ -68,7 +81,7 @@ export class GameLoop {
     // Clamp defensivo: un frame absurdamente largo (pestana en background)
     // no debe generar miles de pasos de simulacion.
     const clampedFrame = Math.min(frameSeconds, this.dt * MAX_CATCHUP_STEPS * 4);
-    this.accumulator += Math.max(0, clampedFrame);
+    this.accumulator += Math.max(0, clampedFrame) * this.timeScale;
 
     let steps = 0;
     while (this.accumulator >= this.dt && steps < MAX_CATCHUP_STEPS) {

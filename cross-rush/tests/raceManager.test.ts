@@ -58,14 +58,14 @@ describe('RaceManager', () => {
     expect(race.getResultsSummary().isNewBest).toBe(false);
   });
 
-  it('el corte vertical tiene un unico sector, de salida a meta', () => {
-    // Los sectores estan congelados hasta aprobar la conduccion; lo que se
-    // comprueba aqui es que el cronometraje por sectores sigue enganchado y
-    // cierra su unico tramo al cruzar la meta, no que haya cuatro.
+  it('la vuelta tiene dos sectores: aprendizaje y espectaculo', () => {
+    // El delta comparado por sector sigue congelado; lo que se comprueba aqui
+    // es que el cronometraje por sectores esta enganchado, empieza en el
+    // primero y cierra los dos al cruzar la meta.
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     driveToRacing(race);
-    expect(race.currentSectorName).toBe('S1/1 SLICE');
+    expect(race.currentSectorName).toBe('S1/2 APRENDIZAJE');
     expect(race.sectorSplits).toHaveLength(0);
 
     race.bike.x = track.finishX;
@@ -73,7 +73,7 @@ describe('RaceManager', () => {
     race.bike.vx = 5;
     race.step(SIM_DT, neutralInput());
     expect(race.state).toBe('FINISHED');
-    expect(race.sectorSplits).toHaveLength(1);
+    expect(race.sectorSplits).toHaveLength(2);
   });
 
   it('resets all transient race state on restart but preserves the best time', () => {

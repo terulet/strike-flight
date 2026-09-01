@@ -149,6 +149,72 @@ const CSS = `
 .cr-delta.ahead { color: var(--cr-green); background: rgba(92, 224, 138, 0.14); }
 .cr-delta.behind { color: var(--cr-red); background: rgba(255, 45, 45, 0.14); }
 
+/* ------------------------------------------------------------ puntuacion */
+.cr-score {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 176, 122, 0.22);
+  padding-top: 5px;
+}
+.cr-score-value {
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+.cr-score-mult {
+  font-size: 13px;
+  font-weight: 900;
+  font-style: italic;
+  color: var(--cr-orange-soft);
+  opacity: 0.55;
+  transition: opacity 0.12s linear, color 0.12s linear;
+}
+.cr-score-mult.hot {
+  opacity: 1;
+  color: var(--cr-red);
+  text-shadow: 0 0 10px var(--cr-red);
+}
+
+/* Carteles de premio: suben y se desvanecen sobre el centro de la pista. */
+.cr-awards {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+.cr-award {
+  font-weight: 900;
+  font-style: italic;
+  font-size: 26px;
+  letter-spacing: 0.5px;
+  color: #fff;
+  -webkit-text-stroke: 1.4px #000;
+  text-shadow: 0 4px 14px rgba(0, 0, 0, 0.75);
+  white-space: nowrap;
+  animation: cr-award 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.cr-award span {
+  color: var(--cr-orange);
+  margin-left: 8px;
+}
+@keyframes cr-award {
+  0% { transform: translateY(14px) scale(0.6); opacity: 0; }
+  18% { transform: translateY(0) scale(1.12); opacity: 1; }
+  32% { transform: translateY(-4px) scale(1); opacity: 1; }
+  72% { opacity: 1; }
+  100% { transform: translateY(-52px) scale(0.96); opacity: 0; }
+}
+
 /* ---------------------------------------------------------------- flow */
 .cr-flow {
   position: absolute;
@@ -292,6 +358,9 @@ const CSS = `
   .cr-flow { top: calc(var(--cr-safe-t) + 26px); }
   .cr-flow-seg { width: 11px; height: 8px; }
   .cr-split { top: calc(var(--cr-safe-t) + 58px); font-size: 12px; }
+  .cr-score-value { font-size: 16px; }
+  .cr-score-mult { font-size: 11px; }
+  .cr-award { font-size: 19px; }
   .cr-center-brand { font-size: 30px; }
   .cr-center-msg { font-size: 62px; }
   .cr-btn { width: 68px; height: 68px; font-size: 11px; }
@@ -300,6 +369,8 @@ const CSS = `
 
 @media (prefers-reduced-motion: reduce) {
   .cr-pop, .cr-go { animation: none; }
+  .cr-award { animation: cr-award-still 1.25s linear forwards; }
+  @keyframes cr-award-still { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 }
 `;
 

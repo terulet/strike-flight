@@ -37,6 +37,9 @@ export class HUD {
   private readonly centerEl: HTMLElement;
   private readonly centerMessageEl: HTMLElement;
   private readonly centerBrandEl: HTMLElement;
+  private readonly scoreValueEl: HTMLElement;
+  private readonly scoreMultEl: HTMLElement;
+  private readonly awardsEl: HTMLElement;
   /** Ultimo texto central mostrado, para no reiniciar la animacion cada frame. */
   private lastCenterText: string | null = null;
 
@@ -75,9 +78,27 @@ export class HUD {
 
     row.appendChild(this.bestEl);
     row.appendChild(this.deltaEl);
+    // Puntuacion y multiplicador, bajo el crono: es el marcador del
+    // espectaculo -aterrizajes clavados, trucos, aros y huecos- y va donde ya
+    // esta mirando el jugador para leer el tiempo.
+    const score = document.createElement('div');
+    score.className = 'cr-score';
+    this.scoreMultEl = document.createElement('div');
+    this.scoreMultEl.className = 'cr-score-mult';
+    this.scoreMultEl.textContent = 'x1';
+    this.scoreValueEl = document.createElement('div');
+    this.scoreValueEl.className = 'cr-score-value';
+    this.scoreValueEl.textContent = '0';
+    score.appendChild(this.scoreMultEl);
+    score.appendChild(this.scoreValueEl);
+
     board.appendChild(boardLabel);
     board.appendChild(this.timeEl);
     board.appendChild(row);
+    board.appendChild(score);
+
+    this.awardsEl = document.createElement('div');
+    this.awardsEl.className = 'cr-awards';
 
     // --------------------------------------------------------------- flow
     const flowWrap = document.createElement('div');
@@ -119,12 +140,37 @@ export class HUD {
     this.root.appendChild(board);
     this.root.appendChild(flowWrap);
     this.root.appendChild(this.splitEl);
+    this.root.appendChild(this.awardsEl);
     this.root.appendChild(this.centerEl);
     container.appendChild(this.root);
   }
 
   setBestTime(seconds: number | null): void {
     this.bestEl.innerHTML = `<b>RECORD</b>${seconds !== null ? formatTime(seconds) : '--:--.---'}`;
+  }
+
+  /** Marcador de estilo y multiplicador vigente. */
+  setScore(score: number, multiplier: number): void {
+    this.scoreValueEl.textContent = score.toLocaleString('es-ES');
+    this.scoreMultEl.textContent = `x${multiplier}`;
+    this.scoreMultEl.classList.toggle('hot', multiplier > 1);
+  }
+
+  /**
+   * Cartel de premio: sube desde el centro y se desvanece. El elemento se
+   * borra solo al acabar la animacion, asi que encadenar varios premios
+   * seguidos -que es lo normal en el tramo de espectaculo- no deja basura en
+   * el DOM ni obliga a llevar la cuenta desde fuera.
+   */
+  showAward(text: string, points?: number): void {
+    const el = document.createElement('div');
+    el.className = 'cr-award';
+    el.innerHTML = points === undefined ? text : `${text}<span>+${points}</span>`;
+    el.addEventListener('animationend', () => el.remove());
+    this.awardsEl.appendChild(el);
+    // Cinturon y tirantes: si el navegador no lanza animationend (pestana en
+    // segundo plano), el cartel se retira igualmente.
+    window.setTimeout(() => el.remove(), 2500);
   }
 
   update(raceTime: number, sector: string, flow: number, isRedline: boolean, deltaSeconds: number | null): void {

@@ -182,10 +182,35 @@ en 1366x768 y en 393x852:
 | `4-saltando` | Vuelo con la suspension extendida y la horquilla unida a la rueda. |
 | `5-aterrizando` | Golpe de aterrizaje: tierra proyectada, sombra de contacto y compresion. |
 | `6-meta` / `7-resultados` | Cartel de meta y panel final. |
+| `espectaculo-1-turbo` | Pad de velocidad: REDLINE, multiplicador x2 y cartel de premio. |
+| `espectaculo-2-linea-de-riesgo` | La eleccion entre la linea segura y saltar el hueco entero. |
+| `espectaculo-3-mega-salto` | El salto grande sobre el canon, con el aro de FLOW atravesado. |
 
 Las capturas de la ultima pasada estan en `docs/qa/secuencia/`, y con
 `--video` graba ademas la vuelta entera: `docs/qa/vuelta-completa.webm`
 (30 s de carrera, salida a meta, a media resolucion).
+
+### El tramo de espectaculo
+
+La vuelta son dos mitades. La primera ensena a conducir (compresion, tabletop,
+step-up, bajada) y la segunda la premia: bache, pad de velocidad, kicker, una
+linea de riesgo con dos trazadas posibles y el mega salto sobre el canon con
+un aro de FLOW en mitad del aire. Las piezas de riesgo/recompensa no estan
+colocadas a mano: `GameplayZones` las deriva de las etiquetas de sector, asi
+que lo que se ve y lo que actua salen del mismo sitio.
+
+Tres numeros que los tests vigilan (`tests/espectaculo.test.ts`), porque
+"salto imposible" tiene que ser medible y no una impresion:
+
+- el vuelo mas largo pasa de **20 m**, y esta en la segunda mitad;
+- el mega salto se cruza ENTERO: se despega del labio y se cae pasada la pared
+  lejana;
+- el aro cae dentro de la trayectoria real, no por encima.
+
+La camara lenta de los vuelos largos no toca la fisica: el bucle sigue dando
+pasos de `SIM_DT` exactos y solo recibe menos tiempo real por fotograma, asi
+que el crono cuenta segundos simulados y los tiempos siguen siendo
+comparables.
 
 ### Rendimiento
 

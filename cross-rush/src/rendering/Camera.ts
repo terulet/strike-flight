@@ -27,6 +27,12 @@ export interface CameraTarget {
   y: number;
   vx: number;
   vy: number;
+  /**
+   * Cota del terreno bajo la moto. Solo se usa en vuelo, para no perder de
+   * vista donde se va a caer (ver `update`). Es opcional para no obligar a
+   * los tests a inventarse un terreno.
+   */
+  groundY?: number;
 }
 
 /** Pose de camara lista para dibujar: ya interpolada y con la sacudida aplicada. */
@@ -159,7 +165,23 @@ export class Camera {
     // objetivo enganchado no se mueve. Es lo que evita que cada bache
     // convierta la pantalla en una coctelera, y a la vez deja que la camara se
     // centre del todo cuando la moto se estabiliza.
-    const rawDesiredY = target.y + this.verticalLead;
+    // ENCUADRE DE VUELO. Con la vista cerrada solo se ven unos 4 m por debajo
+    // de la moto; en un salto grande el suelo se sale por abajo y se aterriza
+    // a ciegas sobre un fondo de canon. Durante el vuelo la camara baja hacia
+    // el punto medio entre la moto y el terreno que tiene debajo, asi que la
+    // moto sube en pantalla y aparece la caida: es lo que convierte el salto
+    // en algo que se puede leer -y disfrutar- en vez de un acto de fe.
+    const flightFrame = clamp(
+      (airTime - CameraConfig.flightFramingAirTime) / Math.max(0.001, CameraConfig.flightFramingFull - CameraConfig.flightFramingAirTime),
+      0,
+      1,
+    );
+    const groundY = target.groundY;
+    const framedY =
+      groundY === undefined || flightFrame <= 0
+        ? target.y
+        : lerp(target.y, Math.min(target.y, (target.y + groundY) / 2), flightFrame);
+    const rawDesiredY = framedY + this.verticalLead;
     const verticalError = rawDesiredY - this.anchorY;
     const deadZone = CameraConfig.verticalDeadZone;
     if (Math.abs(verticalError) > deadZone) {
@@ -178,7 +200,7 @@ export class Camera {
       1,
     );
     const targetZoomFactor = lerp(1, CameraConfig.maxZoomOutFactor, zoomT);
-    this.pixelsPerMeter = lerp(this.pixelsPerMeter, this.baseZoom * targetZoomFactor, clamp(4 * dt, 0, 1));
+    this.pixelsPerMeter = lerp(this.pixelsPerMeter, this.baseZoom * targetZoomFactor, clamp(7 * dt, 0, 1));
   }
 
   /** Pose interpolada entre el tick anterior y el actual, para dibujar. */

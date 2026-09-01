@@ -14,8 +14,8 @@ function sampleExtents(feature: TerrainFeature): { minY: number; maxY: number } 
   return { minY, maxY };
 }
 
-describe('Corte vertical: tres obstaculos y nada mas', () => {
-  it('solo coloca tabletop, step-up y bajada, en ese orden', () => {
+describe('Corte vertical: aprendizaje y espectaculo', () => {
+  it('el tramo de aprendizaje coloca tabletop, step-up y bajada, en ese orden', () => {
     const track = buildCanyonRun();
     // whoops y rockgarden estan CONGELADOS hasta aprobar la conduccion: el
     // tipo sigue existiendo en el codigo, pero la pista no los coloca.
@@ -27,11 +27,14 @@ describe('Corte vertical: tres obstaculos y nada mas', () => {
     }
   });
 
-  it('los sectores tambien estan congelados: uno solo, de salida a meta', () => {
+  it('la vuelta se parte en dos: aprendizaje y espectaculo, sin huecos', () => {
     const track = buildCanyonRun();
-    expect(track.sectors).toHaveLength(1);
+    expect(track.sectors.map((sector) => sector.name)).toEqual(['APRENDIZAJE', 'ESPECTACULO']);
     expect(track.sectors[0].startX).toBe(0);
-    expect(track.sectors[0].endX).toBe(track.finishX);
+    expect(track.sectors[0].endX).toBe(track.sectors[1].startX);
+    expect(track.sectors[1].endX).toBe(track.finishX);
+    // El espectaculo empieza justo donde acaba de ensenarse a conducir.
+    expect(track.sectors[1].startX).toBe(track.labels.find((label) => label.name === 'TECHNICAL')!.x);
   });
 
   it('tabletop tiene meseta y vuelve a su cota de entrada', () => {
@@ -71,14 +74,29 @@ describe('Corte vertical: tres obstaculos y nada mas', () => {
     }
   });
 
-  it('el terreno es continuo y sin picos imposibles de punta a punta', () => {
+  it('el terreno es continuo y no tiene ninguna cuesta imposible', () => {
     const track = buildCanyonRun();
-    for (let x = track.terrain.startX; x < track.terrain.endX; x += 0.5) {
-      const slope = track.terrain.surfaceSlope(x);
+    const STEP = 0.25;
+    let steepest = 0;
+    let steepRun = 0;
+    let longestSteepRun = 0;
+
+    for (let x = track.terrain.startX; x < track.terrain.endX; x += STEP) {
+      const slope = Math.abs(track.terrain.surfaceSlope(x));
       expect(Number.isFinite(slope)).toBe(true);
-      // Nada mas empinado que 45 grados: por encima de eso ninguna moto sube
-      // ni baja de forma legible.
-      expect(Math.abs(slope)).toBeLessThan(1.0);
+      steepest = Math.max(steepest, slope);
+      // Tramo CONTINUO por encima de 45 grados. Se mide asi, y no punto a
+      // punto, porque las dos cosas son distintas: una cuesta de 45 grados
+      // que dura metros no la sube ni la baja nadie, mientras que el labio de
+      // un kicker es una arista y tiene que ser afilada -es justo lo que
+      // lanza la moto al aire-. La curva del terreno es un spline, asi que en
+      // esas aristas se pasa medio metro por encima del limite; penalizarlo
+      // seria pedir kickers redondeados, o sea, sin salto.
+      steepRun = slope > 1 ? steepRun + STEP : 0;
+      longestSteepRun = Math.max(longestSteepRun, steepRun);
     }
+
+    expect(steepest).toBeLessThan(1.43); // nada llega a 55 grados
+    expect(longestSteepRun).toBeLessThan(1.2); // y lo que pasa de 45 dura menos de un metro
   });
 });

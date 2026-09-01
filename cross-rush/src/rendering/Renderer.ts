@@ -17,6 +17,7 @@ import { BikeState, wheelAnchorWorld, wheelVisualCenterWorld } from '../physics/
 import { Sprite, filteredSprite, scaledSprite, spriteHeight, spriteReady, spriteWidth } from './SpriteFilters';
 import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
+import { Shockwaves } from './Shockwaves';
 import { SpriteDecals } from './SpriteDecals';
 import { BikeConfig, SuspensionConfig, EngineConfig, CrashConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
@@ -126,6 +127,7 @@ export class Renderer {
     bike: BikeState;
     particles: ParticleSystem;
     decals: SpriteDecals;
+    shockwaves: Shockwaves;
     flowValue: number;
     isRedline: boolean;
     crashed: boolean;
@@ -134,7 +136,7 @@ export class Renderer {
     ghost: GhostFrame | null;
   }): void {
     const { ctx } = this;
-    const { camera, track, bike, particles, decals, isRedline, crashed, ghost, shake } = opts;
+    const { camera, track, bike, particles, decals, shockwaves, isRedline, crashed, ghost, shake } = opts;
     const crashElapsed = opts.crashElapsed ?? 0;
     const terrain = track.terrain;
 
@@ -160,6 +162,9 @@ export class Renderer {
     this.drawDecals(camera, decals, shake);
     if (ghost) this.drawGhost(camera, ghost, shake);
     this.drawWheelContactShadows(camera, terrain, bike, shake);
+    // Las ondas van sobre el suelo y por DEBAJO de la moto: son el golpe que
+    // acaba de dar la rueda, no un adorno flotando delante.
+    shockwaves.draw(ctx, camera, (x, y) => this.worldToScreen(camera, x, y, shake));
     this.drawBike(camera, bike, isRedline, crashed, shake, crashElapsed);
     this.drawSpeedTrail(camera, bike, shake);
     this.drawForeground(camera, shake);

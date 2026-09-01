@@ -15,6 +15,7 @@ import { TouchInput } from './input/TouchInput';
 import { Camera } from './rendering/Camera';
 import { ParticleSystem } from './rendering/ParticleSystem';
 import { SpriteDecals } from './rendering/SpriteDecals';
+import { Shockwaves } from './rendering/Shockwaves';
 import { SpriteImages } from './rendering/SpriteAssets';
 import { Renderer } from './rendering/Renderer';
 import { AudioEngine } from './audio/AudioEngine';
@@ -22,7 +23,7 @@ import { HUD } from './ui/HUD';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
-import { BikeConfig, EffectsConfig, RaceStartConfig } from './config/GameConfig';
+import { BikeConfig, EffectsConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiOverlay = document.getElementById('ui-overlay') as HTMLDivElement;
@@ -32,6 +33,7 @@ const renderer = new Renderer(canvas);
 const camera = new Camera();
 const particles = new ParticleSystem();
 const decals = new SpriteDecals();
+const shockwaves = new Shockwaves();
 const audio = new AudioEngine();
 const hud = new HUD(uiOverlay);
 const debugOverlay = new DebugOverlay(uiOverlay);
@@ -83,6 +85,13 @@ const race = new RaceManager(track, {
     particles.spawnBurst(race.bike.rear.contactX, race.bike.rear.groundY, RaceStartConfig.launchDustParticles);
     particles.spawnBurst(race.bike.front.contactX, race.bike.front.groundY, Math.round(RaceStartConfig.launchDustParticles * 0.6));
   },
+  onTrick: (trick) => {
+    // El truco ya lo puntua RaceManager; aqui es donde se GRITA. Sin cartel,
+    // un mortal hacia atras y un salto normal se ven igual de premiados, que
+    // es lo mismo que no premiarlos.
+    audio.playBoostCue();
+    hud.showAward(trick.rotations >= 2 ? '¡DOBLE MORTAL!' : '¡MORTAL!');
+  },
   onLanding: (event) => {
     // La fuerza del golpe sale de la velocidad de impacto, no de la etiqueta
     // de calidad: asi el mismo aterrizaje "GOOD" suena y se ve distinto si se
@@ -94,6 +103,15 @@ const race = new RaceManager(track, {
     const contactX = race.bike.rear.inContact ? race.bike.rear.contactX : race.bike.x;
     const contactY = race.bike.rear.inContact ? race.bike.rear.groundY : race.bike.y - 0.4;
     particles.spawnLandingImpact(contactX, contactY, impact);
+
+    // Onda expansiva proporcional al golpe: es lo que hace que un aterrizaje
+    // de verdad se SIENTA distinto de posar la moto.
+    shockwaves.spawn(contactX, contactY, impact);
+
+    if (event.airTime >= SpectacleConfig.bigAirSeconds) {
+      hud.showAward('¡VUELO!', SpectacleConfig.awardPoints.bigAir);
+    }
+    if (event.quality === 'PERFECT') hud.showAward('ATERRIZAJE PERFECTO');
 
     if (event.quality === 'PERFECT' || event.quality === 'GOOD') {
       decals.spawn(contactX, contactY + 0.05, SpriteImages.landingImpact);
@@ -108,6 +126,8 @@ const race = new RaceManager(track, {
     audio.playBoostCue();
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 12);
     decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.speedPadFx);
+    shockwaves.spawn(race.bike.x, race.bike.rear.groundY, 0.7, 'rgba(255, 190, 90, 1)');
+    hud.showAward('TURBO', SpectacleConfig.awardPoints.speedPad);
   },
   onFlowRing: (hit) => {
     if (!hit) return;
@@ -115,11 +135,16 @@ const race = new RaceManager(track, {
     camera.triggerLandingImpulse();
     particles.spawnBurst(race.bike.x, race.bike.y, 16);
     decals.spawn(race.bike.x, race.bike.y, SpriteImages.flowRingHit);
+    // La onda sale EN EL AIRE, a la altura de la moto: el aro se atraviesa
+    // volando, no en el suelo.
+    shockwaves.spawn(race.bike.x, race.bike.y, 1, 'rgba(140, 220, 255, 1)');
+    hud.showAward('¡ARO!', SpectacleConfig.awardPoints.flowRing);
   },
   onRiskGapCleared: () => {
     audio.playBoostCue();
     particles.spawnBurst(race.bike.x, race.bike.y, 10);
     decals.spawn(race.bike.x, race.bike.y, SpriteImages.riskGapFx);
+    hud.showAward('LINEA DE RIESGO', SpectacleConfig.awardPoints.riskGap);
   },
   onAltRamp: () => {
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
@@ -157,6 +182,9 @@ let rollingDustCarry = 0;
 let brakeDustCarry = 0;
 /** Ultimo estado visto de la cuenta atras, para pitar una sola vez por numero. */
 let lastCountdownBeep = -1;
+/** Escala de tiempo vigente y reloj real, para la camara lenta de los saltos. */
+let timeScale = 1;
+let lastFrameMs = performance.now();
 
 function ensureAudioStarted(): void {
   if (audioStarted) return;
@@ -185,6 +213,7 @@ window.addEventListener('keydown', (event) => {
   // copia a mano se queda desfasada en cuanto se recalibra el arte -paso
   // exactamente eso-, y entonces el informe acusa al juego de un fallo suyo.
   wheelRadius: BikeConfig.wheelRadius,
+  labels: track.labels.map((label) => ({ name: label.name, x: label.x })),
   features: track.terrainFeatures.map((feature) => ({
     kind: feature.kind,
     startX: feature.startX,
@@ -319,10 +348,23 @@ const loop = new GameLoop(
 
       // La camara avanza en el PASO FIJO, con el estado de simulacion: asi es
       // determinista y luego el render la interpola igual que a la moto.
-      camera.update(dt, { x: race.bike.x, y: race.bike.y, vx: race.bike.vx, vy: race.bike.vy }, race.flightTracker.currentAirTime);
+      camera.update(
+        dt,
+        {
+          x: race.bike.x,
+          y: race.bike.y,
+          vx: race.bike.vx,
+          vy: race.bike.vy,
+          // El terreno bajo la moto, para que la camara pueda encuadrar la
+          // caida en los saltos grandes (ver Camera.update).
+          groundY: track.terrain.surfaceY(race.bike.x),
+        },
+        race.flightTracker.currentAirTime,
+      );
 
       particles.update(dt);
       decals.update(dt);
+      shockwaves.update(dt);
     },
     /**
      * `alpha` es la fraccion de tick pendiente que entrega el GameLoop. Antes
@@ -348,6 +390,7 @@ const loop = new GameLoop(
         bike,
         particles,
         decals,
+        shockwaves,
         flowValue: race.flow.value,
         isRedline: race.flow.isRedline,
         crashed: race.state === 'CRASHED',
@@ -356,6 +399,24 @@ const loop = new GameLoop(
       });
 
       hud.update(race.raceTime, race.currentSectorName, race.flow.value, race.flow.isRedline, race.getLiveDeltaSeconds());
+      hud.setScore(race.styleScore.score, race.flow.scoreMultiplier);
+
+      // CAMARA LENTA. Se activa por tiempo de vuelo, no por altura: lo que
+      // hace espectacular un salto es cuanto dura, y ademas asi el efecto no
+      // salta en cada bache de medio metro. Entra despacio y sale rapido,
+      // porque volver al tiempo real de golpe al tocar suelo es lo que hace
+      // que el aterrizaje pegue.
+      const airborne = !race.bike.front.inContact && !race.bike.rear.inContact;
+      const wantsSlowMotion = airborne && race.flightTracker.currentAirTime >= SpectacleConfig.slowMotionAirTime;
+      const targetScale = wantsSlowMotion ? SpectacleConfig.slowMotionScale : 1;
+      const blend = wantsSlowMotion ? SpectacleConfig.slowMotionBlendIn : SpectacleConfig.slowMotionBlendOut;
+      // Se mezcla con el tiempo REAL del fotograma, no con el simulado: si se
+      // usara el simulado, la propia camara lenta ralentizaria su salida y el
+      // efecto se quedaria pegado.
+      const realDt = Math.min(0.05, (performance.now() - lastFrameMs) / 1000);
+      lastFrameMs = performance.now();
+      timeScale += (targetScale - timeScale) * Math.min(1, blend * realDt);
+      loop.setTimeScale(timeScale);
 
       if (race.state === 'COUNTDOWN') {
         const remaining = race.countdownRemaining;
@@ -421,6 +482,7 @@ const loop = new GameLoop(
         brake: bike.brakeAmount,
         lean: bike.leanAmount,
         cameraX: cameraPose.x,
+        pixelsPerMeter: cameraPose.pixelsPerMeter,
         cameraY: cameraPose.y,
         shakeX: shake.x,
         shakeY: shake.y,

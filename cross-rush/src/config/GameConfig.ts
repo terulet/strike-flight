@@ -553,8 +553,12 @@ export const CameraConfig = {
   minPixelsPerMeter: 40,
   maxPixelsPerMeter: 190,
   /** Airtime (s) a partir del cual empieza a alejar la camara. */
-  zoomOutAirtimeStart: 0.35,
-  zoomOutAirtimeFull: 1.3,
+  // Un salto grande dura poco mas de un segundo entero. Con el arranque en
+  // 0,35 s y el maximo en 1,3 la camara no llegaba ni a la mitad de su
+  // apertura antes de que la moto ya estuviera aterrizando: en la practica el
+  // zoom-out no existia. Ahora abre en el primer tercio del vuelo.
+  zoomOutAirtimeStart: 0.18,
+  zoomOutAirtimeFull: 0.65,
   /**
    * Zoom-out en vuelo. Con la vista mucho mas cerrada que antes, un salto
    * grande se sale de pantalla si la camara no abre: a 0.62 se pasa de 12.5 a
@@ -562,6 +566,18 @@ export const CameraConfig = {
    * leerse.
    */
   maxZoomOutFactor: 0.62, // multiplicador aplicado a pixelsPerMeter
+  /**
+   * Segundos de vuelo a partir de los cuales la camara empieza a encuadrar
+   * TAMBIEN el suelo que hay debajo, y en cuantos llega a hacerlo del todo.
+   *
+   * Abrir el zoom no basta: aleja por igual arriba y abajo, y el problema de
+   * un salto grande es asimetrico -sobra cielo y falta suelo-. Bajando el
+   * centro de camara hacia el punto medio entre la moto y el terreno, la
+   * caida entra en cuadro sin tener que alejarse tanto como para que la moto
+   * deje de leerse.
+   */
+  flightFramingAirTime: 0.4,
+  flightFramingFull: 1,
 } as const;
 
 export const TrackConfig = {
@@ -690,4 +706,32 @@ export const RaceStartConfig = {
   launchDip: 1.1,
   /** Particulas de tierra que levanta la salida, por rueda. */
   launchDustParticles: 14,
+} as const;
+
+/**
+ * Espectaculo: camara lenta en los vuelos grandes y premios.
+ *
+ * La camara lenta no toca la fisica. El bucle sigue dando pasos de `SIM_DT`
+ * exactos; lo unico que cambia es cuanto tiempo real se le entrega por
+ * fotograma (ver GameLoop.setTimeScale). Consecuencia importante: el crono de
+ * vuelta cuenta segundos SIMULADOS, asi que los tiempos siguen siendo
+ * comparables aunque el jugador pase medio salto a camara lenta.
+ */
+export const SpectacleConfig = {
+  /** Segundos en el aire a partir de los cuales entra la camara lenta. */
+  slowMotionAirTime: 0.72,
+  /** Escala de tiempo durante el vuelo grande (1 = tiempo real). */
+  slowMotionScale: 0.45,
+  /** Velocidad de entrada y de salida del efecto (1/s). Salir mas rapido que entrar evita el "chicle" al aterrizar. */
+  slowMotionBlendIn: 5,
+  slowMotionBlendOut: 9,
+  /** Puntos de los premios de las piezas de riesgo/recompensa. */
+  awardPoints: {
+    speedPad: 150,
+    flowRing: 400,
+    riskGap: 600,
+    bigAir: 250,
+  },
+  /** Segundos de vuelo a partir de los cuales el aterrizaje cuenta como "vuelo grande". */
+  bigAirSeconds: 1,
 } as const;
