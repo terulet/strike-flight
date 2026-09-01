@@ -618,7 +618,12 @@ async function runProfile(browser, profile) {
   // comprobacion no podia pasar nunca.
   const seen = new Set();
   const runFrames = [];
-  const deadline = Date.now() + 45000;
+  // El plazo sale de la PISTA, no de un numero fijo. Estaba en 45 s, que daba
+  // de sobra cuando la vuelta duraba 42; al alargarla a 1.026 m y 57 s la
+  // comprobacion se quedaba sin tiempo y acusaba al juego de no colocar
+  // piezas que si estaban. Se calcula con una media conservadora de 12 m/s
+  // -bastante por debajo de los 18 reales- mas margen para las capturas.
+  const deadline = Date.now() + (track.finishX / 12) * 1000 + 30000;
   while (Date.now() < deadline && seen.size < track.features.length) {
     const batch = await recordFrames(page, 700);
     runFrames.push(...batch);

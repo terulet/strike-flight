@@ -1,11 +1,15 @@
 /**
  * CanyonRun.ts
  *
- * VERTICAL SLICE: un tramo corto y repetible, con tres obstaculos y nada mas.
+ * VERTICAL SLICE: una vuelta de ~57 s partida en dos mitades.
  *
- * El mandato congela whoops, rockgarden, ghost, delta avanzado y sectores
- * hasta que la sensacion basica de conducir este aprobada, y pide un tramo de
- * 30-45 s con un ritmo concreto. Este es ese tramo:
+ * Empezo siendo un tramo de 30-45 s con tres obstaculos, que era lo que pedia
+ * el mandato mientras se aprobaba la sensacion de conducir. Aprobada esa, la
+ * vuelta se alargo a peticion hasta los 1.026 m, y los 230 m nuevos son
+ * OBSTACULOS, no recta: la regla al ampliar fue que ningun metro anadido
+ * pudiera cruzarse sin hacer nada.
+ *
+ * La primera mitad ensena a conducir:
  *
  *   1. SALIDA        recta para acelerar de 0 a tope y notar la traccion.
  *   2. COMPRESION    una vaguada suave que hunde la suspension antes de nada.
@@ -23,23 +27,36 @@
  *                    salida que la absorbe si se llega alineado. Exigente pero
  *                    aprendible: el mismo sitio se pasa mejor cada vez.
  *
+ *   8. RITMO         tres ondas grandes y un doble. El unico tramo con dos
+ *                    lecturas validas: rodarlas o saltarlas de dos en dos. Va
+ *                    aqui porque es donde mas velocidad se lleva, y una
+ *                    seccion de ritmo sin velocidad es solo terreno feo.
+ *
  * Las cotas estan elegidas para que el tabletop se pase con gas mantenido y el
  * step-up pida un poco mas: es la curva de aprendizaje del tramo.
  *
- * A partir de ahi empieza el ESPECTACULO. Los siete tramos de arriba ensenan a
- * conducir; estos cuatro son la recompensa por haberlo aprendido, y suben la
+ * A partir de ahi empieza el ESPECTACULO. Los ocho tramos de arriba ensenan a
+ * conducir; estos seis son la recompensa por haberlo aprendido, y suben la
  * apuesta uno detras de otro:
  *
- *   8. TECHNICAL   dos peraltes seguidos. Es el "aviso": la moto rebota, la
+ *   9. TECHNICAL   dos peraltes seguidos. Es el "aviso": la moto rebota, la
  *                  suspension trabaja y hay que recolocarse rapido.
- *   9. UPHILL      pad de velocidad y kicker. El pad regala FLOW y el kicker
+ *  10. STEP_DOWN   plataforma corta desde la que se salta hacia ABAJO. Es el
+ *                  reverso del step-up: alli castiga quedarse corto, aqui
+ *                  pasarse.
+ *  11. UPHILL      pad de velocidad y kicker. El pad regala FLOW y el kicker
  *                  manda arriba: primer salto de los grandes.
- *  10. RISK_LINE   la eleccion. Hay una linea segura que aterriza dentro del
+ *  12. RISK_LINE   la eleccion. Hay una linea segura que aterriza dentro del
  *                  valle a los 24 m, y una linea de riesgo que lo salta entero.
  *                  Pasarse de largo premia; quedarse corto cuesta caro.
- *  11. MEGA_JUMP   el salto imposible. Rampa larga sobre un canon de 26 m con
+ *  13. WASHBOARD   chapa de lavar y pedregal a toda velocidad. El unico tramo
+ *                  que no se pasa saltando sino conduciendo, y el respiro en
+ *                  el que se decide si guardarse el turbo para el mega salto.
+ *  14. MEGA_JUMP   el salto imposible. Rampa larga sobre un canon de 26 m con
  *                  un aro de FLOW en mitad del aire. Se cruza a mas de 80 km/h,
  *                  con la camara abierta y a camara lenta.
+ *  15. LAST_TABLE  una mesa antes de meta, para no terminar rodando en recta
+ *                  cuatro segundos justo despues del salto grande.
  *
  * Las piezas de riesgo/recompensa NO se colocan a mano: `GameplayZones` las
  * deriva de estas mismas etiquetas de sector, asi que la pieza que se ve y la
@@ -53,9 +70,10 @@ import { Terrain } from '../physics/Terrain';
 import { TrackBuilder, SectorLabel } from './TrackBuilder';
 
 /**
- * Piezas de terreno del corte vertical. `whoops` y `rockgarden` siguen
- * declaradas porque el codigo de render y los tests las conocen, pero la pista
- * no las coloca: estan congeladas hasta que se apruebe la conduccion.
+ * Piezas de terreno del corte vertical. Las cinco se colocan: `whoops` y
+ * `rockgarden` estuvieron congeladas mientras se aprobaba la conduccion
+ * basica y ahora aparecen tres y dos veces respectivamente, en el tramo de
+ * recuperacion, en la seccion de ritmo y en la chapa de lavar.
  */
 export type TerrainFeatureKind = 'tabletop' | 'stepup' | 'dropoff' | 'whoops' | 'rockgarden';
 
@@ -139,11 +157,42 @@ export function buildCanyonRun(): TrackDefinition {
   terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
   builder.flat(12);
 
+  // 8. RITMO — la seccion de ritmo, que es lo que le faltaba a la vuelta.
+  //
+  //    Tres ondas grandes seguidas de un doble pequeno. Las ondas admiten dos
+  //    lecturas -rodarlas pegado al suelo o saltarlas de dos en dos- y esa es
+  //    justo la gracia: no hay una linea correcta, hay una linea rapida que
+  //    hay que encontrar. El doble de detras cobra por haber salido bien de
+  //    las ondas, porque se cruza entero solo si se llega lanzado.
+  //
+  //    Va aqui y no antes porque es el punto de la vuelta donde mas velocidad
+  //    se lleva (se viene del descenso), y una seccion de ritmo sin velocidad
+  //    es solo terreno feo.
+  builder.mark('RHYTHM').flat(8);
+  featureStart = builder.cursorX;
+  builder.waves(3, 1.1, 14);
+  terrainFeatures.push({ kind: 'whoops', startX: featureStart, endX: builder.cursorX });
+  builder.flat(10);
+  featureStart = builder.cursorX;
+  builder.rampUp(7, 1.9).gapValley(9, 2.2).slope(8, -1.9);
+  terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
+  builder.flat(12);
+
   // ---------------------------------------------------------------- ESPECTACULO
 
   // 8. TECHNICAL — dos peraltes. El primero, centrado a 2 m de la etiqueta,
   //    es el que GameplayZones convierte en bump_gate.
-  builder.mark('TECHNICAL').bankedBump(4, 0.5).flat(3).bankedBump(5, 0.42).flat(18);
+  builder.mark('TECHNICAL').bankedBump(4, 0.5).flat(3).bankedBump(5, 0.42).flat(14);
+
+  // 10. STEP_DOWN — se sube a una plataforma y se salta DESDE ella hacia
+  //     abajo. Es el reverso del step-up del tramo de aprendizaje: alli el
+  //     salto castiga quedarse corto, aqui castiga pasarse, porque el borde
+  //     manda arriba y el suelo se aparta. Corto y sin hueco a proposito: es
+  //     un enlace entre los peraltes y el primer salto grande, no otro salto
+  //     grande.
+  featureStart = builder.cursorX;
+  builder.mark('STEP_DOWN').rampUp(9, 2.6).flat(9).slope(7, -3.2).flat(15);
+  terrainFeatures.push({ kind: 'dropoff', startX: featureStart, endX: builder.cursorX });
 
   // 9. UPHILL — pad de velocidad a los 2 m y kicker a los 10, que son
   //    exactamente los offsets que GameplayZones espera.
@@ -159,6 +208,28 @@ export function buildCanyonRun(): TrackDefinition {
   // 10. RISK_LINE_JUMP — las dos lineas. La segura toca tierra a los 24 m
   //     (6 + 13 + 5); pasar de ahi es haber saltado el hueco entero.
   builder.mark('RISK_LINE_JUMP').rampUp(6, 2.6).gapValley(13, 4).flat(5).flat(8);
+
+  // 12. WASHBOARD — chapa de lavar y pedregal, a toda velocidad.
+  //
+  //     Es el unico tramo de la vuelta que no se pasa saltando sino
+  //     conduciendo: las ondas son cortas y bajas, asi que a 19 m/s la moto
+  //     las toca todas y la suspension trabaja sin parar. Sirve para dos
+  //     cosas: da un respiro entre la linea de riesgo y el mega salto -que es
+  //     el sitio donde el jugador tiene que decidir si se guarda el turbo- y
+  //     deja claro que la moto tiene muelles justo antes del salto en el que
+  //     mas van a importar.
+  //
+  //     Va ANTES de la bajada de impulso, no despues: la bajada existe para
+  //     que la moto llegue lanzada al kicker del mega salto, y meterle
+  //     obstaculos por medio seria deshacer lo que hace.
+  featureStart = builder.cursorX;
+  builder.waves(7, 0.55, 7.5);
+  terrainFeatures.push({ kind: 'whoops', startX: featureStart, endX: builder.cursorX });
+  builder.flat(10);
+  featureStart = builder.cursorX;
+  builder.rockGarden(14, [0.42, 0.6, 0.34, 0.55]);
+  terrainFeatures.push({ kind: 'rockgarden', startX: featureStart, endX: builder.cursorX });
+  builder.flat(10);
 
   // Bajada de impulso hacia el mega salto. NO lleva etiqueta propia a
   // proposito: tiene que quedar ANTES de MEGA_JUMP para que la rampa siga
@@ -213,8 +284,18 @@ export function buildCanyonRun(): TrackDefinition {
   //     rodable.
   builder.mark('MEGA_JUMP').rampUp(11, 5.5).gapValley(26, 6).landingSlope(30, 12).flat(26);
 
+  // 14. LAST_TABLE — una mesa pequena antes de meta. La recta de llegada era
+  //     de 72 m seguidos: despues del salto mas grande de la vuelta, terminar
+  //     rodando en linea recta durante cuatro segundos apaga el tramo justo
+  //     cuando deberia estar celebrandose. La mesa se pasa sin frenar y da un
+  //     ultimo eslabon de cadena para cruzar la meta con el multiplicador
+  //     vivo.
+  featureStart = builder.cursorX;
+  builder.tabletop(9, 2.2, 6, 9);
+  terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
+
   // META.
-  builder.mark('FINISH').flat(46);
+  builder.mark('FINISH').flat(40);
 
   const { points, labels, endX } = builder.build();
   const terrain = new Terrain(points);

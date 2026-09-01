@@ -261,7 +261,7 @@ describe('el corte vertical sigue siendo jugable de punta a punta', () => {
     for (const kind of ['tabletop', 'stepup', 'dropoff']) expect(seen.has(kind)).toBe(true);
   });
 
-  it('el tramo dura entre 30 y 45 segundos a fondo, que es el objetivo del corte', () => {
+  it('el tramo dura entre 50 y 70 segundos a fondo', () => {
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     race.begin();
@@ -282,8 +282,14 @@ describe('el corte vertical sigue siendo jugable de punta a punta', () => {
     }
 
     expect(race.state).toBe('FINISHED');
-    // A fondo y sin fallos: el suelo del rango. Un jugador real ira mas lento.
-    expect(race.raceTime).toBeGreaterThan(28);
-    expect(race.raceTime).toBeLessThan(46);
+    // El objetivo original del corte vertical eran 30-45 s y la vuelta se
+    // quedaba en 42. Se alargo a peticion, y no con recta: los 230 m nuevos
+    // son cuatro tramos de obstaculos (ritmo, step-down, chapa de lavar con
+    // pedregal, y la mesa de llegada), asi que lo que crece es el contenido y
+    // no el tiempo muerto. A fondo y sin fallos salen 57 s; el rango deja
+    // margen a los dos lados para que un retoque de una pieza no rompa la
+    // prueba, pero no tanto como para que quepa media vuelta de relleno.
+    expect(race.raceTime).toBeGreaterThan(50);
+    expect(race.raceTime).toBeLessThan(70);
   });
 });

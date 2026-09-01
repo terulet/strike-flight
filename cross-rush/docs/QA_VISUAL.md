@@ -227,13 +227,54 @@ exactamente para lo que existe una rampa de aterrizaje en una pista de verdad.
 En llano la normal es vertical y el numero vuelve a ser |vy|, asi que nada de
 lo que ya funcionaba cambia.
 
-### Seis obstaculos, no tres
+### Doce obstaculos, no tres
 
 La vuelta tenia rectas muertas largas: 92 m de llano absoluto en la salida y
-136 m de recuperacion con tres ondulaciones bajas. Ahi entran ahora los
+136 m de recuperacion con tres ondulaciones bajas. Ahi entraron primero los
 **whoops** y el **pedregal**, que estuvieron congelados mientras se aprobaba
 la conduccion basica, mas una mesa pequena antes del tramo de espectaculo y un
-peralte en la recolocacion. Seis piezas en total, y la vuelta sigue en 42 s.
+peralte en la recolocacion. Seis piezas, y la vuelta seguia en 42 s.
+
+Despues se alargo a peticion hasta 1.026 m y 57 s. La regla al ampliar fue que
+ningun metro anadido pudiera cruzarse sin hacer nada, asi que los 230 m nuevos
+son cuatro tramos de obstaculos y ni uno de recta:
+
+- **RITMO**, tras el aterrizaje del descenso: tres ondas grandes y un doble.
+  Es el unico tramo de la vuelta con dos lecturas validas -rodarlas o
+  saltarlas de dos en dos-, y va justo ahi porque es donde mas velocidad se
+  lleva. Una seccion de ritmo sin velocidad es solo terreno feo.
+- **STEP_DOWN**, entre los peraltes y el uphill: una plataforma corta desde la
+  que se salta hacia abajo. Es el reverso del step-up del tramo de
+  aprendizaje: alli castiga quedarse corto, aqui pasarse.
+- **WASHBOARD**, detras de la linea de riesgo: chapa de lavar y pedregal a
+  toda velocidad. El unico tramo que no se pasa saltando sino conduciendo, y
+  el respiro en el que se decide si guardarse el turbo para el mega salto. Va
+  ANTES de la bajada de impulso y no despues, porque esa bajada existe para
+  que la moto llegue lanzada al kicker.
+- **LAST_TABLE**, antes de meta: la recta de llegada eran 72 m seguidos.
+  Terminar rodando en linea recta cuatro segundos justo despues del salto mas
+  grande apaga la vuelta cuando deberia estar celebrandose.
+
+Los tramos nuevos no tocan ni una medida de UPHILL, RISK_LINE_JUMP o
+MEGA_JUMP: `GameplayZones` deriva pad, hueco y aro de esas etiquetas con
+desplazamientos locales, asi que se puede meter terreno ENTRE sectores sin
+mover una sola de las piezas de riesgo/recompensa. Los tests de espectaculo
+-mega salto cruzado, mortal completable, aro en trayectoria- pasan sin tocar
+un numero.
+
+Los cuatro tramos nuevos en `docs/qa/secuencia/vuelta-tramos-nuevos.jpg`.
+
+Medido a fondo sobre la vuelta larga: 57,4 s, meta alcanzada sin choques, 25
+vuelos y velocidad minima de 10,8 m/s -o sea que la chapa de lavar frena pero
+no mata el ritmo-. El mega salto sigue dando 38 m y 1,85 s de aire gastando el
+turbo, que es mas que antes: la ampliacion no le ha quitado carrerilla.
+
+Un detalle del arnes que casi se cuela: el barrido de piezas de terreno de
+`tools/visual-qa.mjs` tenia un plazo fijo de 45 s. Daba de sobra con una
+vuelta de 42, y al pasar a 57 se quedaba sin tiempo y habria acusado al juego
+de no colocar piezas que si estaban. Ahora el plazo se calcula de la longitud
+de la pista a una media conservadora de 12 m/s, asi que no puede volver a
+desfasarse al cambiar el trazado.
 
 Entre los whoops y el pedregal hay llano a proposito, y hay un test que lo
 vigila: encadenar dos secciones tecnicas sin respiro no ensena nada, solo

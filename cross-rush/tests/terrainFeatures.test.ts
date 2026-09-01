@@ -15,17 +15,30 @@ function sampleExtents(feature: TerrainFeature): { minY: number; maxY: number } 
 }
 
 describe('Corte vertical: aprendizaje y espectaculo', () => {
-  it('coloca los seis obstaculos en orden y sin solaparse', () => {
+  it('coloca los doce obstaculos en orden y sin solaparse', () => {
     const track = buildCanyonRun();
     // whoops y rockgarden estuvieron CONGELADOS mientras se aprobaba la
     // conduccion basica. Ya no: entran en la recta de recuperacion, que era el
     // hueco muerto mas largo de la vuelta.
+    //
+    // Los seis ultimos son la ampliacion de la vuelta: la seccion de RITMO
+    // (ondas + doble) despues del aterrizaje, el STEP_DOWN entre los peraltes
+    // y el uphill, la chapa de lavar con pedregal detras de la linea de
+    // riesgo, y la mesa de llegada. La lista va literal a proposito: es el
+    // orden en el que se recorren, y si alguien mueve un tramo de sitio la
+    // prueba lo dice en vez de dejarlo pasar.
     expect(track.terrainFeatures.map((feature) => feature.kind)).toEqual([
       'tabletop',
       'whoops',
       'rockgarden',
       'stepup',
       'dropoff',
+      'tabletop',
+      'whoops',
+      'tabletop',
+      'dropoff',
+      'whoops',
+      'rockgarden',
       'tabletop',
     ]);
     for (let i = 0; i < track.terrainFeatures.length; i++) {
@@ -37,6 +50,7 @@ describe('Corte vertical: aprendizaje y espectaculo', () => {
 
   it('entre whoops y pedregal hay llano para respirar', () => {
     const track = buildCanyonRun();
+    // Los del tramo de aprendizaje: los primeros de cada clase.
     const whoops = track.terrainFeatures.find((feature) => feature.kind === 'whoops')!;
     const rocks = track.terrainFeatures.find((feature) => feature.kind === 'rockgarden')!;
     // Encadenar dos secciones tecnicas sin respiro no ensena nada: solo
