@@ -991,9 +991,10 @@ export class Renderer {
     // Cada pieza va con CONTORNO. El mono del piloto y el carenado de la moto
     // salen del mismo arte -mismo estampado, mismo dorsal-, asi que
     // superpuestos no habia forma de separarlos: el cuerpo se disolvia en la
-    // moto. El borde oscuro es lo que devuelve la silueta, y ademas el piloto
-    // va un punto mas apagado que los plasticos blancos de la moto, que es
-    // como se ve en una foto de carreras de verdad.
+    // moto. El borde oscuro devuelve la silueta contra el fondo y el mono azul
+    // -recoloreado en el arte, ver assets-src/recolor_rider.py- la separa de la
+    // moto roja; ademas el piloto va un punto mas apagado que los plasticos
+    // blancos de la moto, que es como se ve en una foto de carreras de verdad.
     const baseFilter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : RIDER_TONE;
     for (const piece of riderPieceDraws(geometry)) {
       const filter = [baseFilter, piece.filter ?? ''].filter(Boolean).join(' ');

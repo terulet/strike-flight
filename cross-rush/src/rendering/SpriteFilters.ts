@@ -92,11 +92,15 @@ export interface OutlinedSprite {
  * Hornea un sprite con un CONTORNO oscuro alrededor de su silueta.
  *
  * Existe por un problema concreto del piloto: su mono y el carenado de la
- * moto salen del mismo arte, con el mismo estampado rojo y blanco y hasta con
- * el mismo dorsal. Superpuestos, el ojo no puede separarlos: el pecho se
- * disuelve en la moto y el conjunto se lee como una mancha. Es el motivo por
- * el que en casi cualquier juego 2D los personajes recortados llevan un borde
- * -no es un adorno, es lo que los despega del fondo-.
+ * moto salen del mismo arte, con el mismo estampado y hasta con el mismo
+ * dorsal. Superpuestos, el ojo no puede separarlos: el pecho se disuelve en la
+ * moto y el conjunto se lee como una mancha. Es el motivo por el que en casi
+ * cualquier juego 2D los personajes recortados llevan un borde -no es un
+ * adorno, es lo que los despega del fondo-.
+ *
+ * El contorno separa la figura del FONDO; que el piloto no se confunda con su
+ * propia moto lo arregla el color del mono, que es azul y no rojo (ver
+ * assets-src/recolor_rider.py). Hacen falta las dos cosas.
  *
  * El contorno se consigue con varias sombras arrojadas de desplazamiento cero
  * y radio pequeno: apiladas, rodean la silueta entera por igual. Eso obliga a

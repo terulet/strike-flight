@@ -74,9 +74,10 @@ const FAR_LIMB_FILTER = 'brightness(0.62) saturate(0.85)';
  *
  * El rig ya movia brazos y piernas de forma correcta, pero en pantalla el
  * piloto se leia como una mancha: las siete piezas salen de la misma foto y
- * llevan el mismo estampado rojo y blanco, asi que el brazo no se distinguia
- * del pecho ni la pierna del carenado, y todo el trabajo de la cinematica
- * inversa no se veia.
+ * llevan el mismo estampado, asi que el brazo no se distinguia del pecho, y
+ * todo el trabajo de la cinematica inversa no se veia. (Que la pierna no se
+ * confundiera con el carenado lo arregla ademas el color: el mono es azul y la
+ * moto roja, ver assets-src/recolor_rider.py.)
  *
  * La solucion no es tocar la animacion, es separar las siluetas con luz. El
  * sol viene de arriba a la izquierda (ver TerrainPainter.LIGHT_DIRECTION):

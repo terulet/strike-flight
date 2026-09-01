@@ -241,7 +241,7 @@ produce un choque que el jugador no ve venir.
 
 ### El piloto lleva contorno
 
-El mono del piloto y el carenado de la moto salen del mismo arte: mismo
+El mono del piloto y el carenado de la moto salian del mismo arte: mismo
 estampado rojo y blanco, y hasta el mismo dorsal 07. Superpuestos, el ojo no
 puede separarlos -el pecho se disuelve en la moto y el conjunto se lee como
 una mancha-, y por eso el piloto "se veia raro" aunque el rig y los anclajes
@@ -260,6 +260,33 @@ margen al pivote, o la pieza sale desplazada.
 
 Comparacion en `docs/qa/secuencia/piloto-contorno-antes-despues.png`.
 
+### El mono es azul
+
+El contorno despega la figura del fondo, pero no arregla el problema de
+verdad: piloto y moto seguian siendo del MISMO color. Con dos manchas rojas y
+blancas superpuestas, el contorno solo dice "aqui hay dos cosas"; no dice
+donde acaba una y empieza la otra. En vuelo, que es cuando el jugador mira al
+piloto, el cuerpo seguia leyendose como una parte mas del carenado.
+
+Lo que hacia falta era arte, no codigo: el mono, los guantes, el casco, las
+rodilleras y las botas pasan a AZUL y la moto se queda roja. Se hace con
+`assets-src/recolor_rider.py`, que pasa cada pixel a HSV y mueve el TONO solo
+de los que son rojos de verdad -tono dentro de una banda de 42 grados
+alrededor del rojo y saturacion por encima de 0,22-. Los blancos, los grises y
+los negros tienen saturacion baja y no se tocan, asi que el estampado, el
+dorsal, la visera y las costuras salen intactos: lo unico que cambia es de que
+color es la tela. Entre el 9% y el 33% de los pixeles de cada pieza, segun
+cuanto rojo llevara.
+
+Se aplica a las seis piezas del piloto (`rider_torso`, `rider_arm_upper`,
+`rider_arm_fore`, `rider_thigh`, `rider_shin`, `rider_crash`). La moto NO esta
+en la lista, a proposito: es la que tiene que quedarse roja. El script acepta
+`--hue` y `--dry-run`, asi que el azul es reversible y se puede probar otro
+tono sin volver a tocar el arte a mano.
+
+Comparacion en `docs/qa/secuencia/piloto-mono-azul.jpg` y las cuatro poses de
+juego en `docs/qa/secuencia/piloto-en-juego.jpg`.
+
 ### El piloto va montado, no encima
 
 Dos anclajes estaban mal y se notaba en todas las poses:
@@ -272,7 +299,11 @@ Dos anclajes estaban mal y se notaba en todas las poses:
   moto.
 
 Se ven en `docs/qa/secuencia/piloto-montado.png`, que es el banco de
-ensamblaje (`rig-check.html`) con los marcadores de fisica encima.
+ensamblaje (`rig-check.html`) con los marcadores de fisica encima: nueve poses
+-parada, acelerando, frenando, en vuelo, aterrizando, caballito, impacto,
+caida y giro de rueda- con el circulo del eje, la cruz del punto de contacto,
+la punta de la cadera y la linea del plano de rodadura. Si un sprite no cae
+encima de su marcador, el ensamblaje esta mal.
 
 ### El turbo lo gasta el jugador
 
