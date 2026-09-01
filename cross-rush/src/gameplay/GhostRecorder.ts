@@ -7,7 +7,7 @@
  * pero los datos quedan listos para usarlo.
  */
 
-import { GhostConfig, StorageKeys } from '../config/GameConfig';
+import { DEFAULT_MISSION_ID, GhostConfig, StorageScope, storageKey } from '../config/GameConfig';
 
 export interface GhostFrame {
   t: number;
@@ -88,20 +88,27 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
-export function saveBestGhost(frames: readonly GhostFrame[]): void {
+export function saveBestGhost(
+  frames: readonly GhostFrame[],
+  missionId: string = DEFAULT_MISSION_ID,
+  scope: StorageScope = 'jugador',
+): void {
   const storage = safeLocalStorage();
   if (!storage) return;
   try {
-    storage.setItem(StorageKeys.bestGhost, JSON.stringify(frames));
+    storage.setItem(storageKey('best-ghost', missionId, scope), JSON.stringify(frames));
   } catch {
     // Cuota de almacenamiento excedida u otro fallo no critico: se ignora.
   }
 }
 
-export function loadBestGhost(): GhostFrame[] | null {
+export function loadBestGhost(
+  missionId: string = DEFAULT_MISSION_ID,
+  scope: StorageScope = 'jugador',
+): GhostFrame[] | null {
   const storage = safeLocalStorage();
   if (!storage) return null;
-  const raw = storage.getItem(StorageKeys.bestGhost);
+  const raw = storage.getItem(storageKey('best-ghost', missionId, scope));
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as GhostFrame[];

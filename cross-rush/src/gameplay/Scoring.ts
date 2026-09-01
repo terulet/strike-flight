@@ -5,7 +5,7 @@
  * mejor tiempo en localStorage.
  */
 
-import { StorageKeys } from '../config/GameConfig';
+import { DEFAULT_MISSION_ID, StorageScope, storageKey } from '../config/GameConfig';
 import { LandingQuality, TrickResult } from './types';
 
 export function formatTime(seconds: number): string {
@@ -70,19 +70,24 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
-export function loadBestTime(): number | null {
+export function loadBestTime(missionId: string = DEFAULT_MISSION_ID, scope: StorageScope = 'jugador'): number | null {
   const storage = safeLocalStorage();
   if (!storage) return null;
-  const raw = storage.getItem(StorageKeys.bestTime);
+  const raw = storage.getItem(storageKey('best-time', missionId, scope));
   if (raw === null) return null;
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;
 }
 
 /** Devuelve true si el nuevo tiempo mejora (y por tanto persiste) el record. */
-export function saveBestTimeIfBetter(candidateSeconds: number, currentBest: number | null): boolean {
+export function saveBestTimeIfBetter(
+  candidateSeconds: number,
+  currentBest: number | null,
+  missionId: string = DEFAULT_MISSION_ID,
+  scope: StorageScope = 'jugador',
+): boolean {
   if (currentBest !== null && candidateSeconds >= currentBest) return false;
   const storage = safeLocalStorage();
-  if (storage) storage.setItem(StorageKeys.bestTime, String(candidateSeconds));
+  if (storage) storage.setItem(storageKey('best-time', missionId, scope), String(candidateSeconds));
   return true;
 }

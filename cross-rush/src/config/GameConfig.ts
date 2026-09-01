@@ -432,6 +432,24 @@ export const CrashConfig = {
    */
   riderDetachDelay: 0.25,
   /**
+   * Segundos sin avanzar, con la moto apoyada y a gas, antes de dar la vuelta
+   * por perdida.
+   *
+   * Existe porque el banco de dificultad encontro un bloqueo: cayendo dentro
+   * del valle de la linea de riesgo a poca velocidad, la moto no tiene con que
+   * remontar la pared y se queda ahi. No choca -no hay impacto, ni angulo malo,
+   * ni trompo- asi que el juego no la declara caida, pero tampoco avanza: la
+   * carrera se queda colgada. Medido: 180 segundos en el metro 739 de 1032,
+   * con el jugador pulsando el gas todo el rato.
+   *
+   * Un atasco tiene que terminar la vuelta igual que un choque, porque para el
+   * jugador es lo mismo -no puede seguir- y ademas asi puede reiniciar en vez
+   * de mirar una pantalla que no cambia.
+   */
+  stuckSeconds: 3.5,
+  /** Metros de avance por debajo de los cuales se considera que no se avanza. */
+  stuckProgressMeters: 1.2,
+  /**
    * Margen (m) por debajo del cual las puntas del chasis (ver ChassisGeometry)
    * se consideran clavadas en el terreno. Cero = tocar es chocar.
    *
@@ -781,10 +799,35 @@ export const InputActionKeys = {
   boost: ['Space'],
 } as const;
 
-export const StorageKeys = {
-  bestTime: 'cross-rush:best-time',
-  bestGhost: 'cross-rush:best-ghost',
-} as const;
+/**
+ * Claves de almacenamiento, separadas POR MISION y POR ORIGEN.
+ *
+ * Antes eran dos constantes globales: `cross-rush:best-time` y
+ * `cross-rush:best-ghost`. Eso tenia dos problemas que hoy no se ven porque
+ * solo hay una mision y nadie corre el juego automatizado en el mismo
+ * navegador, pero que se verian el primer dia que ocurra cualquiera de las dos
+ * cosas:
+ *
+ *  - Dos misiones distintas compartirian record y fantasma, asi que el
+ *    fantasma de una se dibujaria en la otra y el delta compararia tiempos de
+ *    trazados diferentes.
+ *  - Una pasada automatica de QA machacaria el record del jugador. El fantasma
+ *    del jugador tiene que ser SUYO; que un bot lo sobrescriba convierte su
+ *    marca en la de un programa.
+ *
+ * `scope` distingue el origen: 'jugador' para las partidas de verdad y 'qa'
+ * para las automaticas. El banco de dificultad no usa ninguno de los dos: no
+ * persiste nada en absoluto, que es la unica garantia solida.
+ */
+export type StorageScope = 'jugador' | 'qa';
+
+export function storageKey(kind: 'best-time' | 'best-ghost', missionId: string, scope: StorageScope): string {
+  const prefix = scope === 'qa' ? 'cross-rush:qa' : 'cross-rush';
+  return `${prefix}:${missionId}:${kind}`;
+}
+
+/** Mision por defecto mientras solo haya una. */
+export const DEFAULT_MISSION_ID = 'M01';
 
 export const GhostConfig = {
   /** Cada cuantos segundos se muestrea la posicion para el fantasma. */

@@ -101,6 +101,17 @@ import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
  *    pista futura los necesita, estan en el historial.
  */
 function loadImage(src: string): HTMLImageElement {
+  // Fuera del navegador no hay `Image`, y este modulo se carga en cuanto
+  // alguien importa la calibracion de sprites -que es un dato puro-. Sin este
+  // guard, cualquier prueba que quisiera medir geometria tenia que instalar a
+  // mano un doble de `Image` como global antes de importar nada, y esa clase
+  // de ceremonia acaba copiada en cada fichero hasta que uno se la olvida.
+  //
+  // El sustituto no dibuja: solo existe para que el modulo se pueda cargar. En
+  // el navegador esta rama no se ejecuta nunca.
+  if (typeof Image === 'undefined') {
+    return { src, naturalWidth: 0, naturalHeight: 0, complete: false } as unknown as HTMLImageElement;
+  }
   const img = new Image();
   img.src = src;
   return img;

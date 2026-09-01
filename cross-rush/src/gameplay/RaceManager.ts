@@ -18,7 +18,7 @@ import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector'
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
 import { GhostRecorder, saveBestGhost, loadBestGhost, sampleGhostAtTime, ghostTimeAtX, GhostFrame } from './GhostRecorder';
 import { GameState, TrickResult } from './types';
-import { CrashConfig, EngineConfig, FlowConfig, GameplayZoneConfig, LandingConfig, RaceStartConfig } from '../config/GameConfig';
+import { CrashConfig, DEFAULT_MISSION_ID, EngineConfig, FlowConfig, GameplayZoneConfig, LandingConfig, RaceStartConfig, StorageScope } from '../config/GameConfig';
 import { computeGameplayZones, GameplayZones } from './GameplayZones';
 
 const COUNTDOWN_SECONDS = 3;
@@ -69,6 +69,20 @@ export interface SectorSplit {
   deltaSeconds: number | null;
 }
 
+/**
+ * De donde salen y a donde van el record y el fantasma de esta carrera.
+ *
+ * `store: false` deja la carrera SIN persistencia de ningun tipo: ni lee ni
+ * escribe. Es lo que usa el banco de dificultad, porque la unica forma solida
+ * de garantizar que un bot no toca la marca del jugador es que no tenga por
+ * donde tocarla.
+ */
+export interface RacePersistence {
+  missionId?: string;
+  scope?: StorageScope;
+  store?: boolean;
+}
+
 export class RaceManager {
   state: GameState = 'READY';
   bike: BikeState;
@@ -100,6 +114,10 @@ export class RaceManager {
   private previousBestBeforeRun: number | null = null;
   /** Si la vuelta que acaba de terminar batio el record. */
   private lastRunWasBest = false;
+  /** Segundos acumulados sin avanzar con la moto apoyada. */
+  private stuckElapsed = 0;
+  /** x desde la que se mide ese avance. */
+  private stuckAnchorX = 0;
   private bestGhost: GhostFrame[] | null;
   private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false };
   private readonly inputSmoother = new InputSmoother();
@@ -115,9 +133,13 @@ export class RaceManager {
   private flowRingArmed = true;
   private riskGapAwarded = false;
 
-  constructor(private readonly track: TrackDefinition, private readonly sink: RaceEventSink = {}) {
-    this.bestTime = loadBestTime();
-    this.bestGhost = loadBestGhost();
+  constructor(
+    private readonly track: TrackDefinition,
+    private readonly sink: RaceEventSink = {},
+    private readonly persistence: RacePersistence = {},
+  ) {
+    this.bestTime = this.persistenceEnabled ? loadBestTime(this.missionId, this.scope) : null;
+    this.bestGhost = this.persistenceEnabled ? loadBestGhost(this.missionId, this.scope) : null;
     this.bike = createInitialBikeState(track.startX, track.startY);
     this.previousBike = cloneBikeState(this.bike);
     this.zones = computeGameplayZones(track);
@@ -190,6 +212,8 @@ export class RaceManager {
     // contra el que se compara al terminar.
     this.previousBestBeforeRun = this.bestTime;
     this.lastRunWasBest = false;
+    this.stuckElapsed = 0;
+    this.stuckAnchorX = this.track.startX;
   }
 
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
@@ -252,6 +276,7 @@ export class RaceManager {
     this.checkGameplayZones(prevX);
 
     this.ghost.record(this.raceTime, this.bike.x, this.bike.y, this.bike.angle, dt);
+    this.updateStuck(dt);
 
     const landingEvent = this.flightTracker.update(this.bike, this.track.terrain, input.lean, dt);
 
@@ -433,6 +458,30 @@ export class RaceManager {
     return this.sectorSplits[this.sectorSplits.length - 1] ?? null;
   }
 
+  /**
+   * Detecta que la moto ya no puede seguir aunque no se haya caido.
+   *
+   * El caso real: se cae dentro de un hueco a poca velocidad, la pared es mas
+   * empinada de lo que la traccion puede remontar, y la moto se queda ahi
+   * abajo indefinidamente. No hay choque que declarar, asi que sin esto la
+   * carrera se cuelga (medido: 180 s parada en el metro 739).
+   */
+  private updateStuck(dt: number): void {
+    const grounded = this.bike.front.inContact || this.bike.rear.inContact;
+    if (!grounded) {
+      this.stuckElapsed = 0;
+      this.stuckAnchorX = this.bike.x;
+      return;
+    }
+    if (this.bike.x - this.stuckAnchorX >= CrashConfig.stuckProgressMeters) {
+      this.stuckElapsed = 0;
+      this.stuckAnchorX = this.bike.x;
+      return;
+    }
+    this.stuckElapsed += dt;
+    if (this.stuckElapsed >= CrashConfig.stuckSeconds) this.crash();
+  }
+
   private crash(): void {
     const lostLinks = this.combo.links;
     this.combo.break();
@@ -460,12 +509,30 @@ export class RaceManager {
   /** Guarda tiempo y fantasma si esta vuelta ha sido la mejor. Idempotente. */
   private commitRecordIfBest(): boolean {
     const previousBest = this.bestTime;
-    if (!saveBestTimeIfBetter(this.raceTime, previousBest)) return false;
+    if (previousBest !== null && this.raceTime >= previousBest) return false;
+    // Un piloto automatico NUNCA escribe. La marca y el fantasma son del
+    // jugador; que un programa los sobrescriba convierte su record en el de
+    // otro. El banco de dificultad corre con persistence.store en false.
+    if (this.persistenceEnabled) {
+      if (!saveBestTimeIfBetter(this.raceTime, previousBest, this.missionId, this.scope)) return false;
+      saveBestGhost([...this.ghost.recordedFrames], this.missionId, this.scope);
+    }
     this.bestTime = this.raceTime;
     this.bestGhost = [...this.ghost.recordedFrames];
-    saveBestGhost(this.bestGhost);
     this.lastRunWasBest = true;
     return true;
+  }
+
+  private get missionId(): string {
+    return this.persistence.missionId ?? DEFAULT_MISSION_ID;
+  }
+
+  private get scope(): StorageScope {
+    return this.persistence.scope ?? 'jugador';
+  }
+
+  private get persistenceEnabled(): boolean {
+    return this.persistence.store !== false;
   }
 
   /**

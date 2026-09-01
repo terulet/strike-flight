@@ -20,17 +20,8 @@ import { InputSmoother } from '../src/input/InputSmoothing';
 import { buildCanyonRun } from '../src/tracks/CanyonRun';
 import { RiderConfig, SIM_DT } from '../src/config/GameConfig';
 
-// SpriteAssets construye HTMLImageElement al cargarse, que en node no existe.
-// El rig no los usa para resolver la postura -solo para dibujarla-, asi que un
-// doble minimo basta para poder importar el modulo y medir la geometria.
-(globalThis as unknown as { Image: unknown }).Image = class {
-  src = '';
-  naturalWidth = 1;
-  naturalHeight = 1;
-};
-
-const { solveRiderRig, HANDLEBAR_GRIP_LOCAL, FOOTPEG_LOCAL } = await import('../src/rendering/RiderRig');
-const { SpriteCalibration } = await import('../src/rendering/SpriteAssets');
+import { solveRiderRig, HANDLEBAR_GRIP_LOCAL, FOOTPEG_LOCAL } from '../src/rendering/RiderRig';
+import { SpriteCalibration } from '../src/rendering/SpriteAssets';
 
 const rig = SpriteCalibration.riderRig;
 const legReach = (rig.thigh.lengthPx + rig.shin.lengthPx) / rig.pxPerMeter;

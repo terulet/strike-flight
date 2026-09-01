@@ -14,7 +14,7 @@ import { RaceManager } from '../src/gameplay/RaceManager';
 import { buildCanyonRun } from '../src/tracks/CanyonRun';
 import { SIM_DT } from '../src/config/GameConfig';
 import { isAirborne } from '../src/physics/Bike';
-import { StorageKeys } from '../src/config/GameConfig';
+import { storageKey } from '../src/config/GameConfig';
 
 /** localStorage minimo: en node no existe y el juego lo consulta de verdad. */
 function installStorage(): Map<string, string> {
@@ -61,8 +61,8 @@ describe('record de vuelta', () => {
     expect(race.state).toBe('FINISHED');
 
     // Nadie ha llamado a getResultsSummary(), y aun asi hay record.
-    expect(data.has(StorageKeys.bestTime)).toBe(true);
-    expect(data.has(StorageKeys.bestGhost)).toBe(true);
+    expect(data.has(storageKey('best-time', 'M01', 'jugador'))).toBe(true);
+    expect(data.has(storageKey('best-ghost', 'M01', 'jugador'))).toBe(true);
     // Y el HUD, que lee esto en cuanto cambia el estado, ya ve el numero.
     expect(race.getBestTimeSeconds()).toBeCloseTo(race.raceTime, 5);
   });
