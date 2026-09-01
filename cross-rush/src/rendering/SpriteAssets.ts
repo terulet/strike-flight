@@ -29,7 +29,6 @@
 import bikeBodyUrl from '../sprites/bike_body.webp';
 import wheelFrontUrl from '../sprites/wheel_front.webp';
 import wheelRearUrl from '../sprites/wheel_rear.webp';
-import riderUrl from '../sprites/rider.webp';
 import riderTorsoUrl from '../sprites/rider_torso.webp';
 import riderArmUpperUrl from '../sprites/rider_arm_upper.webp';
 import riderArmForeUrl from '../sprites/rider_arm_fore.webp';
@@ -53,12 +52,9 @@ import redlineFxUrl from '../sprites/redline_fx.webp';
 import dangerFlagsUrl from '../sprites/danger_flags.webp';
 import ropeBarrierUrl from '../sprites/rope_barrier.webp';
 import tireSkidUrl from '../sprites/tire_skid.webp';
-import brokenBarrierUrl from '../sprites/broken_barrier.webp';
-import logObstacleUrl from '../sprites/log_obstacle.webp';
 import tireStackUrl from '../sprites/tire_stack.webp';
 import boulderUrl from '../sprites/boulder.webp';
 import tireMoundUrl from '../sprites/tire_mound.webp';
-import ropeTireBarrierUrl from '../sprites/rope_tire_barrier.webp';
 import foregroundAUrl from '../sprites/foreground_a.webp';
 import foregroundBUrl from '../sprites/foreground_b.webp';
 import speedDebrisUrl from '../sprites/speed_debris.webp';
@@ -84,14 +80,22 @@ import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
  *    coincidia -y no podia coincidir- con la curva contra la que se choca. El
  *    relieve lo dibuja ahora TerrainPainter derivandolo de la propia curva de
  *    colision, de modo que no hay version de estos PNG que sirva.
+ *  - `broken_barrier`, `log_obstacle`, `rope_tire_barrier`: BORRADOS. La
+ *    pista solo coloca once piezas de decoracion y la lista tenia catorce
+ *    modelos, asi que tres no se veian nunca. Se fueron estos tres por ser
+ *    los mas redundantes con los que quedan.
+ *  - `rider`: BORRADO. Era el piloto de cuerpo entero, sustituido hace tiempo
+ *    por las piezas articuladas del rig. Solo quedaba dibujandose en el
+ *    fantasma, que ahora usa el torso del propio rig.
  *  - `speed_streak`: BORRADO. Era una nube de polvo clavada al chasis que
  *    giraba con el y salia a cualquier velocidad, tambien volando. El polvo
  *    de verdad son particulas (ParticleSystem), no un sprite pegado encima.
  *  - `checkpoint_gate`, `photographer`, `marshal_flag`, `pickup_truck`,
- *    `ramp_deco`, `ramp_small`: siguen en `src/sprites/` pero SIN importar.
- *    El arco tapaba la moto entera con el encuadre cerrado, y el resto es
- *    ambientacion atada a sectores que el corte vertical no tiene; una pista
- *    futura con mas sectores puede volver a engancharlos.
+ *    `ramp_deco`, `ramp_small`: BORRADOS. El arco tapaba la moto entera con
+ *    el encuadre cerrado, y el resto era ambientacion atada a sectores que la
+ *    pista no tiene. Se quedaron un tiempo en `src/sprites/` sin importar
+ *    "por si acaso", que en la practica es un cajon de arte fantasma: si una
+ *    pista futura los necesita, estan en el historial.
  */
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
@@ -103,7 +107,6 @@ export const SpriteImages = {
   bikeBody: loadImage(bikeBodyUrl),
   wheelFront: loadImage(wheelFrontUrl),
   wheelRear: loadImage(wheelRearUrl),
-  rider: loadImage(riderUrl),
   riderTorso: loadImage(riderTorsoUrl),
   riderArmUpper: loadImage(riderArmUpperUrl),
   riderArmFore: loadImage(riderArmForeUrl),
@@ -127,12 +130,9 @@ export const SpriteImages = {
   dangerFlags: loadImage(dangerFlagsUrl),
   ropeBarrier: loadImage(ropeBarrierUrl),
   tireSkid: loadImage(tireSkidUrl),
-  brokenBarrier: loadImage(brokenBarrierUrl),
-  logObstacle: loadImage(logObstacleUrl),
   tireStack: loadImage(tireStackUrl),
   boulder: loadImage(boulderUrl),
   tireMound: loadImage(tireMoundUrl),
-  ropeTireBarrier: loadImage(ropeTireBarrierUrl),
   foregroundA: loadImage(foregroundAUrl),
   foregroundB: loadImage(foregroundBUrl),
   speedDebris: loadImage(speedDebrisUrl),

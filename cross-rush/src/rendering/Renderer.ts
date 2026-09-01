@@ -65,6 +65,8 @@ const PALETTE = {
 
 /** Lavado y oscurecido del mobiliario de pista, horneado una sola vez por sprite. */
 const PROP_FILTER = 'saturate(0.82) brightness(0.92)';
+/** Paso del reparto de decoracion. Tiene que ser coprimo con el numero de modelos. */
+const PROP_STRIDE = 5;
 /** Tinte azulado del fantasma, horneado igual que el resto. */
 const GHOST_FILTER = 'grayscale(1) sepia(1) saturate(7) hue-rotate(135deg) brightness(1.35)';
 const ghostTint = (image: HTMLImageElement): Sprite => filteredSprite(image, GHOST_FILTER);
@@ -368,14 +370,20 @@ export class Renderer {
     const { terrain } = track;
     const ppm = camera.pixelsPerMeter;
     const halfWidthMeters = this.canvas.width / 2 / ppm;
-    const startX = Math.max(terrain.startX, camera.x - halfWidthMeters - 6);
-    const endX = Math.min(terrain.endX, camera.x + halfWidthMeters + 6);
+    const visibleStartX = Math.max(terrain.startX, camera.x - halfWidthMeters - 6);
+    const visibleEndX = Math.min(terrain.endX, camera.x + halfWidthMeters + 6);
     const spacing = 32;
-    const firstSlot = Math.floor(startX / spacing) * spacing;
     // Anchos a escala del encuadre CERRADO: con 12,5 m de vista, una pieza de
     // 4,5 m ocupaba mas de un tercio de la pantalla y competia con la moto.
     // Ahora ninguna pasa de 2,6 m, que es el doble de la moto y se lee como
     // lo que es: mobiliario de pista al borde del trazado.
+    //
+    // Son ONCE modelos porque once es lo que cabe: contando huecos y las
+    // zonas de obstaculo, donde no se pone decoracion, la pista coloca once
+    // piezas. Los tres que sobraban -barrera rota, tronco y barrera de
+    // cuerda con neumaticos- eran ademas los mas redundantes con los que ya
+    // estaban, y se han borrado en vez de dejarlos viajando en la build para
+    // no verse nunca.
     const props: Array<{ image: HTMLImageElement; widthMeters: number }> = [
       { image: SpriteImages.barrier, widthMeters: 2.4 },
       { image: SpriteImages.rockClusterA, widthMeters: 2.2 },
@@ -385,23 +393,33 @@ export class Renderer {
       { image: SpriteImages.fenceBanner, widthMeters: 2.6 },
       { image: SpriteImages.dangerFlags, widthMeters: 1.4 },
       { image: SpriteImages.ropeBarrier, widthMeters: 2.5 },
-      { image: SpriteImages.brokenBarrier, widthMeters: 2.5 },
-      { image: SpriteImages.logObstacle, widthMeters: 2.0 },
       { image: SpriteImages.tireStack, widthMeters: 1.7 },
       { image: SpriteImages.boulder, widthMeters: 1.8 },
       { image: SpriteImages.tireMound, widthMeters: 2.0 },
-      { image: SpriteImages.ropeTireBarrier, widthMeters: 2.3 },
     ];
     // Ligeramente lavados y oscurecidos: quedan por detras del plano de la
     // moto sin necesidad de otra capa de parallax. El filtro va horneado en
     // el sprite (ver SpriteFilters.ts), no aplicado en cada dibujo.
-    for (let slot = firstSlot; slot <= endX; slot += spacing) {
-      const r = hash(slot * 0.091);
-      if (r < 0.42) continue; // hueco: la mayoria de los tramos van limpios
-      const prop = props[Math.floor(hash(slot * 0.133) * props.length) % props.length];
+    // El recorrido empieza SIEMPRE al principio de la pista, no en el borde
+    // izquierdo de la pantalla, y solo se dibuja lo que cae dentro de la
+    // vista. Cuesta unas treinta vueltas de bucle por fotograma y a cambio el
+    // indice de modelo depende de la PISTA y no de donde este la camara.
+    //
+    // El modelo se elige por paso coprimo sobre las piezas realmente
+    // colocadas. Con el hash de antes, medido sobre una vuelta entera, seis
+    // de los catorce modelos no salian NUNCA: 389 KB de arte que se
+    // descargaba para no verse jamas. Un paso coprimo con el numero de
+    // modelos recorre la lista entera antes de repetir.
+    const firstSlot = Math.floor(terrain.startX / spacing) * spacing;
+    let placedIndex = 0;
+    for (let slot = firstSlot; slot <= terrain.endX; slot += spacing) {
+      if (hash(slot * 0.091) < 0.42) continue; // hueco: la mayoria de los tramos van limpios
       const x = slot + (hash(slot * 0.211) - 0.5) * spacing * 0.4;
       if (x < terrain.startX + 6 || x > terrain.endX - 6) continue;
       if (track.terrainFeatures.some((feature) => x > feature.startX - 2 && x < feature.endX + 2)) continue;
+      const prop = props[(placedIndex * PROP_STRIDE) % props.length];
+      placedIndex += 1;
+      if (x < visibleStartX || x > visibleEndX) continue;
       this.drawGroundSprite(camera, terrain, shake, x, prop.widthMeters, filteredSprite(prop.image, PROP_FILTER));
     }
   }
@@ -874,11 +892,22 @@ export class Renderer {
     this.drawRigidSprite(ghostTint(SpriteImages.wheelFront), this.worldToScreen(camera, ghost.x + frontOffset.x, ghost.y + frontOffset.y, shake), ghost.rotation - ghostSpin, SpriteCalibration.wheelFront.pivotPx, scale);
     this.drawRigidSprite(ghostTint(SpriteImages.bikeBody), this.worldToScreen(camera, ghost.x, ghost.y, shake), ghost.rotation, comPixel, scale);
 
+    // El piloto del fantasma es el TORSO del rig, no el sprite de cuerpo
+    // entero. Ese sprite (`rider.webp`) era el ultimo sitio del juego donde
+    // se usaba, y solo aparecia aqui: 44 KB que se descargaban para dibujar
+    // un piloto con otro aspecto que el de la moto real. El fantasma es una
+    // silueta translucida, asi que el torso solo se lee igual de bien.
     const seatOffset = rotateVec(SEAT_LOCAL, ghost.rotation);
-    const riderImg = SpriteImages.rider;
-    const riderPxPerMeter = riderImg.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
-    const riderScale = riderPxPerMeter > 0 ? camera.pixelsPerMeter / riderPxPerMeter : 0;
-    this.drawRigidSprite(riderImg, this.worldToScreen(camera, ghost.x + seatOffset.x, ghost.y + seatOffset.y, shake), ghost.rotation, SpriteCalibration.rider.hipPivotPx, riderScale);
+    const torso = SpriteImages.riderTorso;
+    const torsoPxPerMeter = torso.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
+    const torsoScale = torsoPxPerMeter > 0 ? camera.pixelsPerMeter / torsoPxPerMeter : 0;
+    this.drawRigidSprite(
+      ghostTint(torso),
+      this.worldToScreen(camera, ghost.x + seatOffset.x, ghost.y + seatOffset.y, shake),
+      ghost.rotation,
+      SpriteCalibration.riderRig.torso.pivotPx,
+      torsoScale,
+    );
     this.ctx.restore();
   }
 

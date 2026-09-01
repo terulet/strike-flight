@@ -224,8 +224,25 @@ cubren la pantalla entera y se redibujaban con el filtro en cada fotograma.
 Ahora los filtros y el reescalado van horneados (`src/rendering/SpriteFilters.ts`)
 y el cielo se cachea en un lienzo aparte.
 
+### Arte fantasma
+
+Que un sprite este importado no quiere decir que se vea. Para saberlo hay que
+CONTARLO: se parchea `ctx.drawImage` antes de que cargue el juego y se corre
+una vuelta entera anotando cuantas veces se pinta cada archivo.
+
+La primera medida dio nueve sprites con cero dibujados sobre 48 importados.
+Seis eran modelos de decoracion que la lista ofrecia pero el reparto por hash
+no llegaba a elegir jamas; uno era el piloto de cuerpo entero, que solo
+quedaba en el fantasma; y dos eran condicionales (choque y premio de la linea
+de riesgo) que habia que verificar aparte, no borrar a ciegas.
+
+Hoy quedan 44 sprites y los 44 se pintan: 43 en una vuelta normal y
+`rider_crash` al estrellarse, comprobado forzando un choque. `tests/assets.test.ts`
+cierra ademas las dos puertas que se pueden cerrar de forma estatica: ningun
+archivo huerfano en `src/sprites/`, y nada expuesto en `SpriteImages` sin usar.
+
 ### Peso
 
-La build pasa de **18 MB a 3,5 MB**. Dos causas independientes: 4,4 MB eran
+La build pasa de **18 MB a 3,2 MB**. Dos causas independientes: 4,4 MB eran
 sprites que ya no dibuja nadie y seguian importados, y el resto eran PNG donde
 tocaba WebP (`assets-src/compress_sprites.py`).

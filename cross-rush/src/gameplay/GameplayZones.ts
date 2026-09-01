@@ -56,10 +56,19 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
   const bumpGate = technicalX !== null ? { x: technicalX + 2 } : null;
   const altRamp = uphillX !== null ? { x: uphillX + 10 } : null;
 
-  // La linea segura (rampa 6m + valle 13m + aterrizaje 5m, ver CanyonRun)
-  // toca tierra otra vez a los 24m del borde de salida; saltarla entera
-  // (linea de riesgo) significa aterrizar mas alla de ese punto.
-  const riskGap: RiskGapZone | null = riskLineX !== null ? { startX: riskLineX, endX: riskLineX + 24 } : null;
+  // Saltar el hueco entero significa aterrizar pasado el LABIO LEJANO del
+  // valle, que esta a 19 m del inicio del tramo (rampa de 6 m + valle de 13,
+  // ver CanyonRun). Detras hay 5 m mas de recepcion llana.
+  //
+  // El umbral estaba en 24 m, o sea al final de esa recepcion, y eso hacia el
+  // premio inalcanzable: con la velocidad punta del juego, la moto sale del
+  // labio a 13,7 m/s horizontales y 9,5 verticales, y cayendo los 2,6 m de la
+  // rampa eso da 16,6 m de vuelo. Aterrizaba en el 22,6 y el premio pedia
+  // pasar del 24. Era, como el mortal, contenido que nadie iba a ver.
+  //
+  // Con el labio real como umbral el premio SI depende de como se juegue:
+  // llegar lanzado cruza el hueco, llegar frenado cae dentro.
+  const riskGap: RiskGapZone | null = riskLineX !== null ? { startX: riskLineX, endX: riskLineX + 19 } : null;
 
   const flowRing: FlowRingZone | null =
     megaJumpX !== null

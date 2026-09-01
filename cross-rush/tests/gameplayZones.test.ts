@@ -77,7 +77,9 @@ describe('Piezas de riesgo/recompensa', () => {
     expect(zones.bumpGate?.x).toBe(122);
     expect(zones.speedPad?.x).toBe(362);
     expect(zones.altRamp?.x).toBe(370);
-    expect(zones.riskGap).toEqual({ startX: 240, endX: 264 });
+    // El hueco acaba en el labio lejano del valle (+19), no al final de la
+    // recepcion (+24): con 24 el premio no se podia conseguir ni yendo a tope.
+    expect(zones.riskGap).toEqual({ startX: 240, endX: 259 });
     expect(zones.flowRing?.x).toBe(500);
     expect(zones.flowRing?.radius).toBeGreaterThan(0);
     // El aro va por encima del terreno, no enterrado en el.

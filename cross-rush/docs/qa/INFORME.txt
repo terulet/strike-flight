@@ -1,60 +1,60 @@
 INFO  [escritorio-1366x768] pista cargada — tabletop 134-170, stepup 306-365, dropoff 365-445
-OK    [escritorio-1366x768] las dos ruedas giran — trasera 93 rad, delantera 65 rad en 99 fotogramas
-OK    [escritorio-1366x768] giran en el sentido del avance — avance 29.9 m
-OK    [escritorio-1366x768] el giro de la delantera corresponde a la distancia (rodadura pura, con la rueda apoyada) — 22.4 m con la rueda en el suelo: giro 60 rad, distancia/radio 62 rad
+OK    [escritorio-1366x768] las dos ruedas giran — trasera 91 rad, delantera 62 rad en 166 fotogramas
+OK    [escritorio-1366x768] giran en el sentido del avance — avance 29.0 m
+OK    [escritorio-1366x768] el giro de la delantera corresponde a la distancia (rodadura pura, con la rueda apoyada) — 21.4 m con la rueda en el suelo: giro 57 rad, distancia/radio 59 rad
 OK    [escritorio-1366x768] la trasera patina al salir de parado — deslizamiento maximo 4.14 m/s
-OK    [escritorio-1366x768] acelerar carga el eje trasero — carga trasera mediana x1.39 del reparto estatico
-OK    [escritorio-1366x768] los fotogramas malos desaparecen al interpolar — percentil 90 del error sobre 120 fotogramas: dibujada 0.0%, sin interpolar 27.5% (peor caso 0% vs 100%)
+OK    [escritorio-1366x768] acelerar carga el eje trasero — carga trasera mediana x1.38 del reparto estatico
+OK    [escritorio-1366x768] los fotogramas malos desaparecen al interpolar — percentil 90 del error sobre 216 fotogramas: dibujada 0.0%, sin interpolar 43.7% (peor caso 0% vs 100%)
 OK    [escritorio-1366x768] el avance dibujado es fiel a la velocidad simulada — error mediano 0.0%
 INFO  [escritorio-1366x768] velocidad media en el tramo medido — 18.8 m/s
-OK    [escritorio-1366x768] el alpha de interpolacion toma valores intermedios de verdad — 110 de 120 fotogramas con alpha intermedio (min 0.00, max 0.99)
-OK    [escritorio-1366x768] se ha podido medir una frenada con las dos ruedas en el suelo — 24 fotogramas apoyados
-OK    [escritorio-1366x768] frenar hunde la horquilla — antes 0.157 m -> frenando 0.252 m
-OK    [escritorio-1366x768] frenar transfiere carga del eje trasero al delantero — carga delantera hasta x2.48, trasera hasta x0.00
+OK    [escritorio-1366x768] el alpha de interpolacion toma valores intermedios de verdad — 197 de 216 fotogramas con alpha intermedio (min 0.00, max 1.00)
+OK    [escritorio-1366x768] se ha podido medir una frenada con las dos ruedas en el suelo — 42 fotogramas apoyados
+OK    [escritorio-1366x768] frenar hunde la horquilla — antes 0.163 m -> frenando 0.252 m
+OK    [escritorio-1366x768] frenar transfiere carga del eje trasero al delantero — carga delantera hasta x2.47, trasera hasta x0.00
 OK    [escritorio-1366x768] el piloto se va sobre el manillar al frenar — dx antes -0.090 m -> frenando 0.102 m
 OK    [escritorio-1366x768] el freno reduce el giro de la rueda sin invertirlo — giro minimo de la trasera -0.00 rad/s
-OK    [escritorio-1366x768] se han podido medir los dos gestos de cuerpo — peso atras 37 fotogramas, peso delante 38
-OK    [escritorio-1366x768] el cuerpo del piloto se desplaza segun el gesto pedido — peso atras dx -0.363 m vs peso delante dx 0.216 m
-OK    [escritorio-1366x768] el torso gira de forma independiente del chasis — recorrido de torso 39.5 grados
-OK    [escritorio-1366x768] mover el cuerpo cambia de verdad la carga del eje correcto — carga delantera media, moto quieta y apoyada: peso atras x0.84, peso delante x1.52
+OK    [escritorio-1366x768] se han podido medir los dos gestos de cuerpo — peso atras 65 fotogramas, peso delante 71
+OK    [escritorio-1366x768] el cuerpo del piloto se desplaza segun el gesto pedido — peso atras dx -0.364 m vs peso delante dx 0.216 m
+OK    [escritorio-1366x768] el torso gira de forma independiente del chasis — recorrido de torso 39.4 grados
+OK    [escritorio-1366x768] mover el cuerpo cambia de verdad la carga del eje correcto — carga delantera media, moto quieta y apoyada: peso atras x0.84, peso delante x1.23
 OK    [escritorio-1366x768] se recorren las 3 piezas de terreno — vistas: stepup, dropoff, tabletop
-OK    [escritorio-1366x768] la moto vuela y aterriza — 267 fotogramas sin contacto de 1225
+OK    [escritorio-1366x768] la moto vuela y aterriza — 488 fotogramas sin contacto de 2288
 OK    [escritorio-1366x768] la suspension trabaja al recibir — compresion trasera maxima 0.400 m
-OK    [escritorio-1366x768] el piloto absorbe y se estira a lo largo del recorrido — recorrido vertical del cuerpo 42.9 cm
-INFO  [escritorio-1366x768] sacudida de camara activa — 22 fotogramas con sacudida
+OK    [escritorio-1366x768] el piloto absorbe y se estira a lo largo del recorrido — recorrido vertical del cuerpo 42.6 cm
+INFO  [escritorio-1366x768] sacudida de camara activa — 40 fotogramas con sacudida
 OK    [escritorio-1366x768] un morro clavado provoca crash — crashes acumulados 1
 OK    [escritorio-1366x768] se sale del estado de choque al reiniciar
 OK    [escritorio-1366x768] reiniciar vuelve limpio a la salida — estado COUNTDOWN, x=6.0 m, t=0.00 s
-INFO  [escritorio-1366x768] HUD en carrera — CROSS RUSH TIEMPO 00:03.300 RECORD--:--.--- -0.498 x1 0 FLOW
+INFO  [escritorio-1366x768] HUD en carrera — CROSS RUSH TIEMPO 00:03.183 RECORD--:--.--- -0.499 x1 0 FLOW
 OK    [escritorio-1366x768] consola sin errores — ninguno
 OK    [escritorio-1366x768] sin peticiones fallidas ni 404 de assets — ninguna
 INFO  [movil-393x852] pista cargada — tabletop 134-170, stepup 306-365, dropoff 365-445
-OK    [movil-393x852] las dos ruedas giran — trasera 93 rad, delantera 65 rad en 86 fotogramas
-OK    [movil-393x852] giran en el sentido del avance — avance 30.0 m
-OK    [movil-393x852] el giro de la delantera corresponde a la distancia (rodadura pura, con la rueda apoyada) — 22.4 m con la rueda en el suelo: giro 60 rad, distancia/radio 62 rad
+OK    [movil-393x852] las dos ruedas giran — trasera 91 rad, delantera 63 rad en 161 fotogramas
+OK    [movil-393x852] giran en el sentido del avance — avance 29.2 m
+OK    [movil-393x852] el giro de la delantera corresponde a la distancia (rodadura pura, con la rueda apoyada) — 21.8 m con la rueda en el suelo: giro 58 rad, distancia/radio 60 rad
 OK    [movil-393x852] la trasera patina al salir de parado — deslizamiento maximo 4.14 m/s
 OK    [movil-393x852] acelerar carga el eje trasero — carga trasera mediana x1.39 del reparto estatico
-OK    [movil-393x852] los fotogramas malos desaparecen al interpolar — percentil 90 del error sobre 110 fotogramas: dibujada 0.0%, sin interpolar 25.6% (peor caso 0% vs 28%)
+OK    [movil-393x852] los fotogramas malos desaparecen al interpolar — percentil 90 del error sobre 189 fotogramas: dibujada 0.0%, sin interpolar 37.8% (peor caso 0% vs 100%)
 OK    [movil-393x852] el avance dibujado es fiel a la velocidad simulada — error mediano 0.0%
-INFO  [movil-393x852] velocidad media en el tramo medido — 18.9 m/s
-OK    [movil-393x852] el alpha de interpolacion toma valores intermedios de verdad — 99 de 110 fotogramas con alpha intermedio (min 0.00, max 0.99)
-OK    [movil-393x852] se ha podido medir una frenada con las dos ruedas en el suelo — 22 fotogramas apoyados
-OK    [movil-393x852] frenar hunde la horquilla — antes 0.156 m -> frenando 0.255 m
-OK    [movil-393x852] frenar transfiere carga del eje trasero al delantero — carga delantera hasta x2.48, trasera hasta x0.00
+INFO  [movil-393x852] velocidad media en el tramo medido — 18.8 m/s
+OK    [movil-393x852] el alpha de interpolacion toma valores intermedios de verdad — 170 de 189 fotogramas con alpha intermedio (min 0.00, max 0.99)
+OK    [movil-393x852] se ha podido medir una frenada con las dos ruedas en el suelo — 38 fotogramas apoyados
+OK    [movil-393x852] frenar hunde la horquilla — antes 0.163 m -> frenando 0.252 m
+OK    [movil-393x852] frenar transfiere carga del eje trasero al delantero — carga delantera hasta x2.47, trasera hasta x0.00
 OK    [movil-393x852] el piloto se va sobre el manillar al frenar — dx antes -0.090 m -> frenando 0.102 m
 OK    [movil-393x852] el freno reduce el giro de la rueda sin invertirlo — giro minimo de la trasera -0.00 rad/s
-OK    [movil-393x852] se han podido medir los dos gestos de cuerpo — peso atras 36 fotogramas, peso delante 33
+OK    [movil-393x852] se han podido medir los dos gestos de cuerpo — peso atras 60 fotogramas, peso delante 63
 OK    [movil-393x852] el cuerpo del piloto se desplaza segun el gesto pedido — peso atras dx -0.363 m vs peso delante dx 0.216 m
 OK    [movil-393x852] el torso gira de forma independiente del chasis — recorrido de torso 39.6 grados
-OK    [movil-393x852] mover el cuerpo cambia de verdad la carga del eje correcto — carga delantera media, moto quieta y apoyada: peso atras x1.11, peso delante x1.70
+OK    [movil-393x852] mover el cuerpo cambia de verdad la carga del eje correcto — carga delantera media, moto quieta y apoyada: peso atras x0.84, peso delante x1.62
 OK    [movil-393x852] se recorren las 3 piezas de terreno — vistas: stepup, dropoff, tabletop
-OK    [movil-393x852] la moto vuela y aterriza — 246 fotogramas sin contacto de 1127
+OK    [movil-393x852] la moto vuela y aterriza — 427 fotogramas sin contacto de 2069
 OK    [movil-393x852] la suspension trabaja al recibir — compresion trasera maxima 0.400 m
-OK    [movil-393x852] el piloto absorbe y se estira a lo largo del recorrido — recorrido vertical del cuerpo 42.8 cm
-INFO  [movil-393x852] sacudida de camara activa — 17 fotogramas con sacudida
+OK    [movil-393x852] el piloto absorbe y se estira a lo largo del recorrido — recorrido vertical del cuerpo 42.7 cm
+INFO  [movil-393x852] sacudida de camara activa — 33 fotogramas con sacudida
 OK    [movil-393x852] un morro clavado provoca crash — crashes acumulados 1
 OK    [movil-393x852] se sale del estado de choque al reiniciar
 OK    [movil-393x852] reiniciar vuelve limpio a la salida — estado COUNTDOWN, x=6.0 m, t=0.00 s
-INFO  [movil-393x852] HUD en carrera — CROSS RUSH TIEMPO 00:03.408 RECORD--:--.--- -0.506 x1 0 FLOW ◀ AIRE ▶ AIRE ⊘ FRENO ▲ GAS
+INFO  [movil-393x852] HUD en carrera — CROSS RUSH TIEMPO 00:03.292 RECORD--:--.--- -0.463 x1 0 FLOW ◀ AIRE ▶ AIRE ⊘ FRENO ▲ GAS
 OK    [movil-393x852] consola sin errores — ninguno
 OK    [movil-393x852] sin peticiones fallidas ni 404 de assets — ninguna
