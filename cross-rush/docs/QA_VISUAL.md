@@ -227,6 +227,32 @@ exactamente para lo que existe una rampa de aterrizaje en una pista de verdad.
 En llano la normal es vertical y el numero vuelve a ser |vy|, asi que nada de
 lo que ya funcionaba cambia.
 
+### Seis obstaculos, no tres
+
+La vuelta tenia rectas muertas largas: 92 m de llano absoluto en la salida y
+136 m de recuperacion con tres ondulaciones bajas. Ahi entran ahora los
+**whoops** y el **pedregal**, que estuvieron congelados mientras se aprobaba
+la conduccion basica, mas una mesa pequena antes del tramo de espectaculo y un
+peralte en la recolocacion. Seis piezas en total, y la vuelta sigue en 42 s.
+
+Entre los whoops y el pedregal hay llano a proposito, y hay un test que lo
+vigila: encadenar dos secciones tecnicas sin respiro no ensena nada, solo
+produce un choque que el jugador no ve venir.
+
+### El piloto va montado, no encima
+
+Dos anclajes estaban mal y se notaba en todas las poses:
+
+- La **estribera** estaba a 0,42 m bajo el centro de masas, o sea a 23 cm del
+  suelo: mas abajo que el motor. La bota, que sobresale por delante del
+  tobillo, colgaba por debajo del carter, flotando fuera de la moto.
+- La **cadera** estaba tan alta que el cuerpo se apoyaba ENCIMA del asiento en
+  vez de meterse en el, y el conjunto se leia como un muneco colocado sobre la
+  moto.
+
+Se ven en `docs/qa/secuencia/piloto-montado.png`, que es el banco de
+ensamblaje (`rig-check.html`) con los marcadores de fisica encima.
+
 ### El turbo lo gasta el jugador
 
 El FLOW ya no dispara el REDLINE al llenarse: queda ARMADO y lo gasta el

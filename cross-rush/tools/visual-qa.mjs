@@ -612,6 +612,10 @@ async function runProfile(browser, profile) {
       : `carga delantera media, moto quieta y apoyada: peso atras x${measured.back.toFixed(2)}, peso delante x${measured.forward.toFixed(2)}`);
 
   // --- 5. LAS PIEZAS DE TERRENO DEL CORTE VERTICAL -------------------------
+  // Se lleva la cuenta por INDICE, no por tipo. La pista tiene dos tabletops
+  // -uno en el tramo de aprendizaje y otro antes del espectaculo-, y con un
+  // Set de tipos el contador se quedaba en cinco de seis para siempre y la
+  // comprobacion no podia pasar nunca.
   const seen = new Set();
   const runFrames = [];
   const deadline = Date.now() + 45000;
@@ -620,9 +624,10 @@ async function runProfile(browser, profile) {
     runFrames.push(...batch);
     for (const frame of batch) {
       if (frame.state !== 'RACING') continue;
-      for (const feature of track.features) {
-        if (frame.x >= feature.startX && frame.x <= feature.endX && !seen.has(feature.kind)) {
-          seen.add(feature.kind);
+      for (let i = 0; i < track.features.length; i++) {
+        const feature = track.features[i];
+        if (frame.x >= feature.startX && frame.x <= feature.endX && !seen.has(i)) {
+          seen.add(i);
           await shot(`08-terreno-${seen.size}-${feature.kind}`);
         }
       }
@@ -630,7 +635,7 @@ async function runProfile(browser, profile) {
   }
   const racedFrames = racing(runFrames);
   check(profile.name, `se recorren las ${track.features.length} piezas de terreno`, seen.size === track.features.length,
-    `vistas: ${[...seen].join(', ') || 'ninguna'}`);
+    `vistas: ${[...seen].map((i) => track.features[i].kind).join(', ') || 'ninguna'}`);
 
   const airFrames = racedFrames.filter(airborne);
   check(profile.name, 'la moto vuela y aterriza', airFrames.length > 10,

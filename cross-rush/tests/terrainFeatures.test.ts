@@ -15,15 +15,35 @@ function sampleExtents(feature: TerrainFeature): { minY: number; maxY: number } 
 }
 
 describe('Corte vertical: aprendizaje y espectaculo', () => {
-  it('el tramo de aprendizaje coloca tabletop, step-up y bajada, en ese orden', () => {
+  it('coloca los seis obstaculos en orden y sin solaparse', () => {
     const track = buildCanyonRun();
-    // whoops y rockgarden estan CONGELADOS hasta aprobar la conduccion: el
-    // tipo sigue existiendo en el codigo, pero la pista no los coloca.
-    expect(track.terrainFeatures.map((feature) => feature.kind)).toEqual(['tabletop', 'stepup', 'dropoff']);
+    // whoops y rockgarden estuvieron CONGELADOS mientras se aprobaba la
+    // conduccion basica. Ya no: entran en la recta de recuperacion, que era el
+    // hueco muerto mas largo de la vuelta.
+    expect(track.terrainFeatures.map((feature) => feature.kind)).toEqual([
+      'tabletop',
+      'whoops',
+      'rockgarden',
+      'stepup',
+      'dropoff',
+      'tabletop',
+    ]);
     for (let i = 0; i < track.terrainFeatures.length; i++) {
       const feature = track.terrainFeatures[i];
       expect(feature.endX).toBeGreaterThan(feature.startX);
       if (i > 0) expect(feature.startX).toBeGreaterThanOrEqual(track.terrainFeatures[i - 1].endX);
+    }
+  });
+
+  it('entre whoops y pedregal hay llano para respirar', () => {
+    const track = buildCanyonRun();
+    const whoops = track.terrainFeatures.find((feature) => feature.kind === 'whoops')!;
+    const rocks = track.terrainFeatures.find((feature) => feature.kind === 'rockgarden')!;
+    // Encadenar dos secciones tecnicas sin respiro no ensena nada: solo
+    // produce un choque que el jugador no ve venir.
+    expect(rocks.startX - whoops.endX).toBeGreaterThan(10);
+    for (let x = whoops.endX; x < rocks.startX; x += 0.5) {
+      expect(Math.abs(track.terrain.surfaceSlope(x))).toBeLessThan(0.1);
     }
   });
 
@@ -39,7 +59,7 @@ describe('Corte vertical: aprendizaje y espectaculo', () => {
 
   it('tabletop tiene meseta y vuelve a su cota de entrada', () => {
     const track = buildCanyonRun();
-    const feature = track.terrainFeatures.find((item) => item.kind === 'tabletop')!;
+    const feature = track.terrainFeatures.find((item) => item.kind === 'tabletop')!; // el primero: el del tramo de aprendizaje
     const startY = track.terrain.surfaceY(feature.startX);
     expect(sampleExtents(feature).maxY).toBeGreaterThan(startY + 2.8);
     // Meseta de verdad: en el punto medio el terreno es plano, asi que

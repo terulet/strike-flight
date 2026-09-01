@@ -87,8 +87,11 @@ export function buildCanyonRun(): TrackDefinition {
   const terrainFeatures: TerrainFeature[] = [];
 
   // 1. SALIDA — recta de aceleracion. Suficiente para llegar arriba de todo
-  //    antes de la primera compresion, no tanto como para aburrir.
-  builder.mark('START').flat(92);
+  //    antes de la primera compresion, no tanto como para aburrir. Las tres
+  //    ondulaciones bajas del medio no son un obstaculo: son para que la
+  //    suspension diga algo en los primeros segundos, que antes eran 92 m de
+  //    llano absoluto.
+  builder.mark('START').flat(42).waves(3, 0.32, 11).flat(20);
 
   // 2. COMPRESION — vaguada suave. Hunde la suspension y la devuelve; es la
   //    primera vez que el jugador ve trabajar los muelles, sin riesgo.
@@ -99,8 +102,21 @@ export function buildCanyonRun(): TrackDefinition {
   builder.mark('TABLETOP').tabletop(11, 3.4, 13, 12);
   terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
 
-  // 4. RECUPERACION — recta con dos ondulaciones largas para recolocarse.
-  builder.mark('RECOVERY').flat(34).waves(3, 0.45, 14).flat(60);
+  // 4. RECUPERACION — ya no es una recta de 136 m con tres ondulaciones. Los
+  //    whoops y el pedregal estaban CONGELADOS mientras se aprobaba la
+  //    conduccion basica; ahora que esta aprobada, entran aqui, que es donde
+  //    habia el hueco mas largo de la vuelta. Van seguidos pero separados por
+  //    llano: los whoops piden ritmo y el pedregal pide linea, y encadenarlos
+  //    sin respirar solo produce un choque que no ensena nada.
+  builder.mark('RECOVERY').flat(24);
+  featureStart = builder.cursorX;
+  builder.waves(6, 0.62, 8.5);
+  terrainFeatures.push({ kind: 'whoops', startX: featureStart, endX: builder.cursorX });
+  builder.flat(14);
+  featureStart = builder.cursorX;
+  builder.rockGarden(17, [0.5, 0.32, 0.62, 0.38, 0.55]);
+  terrainFeatures.push({ kind: 'rockgarden', startX: featureStart, endX: builder.cursorX });
+  builder.flat(16);
 
   // 5. STEP_UP — subida a plataforma. Pide llegar rapido y con el morro arriba.
   featureStart = builder.cursorX;
@@ -114,8 +130,14 @@ export function buildCanyonRun(): TrackDefinition {
   terrainFeatures.push({ kind: 'dropoff', startX: featureStart, endX: builder.cursorX });
 
   // 7. ATERRIZAJE — recepcion con salida en subida suave que absorbe el golpe
-  //    si se llega alineado, y castiga con velocidad si no.
-  builder.mark('LANDING').slope(18, 1.2).flat(30);
+  //    si se llega alineado, y castiga con velocidad si no. Detras, una mesa
+  //    pequena como puente hacia el tramo de espectaculo: se pasa sin pensar
+  //    yendo rapido, y es el aviso de que la segunda mitad va de saltar.
+  builder.mark('LANDING').slope(18, 1.2).flat(10);
+  featureStart = builder.cursorX;
+  builder.tabletop(7, 1.7, 5, 7);
+  terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
+  builder.flat(12);
 
   // ---------------------------------------------------------------- ESPECTACULO
 
@@ -132,7 +154,7 @@ export function buildCanyonRun(): TrackDefinition {
   //    para recolocarse, y la moto llegaba al segundo salto a 8 m/s y de
   //    morro: crash garantizado, y ademas injusto, porque no habia forma de
   //    evitarlo. Entre dos saltos grandes tiene que haber sitio para respirar.
-  builder.mark('UPHILL').flat(10).rampUp(9, 2.2).landingSlope(16, 2.2).flat(34);
+  builder.mark('UPHILL').flat(10).rampUp(9, 2.2).landingSlope(16, 2.2).flat(9).bankedBump(9, 0.75).flat(14);
 
   // 10. RISK_LINE_JUMP — las dos lineas. La segura toca tierra a los 24 m
   //     (6 + 13 + 5); pasar de ahi es haber saltado el hueco entero.
@@ -192,7 +214,7 @@ export function buildCanyonRun(): TrackDefinition {
   builder.mark('MEGA_JUMP').rampUp(11, 5.5).gapValley(26, 6).landingSlope(30, 12).flat(26);
 
   // META.
-  builder.mark('FINISH').flat(58);
+  builder.mark('FINISH').flat(46);
 
   const { points, labels, endX } = builder.build();
   const terrain = new Terrain(points);

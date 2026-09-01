@@ -33,7 +33,16 @@ import { RiderPose } from '../physics/RiderPose';
  */
 export const HANDLEBAR_GRIP_LOCAL: Vec2 = { x: 0.19, y: 0.40 };
 /** Estribera, en el mismo espacio. Pixel (370, 330) de la foto del chasis. */
-export const FOOTPEG_LOCAL: Vec2 = { x: 0.0, y: -0.42 };
+/**
+ * Estribera en espacio local del chasis.
+ *
+ * Estaba a 0,42 m por debajo del centro de masas, que sobre este arte deja el
+ * apoyo a 23 cm del suelo: mas abajo que el motor. La bota del piloto, que
+ * sobresale por delante del tobillo, acababa colgando por debajo del carter,
+ * flotando fuera de la moto. En una moto de verdad la estribera esta a la
+ * altura del bajo del motor, no debajo.
+ */
+export const FOOTPEG_LOCAL: Vec2 = { x: 0.02, y: -0.27 };
 /**
  * Cadera del piloto en reposo, en espacio local del chasis. Es el punto sobre
  * el que actua la pose (desplazamiento y agachado); las extremidades salen de
@@ -43,7 +52,14 @@ export const FOOTPEG_LOCAL: Vec2 = { x: 0.0, y: -0.42 };
  * piloto es una pose de ataque, de pie sobre las estriberas: en esa postura
  * las caderas van flotando sobre el asiento, no apoyadas en el.
  */
-export const RIDER_HIP_LOCAL: Vec2 = { x: -0.06, y: -0.09 };
+/**
+ * Cadera del piloto en espacio local del chasis.
+ *
+ * Bajada de -0,09 a -0,17: con la anterior el cuerpo quedaba apoyado ENCIMA
+ * del asiento en vez de metido en el, y el conjunto se leia como un muneco
+ * colocado sobre la moto y no como alguien montado.
+ */
+export const RIDER_HIP_LOCAL: Vec2 = { x: -0.06, y: -0.17 };
 
 /**
  * Desplazamiento de la pierna del lado LEJANO respecto a la cercana. La misma
