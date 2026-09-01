@@ -32,34 +32,51 @@ import { RiderPose } from '../physics/RiderPose';
  * centro de masas en (341.7, 176.3), con la foto a 347 px/m.
  */
 export const HANDLEBAR_GRIP_LOCAL: Vec2 = { x: 0.19, y: 0.40 };
-/** Estribera, en el mismo espacio. Pixel (370, 330) de la foto del chasis. */
 /**
  * Estribera en espacio local del chasis.
  *
- * Estaba a 0,42 m por debajo del centro de masas, que sobre este arte deja el
- * apoyo a 23 cm del suelo: mas abajo que el motor. La bota del piloto, que
- * sobresale por delante del tobillo, acababa colgando por debajo del carter,
- * flotando fuera de la moto. En una moto de verdad la estribera esta a la
- * altura del bajo del motor, no debajo.
+ * Sale del arte, no de una estimacion: en `bike_body.png` la estribera cae en
+ * el pixel (370, 330), y con el centro de masas en (341.7, 176.3) y la foto a
+ * 347 px/m eso son (+0.08, -0.44) m. Queda a la altura del bajo del motor,
+ * que es donde esta en una moto de verdad.
+ *
+ * Estuvo subida a -0,27 para arreglar una bota que colgaba por debajo del
+ * carter, y fue un error de diagnostico: la bota colgaba porque la CADERA
+ * estaba demasiado baja y la pierna salia doblada del todo, no porque la
+ * estribera estuviera mal. Subirla ademas dejaba el apoyo dentro del motor,
+ * a 10 cm de la cadera, y remataba de plegar la pierna.
  */
-export const FOOTPEG_LOCAL: Vec2 = { x: 0.02, y: -0.27 };
+export const FOOTPEG_LOCAL: Vec2 = { x: 0.08, y: -0.44 };
 /**
  * Cadera del piloto en reposo, en espacio local del chasis. Es el punto sobre
  * el que actua la pose (desplazamiento y agachado); las extremidades salen de
  * ahi y se resuelven contra los agarres.
  *
- * Queda por encima del asiento (que esta a y = -0.18) porque el arte del
- * piloto es una pose de ataque, de pie sobre las estriberas: en esa postura
- * las caderas van flotando sobre el asiento, no apoyadas en el.
- */
-/**
- * Cadera del piloto en espacio local del chasis.
+ * Es el numero que hacia que el piloto se viera "pegado" a la moto. Estuvo en
+ * -0,17, o sea 20 cm por debajo del asiento: la cadera caia DENTRO del motor,
+ * a 6 cm del tobillo, y con 52 cm de pierna disponible la cinematica inversa
+ * no tenia mas remedio que plegarla entera. La rodilla salia a 7 grados -una
+ * navaja cerrada- y el muslo, la espinilla y la bota se amontonaban en una
+ * mancha sobre el carenado. No habia postura, habia bulto.
  *
- * Bajada de -0,09 a -0,17: con la anterior el cuerpo quedaba apoyado ENCIMA
- * del asiento en vez de metido en el, y el conjunto se leia como un muneco
- * colocado sobre la moto y no como alguien montado.
+ * Ahora sale de una medida, no de una estimacion: se graban las 3.167 poses
+ * de una vuelta completa (desplazamiento del cuerpo y giro de torso reales) y
+ * se busca el par cadera/escala que sobre ESAS poses deja la rodilla cerca de
+ * los 90 grados en reposo y mantiene pegados el pie a la estribera y las manos
+ * al manillar el mayor numero de fotogramas.
+ *
+ * Sobre la misma vuelta, antes y despues:
+ *
+ *   antes    rodilla 0-70 grados (mediana 37), manos FUERA del manillar en el
+ *            65% de los fotogramas, hasta 19 cm
+ *   ahora    rodilla 76-180 (mediana 97), manos fuera en el 2,4% (peor 5 cm) y
+ *            pie fuera de la estribera en el 3,1% (peor 10 cm), y solo en el
+ *            pico de extension de un salto grande
+ *
+ * O sea que el problema no era solo que la pierna se viera plegada: durante
+ * dos tercios de la vuelta el piloto ni siquiera se agarraba al manillar.
  */
-export const RIDER_HIP_LOCAL: Vec2 = { x: -0.06, y: -0.17 };
+export const RIDER_HIP_LOCAL: Vec2 = { x: -0.22, y: -0.03 };
 
 /**
  * Desplazamiento de la pierna del lado LEJANO respecto a la cercana. La misma

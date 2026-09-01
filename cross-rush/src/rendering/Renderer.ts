@@ -940,9 +940,12 @@ export class Renderer {
     // un piloto con otro aspecto que el de la moto real. El fantasma es una
     // silueta translucida, asi que el torso solo se lee igual de bien.
     const seatOffset = rotateVec(SEAT_LOCAL, ghost.rotation);
+    // La escala sale del rig, no de una altura asumida aparte: es el MISMO
+    // sprite que dibuja el piloto vivo, asi que si las dos escalas se
+    // declaran por separado acaban separandose. Paso: al recalibrar el rig a
+    // 270 px/m el fantasma se quedo un 11% mas pequeno que el piloto real.
     const torso = SpriteImages.riderTorso;
-    const torsoPxPerMeter = torso.naturalHeight / SpriteCalibration.rider.assumedHeightMeters;
-    const torsoScale = torsoPxPerMeter > 0 ? camera.pixelsPerMeter / torsoPxPerMeter : 0;
+    const torsoScale = camera.pixelsPerMeter / SpriteCalibration.riderRig.pxPerMeter;
     this.drawRigidSprite(
       ghostTint(torso),
       this.worldToScreen(camera, ghost.x + seatOffset.x, ghost.y + seatOffset.y, shake),

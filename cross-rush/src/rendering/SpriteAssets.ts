@@ -181,12 +181,6 @@ export const SpriteCalibration = {
    */
   wheelRear: { pivotPx: { x: 134.0, y: 134.0 } as PixelPoint, tyreRadiusPx: 131.3 },
   wheelFront: { pivotPx: { x: 123.0, y: 123.0 } as PixelPoint, tyreRadiusPx: 120.8 },
-  rider: {
-    /** Punto de cadera/asiento dentro de rider.png, para anclarlo al asiento de la moto. */
-    hipPivotPx: { x: 105.0, y: 226.0 } as PixelPoint,
-    /** Altura efectiva asumida de la postura agachada, en metros (calibra la escala del piloto). */
-    assumedHeightMeters: 1.4,
-  },
 
   /**
    * Piloto articulado. Las cinco piezas las produce
@@ -194,15 +188,23 @@ export const SpriteCalibration = {
    * -tamano y pivote de cada una, longitudes de hueso- queda volcada en
    * `assets-src/rider_rig.json`. Aqui se copia lo que necesita el render.
    *
-   * `pxPerMeter` es la escala del piloto: 300 px por metro. No es arbitraria,
-   * sale de que con ella el alcance de la pierna (156.7 px = 0.52 m) cubre
-   * holgadamente la distancia de la cadera a la estribera (0.40 m) con la
-   * rodilla doblada, y el del brazo (98 px = 0.33 m) cubre la del hombro al
-   * manillar (0.25 m) con el codo doblado. Es decir: el piloto llega a los dos
-   * agarres sin estirarse del todo, que es como se conduce.
+   * `pxPerMeter` es la escala del piloto: 270 px por metro.
+   *
+   * Estuvo en 300 y era demasiado pequeno. Con esa escala el piloto media
+   * 1,28 m agachado -un nino-, pero lo que de verdad importaba es que su
+   * pierna entera alcanzaba 0,52 m y su brazo 0,33 m, mientras que la pose le
+   * pide a la cadera un recorrido de 0,48 m en vertical y 0,35 m en
+   * horizontal. No cabia, y las extremidades se quedaban cortas la mayor
+   * parte de la vuelta.
+   *
+   * A 270 px/m el alcance sube a 0,58 m de pierna y 0,36 m de brazo. Medido
+   * sobre las poses reales de una vuelta, ese margen baja los fotogramas con
+   * la mano despegada del manillar del 65% al 2,4%. De paso el piloto pasa a
+   * medir 1,42 m agachado, que es lo que mide un adulto en esa postura sobre
+   * una moto cuyo asiento queda a 1,06 m del suelo.
    */
   riderRig: {
-    pxPerMeter: 300,
+    pxPerMeter: 270,
     /** Angulo del hueso en la foto, en convenio de mundo (Y arriba). */
     torso: { pivotPx: { x: 105.0, y: 226.0 } as PixelPoint, shoulderPx: { x: 158.0, y: 122.0 } as PixelPoint },
     armUpper: { pivotPx: { x: 38.0, y: 34.0 } as PixelPoint, lengthPx: 58.3, restAngle: -0.5404 },

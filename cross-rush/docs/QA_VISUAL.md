@@ -289,14 +289,56 @@ juego en `docs/qa/secuencia/piloto-en-juego.jpg`.
 
 ### El piloto va montado, no encima
 
-Dos anclajes estaban mal y se notaba en todas las poses:
+Este fue el fallo que mas tardo en salir, porque no rompia nada: ni un tipo,
+ni un test, ni el QA visual. Solo se veia. El piloto parecia "pegado" a la
+moto, una mancha azul sobre el carenado en vez de alguien conduciendo.
 
-- La **estribera** estaba a 0,42 m bajo el centro de masas, o sea a 23 cm del
-  suelo: mas abajo que el motor. La bota, que sobresale por delante del
-  tobillo, colgaba por debajo del carter, flotando fuera de la moto.
-- La **cadera** estaba tan alta que el cuerpo se apoyaba ENCIMA del asiento en
-  vez de meterse en el, y el conjunto se leia como un muneco colocado sobre la
-  moto.
+La causa eran los dos anclajes del rig, y los dos estaban dentro del motor:
+
+- La **cadera** estaba a -0,17 m, o sea 20 cm por DEBAJO del asiento. El
+  cuerpo no se apoyaba en la moto: se hundia en ella.
+- La **estribera** estaba a -0,27 m. El arte de la moto la pone en el pixel
+  (370, 330), que con el centro de masas en (341.7, 176.3) y la foto a 347
+  px/m son (+0,08, -0,44): estaba 17 cm mas arriba de donde el propio dibujo
+  dice que esta.
+
+Entre las dos, la cadera quedaba a 6 cm del tobillo con 52 cm de pierna que
+colocar. La cinematica inversa no tenia otra salida que plegarla del todo:
+
+| | antes | ahora |
+| --- | --- | --- |
+| angulo de rodilla (vuelta entera) | 0-70 grados, mediana 37 | 76-180, mediana 97 |
+| fotogramas con la mano fuera del manillar | **65,4%**, hasta 19 cm | 2,4%, peor 5 cm |
+| fotogramas con el pie fuera de la estribera | 0% (la pierna sobraba) | 3,1%, peor 10 cm |
+| altura del piloto agachado | 1,28 m | 1,42 m |
+
+La linea que mas explica lo que se veia es la segunda: durante dos tercios de
+la vuelta el piloto ni siquiera se estaba agarrando al manillar.
+
+Los anclajes nuevos no se eligen a ojo. Se graban las 3.167 poses de una
+vuelta completa -desplazamiento del cuerpo y giro de torso reales- y se busca
+el par cadera/escala que sobre ESAS poses deja la rodilla cerca de los 90
+grados en reposo y mantiene pegados el pie y las manos el mayor numero de
+fotogramas. La escala del piloto sube de 300 a 270 px/m, porque con 300 su
+pierna alcanzaba 0,52 m y su brazo 0,33 m mientras la pose le pide a la cadera
+un recorrido de 0,48 m: no cabia.
+
+Un primer intento de prueba barria el rectangulo completo de topes
+(maxShiftX x maxShiftY x maxTorsoAngle) y suspendia con cualquier anclaje: sus
+esquinas -cuerpo del todo atras Y del todo agachado Y con el torso girado al
+maximo- no ocurren nunca, porque las tres cosas las produce la misma fisica y
+van acopladas. `tests/riderRig.test.ts` conduce en su lugar: rueda la moto a
+gas por la pista de verdad y mide el rig sobre la pose que sale de cada tick.
+Con los anclajes viejos falla 5 de sus 6 comprobaciones.
+
+Comparacion en `docs/qa/secuencia/piloto-postura-antes-despues.jpg`, y el
+banco de ensamblaje entero -nueve poses- en `piloto-montado.png`.
+
+De paso salio otra inconsistencia de la misma familia: el piloto del FANTASMA
+dibujaba el mismo sprite de torso con una escala declarada por separado
+(`rider.assumedHeightMeters`), asi que al recalibrar el rig se quedo un 11%
+mas pequeno que el piloto real. Ahora las dos salen de
+`riderRig.pxPerMeter` y no pueden separarse.
 
 Se ven en `docs/qa/secuencia/piloto-montado.png`, que es el banco de
 ensamblaje (`rig-check.html`) con los marcadores de fisica encima: nueve poses
