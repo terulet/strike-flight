@@ -166,34 +166,50 @@ export class Renderer {
     // acaba de dar la rueda, no un adorno flotando delante.
     shockwaves.draw(ctx, camera, (x, y) => this.worldToScreen(camera, x, y, shake));
     this.drawBike(camera, bike, isRedline, crashed, shake, crashElapsed);
-    this.drawSpeedTrail(camera, bike, shake);
+    this.drawSpeedTrail(camera, bike, isRedline, shake);
     this.drawForeground(camera, shake);
 
     ctx.restore();
   }
 
-  private drawSpeedTrail(camera: CameraPose, bike: BikeState, shake: Vec2): void {
+  /**
+   * Tierra levantada por el TURBO.
+   *
+   * Antes esto era otra cosa y estaba mal de tres maneras. Se dibujaba una
+   * nube de polvo (`speed_streak`) clavada al chasis en un punto local fijo,
+   * con lo que: (1) no se despegaba nunca de la moto -era una mancha pintada
+   * encima, no polvo-; (2) giraba con el chasis, asi que en un mortal daba la
+   * vuelta con la moto; y (3) salia con solo pasar del 60% de la velocidad
+   * punta, o sea casi siempre, tambien EN EL AIRE, donde no hay nada que
+   * levantar.
+   *
+   * Ahora sale solo cuando hay algo que celebrar -REDLINE- y solo con la
+   * rueda en el suelo, y va anclada al punto de contacto en coordenadas de
+   * MUNDO y sin girar: es material salido de debajo del neumatico, no una
+   * calcomania. El polvo continuo de rodadura sigue donde tiene que estar,
+   * en el sistema de particulas (ver ParticleSystem.spawnRollingDust), que
+   * son particulas de verdad y se quedan atras.
+   */
+  private drawSpeedTrail(camera: CameraPose, bike: BikeState, isRedline: boolean, shake: Vec2): void {
+    if (!isRedline) return;
+    if (!bike.rear.inContact) return;
     const speed = Math.abs(bike.vx);
     const threshold = EngineConfig.topSpeed * 0.6;
     if (speed < threshold) return;
     const t = Math.min(1, (speed - threshold) / (EngineConfig.topSpeed - threshold));
 
-    const trailLocal: Vec2 = { x: -0.5, y: -0.22 };
-    const trailScreen = this.localToScreen(camera, bike, shake, trailLocal);
-    const facing = bike.vx >= 0 ? 1 : -1;
-
-    for (const [img, widthMeters, alphaScale] of [
-      [SpriteImages.speedStreak, 2.6, 0.7] as const,
-      [SpriteImages.speedDebris, 2.2, 0.5] as const,
-    ]) {
-      if (!img.complete || img.naturalWidth === 0) continue;
-      const pxPerMeter = img.naturalWidth / widthMeters;
-      const scale = camera.pixelsPerMeter / pxPerMeter;
-      this.ctx.save();
-      this.ctx.globalAlpha = t * alphaScale;
-      this.drawRigidSprite(img, trailScreen, facing > 0 ? 0 : Math.PI, { x: 0, y: img.naturalHeight / 2 }, scale, true);
-      this.ctx.restore();
-    }
+    const img = SpriteImages.speedDebris;
+    if (!img.complete || img.naturalWidth === 0) return;
+    const widthMeters = 2.2;
+    const pxPerMeter = img.naturalWidth / widthMeters;
+    const scale = camera.pixelsPerMeter / pxPerMeter;
+    // Punto de contacto de la trasera, no un punto del chasis: sale del suelo.
+    const contact = this.worldToScreen(camera, bike.rear.contactX, bike.rear.groundY + 0.18, shake);
+    this.ctx.save();
+    this.ctx.globalAlpha = t * 0.5;
+    // Angulo 0: no acompana al cabeceo de la moto.
+    this.drawRigidSprite(img, contact, 0, { x: 0, y: img.naturalHeight / 2 }, scale, true);
+    this.ctx.restore();
   }
 
   /**

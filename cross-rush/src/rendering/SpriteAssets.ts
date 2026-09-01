@@ -61,7 +61,6 @@ import tireMoundUrl from '../sprites/tire_mound.webp';
 import ropeTireBarrierUrl from '../sprites/rope_tire_barrier.webp';
 import foregroundAUrl from '../sprites/foreground_a.webp';
 import foregroundBUrl from '../sprites/foreground_b.webp';
-import speedStreakUrl from '../sprites/speed_streak.webp';
 import speedDebrisUrl from '../sprites/speed_debris.webp';
 import crowdUrl from '../sprites/crowd.webp';
 import paddockTentUrl from '../sprites/paddock_tent.webp';
@@ -85,6 +84,9 @@ import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
  *    coincidia -y no podia coincidir- con la curva contra la que se choca. El
  *    relieve lo dibuja ahora TerrainPainter derivandolo de la propia curva de
  *    colision, de modo que no hay version de estos PNG que sirva.
+ *  - `speed_streak`: BORRADO. Era una nube de polvo clavada al chasis que
+ *    giraba con el y salia a cualquier velocidad, tambien volando. El polvo
+ *    de verdad son particulas (ParticleSystem), no un sprite pegado encima.
  *  - `checkpoint_gate`, `photographer`, `marshal_flag`, `pickup_truck`,
  *    `ramp_deco`, `ramp_small`: siguen en `src/sprites/` pero SIN importar.
  *    El arco tapaba la moto entera con el encuadre cerrado, y el resto es
@@ -133,7 +135,6 @@ export const SpriteImages = {
   ropeTireBarrier: loadImage(ropeTireBarrierUrl),
   foregroundA: loadImage(foregroundAUrl),
   foregroundB: loadImage(foregroundBUrl),
-  speedStreak: loadImage(speedStreakUrl),
   speedDebris: loadImage(speedDebrisUrl),
   crowd: loadImage(crowdUrl),
   paddockTent: loadImage(paddockTentUrl),
