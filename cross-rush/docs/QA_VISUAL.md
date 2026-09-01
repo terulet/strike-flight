@@ -227,6 +227,19 @@ exactamente para lo que existe una rampa de aterrizaje en una pista de verdad.
 En llano la normal es vertical y el numero vuelve a ser |vy|, asi que nada de
 lo que ya funcionaba cambia.
 
+### El turbo lo gasta el jugador
+
+El FLOW ya no dispara el REDLINE al llenarse: queda ARMADO y lo gasta el
+jugador con Espacio (o el boton TURBO en movil). Antes se disparaba solo, y
+eso lo convertia en algo que te pasa en vez de algo que haces: saltaba en
+mitad de una recta cualquiera y se apagaba antes del salto grande. Gastandolo
+a mano la pregunta pasa a ser "¿me lo guardo para el mega salto?", que es una
+decision de verdad.
+
+Consecuencia para el QA: los pilotos automaticos tienen que pulsarlo. Si no,
+el REDLINE no ocurre nunca en las pasadas y la llamarada del escape y las
+lineas de velocidad se quedarian sin cubrir.
+
 ### Cadena y multiplicadores
 
 Cada acrobacia -aterrizaje clavado, mortal, aro, hueco superado- suma un
@@ -251,6 +264,24 @@ pasos de `SIM_DT` exactos y solo recibe menos tiempo real por fotograma, asi
 que el crono cuenta segundos simulados y los tiempos siguen siendo
 comparables. La congelacion de imagen de los golpes usa esa misma palanca, de
 modo que no hay dos mecanismos de pausa que puedan desincronizarse.
+
+### Nada de sprites que fingen ser terreno
+
+Se borraron `alt_ramp`, `bump_gate` y `risk_gap`: dibujos que traen su PROPIO
+terreno pintado -roca, tierra, taludes- y se pegaban encima del terreno real.
+La silueta del dibujo no coincide, ni puede coincidir, con la curva contra la
+que se choca, asi que se veia una rampa roja preciosa por la que la moto no
+subia. Es el mismo error que ya se corrigio con los PNG de obstaculo.
+
+El criterio que queda: **si la pieza trae suelo dibujado, no va; si es un
+objeto que se apoya en el suelo, si**. Por eso siguen el pad de turbo (una
+plancha) y el aro (una estructura), y no siguen los tres anteriores.
+
+Por lo mismo se fue `redline_fx`, la llama del escape: un PNG con forma fija
+clavado al tubo, que giraba con el chasis y viajaba con la moto. No parecia
+fuego, parecia una pegatina de fuego. Ahora son particulas que nacen en la
+boca del escape, se quedan atras en el mundo, suben y se apagan, dibujadas
+sumando luz para que el nucleo salga blanco donde se solapan.
 
 ### Arte fantasma
 

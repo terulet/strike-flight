@@ -33,6 +33,7 @@ export class HUD {
   private readonly deltaEl: HTMLElement;
   private readonly flowSegmentEls: HTMLElement[] = [];
   private readonly flowLabelEl: HTMLElement;
+  private readonly flowWrapEl: HTMLElement;
   private readonly splitEl: HTMLElement;
   private readonly centerEl: HTMLElement;
   private readonly centerMessageEl: HTMLElement;
@@ -124,6 +125,7 @@ export class HUD {
     // --------------------------------------------------------------- flow
     const flowWrap = document.createElement('div');
     flowWrap.className = 'cr-flow';
+    this.flowWrapEl = flowWrap;
 
     this.flowLabelEl = document.createElement('div');
     this.flowLabelEl.className = 'cr-flow-label';
@@ -218,7 +220,14 @@ export class HUD {
     window.setTimeout(() => el.remove(), 2500);
   }
 
-  update(raceTime: number, sector: string, flow: number, isRedline: boolean, deltaSeconds: number | null): void {
+  update(
+    raceTime: number,
+    sector: string,
+    flow: number,
+    isRedline: boolean,
+    deltaSeconds: number | null,
+    boostReady = false,
+  ): void {
     this.timeEl.textContent = formatTime(raceTime);
     if (deltaSeconds === null) {
       this.deltaEl.textContent = '--.---';
@@ -237,8 +246,9 @@ export class HUD {
       seg.style.borderColor = on ? activeColor : '';
       seg.style.boxShadow = on && isRedline ? `0 0 8px ${BRAND.red}` : '';
     });
-    this.flowLabelEl.textContent = isRedline ? 'REDLINE' : 'FLOW';
+    this.flowLabelEl.textContent = isRedline ? 'REDLINE' : boostReady ? 'TURBO LISTO' : 'FLOW';
     this.flowLabelEl.style.color = isRedline ? BRAND.red : '';
+    this.flowWrapEl.classList.toggle('ready', boostReady && !isRedline);
     void sector;
   }
 

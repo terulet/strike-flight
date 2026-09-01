@@ -153,6 +153,13 @@ function installPilot() {
         }
       } else {
         setKey('ArrowRight', qa.drive === 'throttle');
+        // Gasta el turbo en cuanto esta listo. Sin esto el REDLINE no ocurre
+        // nunca en las pasadas automaticas, y la llamarada del escape y las
+        // lineas de velocidad se quedarian sin cubrir por el QA.
+        if (window.__crossRushFrame?.boostReady) {
+          keyEvent('keydown', 'Space');
+          keyEvent('keyup', 'Space');
+        }
         setKey('ArrowLeft', qa.drive === 'brake');
 
         let lean = 0;

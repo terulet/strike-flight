@@ -14,13 +14,13 @@ function flatTerrain(): Terrain {
 }
 
 function bools(throttle: boolean, brake: boolean, lean = 0) {
-  return { throttle, brake, lean, restartPressed: false };
+  return { throttle, brake, lean, restartPressed: false, boostPressed: false };
 }
 
 /** Corre la simulacion con la entrada suavizada, igual que hace RaceManager. */
 function drive(
   seconds: number,
-  input: (t: number, state: BikeState) => { throttle: boolean; brake: boolean; lean: number; restartPressed: boolean },
+  input: (t: number, state: BikeState) => { throttle: boolean; brake: boolean; lean: number; restartPressed: boolean; boostPressed: boolean },
   options: { terrain?: Terrain; startY?: number; onTick?: (t: number, next: BikeState, prev: BikeState) => void } = {},
 ): BikeState {
   const terrain = options.terrain ?? flatTerrain();

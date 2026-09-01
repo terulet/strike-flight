@@ -37,13 +37,12 @@ export interface RaceEventSink {
   onComboEnd?: (links: number) => void;
   /** La cadena se rompe por un choque. */
   onComboBreak?: (links: number) => void;
+  /** El jugador ha gastado el turbo. */
+  onBoost?: () => void;
   onSpeedPad?: () => void;
   /** true si se atraveso el aro dentro de la tolerancia, false si se paso de largo sin acertar la trayectoria. */
   onFlowRing?: (hit: boolean) => void;
   onRiskGapCleared?: () => void;
-  /** Puramente visual: bump_gate y alt_ramp ya afectan el juego via terreno real, esto solo dispara su chispazo. */
-  onAltRamp?: () => void;
-  onBumpGate?: () => void;
 }
 
 export interface RaceResultsSummary {
@@ -93,7 +92,7 @@ export class RaceManager {
 
   private bestTime: number | null;
   private bestGhost: GhostFrame[] | null;
-  private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false };
+  private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false };
   private readonly inputSmoother = new InputSmoother();
   private lastSmoothedInput: SmoothedInput = { throttle: 0, brake: 0, lean: 0, throttlePressed: false, brakePressed: false };
 
@@ -106,8 +105,6 @@ export class RaceManager {
   private readonly speedPadsTriggered = new Set<number>();
   private flowRingArmed = true;
   private riskGapAwarded = false;
-  private altRampFxPlayed = false;
-  private bumpGateFxPlayed = false;
 
   constructor(private readonly track: TrackDefinition, private readonly sink: RaceEventSink = {}) {
     this.bestTime = loadBestTime();
@@ -180,8 +177,6 @@ export class RaceManager {
     this.speedPadsTriggered.clear();
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
-    this.altRampFxPlayed = false;
-    this.bumpGateFxPlayed = false;
   }
 
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
@@ -219,6 +214,12 @@ export class RaceManager {
     if (input.restartPressed && (this.state === 'CRASHED' || this.state === 'FINISHED' || this.state === 'RACING')) {
       this.restart();
       return;
+    }
+
+    // TURBO a peticion. Solo en carrera: pulsarlo en la cuenta atras o tras
+    // la meta no debe gastar nada.
+    if (input.boostPressed && this.state === 'RACING' && this.flow.fireBoost()) {
+      this.sink.onBoost?.();
     }
 
     if (this.state !== 'RACING') return;
@@ -278,18 +279,9 @@ export class RaceManager {
    * consecuencia depende de donde se aterriza, no de cruzar una x.
    */
   private checkGameplayZones(prevX: number): void {
-    const { speedPads, flowRing, altRamp, bumpGate } = this.zones;
+    const { speedPads, flowRing } = this.zones;
     const x = this.bike.x;
     const grounded = this.bike.front.inContact || this.bike.rear.inContact;
-
-    if (bumpGate && !this.bumpGateFxPlayed && prevX < bumpGate.x && x >= bumpGate.x) {
-      this.bumpGateFxPlayed = true;
-      this.sink.onBumpGate?.();
-    }
-    if (altRamp && !this.altRampFxPlayed && prevX < altRamp.x && x >= altRamp.x) {
-      this.altRampFxPlayed = true;
-      this.sink.onAltRamp?.();
-    }
 
     for (let i = 0; i < speedPads.length; i++) {
       const pad = speedPads[i];

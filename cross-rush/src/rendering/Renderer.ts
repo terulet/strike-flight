@@ -34,9 +34,21 @@ import { GhostFrame } from '../gameplay/GhostRecorder';
  * la calibracion de ejes del sprite; lo usan la moto y el fantasma.
  */
 const SEAT_LOCAL: Vec2 = { x: -0.25, y: 0.1 };
+/**
+ * Boca del escape en espacio local del chasis. Es el mismo pixel de
+ * referencia que usaba el sprite de llama; ahora lo consume el emisor de
+ * particulas (ver ParticleSystem.spawnExhaustFlame).
+ */
+export const EXHAUST_LOCAL: Vec2 = { x: -0.88, y: 0.03 };
 
 /** Traduce un punto en espacio local del chasis (x=adelante, y=arriba, origen en el centro de masas) a mundo. */
-function localToWorld(bike: BikeState, local: Vec2): Vec2 {
+/**
+ * Punto en espacio local del chasis -> coordenadas de mundo. Se exporta
+ * porque main.ts necesita la boca del escape para emitir la llamarada, y
+ * duplicar la transformacion alli seria abrir la puerta a que las dos
+ * versiones se separen.
+ */
+export function localToWorld(bike: BikeState, local: Vec2): Vec2 {
   const r = rotateVec(local, bike.angle);
   return { x: bike.x + r.x, y: bike.y + r.y };
 }
@@ -335,25 +347,30 @@ export class Renderer {
   }
 
   /**
-   * Piezas de riesgo/recompensa (ver gameplay/GameplayZones.ts): a
-   * diferencia de drawTrackProps y drawAtmosphere, estas SI cambian como se
-   * juega (boost, hueco real, aro que hay que acertar) y por eso van
-   * colocadas por sector con intencion, nunca al azar. bump_gate y alt_ramp
-   * decoran un cambio real del heightfield (ver TrackBuilder/CanyonRun); no
-   * hace falta que GameplayZones sepa de ellas porque su "mecanica" ya la
-   * resuelve la fisica normal de la moto.
+   * Piezas de riesgo/recompensa que SI son objetos: el pad de turbo, que es
+   * una plancha apoyada en el suelo, y el aro, que es una estructura de
+   * verdad plantada en mitad del hueco.
+   *
+   * Aqui habia tres cosas mas -un kicker, un bache y un canon- y las tres
+   * eran el mismo error que ya se corrigio con los PNG de obstaculo: dibujos
+   * que traen su PROPIO terreno pintado (roca, tierra, taludes) y se pegan
+   * encima del terreno real. La silueta del dibujo no coincide -ni puede
+   * coincidir- con la curva contra la que se choca, asi que se veia una rampa
+   * roja preciosa por la que la moto no subia, apoyada en una tierra que no
+   * era el suelo. Y ademas no hacian falta: el relieve de verdad ya esta en
+   * el heightfield y lo pinta TerrainPainter.
+   *
+   * El criterio que queda, y que conviene no perder: si la pieza trae suelo
+   * dibujado, no va; si es un objeto que se apoya en el suelo, si.
    */
   private drawGameplayFeatures(camera: CameraPose, track: TrackDefinition, shake: Vec2): void {
     const { terrain } = track;
     const zones = computeGameplayZones(track);
 
-    if (zones.bumpGate) this.drawGroundSprite(camera, terrain, shake, zones.bumpGate.x, 5.5, SpriteImages.bumpGate);
-    if (zones.altRamp) this.drawGroundSprite(camera, terrain, shake, zones.altRamp.x, 7, SpriteImages.altRamp);
-    for (const pad of zones.speedPads) this.drawGroundSprite(camera, terrain, shake, pad.x, 4.5, SpriteImages.speedPad);
-    if (zones.riskGap) {
-      const midGapX = zones.riskGap.startX + 12.5;
-      this.drawGroundSprite(camera, terrain, shake, midGapX, 22, SpriteImages.riskGap);
+    for (const pad of zones.speedPads) {
+      this.drawGroundSprite(camera, terrain, shake, pad.x, 4.5, SpriteImages.speedPad);
     }
+
     if (zones.flowRing) {
       const img = SpriteImages.flowRing;
       if (img.complete && img.naturalWidth > 0) {
@@ -633,6 +650,33 @@ export class Renderer {
         return;
       }
 
+      if (kind === 'flame') {
+        // Fuego: se dibuja SUMANDO luz (`lighter`), no tapando. Es lo que hace
+        // que donde se solapan dos particulas salga el nucleo blanco y en los
+        // bordes quede rojo oscuro, que es como se ve una llama de verdad; con
+        // el pintado normal saldrian discos naranjas superpuestos.
+        //
+        // El color va con la edad de la particula, no con su posicion: recien
+        // salida es blanca, luego amarilla, luego naranja y se apaga en rojo.
+        const heat = alpha;
+        const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+        const red = 255;
+        const green = Math.round(90 + 165 * heat);
+        const blue = Math.round(20 + 180 * Math.pow(heat, 2.4));
+        core.addColorStop(0, `rgba(255, ${Math.min(255, green + 40)}, ${Math.min(255, blue + 60)}, ${0.95 * heat})`);
+        core.addColorStop(0.45, `rgba(${red}, ${green}, ${blue}, ${0.55 * heat})`);
+        core.addColorStop(1, 'rgba(180, 30, 0, 0)');
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
       if (kind === 'impact') {
         gradient.addColorStop(0, `rgba(255, 238, 210, ${alpha * 0.9})`);
@@ -672,11 +716,6 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Punto en espacio local del chasis -> coordenadas de pantalla, en un solo paso. */
-  private localToScreen(camera: CameraPose, bike: BikeState, shake: Vec2, local: Vec2): { x: number; y: number } {
-    const w = localToWorld(bike, local);
-    return this.worldToScreen(camera, w.x, w.y, shake);
-  }
 
   /**
    * Sombra de contacto de cada rueda: una elipse en el SUELO, no bajo el
@@ -814,18 +853,12 @@ export class Renderer {
     const comScreen = this.worldToScreen(camera, bike.x, bike.y, shake);
     this.drawRigidSprite(tinted(SpriteImages.bikeBody), comScreen, bike.angle, comPixel, scale);
 
-    // Llama de REDLINE: sale del escape (mismo pixel de referencia que
-    // exhaustLocal, derivado igual que el asiento), apuntando siempre hacia
-    // atras del chasis -en espejo, para que el extremo ancho quede pegado
-    // al tubo y la punta se aleje-. Solo mientras dura el boost.
-    if (isRedline && !crashed) {
-      const exhaustLocal: Vec2 = { x: -0.88, y: 0.03 };
-      const exhaustScreen = this.localToScreen(camera, bike, shake, exhaustLocal);
-      const fx = SpriteImages.redlineFx;
-      const fxPxPerMeter = fx.naturalWidth > 0 ? fx.naturalWidth / 1.6 : 0;
-      const fxScale = fxPxPerMeter > 0 ? camera.pixelsPerMeter / fxPxPerMeter : 0;
-      this.drawRigidSprite(fx, exhaustScreen, bike.angle, { x: 0, y: fx.naturalHeight / 2 }, fxScale, true);
-    }
+    // La llamarada de REDLINE ya no es un sprite pegado al escape. Era un PNG
+    // con forma fija que giraba con el chasis y viajaba con la moto: no
+    // parecia fuego, parecia una pegatina de fuego. Ahora son particulas que
+    // nacen en la boca del escape y se quedan atras en el mundo (ver
+    // ParticleSystem.spawnExhaustFlame, emitidas desde main.ts, que es quien
+    // tiene el sistema de particulas).
 
     this.ctx.restore();
 

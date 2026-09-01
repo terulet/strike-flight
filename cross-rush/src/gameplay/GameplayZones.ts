@@ -8,12 +8,11 @@
  * (dibujo) leen de aqui, asi que no se pueden desincronizar entre el sitio
  * donde se ve la pieza y el sitio donde realmente actua.
  *
- * bump_gate y alt_ramp son cambios reales del heightfield (ver
- * TrackBuilder/CanyonRun): su mecanica ya la resuelve la fisica de la moto
- * (compresion de suspension / salto real), no hace falta detectar nada
- * aparte para que "funcionen". Sus coordenadas SI viven aqui para que
- * Renderer (donde se dibuja el obstaculo) y RaceManager (donde se dispara
- * el chispazo visual al cruzarlas) usen exactamente el mismo punto.
+ * El bache y el kicker no aparecen aqui. Son cambios reales del heightfield
+ * (ver TrackBuilder/CanyonRun) y su mecanica la resuelve la fisica de la moto
+ * sola: no hay nada que detectar. Solo tenian coordenadas para poder pegarles
+ * encima un sprite decorativo, y esos sprites se fueron por traer su propio
+ * terreno dibujado (ver Renderer.drawGameplayFeatures).
  */
 
 import { TrackDefinition } from '../tracks/CanyonRun';
@@ -47,8 +46,6 @@ export interface GameplayZones {
   speedPads: SpeedPadZone[];
   riskGap: RiskGapZone | null;
   flowRing: FlowRingZone | null;
-  altRamp: { x: number } | null;
-  bumpGate: { x: number } | null;
 }
 
 function findLabelX(track: TrackDefinition, name: string): number | null {
@@ -56,7 +53,6 @@ function findLabelX(track: TrackDefinition, name: string): number | null {
 }
 
 export function computeGameplayZones(track: TrackDefinition): GameplayZones {
-  const technicalX = findLabelX(track, 'TECHNICAL');
   const uphillX = findLabelX(track, 'UPHILL');
   const riskLineX = findLabelX(track, 'RISK_LINE_JUMP');
   const megaJumpX = findLabelX(track, 'MEGA_JUMP');
@@ -66,10 +62,6 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
   // El segundo pad va justo ANTES del kicker del mega salto (la rampa empieza
   // en la etiqueta), para que el empujon se convierta integro en altura.
   if (megaJumpX !== null) speedPads.push({ x: megaJumpX - 6 });
-
-  // Mismos offsets que el bache/kicker reales insertados en CanyonRun.ts.
-  const bumpGate = technicalX !== null ? { x: technicalX + 2 } : null;
-  const altRamp = uphillX !== null ? { x: uphillX + 10 } : null;
 
   // Saltar el hueco entero significa aterrizar pasado el LABIO LEJANO del
   // valle, que esta a 19 m del inicio del tramo (rampa de 6 m + valle de 13,
@@ -102,5 +94,5 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
         }
       : null;
 
-  return { speedPads, riskGap, flowRing, altRamp, bumpGate };
+  return { speedPads, riskGap, flowRing };
 }

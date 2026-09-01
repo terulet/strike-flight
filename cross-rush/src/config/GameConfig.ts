@@ -654,7 +654,7 @@ export const AudioConfig = {
 
 export const EffectsConfig = {
   dust: {
-    maxParticles: 220,
+    maxParticles: 420, // sube con la llamarada: 240/s en REDLINE se comian el cupo del polvo
     spawnPerContactTick: 0.6, // particulas por tick con contacto rapido
     minSpeedToSpawn: 3,
     life: 0.6,
@@ -687,7 +687,11 @@ export const InputActionKeys = {
   brake: ['ArrowLeft', 'KeyA'],
   leanForward: ['ArrowUp', 'KeyW'],
   leanBack: ['ArrowDown', 'KeyS'],
-  restart: ['KeyR', 'Space'],
+  // Espacio ya no reinicia: es el TURBO. Reiniciar en mitad de una vuelta
+  // buena por querer gastar el boost seria el peor accidente posible.
+  restart: ['KeyR'],
+  /** TURBO: se gasta el FLOW cargado cuando el jugador quiere. */
+  boost: ['Space'],
 } as const;
 
 export const StorageKeys = {

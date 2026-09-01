@@ -17,7 +17,7 @@ import { EffectsConfig } from '../config/GameConfig';
  *  - `brake`  polvo de frenada. Sale hacia adelante y muy bajo, pegado al suelo.
  *  - `impact` el golpe de un aterrizaje. Rapido, radial y de vida corta.
  */
-export type ParticleKind = 'dirt' | 'dust' | 'brake' | 'impact';
+export type ParticleKind = 'dirt' | 'dust' | 'brake' | 'impact' | 'flame';
 
 interface Particle {
   x: number;
@@ -76,8 +76,8 @@ export class ParticleSystem {
     p.size = size;
     p.kind = kind;
     // El polvo se expande y frena mucho; los terrones ni una cosa ni la otra.
-    p.growth = kind === 'dust' || kind === 'brake' ? 0.32 : kind === 'impact' ? 0.5 : 0.02;
-    p.drag = kind === 'dirt' ? 0.6 : kind === 'impact' ? 3.4 : 2.6;
+    p.growth = kind === 'dust' || kind === 'brake' ? 0.32 : kind === 'impact' ? 0.5 : kind === 'flame' ? -0.16 : 0.02;
+    p.drag = kind === 'dirt' ? 0.6 : kind === 'impact' ? 3.4 : kind === 'flame' ? 5.5 : 2.6;
   }
 
   spawnDust(x: number, y: number, speed: number): void {
@@ -160,6 +160,52 @@ export class ParticleSystem {
     return wanted - count;
   }
 
+  /**
+   * Llamarada del escape durante el REDLINE.
+   *
+   * Sustituye a un PNG de llama clavado al tubo de escape. Una llama dibujada
+   * siempre tiene la misma forma, gira con la moto y se mueve con ella: no
+   * parece fuego, parece una pegatina de fuego. Estas particulas nacen en la
+   * boca del escape con la velocidad de la moto MENOS el chorro, asi que se
+   * quedan atras en el mundo mientras la moto se va, suben, encogen y se
+   * apagan. Es lo mismo que hace el polvo, y por eso el polvo si se lee bien.
+   *
+   * `direction` es el vector de salida del escape ya rotado con el chasis, de
+   * modo que en un mortal el chorro apunta a donde apunta el tubo.
+   */
+  spawnExhaustFlame(
+    x: number,
+    y: number,
+    direction: { x: number; y: number },
+    bikeVx: number,
+    bikeVy: number,
+    intensity: number,
+    dt: number,
+    carry: number,
+  ): number {
+    const strength = Math.min(1, Math.max(0, intensity));
+    if (strength <= 0.01) return 0;
+    // Densidad alta a proposito. Con pocas particulas se ven puntos naranjas
+    // sueltos; el fuego solo se lee como fuego cuando se solapan lo bastante
+    // para que la suma de luz forme un nucleo continuo.
+    const wanted = carry + strength * 240 * dt;
+    const count = Math.floor(wanted);
+    for (let i = 0; i < count; i++) {
+      const jet = 3 + Math.random() * 5.5 * strength;
+      const spread = (Math.random() - 0.5) * 1.5;
+      this.spawnOne(
+        x + direction.x * 0.05,
+        y + direction.y * 0.05,
+        bikeVx + direction.x * jet - direction.y * spread,
+        bikeVy + direction.y * jet + direction.x * spread,
+        0.2 + Math.random() * 0.16,
+        'flame',
+        0.13 + Math.random() * 0.2,
+      );
+    }
+    return wanted - count;
+  }
+
   /** Polvo de frenada: sale hacia adelante y muy pegado al suelo. */
   spawnBrakeDust(x: number, y: number, speed: number, dt: number, carry: number): number {
     const intensity = Math.min(1, Math.abs(speed) / 14);
@@ -231,8 +277,14 @@ export class ParticleSystem {
         p.alive = false;
         continue;
       }
-      // Los terrones caen; el polvo casi flota y se lo lleva el aire.
-      const gravity = p.kind === 'dirt' ? EffectsConfig.dust.gravity : EffectsConfig.dust.gravity * 0.22;
+      // Los terrones caen; el polvo casi flota y se lo lleva el aire; el
+      // fuego SUBE, que es lo que hace que se lea como fuego y no como humo.
+      const gravity =
+        p.kind === 'dirt'
+          ? EffectsConfig.dust.gravity
+          : p.kind === 'flame'
+            ? -EffectsConfig.dust.gravity * 0.5
+            : EffectsConfig.dust.gravity * 0.22;
       p.vy -= gravity * dt;
       const dragFactor = Math.max(0, 1 - p.drag * dt);
       p.vx *= dragFactor;

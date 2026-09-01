@@ -282,6 +282,15 @@ const CSS = `
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .cr-flow-bar { display: flex; gap: 3px; }
+/* Turbo cargado: la barra entera late. Es el aviso de "puedes gastarlo YA",
+   y late en vez de solo cambiar de color porque el jugador esta mirando la
+   pista, no la esquina. */
+.cr-flow.ready .cr-flow-label { color: #ffd24a; }
+.cr-flow.ready .cr-flow-bar { animation: cr-ready 0.85s ease-in-out infinite; }
+@keyframes cr-ready {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 210, 74, 0)); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 10px rgba(255, 210, 74, 0.9)); transform: scale(1.05); }
+}
 .cr-flow-seg {
   width: 16px;
   height: 10px;
@@ -362,6 +371,12 @@ const CSS = `
   pointer-events: auto;
 }
 .cr-pad.left { left: var(--cr-safe-l); }
+.cr-pad.column {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.cr-pad-row { display: flex; gap: 14px; }
 .cr-pad.right { right: var(--cr-safe-r); }
 .cr-btn {
   width: 78px;
@@ -388,6 +403,21 @@ const CSS = `
 .cr-btn .cr-btn-icon { font-size: 20px; line-height: 1; }
 .cr-btn.gas { border-color: rgba(255, 106, 26, 0.85); }
 .cr-btn.brake { border-color: rgba(255, 45, 45, 0.7); }
+.cr-btn.boost {
+  border-color: rgba(255, 210, 74, 0.55);
+  /* Mas pequeno que freno y gas: se pulsa una vez cada varios segundos, no
+     tiene por que competir por el sitio del pulgar. */
+  width: 58px;
+  height: 58px;
+  font-size: 10px;
+}
+/* Solo se enciende cuando de verdad hay turbo que gastar: un boton siempre
+   igual no dice si esta listo. */
+.cr-btn.boost.ready {
+  border-color: #ffd24a;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 216, 120, 0.95), rgba(150, 96, 8, 0.95));
+  box-shadow: 0 0 22px rgba(255, 210, 74, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 /* Feedback al pulsar: se hunde, se enciende y cambia de borde. Antes no
    cambiaba nada al tocar y no habia forma de saber si habia registrado. */
 .cr-btn.active {
@@ -409,7 +439,16 @@ const CSS = `
   .cr-best { font-size: 11px; }
   .cr-delta { font-size: 11px; min-width: 54px; }
   .cr-flow { top: calc(var(--cr-safe-t) + 26px); }
-  .cr-flow-seg { width: 11px; height: 8px; }
+  /* Turbo cargado: la barra entera late. Es el aviso de "puedes gastarlo YA",
+   y late en vez de solo cambiar de color porque el jugador esta mirando la
+   pista, no la esquina. */
+.cr-flow.ready .cr-flow-label { color: #ffd24a; }
+.cr-flow.ready .cr-flow-bar { animation: cr-ready 0.85s ease-in-out infinite; }
+@keyframes cr-ready {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 210, 74, 0)); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 10px rgba(255, 210, 74, 0.9)); transform: scale(1.05); }
+}
+.cr-flow-seg { width: 11px; height: 8px; }
   .cr-split { top: calc(var(--cr-safe-t) + 58px); font-size: 12px; }
   .cr-score-value { font-size: 16px; }
   .cr-score-mult { font-size: 11px; }
@@ -422,7 +461,9 @@ const CSS = `
   .cr-center-brand { font-size: 30px; }
   .cr-center-msg { font-size: 62px; }
   .cr-btn { width: 68px; height: 68px; font-size: 11px; }
+  .cr-btn.boost { width: 52px; height: 52px; font-size: 9px; }
   .cr-pad { gap: 10px; }
+  .cr-pad-row { gap: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

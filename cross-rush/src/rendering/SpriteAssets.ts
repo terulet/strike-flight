@@ -48,7 +48,6 @@ import fenceBannerUrl from '../sprites/fence_banner.webp';
 import bgFarUrl from '../sprites/bg_far.webp';
 import bgMidUrl from '../sprites/bg_mid.webp';
 import riderCrashUrl from '../sprites/rider_crash.webp';
-import redlineFxUrl from '../sprites/redline_fx.webp';
 import dangerFlagsUrl from '../sprites/danger_flags.webp';
 import ropeBarrierUrl from '../sprites/rope_barrier.webp';
 import tireSkidUrl from '../sprites/tire_skid.webp';
@@ -61,13 +60,8 @@ import speedDebrisUrl from '../sprites/speed_debris.webp';
 import crowdUrl from '../sprites/crowd.webp';
 import paddockTentUrl from '../sprites/paddock_tent.webp';
 import speedPadUrl from '../sprites/speed_pad.webp';
-import riskGapUrl from '../sprites/risk_gap.webp';
-import altRampUrl from '../sprites/alt_ramp.webp';
 import flowRingUrl from '../sprites/flow_ring.webp';
-import bumpGateUrl from '../sprites/bump_gate.webp';
 import speedPadFxUrl from '../sprites/speed_pad_fx.webp';
-import altRampFxUrl from '../sprites/alt_ramp_fx.webp';
-import bumpGateFxUrl from '../sprites/bump_gate_fx.webp';
 import riskGapFxUrl from '../sprites/risk_gap_fx.webp';
 import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
 
@@ -80,6 +74,15 @@ import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
  *    coincidia -y no podia coincidir- con la curva contra la que se choca. El
  *    relieve lo dibuja ahora TerrainPainter derivandolo de la propia curva de
  *    colision, de modo que no hay version de estos PNG que sirva.
+ *  - `redline_fx`: BORRADO. Era un PNG de llama con forma fija clavado al
+ *    escape: giraba con el chasis y viajaba con la moto, asi que no parecia
+ *    fuego sino una pegatina de fuego. Lo sustituyen particulas que nacen en
+ *    la boca del escape y se quedan atras en el mundo.
+ *  - `alt_ramp`, `bump_gate`, `risk_gap` (y sus dos `_fx`): BORRADOS. Eran el
+ *    mismo error que los PNG de obstaculo: dibujos que traen su PROPIO
+ *    terreno pintado -roca, tierra, taludes- y se pegaban encima del terreno
+ *    real, con lo que se veia una rampa roja preciosa por la que la moto no
+ *    subia. El relieve de verdad ya esta en el heightfield.
  *  - `broken_barrier`, `log_obstacle`, `rope_tire_barrier`: BORRADOS. La
  *    pista solo coloca once piezas de decoracion y la lista tenia catorce
  *    modelos, asi que tres no se veian nunca. Se fueron estos tres por ser
@@ -126,7 +129,6 @@ export const SpriteImages = {
   bgFar: loadImage(bgFarUrl),
   bgMid: loadImage(bgMidUrl),
   riderCrash: loadImage(riderCrashUrl),
-  redlineFx: loadImage(redlineFxUrl),
   dangerFlags: loadImage(dangerFlagsUrl),
   ropeBarrier: loadImage(ropeBarrierUrl),
   tireSkid: loadImage(tireSkidUrl),
@@ -139,13 +141,8 @@ export const SpriteImages = {
   crowd: loadImage(crowdUrl),
   paddockTent: loadImage(paddockTentUrl),
   speedPad: loadImage(speedPadUrl),
-  riskGap: loadImage(riskGapUrl),
-  altRamp: loadImage(altRampUrl),
   flowRing: loadImage(flowRingUrl),
-  bumpGate: loadImage(bumpGateUrl),
   speedPadFx: loadImage(speedPadFxUrl),
-  altRampFx: loadImage(altRampFxUrl),
-  bumpGateFx: loadImage(bumpGateFxUrl),
   riskGapFx: loadImage(riskGapFxUrl),
   flowRingHit: loadImage(flowRingHitUrl),
 };

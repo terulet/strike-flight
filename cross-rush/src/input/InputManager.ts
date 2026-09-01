@@ -12,6 +12,8 @@ export interface InputState {
   lean: number;
   /** Flanco de subida: true solo el frame en que se pulsa restart. */
   restartPressed: boolean;
+  /** Flanco de subida: true solo el frame en que se pide el TURBO. */
+  boostPressed: boolean;
 }
 
 export interface InputSource {
@@ -22,7 +24,7 @@ export interface InputSource {
 }
 
 export function neutralInputState(): InputState {
-  return { throttle: false, brake: false, lean: 0, restartPressed: false };
+  return { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false };
 }
 
 /**
@@ -40,6 +42,7 @@ export class InputManager implements InputSource {
       combined.brake = combined.brake || s.brake;
       if (s.lean !== 0) combined.lean = s.lean;
       combined.restartPressed = combined.restartPressed || s.restartPressed;
+      combined.boostPressed = combined.boostPressed || s.boostPressed;
     }
     return combined;
   }

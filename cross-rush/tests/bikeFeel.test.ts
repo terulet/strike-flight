@@ -9,7 +9,7 @@ import { buildCanyonRun } from '../src/tracks/CanyonRun';
 import { GhostConfig, SIM_DT } from '../src/config/GameConfig';
 import { sampleGhostAtTime } from '../src/gameplay/GhostRecorder';
 
-const neutral = (): InputState => ({ throttle: false, brake: false, lean: 0, restartPressed: false });
+const neutral = (): InputState => ({ throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
 function flatTerrain(): Terrain {
   return new Terrain([
@@ -30,7 +30,7 @@ function bumpyTerrain(): Terrain {
 describe('suavizado de entrada', () => {
   it('convierte un boton binario en una rampa continua, sin escalones', () => {
     const smoother = new InputSmoother();
-    const pressed: InputState = { throttle: true, brake: false, lean: 0, restartPressed: false };
+    const pressed: InputState = { throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false };
     const values: number[] = [];
     for (let i = 0; i < Math.round(0.5 / SIM_DT); i++) {
       values.push(smoother.update(pressed, SIM_DT).throttle);
@@ -46,7 +46,7 @@ describe('suavizado de entrada', () => {
 
   it('soltar tampoco corta de golpe', () => {
     const smoother = new InputSmoother();
-    const pressed: InputState = { throttle: true, brake: false, lean: 0, restartPressed: false };
+    const pressed: InputState = { throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false };
     for (let i = 0; i < Math.round(1 / SIM_DT); i++) smoother.update(pressed, SIM_DT);
     const first = smoother.update(neutral(), SIM_DT).throttle;
     expect(first).toBeGreaterThan(0.85);
@@ -55,7 +55,7 @@ describe('suavizado de entrada', () => {
 
   it('el lean llega al tope rapido: en el aire es el unico control que hay', () => {
     const smoother = new InputSmoother();
-    const up: InputState = { throttle: false, brake: false, lean: 1, restartPressed: false };
+    const up: InputState = { throttle: false, brake: false, lean: 1, restartPressed: false, boostPressed: false };
     let ticks = 0;
     while (smoother.update(up, SIM_DT).lean < 1 && ticks < 1000) ticks += 1;
     expect(ticks * SIM_DT).toBeLessThan(0.12);
@@ -154,7 +154,7 @@ describe('robustez numerica', () => {
           brake = random() < 0.25;
           lean = Math.round(random() * 2) - 1;
         }
-        const smoothed = smoother.update({ throttle, brake, lean, restartPressed: false }, SIM_DT);
+        const smoothed = smoother.update({ throttle, brake, lean, restartPressed: false, boostPressed: false }, SIM_DT);
         state = stepBike(state, terrain, { throttle, brake, lean: smoothed.lean, smoothed }, SIM_DT);
 
         for (const value of [
@@ -208,7 +208,7 @@ describe('el fantasma sigue sincronizado tras ampliar BikeState', () => {
 
     const samples: Array<{ t: number; x: number }> = [];
     for (let i = 0; i < Math.round(6 / SIM_DT); i++) {
-      race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false });
+      race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false });
       if (race.state !== 'RACING') break;
       samples.push({ t: race.raceTime, x: race.bike.x });
     }
@@ -251,7 +251,7 @@ describe('el corte vertical sigue siendo jugable de punta a punta', () => {
         const want = delta * 2.2 - bike.angularVelocity * 0.42;
         lean = want > 0.25 ? 1 : want < -0.25 ? -1 : 0;
       }
-      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false, boostPressed: false });
       for (const feature of track.terrainFeatures) {
         if (race.bike.x >= feature.endX) seen.add(feature.kind);
       }
@@ -278,7 +278,7 @@ describe('el corte vertical sigue siendo jugable de punta a punta', () => {
         const want = delta * 2.2 - bike.angularVelocity * 0.42;
         lean = want > 0.25 ? 1 : want < -0.25 ? -1 : 0;
       }
-      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false, boostPressed: false });
     }
 
     expect(race.state).toBe('FINISHED');

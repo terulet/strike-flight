@@ -50,8 +50,10 @@ function isTouchLikeDevice(): boolean {
 
 export class TouchInput implements InputSource {
   private leanZones: { back: TouchZone; forward: TouchZone } | null = null;
-  private buttons: { gas: TouchZone; brake: TouchZone } | null = null;
+  private buttons: { gas: TouchZone; brake: TouchZone; boost: TouchZone } | null = null;
   private restartPressed = false;
+  /** Flanco de subida del turbo: se consume al leerlo. */
+  private boostEdge = false;
   private readonly wrap: HTMLElement | null = null;
 
   constructor(container: HTMLElement | null) {
@@ -76,12 +78,21 @@ export class TouchInput implements InputSource {
     this.leanZones = { back, forward };
 
     const right = document.createElement('div');
-    right.className = 'cr-pad right';
+    right.className = 'cr-pad right column';
+    // El turbo va ENCIMA de freno y gas, no en la misma fila. Con los cinco
+    // botones en linea, en 393 px de ancho se solapaban; y ademas el turbo se
+    // pulsa de higos a brevas mientras que freno y gas se usan todo el rato,
+    // asi que el sitio bueno para el pulgar es para ellos.
+    const boost = this.makeButton('⚡', 'TURBO', 'boost');
+    const pedals = document.createElement('div');
+    pedals.className = 'cr-pad-row';
     const brake = this.makeButton('⊘', 'FRENO', 'brake');
     const gas = this.makeButton('▲', 'GAS', 'gas');
-    right.appendChild(brake.el);
-    right.appendChild(gas.el);
-    this.buttons = { gas, brake };
+    pedals.appendChild(brake.el);
+    pedals.appendChild(gas.el);
+    right.appendChild(boost.el);
+    right.appendChild(pedals);
+    this.buttons = { gas, brake, boost };
 
     wrap.appendChild(left);
     wrap.appendChild(right);
@@ -104,6 +115,7 @@ export class TouchInput implements InputSource {
 
   private setActive(zone: TouchZone, value: boolean): void {
     if (zone.active === value) return;
+    if (value && zone === this.buttons?.boost) this.boostEdge = true;
     zone.active = value;
     zone.el.classList.toggle('active', value);
     if (value && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -139,7 +151,14 @@ export class TouchInput implements InputSource {
     state.lean = forward && !back ? 1 : back && !forward ? -1 : 0;
     state.restartPressed = this.restartPressed;
     this.restartPressed = false;
+    state.boostPressed = this.boostEdge;
+    this.boostEdge = false;
     return state;
+  }
+
+  /** Enciende el boton de turbo cuando hay carga que gastar. */
+  setBoostReady(ready: boolean): void {
+    this.buttons?.boost.el.classList.toggle('ready', ready);
   }
 
   /** Permite disparar restart desde un boton externo (p.ej. pantalla de resultados). */

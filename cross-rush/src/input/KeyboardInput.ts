@@ -1,7 +1,8 @@
 /**
  * KeyboardInput.ts
  *
- * Traduce eventos de teclado (flechas/WASD + R/Espacio) a InputState.
+ * Traduce eventos de teclado (flechas/WASD + R para reiniciar + Espacio
+ * para el turbo) a InputState.
  */
 
 import { InputActionKeys } from '../config/GameConfig';
@@ -10,6 +11,7 @@ import { InputSource, InputState, neutralInputState } from './InputManager';
 export class KeyboardInput implements InputSource {
   private readonly pressed = new Set<string>();
   private restartLatched = false;
+  private boostLatched = false;
   private readonly onKeyDown = (event: Event) => this.pressed.add((event as KeyboardEvent).code);
   private readonly onKeyUp = (event: Event) => this.pressed.delete((event as KeyboardEvent).code);
 
@@ -38,6 +40,10 @@ export class KeyboardInput implements InputSource {
     const restartHeld = this.anyPressed(InputActionKeys.restart);
     state.restartPressed = restartHeld && !this.restartLatched;
     this.restartLatched = restartHeld;
+
+    const boostHeld = this.anyPressed(InputActionKeys.boost);
+    state.boostPressed = boostHeld && !this.boostLatched;
+    this.boostLatched = boostHeld;
     return state;
   }
 

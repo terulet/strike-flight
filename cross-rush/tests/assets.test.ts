@@ -49,7 +49,11 @@ describe('arte que viaja en la build', () => {
     walk(join(__dirname, '..', 'src'));
     const allCode = sources.join('\n');
 
-    const unused = exposed.filter((name) => !allCode.includes(`SpriteImages.${name}`));
+    // Con `includes` a secas, `SpriteImages.riskGap` daba positivo por culpa
+    // de `SpriteImages.riskGapFx`, que lo contiene como prefijo: un sprite sin
+    // usar cuyo nombre es prefijo de otro que si se usa se colaba sin que
+    // saltara nada. Hace falta limite de palabra.
+    const unused = exposed.filter((name) => !new RegExp(`SpriteImages\\.${name}\\b`).test(allCode));
     expect(unused, `expuestos en SpriteImages pero no usados: ${unused.join(', ')}`).toEqual([]);
   });
 });

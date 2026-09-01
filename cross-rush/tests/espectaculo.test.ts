@@ -21,7 +21,7 @@ function rideAndRecordFlights(): { race: RaceManager; flights: Flight[] } {
   const track = buildCanyonRun();
   const race = new RaceManager(track);
   race.begin();
-  while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false });
+  while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
   const flights: Flight[] = [];
   let airborneSince: { t: number; x: number } | null = null;
@@ -41,7 +41,7 @@ function rideAndRecordFlights(): { race: RaceManager; flights: Flight[] } {
       flights.push({ fromX: airborneSince.x, toX: race.bike.x, seconds: race.raceTime - airborneSince.t });
       airborneSince = null;
     }
-    race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+    race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false, boostPressed: false });
   }
   return { race, flights };
 }
@@ -143,7 +143,7 @@ describe('el mortal', () => {
       },
     });
     race.begin();
-    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false });
+    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
     let rotation = 0;
     let previousAngle = race.bike.angle;
@@ -173,7 +173,7 @@ describe('el mortal', () => {
         }
       }
       previousAngle = bike.angle;
-      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false, boostPressed: false });
     }
 
     // Con el ritmo de giro normal (5,5 rad/s) el vuelo entero daba 4,8 de los
@@ -189,7 +189,7 @@ describe('el mortal', () => {
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     race.begin();
-    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false });
+    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
     // Se sube la moto en el aire y se le dan toques de 0,15 s, soltando entre
     // uno y otro: eso es corregir. El ritmo de giro tiene que quedarse en el
@@ -198,7 +198,7 @@ describe('el mortal', () => {
     let maxRate = 0;
     for (let i = 0; i < Math.round(1.5 / SIM_DT); i++) {
       const phase = Math.floor(i * SIM_DT / 0.15) % 2;
-      race.step(SIM_DT, { throttle: false, brake: false, lean: phase === 0 ? 1 : 0, restartPressed: false });
+      race.step(SIM_DT, { throttle: false, brake: false, lean: phase === 0 ? 1 : 0, restartPressed: false, boostPressed: false });
       maxRate = Math.max(maxRate, Math.abs(race.bike.angularVelocity));
     }
     expect(maxRate).toBeLessThan(6.2); // el limite normal es 5,5

@@ -3,8 +3,15 @@
  *
  * Medidor de "flow" 0-100. Sube conduciendo bien (rapido con ruedas en el
  * suelo, o controlando rotaciones en el aire) y baja con aterrizajes malos o
- * el crash. Al llegar a 100 entra en REDLINE: un pequeno boost temporal de
- * velocidad y multiplicador de puntuacion.
+ * el crash.
+ *
+ * Al llegar a 100 NO entra en REDLINE: queda ARMADO, y es el jugador quien
+ * decide cuando gastarlo. Antes se disparaba solo, y eso lo convertia en algo
+ * que te pasaba en vez de algo que haces: el turbo saltaba a mitad de una
+ * recta cualquiera y se apagaba antes del salto grande. Gastandolo a mano, la
+ * pregunta pasa a ser "¿me lo guardo para el mega salto o lo uso ya?", que es
+ * una decision de verdad y ademas la que hace que el salto grande sea
+ * espectacular cuando se acierta.
  */
 
 import { clamp } from '../physics/MathUtils';
@@ -38,9 +45,23 @@ export class FlowMeter {
 
   private add(amount: number): void {
     this._value = clamp(this._value + amount, FlowConfig.min, FlowConfig.max);
-    if (this._value >= FlowConfig.redlineThreshold && this.redlineTimer <= 0) {
-      this.redlineTimer = FlowConfig.redlineDurationSeconds;
-    }
+  }
+
+  /** true cuando hay FLOW suficiente para gastar y no hay un turbo en curso. */
+  get isBoostReady(): boolean {
+    return this._value >= FlowConfig.redlineThreshold && this.redlineTimer <= 0;
+  }
+
+  /**
+   * Gasta el FLOW cargado y arranca el REDLINE. Devuelve false -y no consume
+   * nada- si no habia turbo listo, para que quien llame pueda distinguir un
+   * disparo real de un botonazo en balde.
+   */
+  fireBoost(): boolean {
+    if (!this.isBoostReady) return false;
+    this.redlineTimer = FlowConfig.redlineDurationSeconds;
+    this._value = FlowConfig.min;
+    return true;
   }
 
   tick(dt: number, opts: { groundedFast: boolean; airControlActive: boolean }): void {

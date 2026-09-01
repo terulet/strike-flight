@@ -15,8 +15,8 @@ function flatTerrain(): Terrain {
   ]);
 }
 
-const neutral = (): InputState => ({ throttle: false, brake: false, lean: 0, restartPressed: false });
-const gas = (): InputState => ({ throttle: true, brake: false, lean: 0, restartPressed: false });
+const neutral = (): InputState => ({ throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false });
+const gas = (): InputState => ({ throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
 /** Distancia angular por el camino corto, en (-PI, PI]. */
 function shortest(a: number, b: number): number {

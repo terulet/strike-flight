@@ -5,7 +5,7 @@ import { InputState } from '../src/input/InputManager';
 import { SIM_DT } from '../src/config/GameConfig';
 
 function neutralInput(): InputState {
-  return { throttle: false, brake: false, lean: 0, restartPressed: false };
+  return { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false };
 }
 
 function driveToRacing(race: RaceManager): void {
@@ -29,7 +29,7 @@ describe('RaceManager', () => {
     driveToRacing(race);
     expect(race.state).toBe('RACING');
 
-    race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false });
+    race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false });
     const afterOneStep = race.raceTime;
     expect(afterOneStep).toBeCloseTo(SIM_DT, 9);
 
@@ -80,7 +80,7 @@ describe('RaceManager', () => {
     const track = buildCanyonRun();
     const race = new RaceManager(track);
     driveToRacing(race);
-    race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false });
+    race.step(SIM_DT, { throttle: true, brake: false, lean: 0, restartPressed: false, boostPressed: false });
 
     // Termina la carrera para fijar un "best time".
     race.bike.x = track.finishX;
@@ -115,7 +115,7 @@ describe('RaceManager', () => {
     race.step(SIM_DT, neutralInput());
     expect(race.state).toBe('CRASHED');
 
-    race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: true });
+    race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: true, boostPressed: false });
     expect(race.state).toBe('COUNTDOWN');
     expect(race.raceTime).toBe(0);
   });

@@ -28,6 +28,12 @@ const PILOT = () => {
       if (dead) { for (const k of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) setKey(k, false); }
       else {
         setKey('ArrowRight', !window.__pilot.brake && !window.__pilot.coast);
+        // Gasta el turbo en cuanto esta listo. Un jugador lo guardaria para
+        // el salto grande; al piloto automatico le basta con no dejarlo sin
+        // usar, porque si no el REDLINE no ocurre y la evidencia visual se
+        // queda sin llamarada ni lineas de velocidad.
+        if (f.boostReady) { window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space'})); window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space'})); }
+
         setKey('ArrowLeft', window.__pilot.brake);
         let lean = 0;
         if (air) {

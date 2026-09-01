@@ -21,7 +21,7 @@ function flatTerrain(): Terrain {
 }
 
 function raw(throttle: boolean, brake: boolean, lean = 0): InputState {
-  return { throttle, brake, lean, restartPressed: false };
+  return { throttle, brake, lean, restartPressed: false, boostPressed: false };
 }
 
 /** Media de carga de cada eje durante la ultima parte de un recorrido en llano. */

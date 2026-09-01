@@ -18,12 +18,13 @@ import { SpriteDecals } from './rendering/SpriteDecals';
 import { Shockwaves } from './rendering/Shockwaves';
 import { ScreenEffects } from './rendering/ScreenEffects';
 import { SpriteImages } from './rendering/SpriteAssets';
-import { Renderer } from './rendering/Renderer';
+import { EXHAUST_LOCAL, Renderer, localToWorld } from './rendering/Renderer';
 import { AudioEngine } from './audio/AudioEngine';
 import { HUD } from './ui/HUD';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
+import { rotateVec } from './physics/MathUtils';
 import { BikeConfig, EffectsConfig, EngineConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -106,6 +107,13 @@ const race = new RaceManager(track, {
     camera.triggerLandingImpulse(1);
     award(trick.rotations >= 2 ? '¡DOBLE MORTAL!' : '¡MORTAL!', SpectacleConfig.awardPoints.trick);
   },
+  onBoost: () => {
+    audio.playBoostCue();
+    screenEffects.flash('rgba(255, 214, 120, 1)', 0.42, 0.3);
+    camera.triggerLandingImpulse(0.7);
+    particles.spawnBurst(race.bike.rear.contactX, race.bike.rear.groundY, 16);
+    hud.showAward('¡TURBO!');
+  },
   onCombo: (links) => {
     if (links >= 2) audio.playComboCue(links);
   },
@@ -175,14 +183,6 @@ const race = new RaceManager(track, {
     screenEffects.flash('rgba(255, 120, 60, 1)', 0.4, 0.26);
     award('LINEA DE RIESGO', SpectacleConfig.awardPoints.riskGap);
   },
-  onAltRamp: () => {
-    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
-    decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.altRampFx);
-  },
-  onBumpGate: () => {
-    particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
-    decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.bumpGateFx);
-  },
 });
 
 hud.setBestTime(race.getBestTimeSeconds());
@@ -209,6 +209,8 @@ let rearSkidCooldown = 0;
 /** Restos fraccionarios del polvo continuo de rodadura y de frenada. */
 let rollingDustCarry = 0;
 let brakeDustCarry = 0;
+/** Resto fraccionario de la llamarada del escape. */
+let flameCarry = 0;
 /** Ultimo estado visto de la cuenta atras, para pitar una sola vez por numero. */
 let lastCountdownBeep = -1;
 /** Escala de tiempo vigente y reloj real, para la camara lenta de los saltos. */
@@ -375,6 +377,28 @@ const loop = new GameLoop(
         brakeDustCarry = 0;
       }
 
+      // Llamarada del escape: solo en REDLINE. Nace en la boca del tubo, con
+      // la velocidad de la moto mas el chorro, asi que se queda atras en el
+      // mundo en vez de viajar pegada al escape.
+      if (race.flow.isRedline && race.state === 'RACING') {
+        const mouth = localToWorld(race.bike, EXHAUST_LOCAL);
+        // Hacia atras del chasis, girado con el: en un mortal el chorro
+        // apunta a donde apunta el tubo.
+        const direction = rotateVec({ x: -1, y: 0.12 }, race.bike.angle);
+        flameCarry = particles.spawnExhaustFlame(
+          mouth.x,
+          mouth.y,
+          direction,
+          race.bike.vx,
+          race.bike.vy,
+          0.45 + race.bike.throttleAmount * 0.55,
+          dt,
+          flameCarry,
+        );
+      } else {
+        flameCarry = 0;
+      }
+
       // Marca de derrape: solo con la rueda bloqueada o patinando fuerte, y
       // espaciada en el tiempo para no empapelar el suelo.
       rearSkidCooldown = Math.max(0, rearSkidCooldown - dt);
@@ -449,7 +473,16 @@ const loop = new GameLoop(
         ghost: race.getGhostPose(),
       });
 
-      hud.update(race.raceTime, race.currentSectorName, race.flow.value, race.flow.isRedline, race.getLiveDeltaSeconds());
+      const boostReady = race.flow.isBoostReady && race.state === 'RACING';
+      hud.update(
+        race.raceTime,
+        race.currentSectorName,
+        race.flow.value,
+        race.flow.isRedline,
+        race.getLiveDeltaSeconds(),
+        boostReady,
+      );
+      touchInput.setBoostReady(boostReady);
       hud.setScore(race.styleScore.score, race.scoreMultiplier);
       // La cadena solo se ensena EN CARRERA: al cruzar meta o estrellarse el
       // reloj de la cadena deja de correr, asi que sin esto se quedaria
@@ -542,6 +575,9 @@ const loop = new GameLoop(
         frontSpinRate: bike.front.wheel.spinRate,
         rearSpinRate: bike.rear.wheel.spinRate,
         rearSlip: bike.rear.wheel.slip,
+        boostReady: race.flow.isBoostReady,
+        isRedline: race.flow.isRedline,
+        comboLinks: race.combo.links,
         frontCompression: bike.front.compression,
         rearCompression: bike.rear.compression,
         frontLoad: normalizedAxleLoad(bike, 'front'),
