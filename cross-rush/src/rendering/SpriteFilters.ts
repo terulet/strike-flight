@@ -80,3 +80,45 @@ export function scaledSprite(image: HTMLImageElement, filter: string, width: num
   cache.set(key, canvas);
   return canvas;
 }
+
+/** Un sprite horneado con contorno, mas el margen que hubo que anadirle. */
+export interface OutlinedSprite {
+  source: Sprite;
+  /** Pixeles anadidos por cada lado. Hay que sumarlos al pivote al dibujar. */
+  pad: number;
+}
+
+/**
+ * Hornea un sprite con un CONTORNO oscuro alrededor de su silueta.
+ *
+ * Existe por un problema concreto del piloto: su mono y el carenado de la
+ * moto salen del mismo arte, con el mismo estampado rojo y blanco y hasta con
+ * el mismo dorsal. Superpuestos, el ojo no puede separarlos: el pecho se
+ * disuelve en la moto y el conjunto se lee como una mancha. Es el motivo por
+ * el que en casi cualquier juego 2D los personajes recortados llevan un borde
+ * -no es un adorno, es lo que los despega del fondo-.
+ *
+ * El contorno se consigue con varias sombras arrojadas de desplazamiento cero
+ * y radio pequeno: apiladas, rodean la silueta entera por igual. Eso obliga a
+ * hornear sobre un lienzo MAS GRANDE que el sprite, porque una sombra dibujada
+ * justo en el borde se recortaria; de ahi el margen, que el que dibuja tiene
+ * que sumar al pivote o la pieza aparecera desplazada.
+ */
+export function outlinedSprite(image: HTMLImageElement, filter: string, pad: number): OutlinedSprite | null {
+  if (!image.complete || image.naturalWidth === 0) return null;
+  const key = `${image.src}|outline${pad}|${filter}`;
+  const hit = cache.get(key);
+  if (hit) return { source: hit, pad };
+
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth + pad * 2;
+  canvas.height = image.naturalHeight + pad * 2;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const radius = Math.max(1, pad * 0.55);
+  const outline = `drop-shadow(0 0 ${radius}px rgba(12,8,6,0.95)) drop-shadow(0 0 ${radius}px rgba(12,8,6,0.9))`;
+  ctx.filter = filter && filter !== 'none' ? `${filter} ${outline}` : outline;
+  ctx.drawImage(image, pad, pad);
+  cache.set(key, canvas);
+  return { source: canvas, pad };
+}

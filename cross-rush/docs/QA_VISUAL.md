@@ -239,6 +239,27 @@ Entre los whoops y el pedregal hay llano a proposito, y hay un test que lo
 vigila: encadenar dos secciones tecnicas sin respiro no ensena nada, solo
 produce un choque que el jugador no ve venir.
 
+### El piloto lleva contorno
+
+El mono del piloto y el carenado de la moto salen del mismo arte: mismo
+estampado rojo y blanco, y hasta el mismo dorsal 07. Superpuestos, el ojo no
+puede separarlos -el pecho se disuelve en la moto y el conjunto se lee como
+una mancha-, y por eso el piloto "se veia raro" aunque el rig y los anclajes
+ya estuvieran bien.
+
+La solucion no es del rig sino de lectura: un contorno oscuro horneado
+alrededor de cada pieza, mas un tono un punto mas apagado que los plasticos
+blancos de la moto. Es lo mismo que hace casi cualquier juego 2D con
+personajes recortados, y no es un adorno: es lo que despega la figura del
+fondo.
+
+Detalle que importa al implementarlo: el contorno se hace con sombras
+arrojadas de desplazamiento cero, y una sombra dibujada justo en el borde del
+sprite se recorta. Hay que hornear sobre un lienzo mas grande y sumar ese
+margen al pivote, o la pieza sale desplazada.
+
+Comparacion en `docs/qa/secuencia/piloto-contorno-antes-despues.png`.
+
 ### El piloto va montado, no encima
 
 Dos anclajes estaban mal y se notaba en todas las poses:

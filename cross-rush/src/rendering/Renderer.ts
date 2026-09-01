@@ -14,7 +14,7 @@
 import { Terrain } from '../physics/Terrain';
 import { TrackDefinition } from '../tracks/CanyonRun';
 import { BikeState, wheelAnchorWorld, wheelVisualCenterWorld } from '../physics/Bike';
-import { Sprite, filteredSprite, scaledSprite, spriteHeight, spriteReady, spriteWidth } from './SpriteFilters';
+import { Sprite, filteredSprite, outlinedSprite, scaledSprite, spriteHeight, spriteReady, spriteWidth } from './SpriteFilters';
 import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { Shockwaves } from './Shockwaves';
@@ -77,6 +77,10 @@ const PALETTE = {
 } as const;
 
 /** Lavado y oscurecido del mobiliario de pista, horneado una sola vez por sprite. */
+/** Tono del piloto: algo mas apagado que los plasticos de la moto, para que no compitan. */
+const RIDER_TONE = 'brightness(0.88) saturate(1.05)';
+/** Margen del horneado del contorno del piloto, en pixeles de sprite. */
+const RIDER_OUTLINE_PAD = 5;
 const PROP_FILTER = 'saturate(0.82) brightness(0.92)';
 /** Paso del reparto de decoracion. Tiene que ser coprimo con el numero de modelos. */
 const PROP_STRIDE = 5;
@@ -984,14 +988,28 @@ export class Renderer {
     // pida la pose sin despegarse nunca de la moto.
     const geometry = solveRiderRig({ x: bike.x, y: bike.y }, bike.angle, bike.rider, camera.pixelsPerMeter);
 
-    const baseFilter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : '';
+    // Cada pieza va con CONTORNO. El mono del piloto y el carenado de la moto
+    // salen del mismo arte -mismo estampado, mismo dorsal-, asi que
+    // superpuestos no habia forma de separarlos: el cuerpo se disolvia en la
+    // moto. El borde oscuro es lo que devuelve la silueta, y ademas el piloto
+    // va un punto mas apagado que los plasticos blancos de la moto, que es
+    // como se ve en una foto de carreras de verdad.
+    const baseFilter = isRedline ? 'saturate(1.4) hue-rotate(-8deg)' : RIDER_TONE;
     for (const piece of riderPieceDraws(geometry)) {
       const filter = [baseFilter, piece.filter ?? ''].filter(Boolean).join(' ');
+      const outlined = outlinedSprite(piece.image, filter, RIDER_OUTLINE_PAD);
+      const screen = this.worldToScreen(camera, piece.world.x, piece.world.y, shake);
+      if (!outlined) {
+        this.drawRigidSprite(filteredSprite(piece.image, filter), screen, piece.angle, piece.pivotPx, geometry.scale);
+        continue;
+      }
+      // El margen del horneado desplaza la imagen dentro del lienzo, asi que
+      // el pivote se corre lo mismo o la pieza sale movida.
       this.drawRigidSprite(
-        filteredSprite(piece.image, filter),
-        this.worldToScreen(camera, piece.world.x, piece.world.y, shake),
+        outlined.source,
+        screen,
         piece.angle,
-        piece.pivotPx,
+        { x: piece.pivotPx.x + outlined.pad, y: piece.pivotPx.y + outlined.pad },
         geometry.scale,
       );
     }
