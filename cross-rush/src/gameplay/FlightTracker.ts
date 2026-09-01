@@ -103,7 +103,11 @@ export class FlightTracker {
     let trick: TrickResult | null = null;
     if (quality !== 'CRASH' && Math.abs(this.accumulatedRotation) >= TrickConfig.minRotationForTrick) {
       const rotations = Math.abs(this.accumulatedRotation) / TrickConfig.fullRotation;
-      trick = { type: this.accumulatedRotation > 0 ? 'FRONTFLIP' : 'BACKFLIP', rotations };
+      // El signo: en mundo, Y va hacia arriba y los angulos positivos son
+      // antihorarios. Avanzando hacia +x, girar en sentido antihorario es
+      // levantar el morro, o sea un BACKFLIP. Estaba al reves, y aunque hoy
+      // el HUD solo dice "mortal", el nombre viajaba mal a los resultados.
+      trick = { type: this.accumulatedRotation > 0 ? 'BACKFLIP' : 'FRONTFLIP', rotations };
     }
 
     const airTime = this.airTime;

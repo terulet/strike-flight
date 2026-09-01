@@ -185,6 +185,7 @@ en 1366x768 y en 393x852:
 | `espectaculo-1-turbo` | Pad de velocidad: REDLINE, multiplicador x2 y cartel de premio. |
 | `espectaculo-2-linea-de-riesgo` | La eleccion entre la linea segura y saltar el hueco entero. |
 | `espectaculo-3-mega-salto` | El salto grande sobre el canon, con el aro de FLOW atravesado. |
+| `espectaculo-4-mortal` | Mortal completo en el mega salto, de despegue a aterrizaje. |
 
 Las capturas de la ultima pasada estan en `docs/qa/secuencia/`, y con
 `--video` graba ademas la vuelta entera: `docs/qa/vuelta-completa.webm`
@@ -205,7 +206,9 @@ Tres numeros que los tests vigilan (`tests/espectaculo.test.ts`), porque
 - el vuelo mas largo pasa de **20 m**, y esta en la segunda mitad;
 - el mega salto se cruza ENTERO: se despega del labio y se cae pasada la pared
   lejana;
-- el aro cae dentro de la trayectoria real, no por encima.
+- el aro cae dentro de la trayectoria real, no por encima;
+- el mortal se puede completar y aterrizar sin estrellarse, y un toque corto
+  de aire NO gira como un mortal.
 
 La camara lenta de los vuelos largos no toca la fisica: el bucle sigue dando
 pasos de `SIM_DT` exactos y solo recibe menos tiempo real por fotograma, asi

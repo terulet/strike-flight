@@ -119,9 +119,16 @@ export function riderPoseTargets(input: RiderPoseInput): { shiftX: number; shift
   const compressionRatio = REFERENCE_TRAVEL > 0 ? clamp(input.meanCompression / REFERENCE_TRAVEL, 0, 1.4) : 0;
   let shiftY = -compressionRatio * RiderConfig.compressionToShiftY * REFERENCE_TRAVEL;
 
-  if (input.airborne && input.verticalSpeed > 0) {
-    // Despegando: el cuerpo se estira, como quien "tira" de la moto hacia arriba.
-    shiftY += Math.min(RiderConfig.maxTakeoffExtension, input.verticalSpeed * RiderConfig.takeoffExtension);
+  if (input.airborne) {
+    // En vuelo el piloto se pone DE PIE sobre las estriberas y se queda asi
+    // hasta tocar suelo (`airStandExtension`), y ademas tira de la moto hacia
+    // arriba mientras sube (`takeoffExtension`). La primera parte es
+    // constante a proposito: es lo que evita que el cuerpo vuelva al asiento
+    // en cuanto se pasa el vertice del salto.
+    shiftY += RiderConfig.airStandExtension;
+    if (input.verticalSpeed > 0) {
+      shiftY += Math.min(RiderConfig.maxTakeoffExtension, input.verticalSpeed * RiderConfig.takeoffExtension);
+    }
   } else if (!input.airborne && input.verticalSpeed < 0) {
     // Recibiendo: el cuerpo se hunde para tragarse el impacto.
     shiftY -= Math.min(RiderConfig.maxLandingAbsorb, -input.verticalSpeed * RiderConfig.landingAbsorb);

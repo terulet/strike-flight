@@ -127,3 +127,78 @@ describe('camara lenta', () => {
     expect(steps).toBeGreaterThan(0);
   });
 });
+
+describe('el mortal', () => {
+  it('se puede completar en el mega salto manteniendo el gesto y soltando a tiempo', () => {
+    const track = buildCanyonRun();
+    const megaJumpX = track.labels.find((label) => label.name === 'MEGA_JUMP')!.x;
+    let trickInMega: string | null = null;
+    let landingQuality: string | null = null;
+
+    const race = new RaceManager(track, {
+      onLanding: (event) => {
+        if (race.bike.x <= megaJumpX || landingQuality !== null) return;
+        landingQuality = event.quality;
+        trickInMega = event.trick?.type ?? null;
+      },
+    });
+    race.begin();
+    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false });
+
+    let rotation = 0;
+    let previousAngle = race.bike.angle;
+    while (race.state === 'RACING' && race.raceTime < 90 && race.bike.x < track.finishX) {
+      const bike = race.bike;
+      const inMegaJump = bike.x > megaJumpX + 8 && bike.x < megaJumpX + 34;
+      let lean = 0;
+      if (isAirborne(bike)) {
+        let turned = bike.angle - previousAngle;
+        while (turned > Math.PI) turned -= Math.PI * 2;
+        while (turned <= -Math.PI) turned += Math.PI * 2;
+        if (inMegaJump) rotation += turned;
+
+        if (inMegaJump && rotation < 5.2) {
+          // Compromiso: mando a fondo y sostenido. Se suelta antes de cerrar
+          // la vuelta, que es lo que permite llegar al suelo alineado.
+          lean = 1;
+        } else {
+          const ahead = Math.max(2, Math.abs(bike.vx) * 0.32);
+          let delta = Math.atan(track.terrain.surfaceSlope(bike.x + ahead)) - bike.angle;
+          while (delta > Math.PI) delta -= Math.PI * 2;
+          while (delta <= -Math.PI) delta += Math.PI * 2;
+          const want = delta * 2.2 - bike.angularVelocity * 0.42;
+          lean = want > 0.25 ? 1 : want < -0.25 ? -1 : 0;
+        }
+      }
+      previousAngle = bike.angle;
+      race.step(SIM_DT, { throttle: true, brake: false, lean, restartPressed: false });
+    }
+
+    // Con el ritmo de giro normal (5,5 rad/s) el vuelo entero daba 4,8 de los
+    // 6,28 radianes de una vuelta: el mortal era imposible y los puntos por
+    // truco eran contenido muerto. Este test es el que impide que vuelva a
+    // serlo sin que nadie se entere.
+    expect(rotation).toBeGreaterThan(Math.PI * 2 * 0.82);
+    expect(landingQuality).not.toBe('CRASH');
+    expect(trickInMega).toBe('BACKFLIP');
+  });
+
+  it('un toque corto de aire NO gira como un mortal: corregir y girar son gestos distintos', () => {
+    const track = buildCanyonRun();
+    const race = new RaceManager(track);
+    race.begin();
+    while (race.state === 'COUNTDOWN') race.step(SIM_DT, { throttle: false, brake: false, lean: 0, restartPressed: false });
+
+    // Se sube la moto en el aire y se le dan toques de 0,15 s, soltando entre
+    // uno y otro: eso es corregir. El ritmo de giro tiene que quedarse en el
+    // normal, no dispararse al comprometido.
+    race.bike.y += 30;
+    let maxRate = 0;
+    for (let i = 0; i < Math.round(1.5 / SIM_DT); i++) {
+      const phase = Math.floor(i * SIM_DT / 0.15) % 2;
+      race.step(SIM_DT, { throttle: false, brake: false, lean: phase === 0 ? 1 : 0, restartPressed: false });
+      maxRate = Math.max(maxRate, Math.abs(race.bike.angularVelocity));
+    }
+    expect(maxRate).toBeLessThan(6.2); // el limite normal es 5,5
+  });
+});

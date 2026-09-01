@@ -49,7 +49,9 @@ describe('FlightTracker', () => {
     expect(landing).not.toBeNull();
     expect(landing!.quality).not.toBe('CRASH');
     expect(landing!.trick).not.toBeNull();
-    expect(landing!.trick!.type).toBe('FRONTFLIP');
+    // Angulo creciente = giro antihorario = morro arriba = BACKFLIP. Estaba
+    // etiquetado al reves.
+    expect(landing!.trick!.type).toBe('BACKFLIP');
     expect(landing!.trick!.rotations).toBeGreaterThanOrEqual(TrickConfig.minRotationForTrick / (Math.PI * 2));
   });
 

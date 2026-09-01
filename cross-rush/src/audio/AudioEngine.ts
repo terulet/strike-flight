@@ -16,6 +16,12 @@ export interface EngineAudioState {
   /** Gas continuo 0..1. */
   throttle: number;
   /**
+   * Escala de tiempo vigente (1 = tiempo real). En camara lenta baja el tono
+   * del motor, igual que ralentizar una cinta. Opcional: sin ella suena a
+   * velocidad normal.
+   */
+  timeScale?: number;
+  /**
    * Carga del motor 0..1: cuanto le esta costando. Sube al arrancar, al subir
    * cuestas y al patinar; baja en rueda libre y en el aire.
    */
@@ -90,7 +96,12 @@ export class AudioEngine {
     const load = Math.max(0, Math.min(1, Number.isFinite(state.load) ? state.load : 0));
 
     const pitchRatio = Math.min(1, rpm + throttle * cfg.throttleLift * (1 - rpm));
-    const freq = cfg.baseFrequency + pitchRatio * (cfg.maxFrequency - cfg.baseFrequency);
+    // La camara lenta baja el tono. La simulacion no cambia de velocidad -las
+    // vueltas de rueda son las mismas-, pero el jugador esta viendo el mundo
+    // al 45%, y un motor que sigue sonando igual mientras la imagen se
+    // arrastra delata el truco. Es el mismo efecto que ralentizar una cinta.
+    const timeScale = Math.max(0.05, Math.min(1, Number.isFinite(state.timeScale ?? 1) ? (state.timeScale ?? 1) : 1));
+    const freq = (cfg.baseFrequency + pitchRatio * (cfg.maxFrequency - cfg.baseFrequency)) * timeScale;
 
     const openness = Math.min(1, 0.35 * rpm + 0.4 * throttle + cfg.loadGain * load);
     const gain = cfg.baseGain + openness * (cfg.maxGain - cfg.baseGain);

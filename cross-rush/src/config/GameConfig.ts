@@ -180,8 +180,29 @@ export const SuspensionConfig = {
  * una vuelta entera cabe en poco mas de un segundo de vuelo.
  */
 export const AirControlConfig = {
-  /** Velocidad de giro (rad/s) que pide el mando a fondo. */
+  /** Velocidad de giro (rad/s) que pide el mando a fondo en una correccion normal. */
   maxControlledRate: 5.5,
+  /**
+   * Velocidad de giro (rad/s) cuando el jugador se COMPROMETE: mantiene el
+   * mando a fondo y en el mismo sentido durante todo un vuelo.
+   *
+   * Existe por una razon concreta y medida: con 5,5 rad/s, mantener el mando
+   * a fondo durante el mega salto entero -1,1 s de aire- daba 4,8 radianes de
+   * los 6,28 de una vuelta. O sea que el mortal era IMPOSIBLE, y el cartel de
+   * "¡MORTAL!" y los puntos por truco eran contenido muerto que nadie iba a
+   * ver nunca.
+   *
+   * Subir el limite general a 9 habria arreglado el mortal a costa de volver
+   * imprecisa cualquier correccion pequena en el aire, que es lo que se usa
+   * el 95% del tiempo. La distincion es la que hace un piloto de verdad:
+   * corregir es un toque, girar es una decision. Un toque corto conserva los
+   * 5,5 exactos de siempre; sostener el gesto sube hasta aqui.
+   */
+  committedRotationRate: 9.0,
+  /** Segundos con el mando a fondo antes de que empiece a subir el ritmo de giro. */
+  commitmentDelay: 0.22,
+  /** Segundos que tarda en llegar del ritmo normal al comprometido. */
+  commitmentRamp: 0.35,
   /** Con que rapidez se alcanza esa velocidad (1/s). Alta = respuesta inmediata. */
   airControlResponse: 8.0,
   /** Factor de amortiguacion angular en el aire (1/s), evita giros infinitos. */
@@ -248,12 +269,24 @@ export const RiderConfig = {
   /** Extension del cuerpo al despegar (m), proporcional a la velocidad vertical. */
   takeoffExtension: 0.016,
   maxTakeoffExtension: 0.13,
+  /**
+   * Cuanto se levanta el cuerpo del asiento mientras dura el vuelo (m).
+   *
+   * La extension de despegue solo actuaba con velocidad vertical POSITIVA, o
+   * sea durante la subida. Pasado el vertice, en toda la segunda mitad del
+   * salto -que es justo cuando la camara se abre y el jugador esta mirando-,
+   * el piloto volvia a quedarse sentado y quieto. Un piloto de verdad se pone
+   * de pie sobre las estriberas y se queda ahi hasta tocar suelo. Al ser un
+   * objetivo constante, el muelle lo sostiene todo el vuelo en vez de
+   * devolverlo al asiento a mitad de camino.
+   */
+  airStandExtension: 0.1,
   /** Absorcion al aterrizar: metros que se hunde el cuerpo por m/s de impacto. */
   landingAbsorb: 0.012,
   maxLandingAbsorb: 0.16,
   /** Topes duros de la pose, para que nunca se despegue del asiento. */
   maxShiftX: 0.36,
-  maxShiftY: 0.22,
+  maxShiftY: 0.27,
   maxTorsoAngle: 0.62,
   /** Muelle de segundo orden del torso (mas rapido que el del cuerpo entero). */
   torsoStiffness: 190,

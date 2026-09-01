@@ -441,6 +441,7 @@ const loop = new GameLoop(
         rpmRatio: engineRpmRatio(race.bike),
         throttle: smoothed.throttle,
         load: Math.max(slipLoad, axleLoad * smoothed.throttle),
+        timeScale,
       });
 
       // Gancho de QA, solo lectura. Publica el ultimo estado REALMENTE

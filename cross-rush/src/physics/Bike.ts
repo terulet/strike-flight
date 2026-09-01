@@ -90,6 +90,13 @@ export interface BikeState {
   throttleAmount: number;
   brakeAmount: number;
   leanAmount: number;
+  /**
+   * Segundos que el jugador lleva pidiendo el MISMO gesto de aire a fondo, con
+   * signo. Se pone a cero al soltar, al cambiar de sentido o al tocar suelo.
+   * De aqui sale el compromiso que permite completar un mortal (ver
+   * AirControlConfig.committedRotationRate).
+   */
+  airControlHold: number;
 }
 
 const FRONT_SUSPENSION: SuspensionParams = { ...SuspensionConfig.front, wheelRadius: BikeConfig.wheelRadius };
@@ -147,6 +154,7 @@ export function createInitialBikeState(x: number, y: number): BikeState {
     throttleAmount: 0,
     brakeAmount: 0,
     leanAmount: 0,
+    airControlHold: 0,
   };
 }
 
@@ -453,8 +461,22 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
     // seria el juego corrigiendo por el jugador; aqui pedir "morro abajo"
     // cuando ya vas cayendo de morro simplemente no hace nada, y la rotacion
     // que traes del despegue sigue siendo tuya y hay que gestionarla.
+    // Compromiso: cuanto lleva el jugador pidiendo el mismo gesto a fondo. Un
+    // toque corto no cuenta; sostenerlo desbloquea el ritmo de giro alto que
+    // hace posible el mortal.
+    const leanDirection = Math.sign(cmd.lean);
+    const sameDirection = leanDirection !== 0 && Math.sign(state.airControlHold) !== -leanDirection;
+    next.airControlHold = sameDirection ? state.airControlHold + leanDirection * dt : 0;
+
     if (cmd.lean !== 0) {
-      const targetRate = cmd.lean * AirControlConfig.maxControlledRate;
+      const held = Math.abs(next.airControlHold);
+      const commitment = clamp(
+        (held - AirControlConfig.commitmentDelay) / Math.max(0.001, AirControlConfig.commitmentRamp),
+        0,
+        1,
+      );
+      const rate = lerp(AirControlConfig.maxControlledRate, AirControlConfig.committedRotationRate, commitment);
+      const targetRate = cmd.lean * rate;
       const alreadyBeyond =
         Math.sign(targetRate) === Math.sign(next.angularVelocity) &&
         Math.abs(next.angularVelocity) > Math.abs(targetRate);
@@ -467,6 +489,8 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
     const dampingFactor = Math.max(0, 1 - AirControlConfig.airAngularDamping * dt);
     next.angularVelocity *= dampingFactor;
   } else {
+    // En el suelo no hay compromiso que acumular: cada vuelo empieza de cero.
+    next.airControlHold = 0;
     next.angularVelocity += (sumTorque / inertia) * dt;
     // Ligero amortiguamiento en el suelo para que no oscile eternamente.
     next.angularVelocity *= Math.max(0, 1 - 2.0 * dt);
@@ -586,5 +610,8 @@ export function lerpBikeState(previous: BikeState, current: BikeState, alpha: nu
     throttleAmount: lerp(previous.throttleAmount, current.throttleAmount, t),
     brakeAmount: lerp(previous.brakeAmount, current.brakeAmount, t),
     leanAmount: lerp(previous.leanAmount, current.leanAmount, t),
+    // No es una magnitud visual: no tiene sentido interpolarla, y ademas el
+    // render nunca la mira.
+    airControlHold: current.airControlHold,
   };
 }
