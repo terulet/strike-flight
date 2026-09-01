@@ -185,7 +185,10 @@ en 1366x768 y en 393x852:
 | `espectaculo-1-turbo` | Pad de velocidad: REDLINE, multiplicador x2 y cartel de premio. |
 | `espectaculo-2-linea-de-riesgo` | La eleccion entre la linea segura y saltar el hueco entero. |
 | `espectaculo-3-mega-salto` | El salto grande sobre el canon, con el aro de FLOW atravesado. |
-| `espectaculo-4-mortal` | Mortal completo en el mega salto, de despegue a aterrizaje. |
+| `espectaculo-1-mortal-sobre-el-canon` | Mortal en el aire, con cadena y lineas de velocidad. |
+| `espectaculo-2-aro-y-cadena` | Aro atravesado con multiplicador x16. |
+| `espectaculo-3-resultados-con-rango` | Panel final con rango y mejor cadena. |
+| `espectaculo-4-movil` | Lo mismo en 393x852. |
 
 Las capturas de la ultima pasada estan en `docs/qa/secuencia/`, y con
 `--video` graba ademas la vuelta entera: `docs/qa/vuelta-completa.webm`
@@ -200,8 +203,41 @@ un aro de FLOW en mitad del aire. Las piezas de riesgo/recompensa no estan
 colocadas a mano: `GameplayZones` las deriva de las etiquetas de sector, asi
 que lo que se ve y lo que actua salen del mismo sitio.
 
-Tres numeros que los tests vigilan (`tests/espectaculo.test.ts`), porque
-"salto imposible" tiene que ser medible y no una impresion:
+El mega salto son **36 m de vuelo y 1,8 s de aire**, y esa cifra no salio de
+elegirla sino de tres correcciones encadenadas, cada una medida:
+
+1. Un kicker mas vertical (43 grados) da mas TIEMPO de aire, que es lo que
+   hace posible un mortal; pero cuesta velocidad, asi que hay un pad de turbo
+   justo antes que mete la moto en la rampa a 27 m/s en vez de 21.
+2. La rampa tuvo que alargarse de 8 a 11 m: con 8, la transicion era tan
+   brusca que el chasis tocaba suelo en el propio labio.
+3. Y el aterrizaje era crash SIEMPRE hasta arreglar el clasificador. Ver
+   abajo.
+
+### El golpe se mide contra el suelo, no contra el mundo
+
+Un vuelo de 1,8 s llega al suelo a 17 m/s verticales, justo el umbral de
+choque: por bien que se cayera, crash garantizado. La causa era que el
+clasificador de aterrizajes usaba la velocidad vertical del MUNDO.
+
+Lo correcto es la componente perpendicular a la superficie: si el terreno
+tambien baja, el suelo se aparta mientras la moto cae. Sobre la rampa de
+recepcion de 22 grados, esos mismos 25 m/s son 8,7 m/s de golpe real. Es
+exactamente para lo que existe una rampa de aterrizaje en una pista de verdad.
+En llano la normal es vertical y el numero vuelve a ser |vy|, asi que nada de
+lo que ya funcionaba cambia.
+
+### Cadena y multiplicadores
+
+Cada acrobacia -aterrizaje clavado, mortal, aro, hueco superado- suma un
+eslabon y reinicia una ventana de 4,5 s. El multiplicador sube por escalones
+(x1, x2, x3, x4, x6, x8) y se multiplica con el de REDLINE, asi que la
+puntuacion grande sale de encadenar Y de ir rapido a la vez, no de insistir en
+una sola cosa. Un choque la rompe entera.
+
+Tres numeros que los tests vigilan (`tests/espectaculo.test.ts`,
+`tests/combo.test.ts`), porque "salto imposible" y "puntuacion loca" tienen
+que ser medibles y no una impresion:
 
 - el vuelo mas largo pasa de **20 m**, y esta en la segunda mitad;
 - el mega salto se cruza ENTERO: se despega del labio y se cae pasada la pared
@@ -213,16 +249,8 @@ Tres numeros que los tests vigilan (`tests/espectaculo.test.ts`), porque
 La camara lenta de los vuelos largos no toca la fisica: el bucle sigue dando
 pasos de `SIM_DT` exactos y solo recibe menos tiempo real por fotograma, asi
 que el crono cuenta segundos simulados y los tiempos siguen siendo
-comparables.
-
-### Rendimiento
-
-El render se mide con Chromium sin GPU (rasterizado por software), que es el
-peor caso razonable. Referencia en 1366x768: **~65 fps**. Venia de 5 fps: el
-culpable era `ctx.filter` aplicado en caliente sobre las capas de fondo, que
-cubren la pantalla entera y se redibujaban con el filtro en cada fotograma.
-Ahora los filtros y el reescalado van horneados (`src/rendering/SpriteFilters.ts`)
-y el cielo se cachea en un lienzo aparte.
+comparables. La congelacion de imagen de los golpes usa esa misma palanca, de
+modo que no hay dos mecanismos de pausa que puedan desincronizarse.
 
 ### Arte fantasma
 

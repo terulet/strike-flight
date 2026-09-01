@@ -149,7 +149,9 @@ describe('el mortal', () => {
     let previousAngle = race.bike.angle;
     while (race.state === 'RACING' && race.raceTime < 90 && race.bike.x < track.finishX) {
       const bike = race.bike;
-      const inMegaJump = bike.x > megaJumpX + 8 && bike.x < megaJumpX + 34;
+      // Ventana del vuelo del mega salto: rampa de 11 m y hueco de 26, asi
+      // que el aire va de +11 a ~+47.
+      const inMegaJump = bike.x > megaJumpX + 10 && bike.x < megaJumpX + 50;
       let lean = 0;
       if (isAirborne(bike)) {
         let turned = bike.angle - previousAngle;
@@ -157,7 +159,7 @@ describe('el mortal', () => {
         while (turned <= -Math.PI) turned += Math.PI * 2;
         if (inMegaJump) rotation += turned;
 
-        if (inMegaJump && rotation < 5.2) {
+        if (inMegaJump && rotation < 5.6) {
           // Compromiso: mando a fondo y sostenido. Se suelta antes de cerrar
           // la vuelta, que es lo que permite llegar al suelo alineado.
           lean = 1;
@@ -178,7 +180,7 @@ describe('el mortal', () => {
     // 6,28 radianes de una vuelta: el mortal era imposible y los puntos por
     // truco eran contenido muerto. Este test es el que impide que vuelva a
     // serlo sin que nadie se entere.
-    expect(rotation).toBeGreaterThan(Math.PI * 2 * 0.82);
+    expect(rotation).toBeGreaterThan(Math.PI * 2 * 0.92);
     expect(landingQuality).not.toBe('CRASH');
     expect(trickInMega).toBe('BACKFLIP');
   });

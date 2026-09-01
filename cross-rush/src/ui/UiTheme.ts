@@ -180,6 +180,59 @@ const CSS = `
   text-shadow: 0 0 10px var(--cr-red);
 }
 
+/* ---------------------------------------------------------------- combo */
+/* La cadena vive en el centro-alto, no en una esquina: es lo que hay que
+   mirar mientras se encadena, y una barra que se vacia en el rabillo del ojo
+   no transmite urgencia ninguna. */
+.cr-combo {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--cr-safe-t) + 8px);
+  transform: translateX(-50%);
+  text-align: center;
+  display: none;
+}
+.cr-combo-mult {
+  font-family: 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--cr-orange);
+  -webkit-text-stroke: 1.6px #000;
+  text-shadow: 0 0 18px rgba(255, 122, 40, 0.75), 0 4px 10px rgba(0, 0, 0, 0.7);
+}
+.cr-combo-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  margin-top: -2px;
+}
+/* Barra que se vacia: es el reloj de la cadena. */
+.cr-combo-bar {
+  width: 110px;
+  height: 4px;
+  margin: 5px auto 0;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cr-combo-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--cr-orange), var(--cr-red));
+  transform-origin: left center;
+}
+/* Cada escalon nuevo da un latigazo de escala. */
+.cr-combo-pop { animation: cr-combo-pop 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes cr-combo-pop {
+  0% { transform: scale(1.85); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
 /* Carteles de premio: suben y se desvanecen sobre el centro de la pista. */
 .cr-awards {
   position: absolute;
@@ -361,6 +414,11 @@ const CSS = `
   .cr-score-value { font-size: 16px; }
   .cr-score-mult { font-size: 11px; }
   .cr-award { font-size: 19px; }
+  .cr-combo-mult { font-size: 28px; }
+  .cr-combo-bar { width: 84px; }
+  /* En vertical el centro de arriba lo ocupan el crono y la barra de FLOW, y
+     la cadena se les montaba encima. Baja por debajo de los dos. */
+  .cr-combo { top: calc(var(--cr-safe-t) + 96px); }
   .cr-center-brand { font-size: 30px; }
   .cr-center-msg { font-size: 62px; }
   .cr-btn { width: 68px; height: 68px; font-size: 11px; }

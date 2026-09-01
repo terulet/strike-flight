@@ -40,6 +40,11 @@ export class HUD {
   private readonly scoreValueEl: HTMLElement;
   private readonly scoreMultEl: HTMLElement;
   private readonly awardsEl: HTMLElement;
+  private readonly comboEl: HTMLElement;
+  private readonly comboMultEl: HTMLElement;
+  private readonly comboLabelEl: HTMLElement;
+  private readonly comboFillEl: HTMLElement;
+  private lastComboLinks = 0;
   /** Ultimo texto central mostrado, para no reiniciar la animacion cada frame. */
   private lastCenterText: string | null = null;
 
@@ -100,6 +105,22 @@ export class HUD {
     this.awardsEl = document.createElement('div');
     this.awardsEl.className = 'cr-awards';
 
+    // ------------------------------------------------------------- cadena
+    this.comboEl = document.createElement('div');
+    this.comboEl.className = 'cr-combo';
+    this.comboMultEl = document.createElement('div');
+    this.comboMultEl.className = 'cr-combo-mult';
+    this.comboLabelEl = document.createElement('div');
+    this.comboLabelEl.className = 'cr-combo-label';
+    const comboBar = document.createElement('div');
+    comboBar.className = 'cr-combo-bar';
+    this.comboFillEl = document.createElement('div');
+    this.comboFillEl.className = 'cr-combo-fill';
+    comboBar.appendChild(this.comboFillEl);
+    this.comboEl.appendChild(this.comboMultEl);
+    this.comboEl.appendChild(this.comboLabelEl);
+    this.comboEl.appendChild(comboBar);
+
     // --------------------------------------------------------------- flow
     const flowWrap = document.createElement('div');
     flowWrap.className = 'cr-flow';
@@ -141,6 +162,7 @@ export class HUD {
     this.root.appendChild(flowWrap);
     this.root.appendChild(this.splitEl);
     this.root.appendChild(this.awardsEl);
+    this.root.appendChild(this.comboEl);
     this.root.appendChild(this.centerEl);
     container.appendChild(this.root);
   }
@@ -154,6 +176,29 @@ export class HUD {
     this.scoreValueEl.textContent = score.toLocaleString('es-ES');
     this.scoreMultEl.textContent = `x${multiplier}`;
     this.scoreMultEl.classList.toggle('hot', multiplier > 1);
+  }
+
+  /**
+   * Cadena de acrobacias. El latigazo de escala se dispara solo cuando SUBE
+   * el numero de eslabones: se llama una vez por fotograma, asi que
+   * relanzarlo siempre lo dejaria congelado en su primer cuadro.
+   */
+  setCombo(links: number, multiplier: number, remainingFraction: number): void {
+    if (links <= 0) {
+      this.comboEl.style.display = 'none';
+      this.lastComboLinks = 0;
+      return;
+    }
+    this.comboEl.style.display = 'block';
+    this.comboMultEl.textContent = `x${multiplier}`;
+    this.comboLabelEl.textContent = `${links} EN CADENA`;
+    this.comboFillEl.style.transform = `scaleX(${Math.max(0, Math.min(1, remainingFraction))})`;
+    if (links > this.lastComboLinks) {
+      this.comboMultEl.classList.remove('cr-combo-pop');
+      void this.comboMultEl.offsetWidth;
+      this.comboMultEl.classList.add('cr-combo-pop');
+    }
+    this.lastComboLinks = links;
   }
 
   /**

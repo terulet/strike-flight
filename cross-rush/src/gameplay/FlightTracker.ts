@@ -93,9 +93,16 @@ export class FlightTracker {
     const slopeAngle = Math.atan(groundSlope);
     const angleDiff = Math.abs(angleDelta(slopeAngle, state.angle));
 
+    // Golpe CONTRA EL SUELO, no velocidad vertical del mundo: la componente
+    // de la velocidad perpendicular a la superficie. Sobre una rampa que baja,
+    // el suelo se aparta mientras la moto cae y el impacto real es una
+    // fraccion del que sugiere vy (ver LandingClassifier.LandingSample).
+    const normalLength = Math.hypot(1, groundSlope);
+    const impactSpeed = Math.abs((-groundSlope * state.vx + state.vy) / normalLength);
+
     const quality = classifyLanding({
       angleDiff,
-      verticalSpeed: Math.abs(state.vy),
+      verticalSpeed: impactSpeed,
       contactTimingGap,
       angularVelocity: Math.abs(state.angularVelocity),
     });

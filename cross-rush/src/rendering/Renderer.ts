@@ -18,6 +18,7 @@ import { Sprite, filteredSprite, scaledSprite, spriteHeight, spriteReady, sprite
 import { CameraPose } from './Camera';
 import { ParticleSystem } from './ParticleSystem';
 import { Shockwaves } from './Shockwaves';
+import { ScreenEffects } from './ScreenEffects';
 import { SpriteDecals } from './SpriteDecals';
 import { BikeConfig, SuspensionConfig, EngineConfig, CrashConfig } from '../config/GameConfig';
 import { Vec2, rotateVec } from '../physics/MathUtils';
@@ -130,6 +131,7 @@ export class Renderer {
     particles: ParticleSystem;
     decals: SpriteDecals;
     shockwaves: Shockwaves;
+    screenEffects: ScreenEffects;
     flowValue: number;
     isRedline: boolean;
     crashed: boolean;
@@ -138,7 +140,7 @@ export class Renderer {
     ghost: GhostFrame | null;
   }): void {
     const { ctx } = this;
-    const { camera, track, bike, particles, decals, shockwaves, isRedline, crashed, ghost, shake } = opts;
+    const { camera, track, bike, particles, decals, shockwaves, screenEffects, isRedline, crashed, ghost, shake } = opts;
     const crashElapsed = opts.crashElapsed ?? 0;
     const terrain = track.terrain;
 
@@ -170,6 +172,9 @@ export class Renderer {
     this.drawBike(camera, bike, isRedline, crashed, shake, crashElapsed);
     this.drawSpeedTrail(camera, bike, isRedline, shake);
     this.drawForeground(camera, shake);
+    // Lo ultimo: destellos, lineas de velocidad y vinieta van por encima del
+    // mundo entero (el HUD es DOM y sigue quedando por encima de esto).
+    screenEffects.draw(ctx);
 
     ctx.restore();
   }
@@ -344,7 +349,7 @@ export class Renderer {
 
     if (zones.bumpGate) this.drawGroundSprite(camera, terrain, shake, zones.bumpGate.x, 5.5, SpriteImages.bumpGate);
     if (zones.altRamp) this.drawGroundSprite(camera, terrain, shake, zones.altRamp.x, 7, SpriteImages.altRamp);
-    if (zones.speedPad) this.drawGroundSprite(camera, terrain, shake, zones.speedPad.x, 4.5, SpriteImages.speedPad);
+    for (const pad of zones.speedPads) this.drawGroundSprite(camera, terrain, shake, pad.x, 4.5, SpriteImages.speedPad);
     if (zones.riskGap) {
       const midGapX = zones.riskGap.startX + 12.5;
       this.drawGroundSprite(camera, terrain, shake, midGapX, 22, SpriteImages.riskGap);

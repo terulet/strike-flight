@@ -215,6 +215,18 @@ export class AudioEngine {
     });
   }
 
+  /**
+   * Eslabon de cadena. Cada uno suena mas agudo que el anterior: la escala
+   * ascendente es lo que hace que encadenar SE OIGA como encadenar, sin
+   * necesidad de mirar el numero.
+   */
+  playComboCue(links: number): void {
+    const step = Math.min(7, Math.max(0, links - 1));
+    const freq = 523 * Math.pow(2, step / 6);
+    this.playBlip(freq, 0.13, AudioConfig.landing.gain * 0.7, 'square');
+    this.playBlip(freq * 1.5, 0.1, AudioConfig.landing.gain * 0.35, 'triangle');
+  }
+
   /** Empujon de una pieza de riesgo/recompensa (speed_pad, flow_ring acertado, risk_gap superado). */
   playBoostCue(): void {
     this.playBlip(440, 0.1, AudioConfig.landing.gain, 'triangle');

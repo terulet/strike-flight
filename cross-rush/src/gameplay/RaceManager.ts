@@ -12,6 +12,7 @@ import { InputSmoother, SmoothedInput } from '../input/InputSmoothing';
 import { TrackDefinition } from '../tracks/CanyonRun';
 import { InputState } from '../input/InputManager';
 import { FlowMeter } from './FlowMeter';
+import { ComboMeter } from './ComboMeter';
 import { FlightTracker, LandingEvent } from './FlightTracker';
 import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector';
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
@@ -30,6 +31,12 @@ export interface RaceEventSink {
   onStateChange?: (state: GameState) => void;
   /** Instante exacto de la salida, ya con el golpe de suspension aplicado. */
   onRaceStart?: () => void;
+  /** Un eslabon mas de cadena. `multiplier` es el que ya esta vigente. */
+  onCombo?: (links: number, multiplier: number) => void;
+  /** La cadena se cierra sola por tiempo, con su numero final de eslabones. */
+  onComboEnd?: (links: number) => void;
+  /** La cadena se rompe por un choque. */
+  onComboBreak?: (links: number) => void;
   onSpeedPad?: () => void;
   /** true si se atraveso el aro dentro de la tolerancia, false si se paso de largo sin acertar la trayectoria. */
   onFlowRing?: (hit: boolean) => void;
@@ -46,6 +53,8 @@ export interface RaceResultsSummary {
   bestSeconds: number | null;
   deltaSeconds: number | null;
   isNewBest: boolean;
+  /** Eslabones de la cadena mas larga de la carrera. */
+  bestCombo: number;
   perfectLandings: number;
   tricks: number;
   flow: number;
@@ -77,6 +86,7 @@ export class RaceManager {
   readonly sectorSplits: SectorSplit[] = [];
 
   readonly flow = new FlowMeter();
+  readonly combo = new ComboMeter();
   readonly flightTracker = new FlightTracker();
   readonly styleScore = new StyleScore();
   readonly ghost = new GhostRecorder();
@@ -92,7 +102,8 @@ export class RaceManager {
   private spinOutElapsed = 0;
   /** Segundos desde que se declaro el choque. El render lo usa para separar al piloto DESPUES del impacto, no en el mismo instante. */
   private crashElapsed = 0;
-  private speedPadTriggered = false;
+  /** Indices de los pads de turbo ya pisados en esta carrera. */
+  private readonly speedPadsTriggered = new Set<number>();
   private flowRingArmed = true;
   private riskGapAwarded = false;
   private altRampFxPlayed = false;
@@ -113,6 +124,16 @@ export class RaceManager {
   getGhostPose(): GhostFrame | null {
     if (this.state !== 'RACING' || !this.bestGhost) return null;
     return sampleGhostAtTime(this.bestGhost, this.raceTime);
+  }
+
+  /**
+   * Multiplicador de puntuacion vigente: cadena por REDLINE. Se multiplican
+   * entre si a proposito. La cadena premia encadenar acrobacias y el REDLINE
+   * premia ir rapido; que se multipliquen es lo que hace que la puntuacion
+   * grande salga de hacer las dos cosas a la vez, y no de insistir en una.
+   */
+  get scoreMultiplier(): number {
+    return this.combo.multiplier * this.flow.scoreMultiplier;
   }
 
   getLiveDeltaSeconds(): number | null {
@@ -150,12 +171,13 @@ export class RaceManager {
     this.currentSectorIndex = 0;
     this.sectorSplits.length = 0;
     this.flow.reset();
+    this.combo.reset();
     this.flightTracker.reset();
     this.styleScore.reset();
     this.ghost.reset();
     this.spinOutElapsed = 0;
     this.crashElapsed = 0;
-    this.speedPadTriggered = false;
+    this.speedPadsTriggered.clear();
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
     this.altRampFxPlayed = false;
@@ -223,6 +245,8 @@ export class RaceManager {
     const groundedFast = !airborne && Math.abs(this.bike.vx) >= FlowConfig.fastSpeedThreshold;
     const airControlActive = airborne && input.lean !== 0;
     this.flow.tick(dt, { groundedFast, airControlActive });
+    const comboLinks = this.combo.links;
+    if (this.combo.tick(dt)) this.sink.onComboEnd?.(comboLinks);
 
     if (landingEvent) {
       this.handleLanding(landingEvent);
@@ -254,7 +278,7 @@ export class RaceManager {
    * consecuencia depende de donde se aterriza, no de cruzar una x.
    */
   private checkGameplayZones(prevX: number): void {
-    const { speedPad, flowRing, altRamp, bumpGate } = this.zones;
+    const { speedPads, flowRing, altRamp, bumpGate } = this.zones;
     const x = this.bike.x;
     const grounded = this.bike.front.inContact || this.bike.rear.inContact;
 
@@ -267,15 +291,12 @@ export class RaceManager {
       this.sink.onAltRamp?.();
     }
 
-    if (
-      speedPad &&
-      !this.speedPadTriggered &&
-      grounded &&
-      this.bike.vx > 0 &&
-      prevX < speedPad.x &&
-      x >= speedPad.x
-    ) {
-      this.speedPadTriggered = true;
+    for (let i = 0; i < speedPads.length; i++) {
+      const pad = speedPads[i];
+      if (this.speedPadsTriggered.has(i)) continue;
+      if (!grounded || this.bike.vx <= 0) continue;
+      if (prevX >= pad.x || x < pad.x) continue;
+      this.speedPadsTriggered.add(i);
       this.bike = { ...this.bike, vx: this.bike.vx + GameplayZoneConfig.speedPad.boostVx };
       this.flow.bonus(GameplayZoneConfig.speedPad.flowBonus);
       this.sink.onSpeedPad?.();
@@ -289,6 +310,7 @@ export class RaceManager {
       if (hit) {
         this.flow.bonus(GameplayZoneConfig.flowRing.flowBonus);
         this.flow.extendRedline(GameplayZoneConfig.flowRing.redlineExtendSeconds);
+        this.addComboLink();
       }
       this.sink.onFlowRing?.(hit);
     }
@@ -296,7 +318,9 @@ export class RaceManager {
 
   private handleLanding(event: LandingEvent): void {
     this.flow.onLanding(event.quality);
-    this.styleScore.registerLanding(event.quality, this.flow.scoreMultiplier);
+    // El multiplicador se lee ANTES de encadenar: el eslabon que se acaba de
+    // ganar no se cobra a si mismo. Si no, la cadena se pagaria dos veces.
+    this.styleScore.registerLanding(event.quality, this.scoreMultiplier);
     this.sink.onLanding?.(event);
 
     if (event.quality === 'CRASH') {
@@ -314,13 +338,25 @@ export class RaceManager {
       this.riskGapAwarded = true;
       this.flow.bonus(GameplayZoneConfig.riskGap.flowBonus);
       this.sink.onRiskGapCleared?.();
+      this.addComboLink();
     }
 
     if (event.trick) {
       this.flow.onTrick();
-      this.styleScore.registerTrick(event.trick, this.flow.scoreMultiplier);
+      this.styleScore.registerTrick(event.trick, this.scoreMultiplier);
       this.sink.onTrick?.(event.trick);
+      this.addComboLink();
     }
+
+    // Un aterrizaje mediocre no encadena: la cadena tiene que costar algo o
+    // deja de significar nada.
+    if (event.quality === 'PERFECT' || event.quality === 'GOOD') this.addComboLink();
+  }
+
+  /** Suma un eslabon y avisa. Centralizado para que todos los premios encadenen igual. */
+  private addComboLink(): void {
+    const multiplier = this.combo.add();
+    this.sink.onCombo?.(this.combo.links, multiplier);
   }
 
   private updateSector(): void {
@@ -360,6 +396,9 @@ export class RaceManager {
   }
 
   private crash(): void {
+    const lostLinks = this.combo.links;
+    this.combo.break();
+    if (lostLinks > 0) this.sink.onComboBreak?.(lostLinks);
     this.setState('CRASHED');
     this.sink.onCrash?.();
   }
@@ -387,6 +426,7 @@ export class RaceManager {
       bestSeconds: this.bestTime,
       deltaSeconds,
       isNewBest,
+      bestCombo: this.combo.bestLinks,
       perfectLandings: this.styleScore.perfectLandings,
       tricks: this.styleScore.tricks,
       flow: this.flow.value,

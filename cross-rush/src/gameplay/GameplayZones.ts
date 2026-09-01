@@ -32,8 +32,19 @@ export interface FlowRingZone {
   radius: number;
 }
 
+export interface SpeedPadZone {
+  x: number;
+}
+
 export interface GameplayZones {
-  speedPad: { x: number } | null;
+  /**
+   * Pads de turbo, en orden de pista. Son varios porque el mega salto NO se
+   * puede montar sin uno propio: sin empujon la moto llega al kicker a 21 m/s
+   * y salen 1,1 s de aire, que no dan para una vuelta completa; con el pad
+   * entra a 27 y pasa de 1,6 s, que es donde el mortal deja de ser un truco
+   * de precision milimetrica y se convierte en algo que se puede buscar.
+   */
+  speedPads: SpeedPadZone[];
   riskGap: RiskGapZone | null;
   flowRing: FlowRingZone | null;
   altRamp: { x: number } | null;
@@ -50,7 +61,11 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
   const riskLineX = findLabelX(track, 'RISK_LINE_JUMP');
   const megaJumpX = findLabelX(track, 'MEGA_JUMP');
 
-  const speedPad = uphillX !== null ? { x: uphillX + 2 } : null;
+  const speedPads: SpeedPadZone[] = [];
+  if (uphillX !== null) speedPads.push({ x: uphillX + 2 });
+  // El segundo pad va justo ANTES del kicker del mega salto (la rampa empieza
+  // en la etiqueta), para que el empujon se convierta integro en altura.
+  if (megaJumpX !== null) speedPads.push({ x: megaJumpX - 6 });
 
   // Mismos offsets que el bache/kicker reales insertados en CanyonRun.ts.
   const bumpGate = technicalX !== null ? { x: technicalX + 2 } : null;
@@ -70,19 +85,22 @@ export function computeGameplayZones(track: TrackDefinition): GameplayZones {
   // llegar lanzado cruza el hueco, llegar frenado cae dentro.
   const riskGap: RiskGapZone | null = riskLineX !== null ? { startX: riskLineX, endX: riskLineX + 19 } : null;
 
+  // Aro del mega salto. Va donde de verdad pasa la moto, y esa trayectoria
+  // hay que recalcularla cada vez que cambia el kicker: con la rampa de 11 m
+  // y el pad de turbo delante, la moto sale del labio a unos 17,8 m/s
+  // horizontales y 14,2 verticales, o sea que corona a 5,2 m por encima del
+  // labio y a unos 13 m de el. Con la trayectoria vieja -2,4 m- el aro se
+  // quedaba enterrado bajo el vuelo y la moto le pasaba por encima sin
+  // rozarlo, que es el mismo fallo que tenia al reves cuando estaba a 4,2.
+  const megaLipX = megaJumpX === null ? null : megaJumpX + 11;
   const flowRing: FlowRingZone | null =
-    megaJumpX !== null
+    megaJumpX !== null && megaLipX !== null
       ? {
-          x: megaJumpX + 20, // hacia la mitad del hueco (rampa de 9m + medio valle de 22m)
-          // Altura real de la trayectoria en ese punto, no una estimacion a
-          // ojo: saliendo del kicker a ~21 m/s con unos 9 m/s de componente
-          // vertical, la moto pasa por aqui unos 2,2 m por encima del labio.
-          // Con los 4,2 m que habia antes el aro quedaba por encima de la
-          // parabola y no se podia atravesar ni haciendolo todo bien.
-          y: track.terrain.surfaceY(megaJumpX + 9) + 2.4,
-          radius: 2.6,
+          x: megaLipX + 13,
+          y: track.terrain.surfaceY(megaLipX) + 5.2,
+          radius: 2.8,
         }
       : null;
 
-  return { speedPad, riskGap, flowRing, altRamp, bumpGate };
+  return { speedPads, riskGap, flowRing, altRamp, bumpGate };
 }

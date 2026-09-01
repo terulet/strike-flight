@@ -758,13 +758,41 @@ export const SpectacleConfig = {
   /** Velocidad de entrada y de salida del efecto (1/s). Salir mas rapido que entrar evita el "chicle" al aterrizar. */
   slowMotionBlendIn: 5,
   slowMotionBlendOut: 9,
-  /** Puntos de los premios de las piezas de riesgo/recompensa. */
+  /**
+   * Congelacion de imagen tras un golpe o un truco (segundos de tiempo REAL).
+   * Corta a proposito: por encima de 0,1 s deja de leerse como un impacto y
+   * empieza a leerse como que el juego se ha trabado.
+   */
+  hitStop: 0.06,
+  hitStopBig: 0.11,
+  /** Puntos base de cada premio. Se multiplican por la cadena y por el REDLINE. */
   awardPoints: {
     speedPad: 150,
     flowRing: 400,
     riskGap: 600,
     bigAir: 250,
+    trick: 450,
+    perfectLanding: 300,
+    /** Por eslabon, al cerrarse una cadena de tres o mas. */
+    comboClose: 120,
   },
   /** Segundos de vuelo a partir de los cuales el aterrizaje cuenta como "vuelo grande". */
   bigAirSeconds: 1,
+} as const;
+
+/**
+ * Cadena de acrobacias (ver gameplay/ComboMeter.ts).
+ *
+ * La ventana es generosa a proposito: en el tramo de espectaculo hay unos 6-8
+ * segundos entre el kicker y el mega salto, y la gracia de una cadena es
+ * poder mantenerla viva de un salto al siguiente. Mas corta convierte el
+ * combo en una loteria de ritmo en vez de en una decision.
+ */
+export const ComboConfig = {
+  windowSeconds: 4.5,
+  /**
+   * Multiplicador por numero de eslabones. El ultimo vale para cadenas mas
+   * largas: crecer sin techo hace que la puntuacion deje de significar nada.
+   */
+  steps: [1, 2, 3, 4, 6, 8] as const,
 } as const;

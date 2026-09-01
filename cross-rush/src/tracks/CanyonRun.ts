@@ -147,16 +147,29 @@ export function buildCanyonRun(): TrackDefinition {
   // dentro del canon. La bajada larga es lo que convierte el salto en algo
   // que se puede hacer, y ademas se ve venir desde lejos, que es justo lo que
   // se quiere antes del salto grande.
-  builder.slope(40, -14).flat(12);
+  builder.slope(40, -14).flat(14);
 
   // 11. MEGA_JUMP — el salto grande, sobre un canon de 20 m y 11 de hondo,
   //     con el aro de FLOW a media trayectoria.
   //
-  //     La rampa es BAJA (3,2 m) a proposito. Subir 4,2 m cuesta 161 m2/s2 de
-  //     energia -de 20 m/s a 15,5- y ademas sale tan empinada que casi toda la
-  //     velocidad se va hacia arriba: el salto quedaba alto y corto. Rampa
-  //     baja y entrada rapida da lo contrario, que es lo que se ve espectacular:
-  //     una trayectoria larga y tendida cruzando el hueco entero.
+  //     El kicker sube 4,6 m en 8, o sea que sale a 43 grados. Es mucho mas
+  //     vertical que el resto de saltos de la pista, y esta hecho a proposito:
+  //     lo que hace posible un mortal no es la distancia, es el TIEMPO DE
+  //     AIRE, y el tiempo de aire es 2*vy/g. Una rampa tendida manda la
+  //     velocidad hacia adelante y da un salto largo pero corto de tiempo; una
+  //     empinada la manda hacia arriba.
+  //
+  //     Empinarla sale caro en velocidad -subir 4,6 m cuesta 177 m2/s2- y por
+  //     eso hay un pad de turbo justo antes: entra a 27 m/s en vez de 21, y de
+  //     ahi salen mas de 1,6 s de vuelo. Con eso, y con el giro comprometido
+  //     de 9 rad/s, cabe una vuelta entera sobrada y hasta se puede intentar
+  //     la doble.
+  //
+  //     La rampa de recepcion baja 12 m en 30 (22 grados) por la misma razon
+  //     por la que las baja una pista de verdad: la moto llega cayendo a unos
+  //     45 grados, y contra un suelo llano eso es un impacto de 17 m/s -crash
+  //     garantizado-. Con el suelo apartandose, el golpe real baja a menos de
+  //     9. Es lo que convierte un vuelo de segundo y medio en un aterrizaje.
   //
   //     El hueco mide 18 m y el vuelo medido son 21,8: se cruza entero y se
   //     cae 4 m dentro de la rampa de recepcion, que baja. Con 20 m y una
@@ -176,7 +189,7 @@ export function buildCanyonRun(): TrackDefinition {
   //     no da miedo. Con 5,5 m entran los dos labios y la caida en cuadro, y
   //     ademas la pared se queda en 44 grados, por debajo del limite de lo
   //     rodable.
-  builder.mark('MEGA_JUMP').rampUp(9, 3.2).gapValley(18, 5.5).landingSlope(22, 4).flat(24);
+  builder.mark('MEGA_JUMP').rampUp(11, 5.5).gapValley(26, 6).landingSlope(30, 12).flat(26);
 
   // META.
   builder.mark('FINISH').flat(58);

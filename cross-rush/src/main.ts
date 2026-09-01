@@ -16,6 +16,7 @@ import { Camera } from './rendering/Camera';
 import { ParticleSystem } from './rendering/ParticleSystem';
 import { SpriteDecals } from './rendering/SpriteDecals';
 import { Shockwaves } from './rendering/Shockwaves';
+import { ScreenEffects } from './rendering/ScreenEffects';
 import { SpriteImages } from './rendering/SpriteAssets';
 import { Renderer } from './rendering/Renderer';
 import { AudioEngine } from './audio/AudioEngine';
@@ -23,7 +24,7 @@ import { HUD } from './ui/HUD';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
-import { BikeConfig, EffectsConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
+import { BikeConfig, EffectsConfig, EngineConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiOverlay = document.getElementById('ui-overlay') as HTMLDivElement;
@@ -34,6 +35,7 @@ const camera = new Camera();
 const particles = new ParticleSystem();
 const decals = new SpriteDecals();
 const shockwaves = new Shockwaves();
+const screenEffects = new ScreenEffects();
 const audio = new AudioEngine();
 const hud = new HUD(uiOverlay);
 const debugOverlay = new DebugOverlay(uiOverlay);
@@ -49,12 +51,18 @@ const FINISH_PANEL_DELAY_MS = 950;
 const race = new RaceManager(track, {
   onStateChange: (state) => {
     if (state === 'COUNTDOWN') {
+      screenEffects.reset();
+      shockwaves.reset();
+      hitStopRemaining = 0;
       resultsScreen.hide();
       hud.showCenterMessage(String(Math.ceil(race.countdownRemaining)));
     } else if (state === 'RACING') {
       hud.hideCenterMessage();
     } else if (state === 'CRASHED') {
       audio.playCrashCue();
+      screenEffects.punch(1);
+      screenEffects.flash('rgba(255, 60, 30, 1)', 0.5, 0.35);
+      hitStop(SpectacleConfig.hitStopBig);
       camera.triggerCrashImpulse();
       particles.spawnBurst(race.bike.x, race.bike.y, 18);
       decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.landingImpact);
@@ -90,7 +98,22 @@ const race = new RaceManager(track, {
     // un mortal hacia atras y un salto normal se ven igual de premiados, que
     // es lo mismo que no premiarlos.
     audio.playBoostCue();
-    hud.showAward(trick.rotations >= 2 ? '¡DOBLE MORTAL!' : '¡MORTAL!');
+    // Un truco para el tiempo un instante. Es la convencion arcade de toda la
+    // vida y funciona porque el ojo necesita un cuadro quieto para registrar
+    // lo que acaba de pasar; sin ella, el mortal se lo traga el aterrizaje.
+    hitStop(trick.rotations >= 2 ? SpectacleConfig.hitStopBig : SpectacleConfig.hitStop);
+    screenEffects.flash('rgba(255, 255, 255, 1)', trick.rotations >= 2 ? 0.72 : 0.5, 0.3);
+    camera.triggerLandingImpulse(1);
+    award(trick.rotations >= 2 ? '¡DOBLE MORTAL!' : '¡MORTAL!', SpectacleConfig.awardPoints.trick);
+  },
+  onCombo: (links) => {
+    if (links >= 2) audio.playComboCue(links);
+  },
+  onComboEnd: (links) => {
+    if (links >= 3) award(`CADENA x${links}`, SpectacleConfig.awardPoints.comboClose * links);
+  },
+  onComboBreak: () => {
+    screenEffects.flash('rgba(255, 40, 40, 1)', 0.4, 0.3);
   },
   onLanding: (event) => {
     // La fuerza del golpe sale de la velocidad de impacto, no de la etiqueta
@@ -107,11 +130,14 @@ const race = new RaceManager(track, {
     // Onda expansiva proporcional al golpe: es lo que hace que un aterrizaje
     // de verdad se SIENTA distinto de posar la moto.
     shockwaves.spawn(contactX, contactY, impact);
+    screenEffects.punch(impact);
+    if (impact > 0.55) hitStop(SpectacleConfig.hitStop * impact);
 
     if (event.airTime >= SpectacleConfig.bigAirSeconds) {
-      hud.showAward('¡VUELO!', SpectacleConfig.awardPoints.bigAir);
+      const seconds = event.airTime.toFixed(1).replace('.', ',');
+      award(`¡VUELO! ${seconds} s`, Math.round(SpectacleConfig.awardPoints.bigAir * event.airTime));
     }
-    if (event.quality === 'PERFECT') hud.showAward('ATERRIZAJE PERFECTO');
+    if (event.quality === 'PERFECT') award('ATERRIZAJE PERFECTO', SpectacleConfig.awardPoints.perfectLanding);
 
     if (event.quality === 'PERFECT' || event.quality === 'GOOD') {
       decals.spawn(contactX, contactY + 0.05, SpriteImages.landingImpact);
@@ -127,7 +153,8 @@ const race = new RaceManager(track, {
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 12);
     decals.spawn(race.bike.x, race.bike.y - 0.2, SpriteImages.speedPadFx);
     shockwaves.spawn(race.bike.x, race.bike.rear.groundY, 0.7, 'rgba(255, 190, 90, 1)');
-    hud.showAward('TURBO', SpectacleConfig.awardPoints.speedPad);
+    screenEffects.flash('rgba(255, 176, 80, 1)', 0.3, 0.22);
+    award('TURBO', SpectacleConfig.awardPoints.speedPad);
   },
   onFlowRing: (hit) => {
     if (!hit) return;
@@ -138,13 +165,15 @@ const race = new RaceManager(track, {
     // La onda sale EN EL AIRE, a la altura de la moto: el aro se atraviesa
     // volando, no en el suelo.
     shockwaves.spawn(race.bike.x, race.bike.y, 1, 'rgba(140, 220, 255, 1)');
-    hud.showAward('¡ARO!', SpectacleConfig.awardPoints.flowRing);
+    screenEffects.flash('rgba(150, 225, 255, 1)', 0.42, 0.26);
+    award('¡ARO!', SpectacleConfig.awardPoints.flowRing);
   },
   onRiskGapCleared: () => {
     audio.playBoostCue();
     particles.spawnBurst(race.bike.x, race.bike.y, 10);
     decals.spawn(race.bike.x, race.bike.y, SpriteImages.riskGapFx);
-    hud.showAward('LINEA DE RIESGO', SpectacleConfig.awardPoints.riskGap);
+    screenEffects.flash('rgba(255, 120, 60, 1)', 0.4, 0.26);
+    award('LINEA DE RIESGO', SpectacleConfig.awardPoints.riskGap);
   },
   onAltRamp: () => {
     particles.spawnBurst(race.bike.x, race.bike.y - 0.2, 8);
@@ -185,6 +214,27 @@ let lastCountdownBeep = -1;
 /** Escala de tiempo vigente y reloj real, para la camara lenta de los saltos. */
 let timeScale = 1;
 let lastFrameMs = performance.now();
+/** Segundos de tiempo real que quedan de congelacion tras un golpe o un truco. */
+let hitStopRemaining = 0;
+
+/**
+ * Congela la imagen un instante. Se cuenta en tiempo REAL y se aplica como
+ * escala de tiempo casi cero, asi que no hay un segundo mecanismo de pausa
+ * que pueda desincronizarse con la camara lenta: es la misma palanca.
+ */
+function hitStop(seconds: number): void {
+  hitStopRemaining = Math.max(hitStopRemaining, seconds);
+}
+
+/**
+ * Canta un premio con los puntos YA multiplicados por la cadena y el REDLINE.
+ * El cartel tiene que decir lo que se ha sumado de verdad; si dijera el valor
+ * base, el jugador veria "+400" mientras el marcador sube 3200 y el
+ * multiplicador dejaria de significar nada.
+ */
+function award(text: string, basePoints?: number): void {
+  hud.showAward(text, basePoints === undefined ? undefined : Math.round(basePoints * race.scoreMultiplier));
+}
 
 function ensureAudioStarted(): void {
   if (audioStarted) return;
@@ -391,6 +441,7 @@ const loop = new GameLoop(
         particles,
         decals,
         shockwaves,
+        screenEffects,
         flowValue: race.flow.value,
         isRedline: race.flow.isRedline,
         crashed: race.state === 'CRASHED',
@@ -399,7 +450,12 @@ const loop = new GameLoop(
       });
 
       hud.update(race.raceTime, race.currentSectorName, race.flow.value, race.flow.isRedline, race.getLiveDeltaSeconds());
-      hud.setScore(race.styleScore.score, race.flow.scoreMultiplier);
+      hud.setScore(race.styleScore.score, race.scoreMultiplier);
+      // La cadena solo se ensena EN CARRERA: al cruzar meta o estrellarse el
+      // reloj de la cadena deja de correr, asi que sin esto se quedaria
+      // congelada encima del panel de resultados.
+      const racing = race.state === 'RACING';
+      hud.setCombo(racing ? race.combo.links : 0, race.combo.multiplier, race.combo.remainingFraction);
 
       // CAMARA LENTA. Se activa por tiempo de vuelo, no por altura: lo que
       // hace espectacular un salto es cuanto dura, y ademas asi el efecto no
@@ -416,7 +472,21 @@ const loop = new GameLoop(
       const realDt = Math.min(0.05, (performance.now() - lastFrameMs) / 1000);
       lastFrameMs = performance.now();
       timeScale += (targetScale - timeScale) * Math.min(1, blend * realDt);
-      loop.setTimeScale(timeScale);
+
+      // La congelacion manda sobre la camara lenta: mientras dura, el tiempo
+      // se para del todo. Se descuenta con el reloj REAL, porque si se
+      // descontara con el simulado -que es justo el que acaba de pararse- no
+      // terminaria nunca.
+      hitStopRemaining = Math.max(0, hitStopRemaining - realDt);
+      loop.setTimeScale(hitStopRemaining > 0 ? 0.05 : timeScale);
+
+      // Efectos de pantalla: tambien con el reloj real, para que un destello
+      // dure lo mismo a camara lenta que a velocidad normal.
+      screenEffects.update(realDt);
+      // Lineas de velocidad: solo con REDLINE y a partir de media velocidad.
+      // Fuera del turbo ensucian la pantalla sin decir nada.
+      const speedFraction = Math.max(0, Math.min(1, (Math.abs(race.bike.vx) / EngineConfig.topSpeed - 0.5) * 2));
+      screenEffects.setSpeedLines(race.flow.isRedline ? speedFraction : 0);
 
       if (race.state === 'COUNTDOWN') {
         const remaining = race.countdownRemaining;

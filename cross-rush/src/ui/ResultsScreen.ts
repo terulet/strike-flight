@@ -73,6 +73,22 @@ export class ResultsScreen {
     title.style.marginBottom = '12px';
     card.appendChild(title);
 
+    // Rango. Un numero de cinco cifras no dice si has estado bien; una letra
+    // si, y ademas da una meta clara para la siguiente vuelta.
+    if (!crashed) {
+      const rank = summary.styleScore >= 24000 ? 'S' : summary.styleScore >= 14000 ? 'A' : summary.styleScore >= 7000 ? 'B' : 'C';
+      const rankEl = document.createElement('div');
+      rankEl.textContent = rank;
+      rankEl.style.fontSize = '64px';
+      rankEl.style.fontWeight = '900';
+      rankEl.style.fontStyle = 'italic';
+      rankEl.style.lineHeight = '1';
+      rankEl.style.margin = '2px 0 10px';
+      rankEl.style.color = rank === 'S' ? '#ffd24a' : rank === 'A' ? BRAND.orange : '#fff';
+      rankEl.style.textShadow = rank === 'S' ? '0 0 26px rgba(255,210,74,0.8)' : '0 3px 10px rgba(0,0,0,0.6)';
+      card.appendChild(rankEl);
+    }
+
     if (summary.isNewBest && !crashed) {
       const newBest = document.createElement('div');
       newBest.textContent = 'NUEVO RECORD';
@@ -91,6 +107,7 @@ export class ResultsScreen {
           ? '--'
           : `${summary.deltaSeconds >= 0 ? '+' : ''}${summary.deltaSeconds.toFixed(3)}s`,
       ],
+      ['MEJOR CADENA', summary.bestCombo > 0 ? `x${summary.bestCombo}` : '-'],
       ['ATERRIZAJES PERFECTOS', String(summary.perfectLandings)],
       ['TRUCOS', String(summary.tricks)],
       ['FLOW', `${summary.flow.toFixed(0)}%`],

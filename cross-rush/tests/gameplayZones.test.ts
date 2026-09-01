@@ -18,13 +18,13 @@ describe('Piezas de riesgo/recompensa', () => {
   it('el corte vertical las coloca todas, dentro de la pista', () => {
     const track = buildCanyonRun();
     const zones = computeGameplayZones(track);
-    expect(zones.speedPad).not.toBeNull();
+    expect(zones.speedPads.length).toBeGreaterThanOrEqual(2);
     expect(zones.riskGap).not.toBeNull();
     expect(zones.flowRing).not.toBeNull();
     expect(zones.altRamp).not.toBeNull();
     expect(zones.bumpGate).not.toBeNull();
 
-    for (const x of [zones.speedPad!.x, zones.altRamp!.x, zones.bumpGate!.x, zones.riskGap!.endX, zones.flowRing!.x]) {
+    for (const x of [...zones.speedPads.map((pad) => pad.x), zones.altRamp!.x, zones.bumpGate!.x, zones.riskGap!.endX, zones.flowRing!.x]) {
       expect(x).toBeGreaterThan(track.terrain.startX);
       expect(x).toBeLessThan(track.finishX);
     }
@@ -36,8 +36,8 @@ describe('Piezas de riesgo/recompensa', () => {
     const showStart = track.labels.find((label) => label.name === 'TECHNICAL')!.x;
     expect(zones.bumpGate!.x).toBeGreaterThanOrEqual(showStart);
     // bache -> pad -> kicker -> linea de riesgo -> aro del mega salto.
-    expect(zones.bumpGate!.x).toBeLessThan(zones.speedPad!.x);
-    expect(zones.speedPad!.x).toBeLessThan(zones.altRamp!.x);
+    expect(zones.bumpGate!.x).toBeLessThan(zones.speedPads[0].x);
+    expect(zones.speedPads[0].x).toBeLessThan(zones.altRamp!.x);
     expect(zones.altRamp!.x).toBeLessThan(zones.riskGap!.startX);
     expect(zones.riskGap!.endX).toBeLessThan(zones.flowRing!.x);
   });
@@ -50,9 +50,9 @@ describe('Piezas de riesgo/recompensa', () => {
     // sale del kicker a unos 9 m/s de componente vertical, asi que en mitad
     // del hueco pasa un par de metros por encima. Un aro a 4 m no se podia
     // atravesar ni haciendolo todo bien, que era el fallo original.
-    const lipY = track.terrain.surfaceY(megaJumpX + 9);
-    expect(ring.y - lipY).toBeGreaterThan(1.2);
-    expect(ring.y - lipY).toBeLessThan(3.2);
+    const lipY = track.terrain.surfaceY(megaJumpX + 11);
+    expect(ring.y - lipY).toBeGreaterThan(3.5);
+    expect(ring.y - lipY).toBeLessThan(7);
     expect(ring.radius).toBeGreaterThan(0);
   });
   it('el mecanismo sigue resolviendolas cuando la pista declara sus labels', () => {
@@ -75,12 +75,12 @@ describe('Piezas de riesgo/recompensa', () => {
     });
 
     expect(zones.bumpGate?.x).toBe(122);
-    expect(zones.speedPad?.x).toBe(362);
+    expect(zones.speedPads.map((pad) => pad.x)).toContain(362);
     expect(zones.altRamp?.x).toBe(370);
     // El hueco acaba en el labio lejano del valle (+19), no al final de la
     // recepcion (+24): con 24 el premio no se podia conseguir ni yendo a tope.
     expect(zones.riskGap).toEqual({ startX: 240, endX: 259 });
-    expect(zones.flowRing?.x).toBe(500);
+    expect(zones.flowRing?.x).toBe(504); // labio (MEGA_JUMP + 11) + 13
     expect(zones.flowRing?.radius).toBeGreaterThan(0);
     // El aro va por encima del terreno, no enterrado en el.
     expect(zones.flowRing!.y).toBeGreaterThan(0);
