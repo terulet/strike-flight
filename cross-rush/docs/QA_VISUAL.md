@@ -280,6 +280,118 @@ Entre los whoops y el pedregal hay llano a proposito, y hay un test que lo
 vigila: encadenar dos secciones tecnicas sin respiro no ensena nada, solo
 produce un choque que el jugador no ve venir.
 
+### La dificultad, medida en vez de opinada
+
+Durante todo el desarrollo la unica forma de decir si el tramo pedia algo al
+jugador era la impresion de quien lo miraba. Cuando por fin se midio
+-`tests/support/autopilot.ts` conduce la vuelta con tres pilotos que se
+diferencian en las tres cosas que separan a un jugador bueno de uno malo:
+mirar adelante, reaccionar rapido y apuntar bien- la respuesta fue incomoda:
+
+| | tiempo | puntos | mejor cadena |
+| --- | --- | --- | --- |
+| perfecto | 57,4 s | — | 16 |
+| competente | 58,3 s | — | **15** |
+
+Novecientas milesimas de diferencia en 57 segundos, y la misma cadena. Jugar
+bien no servia para nada, y todo el espectaculo montado encima -cadena,
+multiplicador, camara lenta- decoraba una vuelta que se pasaba sola.
+
+Tres causas, y ninguna era la que parecia:
+
+**1. Aterrizar mal no costaba TIEMPO.** Restaba FLOW y puntos, que son dos
+cosas que el jugador puede decidir que le dan igual. El competente daba 13
+recepciones ROUGH por vuelta y llegaba igual. Ahora la calidad del aterrizaje
+mueve la velocidad horizontal.
+
+El primer intento fue solo castigo, y no funciono: subirlo del 8% al 12% dejo
+la diferencia igual. El bucle es negativo y se estabiliza solo -aterrizas mal,
+vas mas lento, y por eso aterrizas mejor-; medido, con el castigo mas duro el
+competente saco MEJOR cadena. Lo que abre diferencia es premiar la linea
+limpia: un PERFECT empuja un 6%, que es el pump de una moto de verdad contra
+la rampa de recepcion. Asi el bucle es positivo y la habilidad se cobra.
+
+Con un matiz que casi rompe la pista: el ajuste se aplica solo a recepciones
+de un vuelo de mas de 0,45 s. Una chapa de lavar produce una docena de
+contactos de 0,2 s, y con un 8% en cada uno el tramo costaba el 63% de la
+velocidad: la moto llegaba al mega salto sin poder cruzarlo. Un bache no es un
+aterrizaje que hayas fallado.
+
+**2. La cadena era gratis.** Su ventana eran 4,5 s fijos y la pista tiene un
+salto cada 2,4 s: no habia forma de dejarla caducar ni queriendo. Ahora solo
+la alarga un aterrizaje CLAVADO, uno correcto la mantiene viva sin hacerla
+crecer, uno regular se lleva un eslabon, y la ventana se estrecha 0,24 s por
+eslabon hasta un suelo de 1,6.
+
+**3. El mortal estaba premiado pero era inalcanzable.** La moto cerraba la
+vuelta perfectamente alineada y llegaba al suelo girando todavia a 9 rad/s, o
+sea por encima del umbral de choque: entre "no gira bastante para contar" y
+"gira tanto que se estampa" no quedaba franja jugable. Faltaba poder PARAR el
+giro. Soltar el mando en el aire ahora amortigua diez veces mas fuerte, que es
+lo que hace un piloto de verdad: el mortal no se deja de hacer, se para.
+
+Resultado, sobre la misma vuelta:
+
+| | estado | puntos | mejor cadena |
+| --- | --- | --- | --- |
+| perfecto | meta en 58,5 s | 20.310 | 5 |
+| competente | meta en 59,4 s | 12.580 | 4 |
+| descuidado | choca en el metro 514 | 1.140 | 2 |
+
+El tiempo sigue moviendose poco, y es honesto decir por que: con el gas
+siempre a fondo y sin curvas, la duracion de la vuelta la manda sobre todo el
+trazado. El eje donde se expresa la habilidad es la PUNTUACION, y ahi la
+diferencia pasa de nada a 1,6x.
+
+Dos correcciones de trazado salieron de la misma medida: el doble de la
+seccion de RITMO era un hueco y esta en la mitad de APRENDIZAJE, cuya promesa
+es que quedarse corto te deja ENCIMA; y el STEP_DOWN recibia el salto en
+llano, que es justo lo que la rampa de recepcion del mega salto existe para
+evitar.
+
+### El record se crea al terminar, no al mirarlo
+
+Guardar el mejor tiempo y el fantasma estaba dentro de `getResultsSummary()`,
+o sea que persistir un record era un efecto secundario de PINTAR el panel de
+resultados. Se veia jugando: el HUD lee el record en cuanto el estado cambia a
+FINISHED -antes de que el panel exista-, asi que la segunda vuelta seguia
+mostrando `--:--.---` con el record ya guardado en el navegador.
+
+Ahora el record se consolida en `finish()`, el resumen solo lee, y el HUD lo
+refresca al volver a la salida. `tests/record.test.ts` comprueba las tres
+cosas, incluida que leer el resumen dos veces no cambie nada.
+
+El fantasma y el delta ya funcionaban y siguen: la vuelta anterior se dibuja
+translucida y el HUD marca la diferencia contra ella en verde o rojo.
+
+### El piloto prepara el aterrizaje
+
+La pose de vuelo era la misma durante todo el salto: el cuerpo se ponia de pie
+al despegar y llegaba al golpe sin haber hecho nada, asi que la recepcion se
+leia como algo que le pasa al piloto y no como algo que hace.
+
+Ahora, en los ultimos 3 m de caida -unas dos decimas-, el cuerpo baja de la
+posicion de pie, se adelanta 7 cm y echa el torso sobre el manillar. Es una
+rampa continua con la altura y solo actua CAYENDO: pasar rasante sobre una
+cresta no es aterrizar. Ademas carga el tren delantero justo antes del
+contacto, que es lo que de verdad hace un piloto para no irse de morro.
+
+Se ve en `docs/qa/secuencia/piloto-prepara-aterrizaje.jpg`.
+
+### Lo que se pierde tambien se canta
+
+Desde que un aterrizaje regular cuesta velocidad y un eslabon de cadena, no
+decirlo seria quitarle cosas al jugador sin que se entere: iria mas lento sin
+saber por que. El mismo cartel central que celebra los premios avisa ahora de
+los apoyos sucios -"APOYO SUCIO -8% VELOCIDAD"-, en rojo apagado y mas
+pequeno, porque es informacion y no una celebracion.
+
+Solo salta si venia de un vuelo de verdad (mas de 0,45 s), el mismo umbral con
+el que se aplica el castigo: en una chapa de lavar habria un aviso por onda y
+la pantalla seria ilegible.
+
+Se ve en `docs/qa/secuencia/aviso-apoyo-sucio.jpg`.
+
 ### El piloto lleva contorno
 
 El mono del piloto y el carenado de la moto salian del mismo arte: mismo

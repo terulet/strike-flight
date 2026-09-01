@@ -91,6 +91,15 @@ export class RaceManager {
   readonly ghost = new GhostRecorder();
 
   private bestTime: number | null;
+  /**
+   * El record que habia ANTES de empezar esta vuelta. Es contra el que se
+   * mide el delta del resumen: si se comparara contra `bestTime`, una vuelta
+   * que bate el record se compararia consigo misma y el delta saldria 0,000
+   * siempre que se mejorara, que es justo cuando interesa verlo.
+   */
+  private previousBestBeforeRun: number | null = null;
+  /** Si la vuelta que acaba de terminar batio el record. */
+  private lastRunWasBest = false;
   private bestGhost: GhostFrame[] | null;
   private lastInput: InputState = { throttle: false, brake: false, lean: 0, restartPressed: false, boostPressed: false };
   private readonly inputSmoother = new InputSmoother();
@@ -177,6 +186,10 @@ export class RaceManager {
     this.speedPadsTriggered.clear();
     this.flowRingArmed = true;
     this.riskGapAwarded = false;
+    // Se fotografia el record vigente al arrancar la vuelta: es contra este
+    // contra el que se compara al terminar.
+    this.previousBestBeforeRun = this.bestTime;
+    this.lastRunWasBest = false;
   }
 
   /** Un tick de simulacion a paso fijo `dt` (segundos). */
@@ -430,20 +443,40 @@ export class RaceManager {
 
   private finish(): void {
     this.completeSector(this.track.sectors.length - 1);
+    // El record se consolida AQUI, cuando la vuelta termina de verdad.
+    //
+    // Estaba dentro de getResultsSummary(), o sea que guardar el mejor tiempo
+    // y el fantasma era un efecto secundario de PINTAR EL PANEL. Dos
+    // consecuencias, y las dos se veian: el HUD leia el record al cambiar de
+    // estado -antes de que nadie hubiera abierto el panel- y por eso la
+    // segunda vuelta seguia mostrando "--:--.---" con el record ya guardado en
+    // el navegador; y si algun dia el panel no se pintara, no habria records.
+    // Terminar una vuelta es lo que crea un record, no mirarlo.
+    this.commitRecordIfBest();
     this.setState('FINISHED');
     this.sink.onFinish?.();
   }
 
+  /** Guarda tiempo y fantasma si esta vuelta ha sido la mejor. Idempotente. */
+  private commitRecordIfBest(): boolean {
+    const previousBest = this.bestTime;
+    if (!saveBestTimeIfBetter(this.raceTime, previousBest)) return false;
+    this.bestTime = this.raceTime;
+    this.bestGhost = [...this.ghost.recordedFrames];
+    saveBestGhost(this.bestGhost);
+    this.lastRunWasBest = true;
+    return true;
+  }
+
+  /**
+   * Resumen de la vuelta. SOLO LEE: el record ya se consolido al terminar (ver
+   * finish). Un getter que ademas escribe en el almacenamiento hace que el
+   * estado del juego dependa de si alguien ha mirado la pantalla.
+   */
   getResultsSummary(): RaceResultsSummary {
     const timeSeconds = this.raceTime;
-    const previousBest = this.bestTime;
-    const isNewBest = this.state === 'FINISHED' && saveBestTimeIfBetter(timeSeconds, previousBest);
-    if (isNewBest) {
-      this.bestTime = timeSeconds;
-      this.bestGhost = [...this.ghost.recordedFrames];
-      saveBestGhost(this.bestGhost);
-    }
-    const deltaSeconds = previousBest !== null ? timeSeconds - previousBest : null;
+    const isNewBest = this.lastRunWasBest;
+    const deltaSeconds = this.previousBestBeforeRun !== null ? timeSeconds - this.previousBestBeforeRun : null;
     return {
       time: formatTime(timeSeconds),
       timeSeconds,

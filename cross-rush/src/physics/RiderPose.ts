@@ -50,6 +50,16 @@ export interface RiderPoseInput {
   /** Velocidad angular del chasis (rad/s). */
   angularVelocity: number;
   airborne: boolean;
+  /**
+   * Altura del chasis sobre el terreno que tiene debajo (m).
+   *
+   * Es lo que le faltaba al piloto para PREPARAR el aterrizaje. Sin este dato
+   * la pose de vuelo era la misma el segundo entero: el cuerpo se ponia de pie
+   * al despegar y se quedaba igual hasta el golpe, asi que la recepcion
+   * ocurria sin que el piloto hubiera hecho nada por ella. Un piloto de verdad
+   * ve venir el suelo y se coloca antes de tocarlo.
+   */
+  heightAboveGround: number;
 }
 
 export function createRiderPose(): RiderPose {
@@ -100,6 +110,21 @@ function springStep(
   return { value: nextValue, velocity: nextVelocity };
 }
 
+/**
+ * Cuanto de "preparando el aterrizaje" hay ahora mismo, de 0 a 1.
+ *
+ * Sube al acercarse al suelo Y solo si se esta cayendo: pasar rasante sobre
+ * una cresta a media subida no es aterrizar. Es una rampa y no un interruptor
+ * para que el cuerpo se recoloque durante las ultimas decimas en vez de dar un
+ * respingo en un fotograma.
+ */
+function landingPrep(input: RiderPoseInput): number {
+  if (!input.airborne || input.verticalSpeed > 0) return 0;
+  const height = Math.max(0, input.heightAboveGround);
+  if (height >= RiderConfig.landingPrepHeight) return 0;
+  return 1 - height / RiderConfig.landingPrepHeight;
+}
+
 /** Objetivos de pose para un estado dado. Separado del muelle para poder testearlo solo. */
 export function riderPoseTargets(input: RiderPoseInput): { shiftX: number; shiftY: number; torsoAngle: number } {
   const lean = clamp(input.lean, -1, 1);
@@ -109,7 +134,10 @@ export function riderPoseTargets(input: RiderPoseInput): { shiftX: number; shift
   // Adelante/atras: el lean del jugador manda, el gas y el freno matizan.
   // Frenar empuja el cuerpo sobre el manillar; acelerar lo echa atras.
   const shiftX = clamp(
-    lean * RiderConfig.leanToShiftX + brake * RiderConfig.brakeToShiftX + throttle * RiderConfig.throttleToShiftX,
+    lean * RiderConfig.leanToShiftX +
+      brake * RiderConfig.brakeToShiftX +
+      throttle * RiderConfig.throttleToShiftX +
+      landingPrep(input) * RiderConfig.landingPrepShiftX,
     -RiderConfig.maxShiftX,
     RiderConfig.maxShiftX,
   );
@@ -129,6 +157,12 @@ export function riderPoseTargets(input: RiderPoseInput): { shiftX: number; shift
     if (input.verticalSpeed > 0) {
       shiftY += Math.min(RiderConfig.maxTakeoffExtension, input.verticalSpeed * RiderConfig.takeoffExtension);
     }
+    // Y en el ultimo tramo de la caida, el cuerpo se PREPARA: baja de la
+    // posicion de pie y se recoge para tragarse el golpe. Es continuo con la
+    // absorcion del suelo -no hay salto de pose en el instante del contacto- y
+    // es lo que hace que un aterrizaje se lea como algo que el piloto hace y
+    // no como algo que le pasa.
+    shiftY -= landingPrep(input) * RiderConfig.landingPrepCrouch;
   } else if (!input.airborne && input.verticalSpeed < 0) {
     // Recibiendo: el cuerpo se hunde para tragarse el impacto.
     shiftY -= Math.min(RiderConfig.maxLandingAbsorb, -input.verticalSpeed * RiderConfig.landingAbsorb);
@@ -137,6 +171,14 @@ export function riderPoseTargets(input: RiderPoseInput): { shiftX: number; shift
 
   // Torso: inclinacion del cuerpo respecto a la moto.
   let torsoAngle = lean * RiderConfig.leanToTorso + brake * RiderConfig.brakeToTorso + throttle * RiderConfig.throttleToTorso;
+  // Al preparar la recepcion el torso se echa sobre el manillar y el cuerpo se
+  // adelanta un punto: es la postura con la que se recibe un salto, y ademas
+  // carga el tren delantero justo antes del contacto, que es lo que de verdad
+  // hace un piloto para no irse de morro.
+  const prep = landingPrep(input);
+  if (prep > 0) {
+    torsoAngle += prep * RiderConfig.landingPrepTorso;
+  }
   if (input.airborne) {
     // En vuelo el cuerpo contrarresta el cabeceo del chasis: si la moto gira
     // hacia atras, el piloto se adelanta. Es lo que hace legible el giro.

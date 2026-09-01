@@ -260,6 +260,20 @@ const CSS = `
   color: var(--cr-orange);
   margin-left: 8px;
 }
+/*
+ * Aviso de aterrizaje sucio. Va con el mismo cartel que los premios porque
+ * ocupa el mismo hueco de la pantalla y el jugador ya sabe mirar ahi, pero en
+ * rojo apagado y mas pequeno: es informacion, no una celebracion. Existe
+ * porque desde que un aterrizaje regular cuesta velocidad y un eslabon de
+ * cadena, no decirlo seria quitarle cosas al jugador sin que se entere.
+ */
+.cr-award.penalty {
+  font-size: 20px;
+  color: #ff9a7a;
+}
+.cr-award.penalty span {
+  color: #ff6a4a;
+}
 @keyframes cr-award {
   0% { transform: translateY(14px) scale(0.6); opacity: 0; }
   18% { transform: translateY(0) scale(1.12); opacity: 1; }

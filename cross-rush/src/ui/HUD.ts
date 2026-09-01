@@ -209,10 +209,16 @@ export class HUD {
    * seguidos -que es lo normal en el tramo de espectaculo- no deja basura en
    * el DOM ni obliga a llevar la cuenta desde fuera.
    */
-  showAward(text: string, points?: number): void {
+  /**
+   * Cartel central. `tone` decide si es una celebracion o un aviso: desde que
+   * aterrizar regular cuesta velocidad y un eslabon, el jugador necesita ver
+   * lo que ha perdido igual que ve lo que gana.
+   */
+  showAward(text: string, points?: number, tone: 'reward' | 'penalty' = 'reward'): void {
     const el = document.createElement('div');
-    el.className = 'cr-award';
-    el.innerHTML = points === undefined ? text : `${text}<span>+${points}</span>`;
+    el.className = tone === 'penalty' ? 'cr-award penalty' : 'cr-award';
+    const suffix = points === undefined ? '' : `<span>${tone === 'penalty' ? '' : '+'}${points}</span>`;
+    el.innerHTML = `${text}${suffix}`;
     el.addEventListener('animationend', () => el.remove());
     this.awardsEl.appendChild(el);
     // Cinturon y tirantes: si el navegador no lanza animationend (pestana en

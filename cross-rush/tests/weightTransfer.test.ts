@@ -132,6 +132,9 @@ describe('pose del piloto', () => {
       verticalSpeed: 0,
       angularVelocity: 0,
       airborne: false,
+      // En el suelo la altura no interviene; se pasa un valor grande para
+      // dejar claro que la preparacion de aterrizaje no esta actuando aqui.
+      heightAboveGround: 10,
     };
     const neutral = riderPoseTargets(base);
     expect(neutral.shiftX).toBeCloseTo(0, 6);
@@ -160,6 +163,7 @@ describe('pose del piloto', () => {
       verticalSpeed: 0,
       angularVelocity: 0,
       airborne: false,
+      heightAboveGround: 10,
     };
     const compressed = riderPoseTargets({ ...base, meanCompression: 0.3 });
     expect(compressed.shiftY).toBeLessThan(-0.05);
@@ -180,6 +184,7 @@ describe('pose del piloto', () => {
       verticalSpeed: 0,
       angularVelocity: 0,
       airborne: false,
+      heightAboveGround: 10,
     };
     const target = riderPoseTargets(input);
     let pose = createRiderPose();
@@ -204,6 +209,7 @@ describe('pose del piloto', () => {
       verticalSpeed: 0,
       angularVelocity: 0,
       airborne: false,
+      heightAboveGround: 10,
     };
     const target = riderPoseTargets(input);
     let pose = createRiderPose();
@@ -225,5 +231,45 @@ describe('pose del piloto', () => {
     // Frenando, el piloto tiene que estar claramente sobre el manillar.
     expect(state.rider.shiftX).toBeGreaterThan(0.02);
     expect(Math.abs(state.rider.shiftX)).toBeLessThanOrEqual(RiderConfig.maxShiftX * 1.35);
+  });
+});
+
+describe('el piloto prepara el aterrizaje', () => {
+  const enVuelo = {
+    lean: 0,
+    throttle: 0,
+    brake: 0,
+    meanCompression: 0,
+    verticalSpeed: -9,
+    angularVelocity: 0,
+    airborne: true,
+    heightAboveGround: 12,
+  };
+
+  it('arriba va de pie; cerca del suelo se recoge y se echa adelante', () => {
+    const arriba = riderPoseTargets(enVuelo);
+    const cerca = riderPoseTargets({ ...enVuelo, heightAboveGround: 0.4 });
+    // Antes la pose de vuelo era la misma el segundo entero: el piloto se
+    // ponia de pie al despegar y llegaba al golpe sin haber hecho nada. Ahora
+    // ve venir el suelo.
+    expect(cerca.shiftY).toBeLessThan(arriba.shiftY);
+    expect(cerca.shiftX).toBeGreaterThan(arriba.shiftX);
+    expect(cerca.torsoAngle).toBeGreaterThan(arriba.torsoAngle);
+  });
+
+  it('subiendo NO se prepara: pasar rasante sobre una cresta no es aterrizar', () => {
+    const subiendo = riderPoseTargets({ ...enVuelo, verticalSpeed: 6, heightAboveGround: 0.4 });
+    const arriba = riderPoseTargets(enVuelo);
+    expect(subiendo.shiftX).toBeCloseTo(arriba.shiftX, 6);
+  });
+
+  it('es una rampa y no un interruptor: a media altura ya se ha empezado', () => {
+    const lejos = riderPoseTargets({ ...enVuelo, heightAboveGround: 2.9 });
+    const medio = riderPoseTargets({ ...enVuelo, heightAboveGround: 1.5 });
+    const cerca = riderPoseTargets({ ...enVuelo, heightAboveGround: 0.2 });
+    // Monotona y sin escalones: si el gesto saltara de golpe se veria un
+    // respingo del cuerpo en un solo fotograma.
+    expect(medio.shiftX).toBeGreaterThan(lejos.shiftX);
+    expect(cerca.shiftX).toBeGreaterThan(medio.shiftX);
   });
 });

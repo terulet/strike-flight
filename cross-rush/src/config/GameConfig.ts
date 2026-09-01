@@ -298,6 +298,21 @@ export const RiderConfig = {
    * devolverlo al asiento a mitad de camino.
    */
   airStandExtension: 0.1,
+  /**
+   * Preparacion del aterrizaje: a partir de que altura sobre el suelo (m)
+   * empieza el piloto a recolocarse mientras cae.
+   *
+   * Tres metros son unas dos decimas de caida libre a la velocidad tipica de
+   * un salto de esta pista: el tiempo justo para que se vea el gesto sin que
+   * el piloto pase medio vuelo agachado.
+   */
+  landingPrepHeight: 3.0,
+  /** Cuanto baja el cuerpo desde la posicion de pie al prepararse (m). */
+  landingPrepCrouch: 0.13,
+  /** Cuanto se adelanta el cuerpo al prepararse (m). */
+  landingPrepShiftX: 0.07,
+  /** Cuanto se echa el torso sobre el manillar al prepararse (rad). */
+  landingPrepTorso: 0.18,
   /** Absorcion al aterrizar: metros que se hunde el cuerpo por m/s de impacto. */
   landingAbsorb: 0.012,
   maxLandingAbsorb: 0.16,

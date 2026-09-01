@@ -268,6 +268,9 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
       verticalSpeed: state.vy,
       angularVelocity: state.angularVelocity,
       airborne: !state.front.inContact && !state.rear.inContact,
+      // Altura sobre el terreno de debajo, para que el piloto vea venir el
+      // suelo y se prepare (ver RiderPose.landingPrep).
+      heightAboveGround: state.y - (frontGroundY + rearGroundY) / 2,
     },
     dt,
   );

@@ -25,7 +25,7 @@ import { DebugOverlay } from './ui/DebugOverlay';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { engineRpmRatio, normalizedAxleLoad } from './physics/Bike';
 import { rotateVec } from './physics/MathUtils';
-import { BikeConfig, EffectsConfig, EngineConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
+import { BikeConfig, EffectsConfig, EngineConfig, LandingConfig, RaceStartConfig, SpectacleConfig } from './config/GameConfig';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiOverlay = document.getElementById('ui-overlay') as HTMLDivElement;
@@ -56,6 +56,10 @@ const race = new RaceManager(track, {
       shockwaves.reset();
       hitStopRemaining = 0;
       resultsScreen.hide();
+      // El HUD refresca el record al volver a la salida. Sin esto la marca que
+      // se acaba de batir no aparece hasta recargar la pagina: el jugador bate
+      // su tiempo, reinicia, y el HUD sigue diciendo "--:--.---".
+      hud.setBestTime(race.getBestTimeSeconds());
       hud.showCenterMessage(String(Math.ceil(race.countdownRemaining)));
     } else if (state === 'RACING') {
       hud.hideCenterMessage();
@@ -146,6 +150,18 @@ const race = new RaceManager(track, {
       award(`¡VUELO! ${seconds} s`, Math.round(SpectacleConfig.awardPoints.bigAir * event.airTime));
     }
     if (event.quality === 'PERFECT') award('ATERRIZAJE PERFECTO', SpectacleConfig.awardPoints.perfectLanding);
+    // Un aterrizaje regular cuesta velocidad y un eslabon de cadena. Quitarle
+    // las dos cosas al jugador sin decirselo lo deja preguntandose por que va
+    // lento, asi que se canta -en rojo apagado y solo si venia de un vuelo de
+    // verdad, para no llenar la pantalla de avisos en una chapa de lavar-.
+    if (
+      (event.quality === 'ROUGH' || event.quality === 'BAD') &&
+      event.airTime >= LandingConfig.minAirTimeForSpeedChange
+    ) {
+      const perdida = Math.round(-LandingConfig.speedChange[event.quality] * 100);
+      const titulo = event.quality === 'BAD' ? '¡MAL APOYO!' : 'APOYO SUCIO';
+      hud.showAward(`${titulo}  -${perdida}% VELOCIDAD`, undefined, 'penalty');
+    }
 
     if (event.quality === 'PERFECT' || event.quality === 'GOOD') {
       decals.spawn(contactX, contactY + 0.05, SpriteImages.landingImpact);
