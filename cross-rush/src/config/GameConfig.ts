@@ -207,6 +207,23 @@ export const AirControlConfig = {
   airControlResponse: 8.0,
   /** Factor de amortiguacion angular en el aire (1/s), evita giros infinitos. */
   airAngularDamping: 0.35,
+  /**
+   * Amortiguacion angular cuando el jugador SUELTA el mando en el aire (1/s).
+   *
+   * Sostener el gesto gira; soltarlo PARA. Sin esta pieza el mortal estaba
+   * premiado pero era practicamente inalcanzable: medido sobre el mega salto,
+   * la moto cerraba la vuelta perfectamente alineada pero llegaba al suelo
+   * girando todavia a 9 rad/s, o sea por encima de CrashConfig, y se
+   * estrellaba. Entre "no gira bastante para contar como mortal" y "gira tanto
+   * que se estampa" no quedaba franja jugable.
+   *
+   * Es ademas lo que hace un piloto de verdad: el mortal no se deja de hacer,
+   * se PARA, dando la patada a la moto para detenerla justo antes de tocar. Al
+   * ser diez veces mas fuerte que la amortiguacion pasiva, soltar el mando
+   * mata la rotacion en unas dos decimas, que es lo que dura la ultima parte
+   * de un vuelo largo.
+   */
+  releasedAngularDamping: 4.0,
   /** Tope duro de velocidad angular (rad/s). */
   maxAngularVelocity: 9.0,
 } as const;
@@ -443,6 +460,61 @@ export const LandingConfig = {
   rough: { angle: 0.45, verticalSpeed: 13.5, contactTimingGap: 0.22 },
   bad: { angle: 0.75, verticalSpeed: 15.5, contactTimingGap: 0.35 },
   // Por encima de "bad" en cualquier eje, o por encima de crash config -> CRASH.
+
+  /**
+   * Cuanto CAMBIA la velocidad horizontal al aterrizar, en fraccion, segun lo
+   * limpio que haya sido. Negativo frena, positivo empuja.
+   *
+   * Es el numero que le faltaba al juego. Medido con los tres pilotos
+   * automaticos sobre la vuelta entera: el competente daba 13 aterrizajes
+   * ROUGH y 4 BAD y aun asi llegaba a meta 0,9 s detras del perfecto, o sea un
+   * 1,5% en 57 segundos. Aterrizar mal solo costaba FLOW y puntos -dos cosas
+   * que el jugador puede decidir que le dan igual-, nunca TIEMPO, asi que la
+   * linea sucia corria lo mismo que la limpia y jugar bien no servia de nada.
+   *
+   * El primer intento fue solo castigo, y no funciono: subir la penalizacion
+   * de ROUGH del 8% al 12% dejo la diferencia igual, porque el castigo se
+   * cancela solo. Aterrizas mal, pierdes velocidad, llegas mas lento al
+   * siguiente salto... y por eso aterrizas mejor. El bucle es negativo y se
+   * estabiliza. Medido: con el castigo mas duro el piloto competente saco
+   * MEJOR cadena que con el suave.
+   *
+   * Lo que si abre diferencia es premiar la linea limpia. Un PERFECT empuja:
+   * es el "pump" de una moto de verdad, comprimir la suspension contra la
+   * rampa de recepcion y salir con mas traccion de la que entraste. Asi el
+   * bucle es positivo -clavarlo te da velocidad, y con velocidad llegas mejor
+   * colocado al siguiente- y jugar bien se paga en el unico sitio donde se
+   * compara una vuelta, que es el crono.
+   */
+  speedChange: {
+    PERFECT: 0.06,
+    GOOD: 0,
+    ROUGH: -0.08,
+    BAD: -0.18,
+    CRASH: 0,
+  },
+  /**
+   * Tope del empujon de aterrizaje, como multiplo de la velocidad punta del
+   * motor. Sin el, encadenar recepciones clavadas cuesta abajo dispara la
+   * velocidad sin limite: el pump devuelve energia que el terreno regala, no
+   * energia infinita.
+   */
+  maxPumpSpeedFactor: 1.22,
+  /**
+   * Tiempo de vuelo minimo (s) para que un aterrizaje mueva la velocidad.
+   *
+   * Sin esto el ajuste se comia la pista. Una chapa de lavar produce una
+   * docena de contactos de 0,2 s, y con un 8% de castigo por cada uno el
+   * tramo costaba casi la mitad de la velocidad (0,92^12 = 0,37): la moto
+   * llegaba al mega salto tan lenta que ya no lo cruzaba, y eso lo dijo un
+   * test que ya existia, no un ojo.
+   *
+   * Un bache no es un aterrizaje que hayas fallado. El castigo y el premio son
+   * para las recepciones de un SALTO, que es donde hay una decision que tomar,
+   * asi que por debajo de este vuelo el aterrizaje sigue puntuando y
+   * encadenando pero no toca la velocidad.
+   */
+  minAirTimeForSpeedChange: 0.45,
 } as const;
 
 export const FlowConfig = {
@@ -793,7 +865,38 @@ export const SpectacleConfig = {
  * combo en una loteria de ritmo en vez de en una decision.
  */
 export const ComboConfig = {
-  windowSeconds: 4.5,
+  /**
+   * Ventana de la cadena al empezar, en segundos.
+   *
+   * Estaba en 4,5 fijos, y ese numero convertia la cadena en un regalo. La
+   * vuelta tiene unos 25 vuelos en 60 segundos, o sea un salto cada 2,4 s: por
+   * debajo de la ventana SIEMPRE. Medido: el piloto competente sacaba la misma
+   * cadena que el perfecto -21 contra 19-, porque ninguno de los dos podia
+   * dejarla caducar aunque quisiera. Un multiplicador que no se puede perder
+   * no es un multiplicador, es un contador de saltos.
+   */
+  windowSeconds: 3.4,
+  /**
+   * Cuanto se ESTRECHA la ventana por eslabon, en segundos.
+   *
+   * Es lo que convierte la cadena en una decision. Los primeros eslabones se
+   * regalan -hay que poder empezar-, pero mantener una cadena larga obliga a
+   * enlazar cada vez mas rapido, o sea a elegir la linea que encadena en vez
+   * de la comoda. Con el suelo de abajo, una cadena de ocho pide enlazar cada
+   * 1,7 s.
+   */
+  windowDecayPerLink: 0.24,
+  /** Suelo de la ventana: por debajo de esto seria imposible, no dificil. */
+  minWindowSeconds: 1.6,
+  /**
+   * Un aterrizaje regular o malo NO rompe la cadena, pero se lleva un eslabon.
+   *
+   * Romperla entera por una recepcion regular castiga demasiado y ademas hace
+   * que el jugador deje de intentarlo. Restar un eslabon si: la cadena baja de
+   * escalon, se nota en el acto, y recuperarla depende de volver a clavarlas.
+   * El choque si la rompe entera, que para eso es un choque.
+   */
+  sloppyLandingPenalty: 1,
   /**
    * Multiplicador por numero de eslabones. El ultimo vale para cadenas mas
    * largas: crecer sin techo hace que la puntuacion deje de significar nada.

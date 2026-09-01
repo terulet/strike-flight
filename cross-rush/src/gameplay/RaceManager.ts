@@ -18,7 +18,7 @@ import { isChassisTouchingGround, isSpinningOutOnGround } from './CrashDetector'
 import { StyleScore, formatTime, loadBestTime, saveBestTimeIfBetter } from './Scoring';
 import { GhostRecorder, saveBestGhost, loadBestGhost, sampleGhostAtTime, ghostTimeAtX, GhostFrame } from './GhostRecorder';
 import { GameState, TrickResult } from './types';
-import { CrashConfig, FlowConfig, GameplayZoneConfig, RaceStartConfig } from '../config/GameConfig';
+import { CrashConfig, EngineConfig, FlowConfig, GameplayZoneConfig, LandingConfig, RaceStartConfig } from '../config/GameConfig';
 import { computeGameplayZones, GameplayZones } from './GameplayZones';
 
 const COUNTDOWN_SECONDS = 3;
@@ -320,6 +320,25 @@ export class RaceManager {
       return;
     }
 
+    // Aterrizar mal cuesta VELOCIDAD, no solo puntos.
+    //
+    // Antes solo restaba FLOW y estilo, y eso convertia la calidad del
+    // aterrizaje en algo opcional: el piloto competente daba 13 recepciones
+    // ROUGH en una vuelta y aun asi llegaba a 0,9 s del perfecto. Un castigo
+    // que el jugador puede ignorar no es un castigo, es una decoracion.
+    //
+    // Se aplica sobre la horizontal porque es la que se compara al final: lo
+    // que se pierde por clavarla de canto es tiempo, y el tiempo es lo unico
+    // que mide una vuelta. La vertical no se toca -eso lo resuelve la
+    // suspension, que ya lo hacia bien-.
+    const change = LandingConfig.speedChange[event.quality];
+    if (change !== 0 && event.airTime >= LandingConfig.minAirTimeForSpeedChange) {
+      const cap = EngineConfig.topSpeed * LandingConfig.maxPumpSpeedFactor;
+      const wanted = this.bike.vx * (1 + change);
+      // El tope solo recorta hacia arriba: frenar nunca choca contra el.
+      this.bike = { ...this.bike, vx: change > 0 ? Math.min(wanted, cap) : wanted };
+    }
+
     const riskGap = this.zones.riskGap;
     if (
       riskGap &&
@@ -340,9 +359,23 @@ export class RaceManager {
       this.addComboLink();
     }
 
-    // Un aterrizaje mediocre no encadena: la cadena tiene que costar algo o
-    // deja de significar nada.
-    if (event.quality === 'PERFECT' || event.quality === 'GOOD') this.addComboLink();
+    // La cadena mide PRECISION, no cuantos saltos hay en la pista. Solo la
+    // alarga un aterrizaje clavado; uno correcto la mantiene viva y uno
+    // regular se lleva un eslabon. Los tres escalones importan: con GOOD
+    // sumando, el piloto competente sacaba la misma cadena que el perfecto
+    // -tenia mas GOOD precisamente por ir peor colocado-, y sin castigo a los
+    // ROUGH se podia aterrizar regular toda la vuelta sin que la cadena se
+    // enterase, porque el reloj no llegaba nunca a caducar.
+    if (event.quality === 'PERFECT') {
+      this.addComboLink();
+    } else if (event.quality === 'GOOD') {
+      // Correcto pero no clavado: mantiene viva la cadena, no la alarga.
+      this.combo.refresh();
+    } else {
+      const before = this.combo.links;
+      const multiplier = this.combo.penalize();
+      if (this.combo.links !== before) this.sink.onCombo?.(this.combo.links, multiplier);
+    }
   }
 
   /** Suma un eslabon y avisa. Centralizado para que todos los premios encadenen igual. */

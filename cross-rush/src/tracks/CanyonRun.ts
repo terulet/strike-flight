@@ -174,7 +174,13 @@ export function buildCanyonRun(): TrackDefinition {
   terrainFeatures.push({ kind: 'whoops', startX: featureStart, endX: builder.cursorX });
   builder.flat(10);
   featureStart = builder.cursorX;
-  builder.rampUp(7, 1.9).gapValley(9, 2.2).slope(8, -1.9);
+  // Mesa, no hueco. Llego a estar con `gapValley` y era un error de diseno:
+  // este tramo cae en la mitad de APRENDIZAJE, cuya promesa es que quedarse
+  // corto te deja ENCIMA del obstaculo. Con el hueco, un jugador competente
+  // que llegara un poco lento por haber aterrizado regular antes se clavaba
+  // dentro -medido: el piloto automatico competente moria aqui, en el metro
+  // 569, y no llegaba a meta-. Un hueco es material de la segunda mitad.
+  builder.rampUp(7, 1.9).flat(9).slope(8, -1.9);
   terrainFeatures.push({ kind: 'tabletop', startX: featureStart, endX: builder.cursorX });
   builder.flat(12);
 
@@ -191,7 +197,14 @@ export function buildCanyonRun(): TrackDefinition {
   //     un enlace entre los peraltes y el primer salto grande, no otro salto
   //     grande.
   featureStart = builder.cursorX;
-  builder.mark('STEP_DOWN').rampUp(9, 2.6).flat(9).slope(7, -3.2).flat(15);
+  //     El borde manda arriba, asi que detras hace falta suelo que se aparte:
+  //     la caida no puede recibirse en llano. Llego a estar como
+  //     `slope(7,-3.2).flat(15)` y el piloto automatico competente moria justo
+  //     ahi, en el metro 647, aterrizando contra el llano de detras. Es el
+  //     mismo motivo por el que el mega salto tiene rampa de recepcion: lo que
+  //     convierte un vuelo en un aterrizaje es que el terreno baje mientras la
+  //     moto cae.
+  builder.mark('STEP_DOWN').rampUp(9, 2.6).flat(9).slope(10, -3.2).slope(6, -0.7).flat(12);
   terrainFeatures.push({ kind: 'dropoff', startX: featureStart, endX: builder.cursorX });
 
   // 9. UPHILL — pad de velocidad a los 2 m y kicker a los 10, que son

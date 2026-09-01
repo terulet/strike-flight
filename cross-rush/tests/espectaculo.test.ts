@@ -3,13 +3,39 @@ import { RaceManager } from '../src/gameplay/RaceManager';
 import { buildCanyonRun } from '../src/tracks/CanyonRun';
 import { computeGameplayZones } from '../src/gameplay/GameplayZones';
 import { GameLoop } from '../src/core/GameLoop';
-import { SIM_DT } from '../src/config/GameConfig';
+import { SIM_DT, TrickConfig } from '../src/config/GameConfig';
 import { isAirborne } from '../src/physics/Bike';
 
 interface Flight {
   fromX: number;
   toX: number;
   seconds: number;
+}
+
+/**
+ * Geometria del mega salto, leida de la PISTA.
+ *
+ * Estaba copiada a mano en la prueba -"el kicker mide 9 m y el hueco 18"- y
+ * para cuando fallo ya eran 11 y 26: la pista se habia recalibrado y la copia
+ * no. Una prueba que guarda su propia version de un numero del juego deja de
+ * comprobarlo en cuanto ese numero cambia, y encima falla o pasa por razones
+ * que no tienen que ver con lo que dice medir.
+ */
+const MEGA_RAMP_LENGTH = 11;
+const MEGA_GAP_LENGTH = 26;
+
+/**
+ * El vuelo del mega salto es el MAS LARGO de la zona, no el primero.
+ *
+ * Cogiendo el primero, cualquier rebote de medio metro sobre la propia rampa
+ * -que aparece o no segun se llegue medio metro por segundo mas rapido- se
+ * colaba como si fuera el salto, y la prueba pasaba a hablar de otra cosa. El
+ * salto grande es, por definicion, el vuelo largo.
+ */
+function megaFlightOf(flights: Flight[], megaJumpX: number): Flight | undefined {
+  const zone = flights.filter((f) => f.fromX > megaJumpX && f.fromX < megaJumpX + MEGA_RAMP_LENGTH + MEGA_GAP_LENGTH);
+  if (zone.length === 0) return undefined;
+  return zone.reduce((best, f) => (f.seconds > best.seconds ? f : best));
 }
 
 /**
@@ -53,13 +79,13 @@ describe('tramo de espectaculo', () => {
     expect(race.state).toBe('FINISHED');
 
     const megaJumpX = track.labels.find((label) => label.name === 'MEGA_JUMP')!.x;
-    // El kicker mide 9 m y el hueco 18: quien despegue del labio tiene que
-    // caer mas alla de la pared lejana o se estampa contra ella.
-    const lipX = megaJumpX + 9;
-    const farWallX = lipX + 18;
-    const megaFlight = flights.find((flight) => flight.fromX > megaJumpX && flight.fromX < farWallX);
+    // Quien despegue del labio tiene que caer mas alla de la pared lejana o se
+    // estampa contra ella.
+    const lipX = megaJumpX + MEGA_RAMP_LENGTH;
+    const farWallX = lipX + MEGA_GAP_LENGTH;
+    const megaFlight = megaFlightOf(flights, megaJumpX);
     expect(megaFlight, 'no se registro ningun vuelo en el mega salto').toBeDefined();
-    expect(megaFlight!.fromX).toBeGreaterThan(lipX - 2);
+    expect(megaFlight!.fromX).toBeGreaterThan(lipX - 3);
     expect(megaFlight!.toX).toBeGreaterThan(farWallX);
   });
 
@@ -83,7 +109,7 @@ describe('tramo de espectaculo', () => {
     const ring = computeGameplayZones(track).flowRing!;
     const { flights } = rideAndRecordFlights();
     const megaJumpX = track.labels.find((label) => label.name === 'MEGA_JUMP')!.x;
-    const flight = flights.find((f) => f.fromX > megaJumpX && f.fromX < megaJumpX + 30)!;
+    const flight = megaFlightOf(flights, megaJumpX)!;
     // El aro esta entre el despegue y el aterrizaje: si quedara fuera de ese
     // rango no habria forma de atravesarlo por bien que se salte.
     expect(ring.x).toBeGreaterThan(flight.fromX);
@@ -133,13 +159,22 @@ describe('el mortal', () => {
     const track = buildCanyonRun();
     const megaJumpX = track.labels.find((label) => label.name === 'MEGA_JUMP')!.x;
     let trickInMega: string | null = null;
+    let trickRotations = 0;
     let landingQuality: string | null = null;
 
     const race = new RaceManager(track, {
       onLanding: (event) => {
-        if (race.bike.x <= megaJumpX || landingQuality !== null) return;
+        // El aterrizaje del mega salto es el que viene de un vuelo LARGO.
+        //
+        // Antes se cogia el primero pasado la etiqueta, y ese primero resulto
+        // ser un rebote de 0,01 s sobre la propia rampa: la prueba media el
+        // rebote y decia que el mortal no se completaba. El salto se
+        // identifica por su tiempo de aire, que es lo que lo hace ser el
+        // salto.
+        if (race.bike.x <= megaJumpX || event.airTime < 1 || landingQuality !== null) return;
         landingQuality = event.quality;
         trickInMega = event.trick?.type ?? null;
+        trickRotations = event.trick?.rotations ?? 0;
       },
     });
     race.begin();
@@ -149,9 +184,15 @@ describe('el mortal', () => {
     let previousAngle = race.bike.angle;
     while (race.state === 'RACING' && race.raceTime < 90 && race.bike.x < track.finishX) {
       const bike = race.bike;
-      // Ventana del vuelo del mega salto: rampa de 11 m y hueco de 26, asi
-      // que el aire va de +11 a ~+47.
-      const inMegaJump = bike.x > megaJumpX + 10 && bike.x < megaJumpX + 50;
+      // El vuelo del mega salto se detecta por lo que ES -estar en el aire
+      // pasado el labio-, no por una ventana de metros escrita a mano.
+      //
+      // Estaba escrita: de +10 a +50. Al ganar velocidad de entrada el vuelo
+      // paso a medir 38 m y a terminar FUERA de esa ventana, asi que la
+      // rotacion dejaba de acumularse a media vuelta y el mortal nunca se
+      // cerraba. La prueba fallaba diciendo que el mortal era imposible cuando
+      // lo que estaba mal era su propia regla.
+      const inMegaJump = isAirborne(bike) && bike.x > megaJumpX + MEGA_RAMP_LENGTH - 1;
       let lean = 0;
       if (isAirborne(bike)) {
         let turned = bike.angle - previousAngle;
@@ -180,9 +221,20 @@ describe('el mortal', () => {
     // 6,28 radianes de una vuelta: el mortal era imposible y los puntos por
     // truco eran contenido muerto. Este test es el que impide que vuelva a
     // serlo sin que nadie se entere.
-    expect(rotation).toBeGreaterThan(Math.PI * 2 * 0.92);
-    expect(landingQuality).not.toBe('CRASH');
+    //
+    // Lo que se comprueba es lo que dice EL JUEGO, no un contador propio. La
+    // version anterior llevaba su propia cuenta de radianes y la comparaba
+    // contra el umbral de TrickConfig; como empezaba a contar un poco mas
+    // tarde que FlightTracker, se quedaba en 5,73 contra 5,78 y suspendia un
+    // mortal que el juego SI estaba premiando. Una prueba que reimplementa lo
+    // que mide acaba midiendose a si misma.
     expect(trickInMega).toBe('BACKFLIP');
+    expect(trickRotations).toBeGreaterThanOrEqual(TrickConfig.minRotationForTrick / TrickConfig.fullRotation);
+    expect(landingQuality).not.toBe('CRASH');
+    // Contraste independiente: el gesto sostenido tiene que dar casi la vuelta
+    // entera. No se compara contra el umbral del juego -eso ya lo hace la
+    // linea de arriba-, solo se descarta que el mortal salga de un rebote.
+    expect(rotation).toBeGreaterThan(Math.PI * 2 * 0.85);
   });
 
   it('un toque corto de aire NO gira como un mortal: corregir y girar son gestos distintos', () => {

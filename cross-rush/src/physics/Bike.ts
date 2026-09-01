@@ -486,7 +486,14 @@ export function stepBike(state: BikeState, terrain: Terrain, input: BikeInput, d
       }
     }
     next.angularVelocity += (sumTorque / inertia) * dt;
-    const dampingFactor = Math.max(0, 1 - AirControlConfig.airAngularDamping * dt);
+    // Soltar el mando PARA el giro. Es el gesto que le faltaba al aire: con
+    // solo la amortiguacion pasiva se podia empezar un mortal pero no
+    // terminarlo, porque la moto llegaba al suelo girando por encima del
+    // umbral de choque por bien alineada que estuviera (ver
+    // AirControlConfig.releasedAngularDamping).
+    const damping =
+      cmd.lean === 0 ? AirControlConfig.releasedAngularDamping : AirControlConfig.airAngularDamping;
+    const dampingFactor = Math.max(0, 1 - damping * dt);
     next.angularVelocity *= dampingFactor;
   } else {
     // En el suelo no hay compromiso que acumular: cada vuelo empieza de cero.

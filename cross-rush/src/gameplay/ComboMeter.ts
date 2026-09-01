@@ -3,8 +3,16 @@
  *
  * Cadena de acrobacias. Cada cosa que puntua -un aterrizaje clavado, un
  * mortal, un aro, saltar el hueco- suma un eslabon y reinicia una cuenta
- * atras; si pasan `windowSeconds` sin nada, la cadena se cierra. Un choque la
- * rompe en el acto.
+ * atras; si pasa la ventana sin nada, la cadena se cierra. Un choque la rompe
+ * en el acto, y una recepcion regular se lleva un eslabon por delante.
+ *
+ * La ventana SE ESTRECHA con cada eslabon, y esa es la pieza que hace que la
+ * cadena valga algo. Con una ventana fija de 4,5 s la cadena era gratis: la
+ * pista tiene un salto cada 2,4 s de media, asi que no habia forma de dejarla
+ * caducar ni queriendo, y el piloto automatico competente sacaba la misma
+ * cadena que el perfecto. Estrechandola, una cadena larga obliga a enlazar
+ * cada vez mas rapido -a elegir la linea que encadena en vez de la comoda- y
+ * el numero vuelve a decir algo sobre como se esta jugando.
  *
  * El multiplicador NO es el numero de eslabones. Sube de escalon en escalon
  * (x1, x2, x3...) segun cuantos eslabones lleves, con el ultimo escalon
@@ -42,9 +50,19 @@ export class ComboMeter {
     return this._remaining;
   }
 
+  /**
+   * Ventana vigente: la inicial menos lo que se ha estrechado por eslabon, con
+   * un suelo para que siga siendo dificil y no imposible.
+   */
+  get windowSeconds(): number {
+    const shrunk = ComboConfig.windowSeconds - ComboConfig.windowDecayPerLink * Math.max(0, this._links - 1);
+    return Math.max(ComboConfig.minWindowSeconds, shrunk);
+  }
+
   /** 0..1, para dibujar la barra que se vacia. */
   get remainingFraction(): number {
-    return ComboConfig.windowSeconds > 0 ? this._remaining / ComboConfig.windowSeconds : 0;
+    const window = this.windowSeconds;
+    return window > 0 ? Math.min(1, this._remaining / window) : 0;
   }
 
   /**
@@ -68,7 +86,33 @@ export class ComboMeter {
   add(): number {
     this._links += 1;
     this._best = Math.max(this._best, this._links);
-    this._remaining = ComboConfig.windowSeconds;
+    this._remaining = this.windowSeconds;
+    return this.multiplier;
+  }
+
+  /**
+   * Recepcion correcta pero no clavada: MANTIENE la cadena viva sin hacerla
+   * crecer. Es la diferencia entre "no la has roto" y "la has alargado", y es
+   * lo que hace que la cadena mida precision y no simple presencia de saltos:
+   * medido, el piloto competente sacaba la MISMA cadena que el perfecto
+   * mientras un GOOD sumaba eslabon, porque tenia mas GOOD justamente por ir
+   * peor colocado.
+   */
+  refresh(): void {
+    if (this._links <= 0) return;
+    this._remaining = this.windowSeconds;
+  }
+
+  /**
+   * Recepcion regular o mala: se lleva un eslabon por delante y reinicia la
+   * ventana con la que quede. No rompe -romper entera por un aterrizaje
+   * regular castiga tanto que el jugador deja de intentarlo-, pero se nota en
+   * el acto porque puede bajar de escalon de multiplicador.
+   */
+  penalize(): number {
+    if (this._links <= 0) return this.multiplier;
+    this._links = Math.max(0, this._links - ComboConfig.sloppyLandingPenalty);
+    this._remaining = this._links > 0 ? this.windowSeconds : 0;
     return this.multiplier;
   }
 
