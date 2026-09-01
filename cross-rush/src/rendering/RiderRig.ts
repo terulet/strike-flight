@@ -53,6 +53,32 @@ export const RIDER_HIP_LOCAL: Vec2 = { x: -0.06, y: -0.09 };
 const FAR_LEG_OFFSET: Vec2 = { x: -0.06, y: 0 };
 const FAR_LIMB_FILTER = 'brightness(0.62) saturate(0.85)';
 
+/**
+ * Luz por pieza del lado CERCANO.
+ *
+ * El rig ya movia brazos y piernas de forma correcta, pero en pantalla el
+ * piloto se leia como una mancha: las siete piezas salen de la misma foto y
+ * llevan el mismo estampado rojo y blanco, asi que el brazo no se distinguia
+ * del pecho ni la pierna del carenado, y todo el trabajo de la cinematica
+ * inversa no se veia.
+ *
+ * La solucion no es tocar la animacion, es separar las siluetas con luz. El
+ * sol viene de arriba a la izquierda (ver TerrainPainter.LIGHT_DIRECTION):
+ *  - El brazo va por delante y arriba, expuesto -> mas claro y con mas
+ *    contraste, se recorta contra el pecho.
+ *  - El muslo queda a la sombra del cuerpo y del deposito -> mas oscuro.
+ *  - La espinilla, aun mas abajo y contra la moto -> algo mas oscuro todavia,
+ *    lo justo para que la rodilla se lea como un doblez y no como una arruga
+ *    del estampado.
+ *
+ * Es la misma escala de grises que ya separaba el lado lejano del cercano,
+ * solo que con pasos mas finos, y se hornea una vez por pieza
+ * (SpriteFilters.ts): en tiempo de dibujo no cuesta nada.
+ */
+const NEAR_ARM_FILTER = 'brightness(1.12) contrast(1.08)';
+const NEAR_THIGH_FILTER = 'brightness(0.86) saturate(0.96)';
+const NEAR_SHIN_FILTER = 'brightness(0.78) saturate(0.94)';
+
 /** El tobillo se apoya un poco por encima de la estribera, no clavado en ella. */
 const ANKLE_OVER_PEG: Vec2 = { x: -0.02, y: 0.1 };
 
@@ -234,24 +260,28 @@ export function riderPieceDraws(geometry: RiderRigGeometry): RiderPieceDraw[] {
       world: geometry.hipWorld,
       angle: geometry.leg.rootAngle - rig.thigh.restAngle,
       pivotPx: rig.thigh.pivotPx,
+      filter: NEAR_THIGH_FILTER,
     },
     {
       image: SpriteImages.riderShin,
       world: geometry.leg.joint,
       angle: geometry.leg.midAngle - rig.shin.restAngle,
       pivotPx: rig.shin.pivotPx,
+      filter: NEAR_SHIN_FILTER,
     },
     {
       image: SpriteImages.riderArmUpper,
       world: geometry.shoulderWorld,
       angle: geometry.arm.rootAngle - rig.armUpper.restAngle,
       pivotPx: rig.armUpper.pivotPx,
+      filter: NEAR_ARM_FILTER,
     },
     {
       image: SpriteImages.riderArmFore,
       world: geometry.arm.joint,
       angle: geometry.arm.midAngle - rig.armFore.restAngle,
       pivotPx: rig.armFore.pivotPx,
+      filter: NEAR_ARM_FILTER,
     },
   ];
 }

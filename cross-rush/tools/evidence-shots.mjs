@@ -4,7 +4,7 @@
  * (393x852). Corre sobre el servidor que se le pase por argumento.
  */
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, renameSync, rmSync } from 'node:fs';
 
 const OUT = process.env.SHOTS ?? '/tmp/claude-0/-home-user-strike-flight/3406d499-c3d6-5e56-834e-547f55353b44/scratchpad/shots';
 mkdirSync(OUT, { recursive: true });
@@ -47,12 +47,18 @@ const PILOT = () => {
   requestAnimationFrame(tick);
 };
 
-async function runPass(label, viewport, extra) {
+async function runPass(label, viewport, extra, videoDir) {
   const browser = await chromium.launch({
     executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
     args: ['--disable-gpu-vsync', '--disable-frame-rate-limit'],
   });
-  const page = await browser.newPage({ viewport, ...extra });
+  // El video se graba a media resolucion: es evidencia de movimiento -que las
+  // ruedas giran, que la suspension trabaja, que la camara acompana-, no de
+  // detalle, y a tamano completo son decenas de MB que no caben en el repo.
+  const recordVideo = videoDir
+    ? { dir: videoDir, size: { width: Math.round(viewport.width / 2), height: Math.round(viewport.height / 2) } }
+    : undefined;
+  const page = await browser.newPage({ viewport, ...extra, ...(recordVideo ? { recordVideo } : {}) });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
@@ -112,13 +118,23 @@ async function runPass(label, viewport, extra) {
     maxVx: window.__pilot.maxVx,
     finishX: window.__crossRushTrack.finishX,
   }));
+  const video = page.video();
   await browser.close();
+  if (video && videoDir) {
+    renameSync(await video.path(), `${videoDir}/${label}-vuelta.webm`);
+  }
   console.log(label, JSON.stringify(summary), 'errores:', errs.length ? errs.join(' | ') : 'ninguno');
   return summary;
 }
 
 const only = process.argv[3];
-if (!only || only === 'desktop') await runPass('desktop', { width: 1366, height: 768 }, {});
+// `--video` graba ademas la vuelta entera en webm (ver cierre del mandato).
+const videoDir = process.argv.includes('--video') ? `${OUT}/video` : null;
+if (videoDir) {
+  rmSync(videoDir, { recursive: true, force: true });
+  mkdirSync(videoDir, { recursive: true });
+}
+if (!only || only === 'desktop') await runPass('desktop', { width: 1366, height: 768 }, {}, videoDir);
 if (!only || only === 'movil') {
-  await runPass('movil', { width: 393, height: 852 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  await runPass('movil', { width: 393, height: 852 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }, videoDir);
 }

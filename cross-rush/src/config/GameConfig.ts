@@ -512,10 +512,43 @@ export const CameraConfig = {
    * deja la moto en unos 43 px de CSS mientras sobran mas de 30 m de altura
    * que nadie mira. Encuadrando mas cerca en vertical, la moto vuelve a
    * leerse sin perder de vista el terreno que viene.
+   *
+   * 9 m deja la moto en el 15% del ancho, centrado en la banda que pide el
+   * mandato. Cerrar mas el zoom NO arregla el muro de tierra: la fraccion de
+   * pantalla que ocupa el suelo no depende del zoom -al acercar, el mundo
+   * visible encoge por arriba y por abajo a la vez-, sino de donde se coloca
+   * la moto en la pantalla. De eso se ocupa `portraitBikeScreenFraction`.
    */
-  portraitViewMeters: 11,
-  /** Relacion de aspecto por debajo de la cual se considera pantalla vertical. */
-  portraitAspectRatio: 0.75,
+  portraitViewMeters: 9,
+  /**
+   * Altura de pantalla, en fraccion desde arriba, a la que se coloca la moto
+   * cuando el movil esta en vertical.
+   *
+   * En 393x852 caben unos 19 m de mundo a lo alto. Con la moto centrada, la
+   * mitad de abajo -casi 10 m- es tierra: un muro marron que se come media
+   * pantalla y no aporta nada, porque lo que hay que ver es lo que VIENE, no
+   * lo que hay diez metros bajo las ruedas. Bajando la moto a dos tercios de
+   * la altura, ese espacio pasa al cielo y al horizonte, que si dicen algo.
+   *
+   * En horizontal no aplica: alli la altura no sobra y la moto se queda
+   * centrada con el adelanto normal (`verticalLead`).
+   */
+  portraitBikeScreenFraction: 0.74,
+  /**
+   * Umbrales de forma de pantalla para mezclar el encuadre vertical con el
+   * horizontal: en `portraitAspect` o menos manda el encuadre vertical del
+   * todo, en `landscapeAspect` o mas el horizontal, y en medio se interpola.
+   *
+   * Antes habia un solo umbral y la mezcla era `aspect / 0.75`. Un movil en
+   * vertical tiene aspecto 0,46, asi que salia una mezcla de 0,61: el juego
+   * consideraba una pantalla de telefono un 61% HORIZONTAL. El resultado era
+   * que ni encuadraba de cerca -la moto se quedaba en el 12% del ancho,
+   * por debajo del minimo del mandato- ni bajaba la moto en pantalla, y
+   * cambiar `portraitViewMeters` apenas movia nada porque su efecto se
+   * diluia en la mezcla.
+   */
+  portraitAspect: 0.6,
+  landscapeAspect: 1.1,
   /** Topes de seguridad para pantallas extremas. */
   minPixelsPerMeter: 40,
   maxPixelsPerMeter: 190,

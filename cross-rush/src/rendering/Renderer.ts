@@ -528,8 +528,15 @@ export class Renderer {
 
       // Velo calido sobre la capa: es la bruma del valle, y ademas apaga el
       // borde inferior para que no corte en seco contra la capa siguiente.
+      // El velo es mas denso justo en el BORDE SUPERIOR de la capa. Ahi la
+      // imagen termina en un corte recto contra el cielo, y en una pantalla
+      // vertical -donde sobra cielo- ese corte se ve como una linea. Con la
+      // bruma cargada arriba, la capa se disuelve en el cielo en vez de
+      // terminar de golpe, que ademas es como se ve un canon lejano de
+      // verdad.
       const veil = ctx.createLinearGradient(0, baseline - tileH, 0, baseline);
-      veil.addColorStop(0, `rgba(238, 190, 140, ${layer.haze * 0.55})`);
+      veil.addColorStop(0, `rgba(238, 190, 140, ${Math.min(1, layer.haze * 2.1)})`);
+      veil.addColorStop(0.22, `rgba(238, 190, 140, ${layer.haze * 0.5})`);
       veil.addColorStop(1, `rgba(238, 190, 140, ${layer.haze})`);
       ctx.fillStyle = veil;
       ctx.fillRect(0, baseline - tileH, canvas.width, tileH);

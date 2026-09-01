@@ -66,6 +66,8 @@ export class Camera {
    * permanentemente descentrada.
    */
   private anchorY = 0;
+  /** Adelanto vertical vigente: depende de la forma de la pantalla (ver setViewportSize). */
+  private verticalLead: number = CameraConfig.verticalLead;
   private initialized = false;
 
   /**
@@ -78,13 +80,24 @@ export class Camera {
     const aspect = Number.isFinite(heightPx) && heightPx > 0 ? widthPx / heightPx : 16 / 9;
     // En vertical se encuadra mas cerca: el ancho es el lado corto y mantener
     // los mismos metros a lo ancho deja la moto diminuta (ver config).
-    const t = clamp(aspect / CameraConfig.portraitAspectRatio, 0, 1);
+    const t = clamp(
+      (aspect - CameraConfig.portraitAspect) / (CameraConfig.landscapeAspect - CameraConfig.portraitAspect),
+      0,
+      1,
+    );
     const metersVisible = lerp(CameraConfig.portraitViewMeters, CameraConfig.referenceViewMeters, t);
     this.baseZoom = clamp(
       widthPx / metersVisible,
       CameraConfig.minPixelsPerMeter,
       CameraConfig.maxPixelsPerMeter,
     );
+    // Adelanto vertical. En vertical no es un adelanto sino una colocacion: se
+    // deriva del alto real de la pantalla para dejar la moto a
+    // `portraitBikeScreenFraction` de la altura, y asi el espacio que sobra
+    // cae del lado del cielo y no del lado de la tierra. En horizontal es
+    // exactamente el valor de siempre.
+    const portraitLead = (heightPx * (CameraConfig.portraitBikeScreenFraction - 0.5)) / this.baseZoom;
+    this.verticalLead = lerp(portraitLead, CameraConfig.verticalLead, t);
     if (!this.initialized) {
       this.pixelsPerMeter = this.baseZoom;
       this.previousPixelsPerMeter = this.baseZoom;
@@ -101,7 +114,7 @@ export class Camera {
     this.shakeClock = 0;
     this.previousShakeClock = 0;
     this.facing = target.vx >= 0 ? 1 : -1;
-    this.anchorY = target.y + CameraConfig.verticalLead;
+    this.anchorY = target.y + this.verticalLead;
     this.y = this.anchorY;
     this.previousY = this.anchorY;
     this.initialized = true;
@@ -146,7 +159,7 @@ export class Camera {
     // objetivo enganchado no se mueve. Es lo que evita que cada bache
     // convierta la pantalla en una coctelera, y a la vez deja que la camara se
     // centre del todo cuando la moto se estabiliza.
-    const rawDesiredY = target.y + CameraConfig.verticalLead;
+    const rawDesiredY = target.y + this.verticalLead;
     const verticalError = rawDesiredY - this.anchorY;
     const deadZone = CameraConfig.verticalDeadZone;
     if (Math.abs(verticalError) > deadZone) {

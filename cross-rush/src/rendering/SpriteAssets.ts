@@ -6,7 +6,13 @@
  * en pixeles de cada imagen que hacen falta para posicionarlas de forma
  * rigida sobre el chasis fisico (ejes de rueda, cadera del piloto).
  *
- * Los PNG se procesaron a partir del material de referencia de la marca:
+ * Los sprites se sirven en WebP. En PNG la build pesaba 18 MB: son imagenes
+ * fotograficas con alfa -canones, publico, la propia moto-, el peor caso
+ * posible para un formato sin perdida. En WebP ocupan la cuarta parte sin
+ * diferencia visible; la moto, las ruedas y el piloto van a mas calidad
+ * porque son las piezas que se ven grandes (ver assets-src/compress_sprites.py).
+ *
+ * Se procesaron a partir del material de referencia de la marca:
  * la moto se nivelo (giro de correccion) para que la linea de ejes quedara
  * horizontal, y la rueda delantera/trasera se recortaron por separado para
  * poder moverlas de forma independiente segun la compresion real de la
@@ -20,67 +26,71 @@
  * y reencuadrados con el buje en el centro exacto de la imagen.
  */
 
-import bikeBodyUrl from '../sprites/bike_body.png';
-import wheelFrontUrl from '../sprites/wheel_front.png';
-import wheelRearUrl from '../sprites/wheel_rear.png';
-import riderUrl from '../sprites/rider.png';
-import riderTorsoUrl from '../sprites/rider_torso.png';
-import riderArmUpperUrl from '../sprites/rider_arm_upper.png';
-import riderArmForeUrl from '../sprites/rider_arm_fore.png';
-import riderThighUrl from '../sprites/rider_thigh.png';
-import riderShinUrl from '../sprites/rider_shin.png';
-import dirtSprayUrl from '../sprites/dirt_spray.png';
-import landingImpactUrl from '../sprites/landing_impact.png';
-import finishGateUrl from '../sprites/finish_gate.png';
-import startGateUrl from '../sprites/start_gate.png';
-import checkpointGateUrl from '../sprites/checkpoint_gate.png';
-import barrierUrl from '../sprites/barrier.png';
-import rockClusterAUrl from '../sprites/rock_cluster_a.png';
-import bannerFlagUrl from '../sprites/banner_flag.png';
-import cactusClusterUrl from '../sprites/cactus_cluster.png';
-import rockClusterBUrl from '../sprites/rock_cluster_b.png';
-import jumpSignUrl from '../sprites/jump_sign.png';
-import fenceBannerUrl from '../sprites/fence_banner.png';
-import bgFarUrl from '../sprites/bg_far.png';
-import bgMidUrl from '../sprites/bg_mid.png';
-import riderCrashUrl from '../sprites/rider_crash.png';
-import redlineFxUrl from '../sprites/redline_fx.png';
-import dangerFlagsUrl from '../sprites/danger_flags.png';
-import ropeBarrierUrl from '../sprites/rope_barrier.png';
-import tireSkidUrl from '../sprites/tire_skid.png';
-import brokenBarrierUrl from '../sprites/broken_barrier.png';
-import rampDecoUrl from '../sprites/ramp_deco.png';
-import logObstacleUrl from '../sprites/log_obstacle.png';
-import tireStackUrl from '../sprites/tire_stack.png';
-import boulderUrl from '../sprites/boulder.png';
-import rampSmallUrl from '../sprites/ramp_small.png';
-import tireMoundUrl from '../sprites/tire_mound.png';
-import ropeTireBarrierUrl from '../sprites/rope_tire_barrier.png';
-import foregroundAUrl from '../sprites/foreground_a.png';
-import foregroundBUrl from '../sprites/foreground_b.png';
-import speedStreakUrl from '../sprites/speed_streak.png';
-import speedDebrisUrl from '../sprites/speed_debris.png';
-import crowdUrl from '../sprites/crowd.png';
-import pickupTruckUrl from '../sprites/pickup_truck.png';
-import paddockTentUrl from '../sprites/paddock_tent.png';
-import marshalFlagUrl from '../sprites/marshal_flag.png';
-import photographerUrl from '../sprites/photographer.png';
-import speedPadUrl from '../sprites/speed_pad.png';
-import riskGapUrl from '../sprites/risk_gap.png';
-import altRampUrl from '../sprites/alt_ramp.png';
-import flowRingUrl from '../sprites/flow_ring.png';
-import bumpGateUrl from '../sprites/bump_gate.png';
-import speedPadFxUrl from '../sprites/speed_pad_fx.png';
-import altRampFxUrl from '../sprites/alt_ramp_fx.png';
-import bumpGateFxUrl from '../sprites/bump_gate_fx.png';
-import riskGapFxUrl from '../sprites/risk_gap_fx.png';
-import flowRingHitUrl from '../sprites/flow_ring_hit.png';
-import terrainTabletopUrl from '../sprites/terrain_tabletop.png';
-import terrainStepupUrl from '../sprites/terrain_stepup.png';
-import terrainDropoffUrl from '../sprites/terrain_dropoff.png';
-import terrainWhoopsUrl from '../sprites/terrain_whoops.png';
-import terrainRockgardenUrl from '../sprites/terrain_rockgarden.png';
+import bikeBodyUrl from '../sprites/bike_body.webp';
+import wheelFrontUrl from '../sprites/wheel_front.webp';
+import wheelRearUrl from '../sprites/wheel_rear.webp';
+import riderUrl from '../sprites/rider.webp';
+import riderTorsoUrl from '../sprites/rider_torso.webp';
+import riderArmUpperUrl from '../sprites/rider_arm_upper.webp';
+import riderArmForeUrl from '../sprites/rider_arm_fore.webp';
+import riderThighUrl from '../sprites/rider_thigh.webp';
+import riderShinUrl from '../sprites/rider_shin.webp';
+import dirtSprayUrl from '../sprites/dirt_spray.webp';
+import landingImpactUrl from '../sprites/landing_impact.webp';
+import finishGateUrl from '../sprites/finish_gate.webp';
+import startGateUrl from '../sprites/start_gate.webp';
+import barrierUrl from '../sprites/barrier.webp';
+import rockClusterAUrl from '../sprites/rock_cluster_a.webp';
+import bannerFlagUrl from '../sprites/banner_flag.webp';
+import cactusClusterUrl from '../sprites/cactus_cluster.webp';
+import rockClusterBUrl from '../sprites/rock_cluster_b.webp';
+import jumpSignUrl from '../sprites/jump_sign.webp';
+import fenceBannerUrl from '../sprites/fence_banner.webp';
+import bgFarUrl from '../sprites/bg_far.webp';
+import bgMidUrl from '../sprites/bg_mid.webp';
+import riderCrashUrl from '../sprites/rider_crash.webp';
+import redlineFxUrl from '../sprites/redline_fx.webp';
+import dangerFlagsUrl from '../sprites/danger_flags.webp';
+import ropeBarrierUrl from '../sprites/rope_barrier.webp';
+import tireSkidUrl from '../sprites/tire_skid.webp';
+import brokenBarrierUrl from '../sprites/broken_barrier.webp';
+import logObstacleUrl from '../sprites/log_obstacle.webp';
+import tireStackUrl from '../sprites/tire_stack.webp';
+import boulderUrl from '../sprites/boulder.webp';
+import tireMoundUrl from '../sprites/tire_mound.webp';
+import ropeTireBarrierUrl from '../sprites/rope_tire_barrier.webp';
+import foregroundAUrl from '../sprites/foreground_a.webp';
+import foregroundBUrl from '../sprites/foreground_b.webp';
+import speedStreakUrl from '../sprites/speed_streak.webp';
+import speedDebrisUrl from '../sprites/speed_debris.webp';
+import crowdUrl from '../sprites/crowd.webp';
+import paddockTentUrl from '../sprites/paddock_tent.webp';
+import speedPadUrl from '../sprites/speed_pad.webp';
+import riskGapUrl from '../sprites/risk_gap.webp';
+import altRampUrl from '../sprites/alt_ramp.webp';
+import flowRingUrl from '../sprites/flow_ring.webp';
+import bumpGateUrl from '../sprites/bump_gate.webp';
+import speedPadFxUrl from '../sprites/speed_pad_fx.webp';
+import altRampFxUrl from '../sprites/alt_ramp_fx.webp';
+import bumpGateFxUrl from '../sprites/bump_gate_fx.webp';
+import riskGapFxUrl from '../sprites/risk_gap_fx.webp';
+import flowRingHitUrl from '../sprites/flow_ring_hit.webp';
 
+/**
+ * Sprites retirados del bundle (eran 4,4 MB de PNG que se descargaban para no
+ * dibujarse nunca):
+ *
+ *  - `terrain_tabletop/stepup/dropoff/whoops/rockgarden`: BORRADOS. Eran
+ *    imagenes estiradas al rango x de cada obstaculo, asi que su silueta no
+ *    coincidia -y no podia coincidir- con la curva contra la que se choca. El
+ *    relieve lo dibuja ahora TerrainPainter derivandolo de la propia curva de
+ *    colision, de modo que no hay version de estos PNG que sirva.
+ *  - `checkpoint_gate`, `photographer`, `marshal_flag`, `pickup_truck`,
+ *    `ramp_deco`, `ramp_small`: siguen en `src/sprites/` pero SIN importar.
+ *    El arco tapaba la moto entera con el encuadre cerrado, y el resto es
+ *    ambientacion atada a sectores que el corte vertical no tiene; una pista
+ *    futura con mas sectores puede volver a engancharlos.
+ */
 function loadImage(src: string): HTMLImageElement {
   const img = new Image();
   img.src = src;
@@ -101,7 +111,6 @@ export const SpriteImages = {
   landingImpact: loadImage(landingImpactUrl),
   finishGate: loadImage(finishGateUrl),
   startGate: loadImage(startGateUrl),
-  checkpointGate: loadImage(checkpointGateUrl),
   barrier: loadImage(barrierUrl),
   rockClusterA: loadImage(rockClusterAUrl),
   bannerFlag: loadImage(bannerFlagUrl),
@@ -117,11 +126,9 @@ export const SpriteImages = {
   ropeBarrier: loadImage(ropeBarrierUrl),
   tireSkid: loadImage(tireSkidUrl),
   brokenBarrier: loadImage(brokenBarrierUrl),
-  rampDeco: loadImage(rampDecoUrl),
   logObstacle: loadImage(logObstacleUrl),
   tireStack: loadImage(tireStackUrl),
   boulder: loadImage(boulderUrl),
-  rampSmall: loadImage(rampSmallUrl),
   tireMound: loadImage(tireMoundUrl),
   ropeTireBarrier: loadImage(ropeTireBarrierUrl),
   foregroundA: loadImage(foregroundAUrl),
@@ -129,10 +136,7 @@ export const SpriteImages = {
   speedStreak: loadImage(speedStreakUrl),
   speedDebris: loadImage(speedDebrisUrl),
   crowd: loadImage(crowdUrl),
-  pickupTruck: loadImage(pickupTruckUrl),
   paddockTent: loadImage(paddockTentUrl),
-  marshalFlag: loadImage(marshalFlagUrl),
-  photographer: loadImage(photographerUrl),
   speedPad: loadImage(speedPadUrl),
   riskGap: loadImage(riskGapUrl),
   altRamp: loadImage(altRampUrl),
@@ -143,11 +147,6 @@ export const SpriteImages = {
   bumpGateFx: loadImage(bumpGateFxUrl),
   riskGapFx: loadImage(riskGapFxUrl),
   flowRingHit: loadImage(flowRingHitUrl),
-  terrainTabletop: loadImage(terrainTabletopUrl),
-  terrainStepup: loadImage(terrainStepupUrl),
-  terrainDropoff: loadImage(terrainDropoffUrl),
-  terrainWhoops: loadImage(terrainWhoopsUrl),
-  terrainRockgarden: loadImage(terrainRockgardenUrl),
 };
 
 /** Un punto de pivote en pixeles de imagen (origen arriba-izquierda, Y hacia abajo). */

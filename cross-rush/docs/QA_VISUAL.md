@@ -183,7 +183,9 @@ en 1366x768 y en 393x852:
 | `5-aterrizando` | Golpe de aterrizaje: tierra proyectada, sombra de contacto y compresion. |
 | `6-meta` / `7-resultados` | Cartel de meta y panel final. |
 
-Las capturas de la ultima pasada estan en `docs/qa/secuencia/`.
+Las capturas de la ultima pasada estan en `docs/qa/secuencia/`, y con
+`--video` graba ademas la vuelta entera: `docs/qa/vuelta-completa.webm`
+(30 s de carrera, salida a meta, a media resolucion).
 
 ### Rendimiento
 
@@ -193,3 +195,9 @@ culpable era `ctx.filter` aplicado en caliente sobre las capas de fondo, que
 cubren la pantalla entera y se redibujaban con el filtro en cada fotograma.
 Ahora los filtros y el reescalado van horneados (`src/rendering/SpriteFilters.ts`)
 y el cielo se cachea en un lienzo aparte.
+
+### Peso
+
+La build pasa de **18 MB a 3,5 MB**. Dos causas independientes: 4,4 MB eran
+sprites que ya no dibuja nadie y seguian importados, y el resto eran PNG donde
+tocaba WebP (`assets-src/compress_sprites.py`).
