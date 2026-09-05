@@ -1,0 +1,46 @@
+{
+  "para": "Kali World 3D (terulet/KaliWorld3D) — KW3D-002 «Que se sienta»",
+  "generado": "sesión de búsqueda, 2026-09-05",
+  "aviso": "Ningún fichero está descargado ni verificado: el contenedor de esta sesión no tiene salida a kenney.nl, opengameart.org, freesound.org ni pixabay.com. 'licencia' es la que anuncia la página; donde pone 'comprobar', hay que leerla en el ítem antes de usarlo (en OpenGameArt la licencia es por publicación).",
+  "preferencia": "CC0 siempre que se pueda, como las once fuentes de FLIGHT STRIKE",
+  "efectos": [
+    { "id": "kenney_rpg", "titulo": "RPG Audio", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://kenney.nl/assets/rpg-audio", "usar_para": ["pasos", "puerta_abre", "puerta_cierra", "comprar", "coger", "dejar"] },
+    { "id": "kenney_ui", "titulo": "UI Audio", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://kenney.nl/assets/ui-audio", "usar_para": ["cartel_aparece", "cartel_va", "accion_ok", "accion_no"] },
+    { "id": "kenney_interface", "titulo": "Interface Sounds", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://kenney.nl/assets/interface-sounds", "usar_para": ["ui_mueve", "ui_ok", "ui_atras", "pausa", "construir_*"] },
+    { "id": "kenney_impact", "titulo": "Impact Sounds", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://kenney.nl/assets/impact-sounds", "usar_para": ["suspension", "choque_leve", "choque_fuerte", "ola_golpe"] },
+    { "id": "kenney_catalogo", "titulo": "Catálogo de audio de Kenney", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://kenney.nl/assets/category:Audio", "usar_para": ["reserva"] },
+    { "id": "kenney_espejo", "titulo": "Kenney's Sound Pack (espejo)", "autor": "Kenney", "licencia": "CC0", "verificado": true, "pagina": "https://gamesounds.xyz/?dir=Kenney%27s+Sound+Pack", "usar_para": ["reserva si kenney.nl no responde"] },
+    { "id": "oga_fantozzi", "titulo": "Fantozzi's Footsteps (Grass/Sand & Stone)", "autor": "Fantozzi", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone", "usar_para": ["paso_hierba", "paso_arena", "paso_piedra"] },
+    { "id": "oga_pasos_superficies", "titulo": "Different steps on wood, stone, leaves, gravel and mud", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud", "usar_para": ["paso_madera", "paso_grava", "paso_tierra"] },
+    { "id": "oga_pasos_varias", "titulo": "Footsteps on different surfaces", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/footsteps-on-different-surfaces", "usar_para": ["paso_interior", "paso_agua_poca"] },
+    { "id": "oga_pasos_extra", "titulo": "Footstep Sounds", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/footstep-sounds", "usar_para": ["variantes de relleno"] },
+    { "id": "oga_cc0_library", "titulo": "CC0 Sounds Library", "autor": "—", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/cc0-sounds-library", "usar_para": ["cajón general"] },
+    { "id": "oga_cc0_sfx", "titulo": "CC0 Sound Effects", "autor": "—", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/cc0-sound-effects", "usar_para": ["cajón general"] },
+    { "id": "oga_100_cc0_2", "titulo": "100 CC0 SFX #2", "autor": "—", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/100-cc0-sfx-2", "usar_para": ["puertas", "madera", "cristal", "golpes"] },
+    { "id": "oga_motor_bucles", "titulo": "racing car engine sound loops", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/racing-car-engine-sound-loops", "usar_para": ["motor_bajo", "motor_alto"] },
+    { "id": "oga_motor_96k", "titulo": "Car Engine Loop 96kHz, 4s", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/car-engine-loop-96khz-4s", "usar_para": ["motor_bajo", "motor_alto"] },
+    { "id": "oga_motor", "titulo": "Engine Sound", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/engine-sound", "usar_para": ["motor_arranque", "alternativa"] },
+    { "id": "oga_derrape", "titulo": "Car tire squeal skid loop", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/car-tire-squeal-skid-loop", "usar_para": ["derrape"] },
+    { "id": "oga_amb_cc0", "titulo": "CC0 Background Ambience", "autor": "—", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/cc0-background-ambience", "usar_para": ["amb_valle", "amb_montaña"] },
+    { "id": "oga_amb_naturaleza", "titulo": "JC Sounds - Nature Ambient Pack Vol 1", "autor": "JC Sounds", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/jc-sounds-nature-ambient-pack-vol-1", "usar_para": ["amb_valle", "pajaro_cerca"] },
+    { "id": "oga_amb_bosque", "titulo": "Forest Ambience", "autor": "—", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/forest-ambience", "usar_para": ["amb_valle"] },
+    { "id": "freesound_cc0", "titulo": "Freesound, filtrando licencia CC0", "autor": "varios", "licencia": "por fichero", "verificado": false, "pagina": "https://freesound.org", "usar_para": ["remo_entra", "remo_sale", "fueraborda_*", "gaviotas", "tirolina_polea", "vagoneta_*", "campana_pueblo"] },
+    { "id": "pixabay_sfx", "titulo": "Pixabay, efectos", "autor": "varios", "licencia": "Licencia de contenido de Pixabay (NO es CC0)", "verificado": false, "pagina": "https://pixabay.com/sound-effects/search/cc0/", "usar_para": ["último recurso, anotado aparte"] }
+  ],
+  "musica": [
+    { "id": "oga_good_cc0", "titulo": "Good CC0 Music", "autor": "varios", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/good-cc0-music", "usar_para": ["menu", "valle", "pueblo"] },
+    { "id": "oga_cc0_music", "titulo": "CC0 Music", "autor": "varios", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/cc0-music-0", "usar_para": ["reserva"] },
+    { "id": "oga_calm", "titulo": "CC0 - Calm / Relaxing Music", "autor": "varios", "licencia": "CC0", "verificado": false, "pagina": "https://opengameart.org/content/cc0-calm-relaxing-music", "usar_para": ["valle", "noche", "construir"] },
+    { "id": "oga_exploration_theme", "titulo": "Exploration Theme", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/exploration-theme", "usar_para": ["montaña"] },
+    { "id": "oga_exploration_guitarra", "titulo": "Exploration (guitarra acústica)", "autor": "—", "licencia": "comprobar", "verificado": false, "pagina": "https://opengameart.org/content/exploration-0", "usar_para": ["valle", "menu"] },
+    { "id": "oga_comercial_ok", "titulo": "Audio - Commercial use OK", "autor": "varios", "licencia": "varias", "verificado": false, "pagina": "https://opengameart.org/content/audio-commercial-use-ok", "usar_para": ["listado general"] },
+    { "id": "freepd_archive", "titulo": "FreePD (espejo de Internet Archive)", "autor": "varios", "licencia": "dominio público", "verificado": false, "pagina": "https://archive.org/details/freepd", "nota": "freepd.com cerró en 2025; el catálogo sigue accesible en el espejo", "usar_para": ["menu", "pueblo", "montaña", "cala"] },
+    { "id": "chosic_sin_atribucion", "titulo": "Chosic, filtrado «sin atribución»", "autor": "varios", "licencia": "CC0 / dominio público", "verificado": false, "pagina": "https://www.chosic.com/free-music/all/?sort=&attribution=no", "usar_para": ["buscar por ánimo"] }
+  ],
+  "descartados": [
+    { "que": "incompetech (Kevin MacLeod)", "por_que": "CC-BY: obliga a crédito y a mantenerlo" },
+    { "que": "Alexandr Zhelanov y buena parte de OpenGameArt", "por_que": "CC-BY, mismo motivo" },
+    { "que": "Bundles de Sonniss (GDC)", "por_que": "royalty-free con licencia propia, no CC0; solo si algo concreto no aparece en ningún otro sitio" },
+    { "que": "La música que ya está en audio/musica de FLIGHT STRIKE", "por_que": "sintetizador y combate espacial; Kali World pide acústico y de día. No sirve ni una pista" }
+  ]
+}
