@@ -1,0 +1,27 @@
+{
+  "name": "quita-la-nieve",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "AjustesNieve": {
+        "$path": "src/ReplicatedStorage/AjustesNieve.luau"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Nieve": {
+        "$path": "src/ServerScriptService/Nieve.server.luau"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "NieveCliente": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/NieveCliente.client.luau"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,478 @@
+--[[
+	Lo que tiene que cumplir el juego. Se ejecuta de verdad, con el
+	codigo del servidor tal cual, sobre el Roblox de mentira.
+]]
+
+local A = AJUSTES
+local celda = A.mundo.celda
+local RS = game:GetService("ReplicatedStorage")
+local remotos = RS:FindFirstChild("NieveRemotos")
+local RemotoEstado = remotos:FindFirstChild("Estado")
+local RemotoAviso = remotos:FindFirstChild("Aviso")
+local RemotoComprar = remotos:FindFirstChild("Comprar")
+
+local carpeta = workspace:FindFirstChild("Nieve")
+
+local function estadoDe(jugador)
+	for i = #RemotoEstado._alCliente, 1, -1 do
+		local envio = RemotoEstado._alCliente[i]
+		if envio.jugador == jugador then
+			return envio.datos
+		end
+	end
+	return nil
+end
+
+local function ultimoAviso(jugador)
+	for i = #RemotoAviso._alCliente, 1, -1 do
+		local envio = RemotoAviso._alCliente[i]
+		if envio.jugador == jugador then
+			return envio.datos
+		end
+	end
+	return nil
+end
+
+-- Centro de la parcela y sitio del camion, por zona.
+local function celdaDe(indice)
+	return A.zonas[indice].celda or A.mundo.celda
+end
+
+local function sitios(indice)
+	local x = 0
+	for i = 1, indice - 1 do
+		x = x + A.zonas[i].ancho * celdaDe(i) + A.mundo.separacion
+	end
+	local def = A.zonas[indice]
+	local anchoS = def.ancho * celdaDe(indice)
+	local largoS = def.largo * celdaDe(indice)
+	return {
+		centroX = x + anchoS / 2,
+		centroZ = 0,
+		ventaZ = largoS / 2 + 9,
+	}
+end
+
+local S1 = sitios(1)
+local S2 = sitios(2)
+
+-- Un jugador de verdad no se queda quieto: barre la parcela en
+-- serpentina, como quien corta el cesped. Sin esto no se mide nada real.
+local function serpiente(indice, distancia, espaciado)
+	local def = A.zonas[indice]
+	local sitio = sitios(indice)
+	local anchoS = def.ancho * celdaDe(indice)
+	local largoS = def.largo * celdaDe(indice)
+	local fondo = anchoS - 4
+	local filas = math.max(1, math.floor((largoS - 4) / espaciado))
+	local fila = math.floor(distancia / fondo) % filas
+	local avance = distancia % fondo
+	if fila % 2 == 1 then
+		avance = fondo - avance
+	end
+	return sitio.centroX - anchoS / 2 + 2 + avance, -largoS / 2 + 2 + fila * espaciado
+end
+
+local function velocidadDe(jugador)
+	local pers = jugador.Character
+	local humano = pers and pers:FindFirstChild("Humanoid")
+	return (humano and humano.WalkSpeed) or A.jugador.velocidadBase
+end
+
+local recorrido = {}
+
+-- Barre hasta llenar la carretilla (o hasta que se acabe el tiempo).
+local function barrer(jugador, indice, segundosMax)
+	local velocidad = velocidadDe(jugador)
+	local paso = 0.2
+	local t = 0
+	while t < segundosMax do
+		local est = estadoDe(jugador)
+		if est and est.carga >= est.capacidad then
+			break
+		end
+		recorrido[jugador] = (recorrido[jugador] or 0) + velocidad * paso
+		local x, z = serpiente(indice, recorrido[jugador], 8)
+		jugador:Mover(x, 3, z)
+		avanzar(paso)
+		t = t + paso
+	end
+	return t
+end
+
+-- El viaje al camion y la vuelta: tiempo muerto, como en el juego.
+local function vender(jugador, indice)
+	local sitio = sitios(indice)
+	jugador:Mover(sitio.centroX, 3, sitio.ventaZ)
+	avanzar(4)
+end
+
+-- Trabaja hasta juntar el dinero pedido. Devuelve segundos de juego.
+local function trabajar(jugador, indice, objetivo, viajesMax)
+	local desde = reloj
+	for _ = 1, viajesMax or 400 do
+		local est = estadoDe(jugador)
+		if est and est.dinero >= objetivo then
+			return reloj - desde
+		end
+		barrer(jugador, indice, 30)
+		vender(jugador, indice)
+	end
+	return nil
+end
+
+
+-------------------------------------------------------------------
+titulo("EL MUNDO SE CONSTRUYE SOLO")
+-------------------------------------------------------------------
+
+comprobar(carpeta ~= nil, "existe la carpeta Nieve en workspace")
+
+local totalEsperado = 0
+for _, def in ipairs(A.zonas) do
+	totalEsperado = totalEsperado + def.ancho * def.largo
+end
+
+local totalBloques = 0
+for _, def in ipairs(A.zonas) do
+	local grupo = carpeta:FindFirstChild(def.clave)
+	local nieve = grupo and grupo:FindFirstChild("Nieve")
+	if nieve then
+		totalBloques = totalBloques + #nieve:GetChildren()
+	end
+end
+comprobarIgual(totalBloques, totalEsperado, "hay un bloque de nieve por casilla")
+
+local puertas = carpeta:FindFirstChild("Puertas")
+comprobarIgual(puertas and #puertas:GetChildren() or 0, #A.zonas - 1, "una puerta entre cada dos zonas")
+
+local salida = carpeta:FindFirstChild("Salida")
+comprobar(salida ~= nil and salida.ClassName == "SpawnLocation", "hay sitio donde aparecer")
+
+for _, def in ipairs(A.zonas) do
+	local grupo = carpeta:FindFirstChild(def.clave)
+	comprobar(grupo ~= nil and grupo:FindFirstChild("Caja") ~= nil, "la zona " .. def.clave .. " tiene camion")
+end
+
+
+-------------------------------------------------------------------
+titulo("ENTRA UN JUGADOR NUEVO")
+-------------------------------------------------------------------
+
+local ana = nuevoJugador("Ana")
+entra(ana)
+avanzar(0.5)
+ana:LoadCharacter()
+avanzar(0.5)
+
+local marcador = ana:FindFirstChild("leaderstats")
+comprobar(marcador ~= nil, "se le pone marcador")
+comprobar(marcador and marcador:FindFirstChild("Coins") ~= nil, "el marcador lleva monedas")
+
+local pala = ana.Character and ana.Character:FindFirstChild("Pala")
+local palaEnMochila = ana:FindFirstChildOfClass("Backpack"):FindFirstChild("Pala")
+comprobar(pala ~= nil or palaEnMochila ~= nil, "le dan una pala")
+
+local humano = ana.Character:FindFirstChild("Humanoid")
+comprobarIgual(humano.WalkSpeed, A.jugador.velocidadBase, "anda a la velocidad de partida")
+
+local e = estadoDe(ana)
+comprobar(e ~= nil, "el cliente recibe el estado")
+comprobarIgual(e and e.dinero, 0, "empieza sin dinero")
+comprobarIgual(e and e.capacidad, A.jugador.capacidadBase, "empieza con la carretilla de partida")
+
+
+-------------------------------------------------------------------
+titulo("RECOGER NIEVE")
+-------------------------------------------------------------------
+
+ana:Mover(S1.centroX, 3, S1.centroZ)
+avanzar(0.6)
+e = estadoDe(ana)
+comprobar(e.carga > 0, "al pisar la nieve, se recoge")
+
+barrer(ana, 1, 40)
+e = estadoDe(ana)
+comprobarIgual(e.carga, e.capacidad, "barriendo un rato la carretilla se llena hasta el tope")
+comprobarIgual(e.dinero, 0, "recoger no da dinero: hay que venderla")
+comprobar(e.valor > 0, "la carga vale algo")
+
+-- La nieve pisada desaparece de verdad.
+local grupo1 = carpeta:FindFirstChild(A.zonas[1].clave)
+local nieve1 = grupo1:FindFirstChild("Nieve")
+local invisibles = 0
+for _, bloque in ipairs(nieve1:GetChildren()) do
+	if bloque.Transparency == 1 then
+		invisibles = invisibles + 1
+	end
+end
+comprobar(invisibles > 0, "los bloques recogidos se quitan de la vista")
+
+comprobar(e.limpio > 0, "la barra de limpieza sube")
+
+
+-------------------------------------------------------------------
+titulo("VENDER")
+-------------------------------------------------------------------
+
+local cargaAntes = e.carga
+ana:Mover(S1.centroX, 3, S1.ventaZ)
+avanzar(0.5)
+e = estadoDe(ana)
+comprobarIgual(e.dinero, cargaAntes * A.zonas[1].valor, "el camion paga la carga entera")
+comprobarIgual(e.carga, 0, "la carretilla se vacia")
+
+local aviso = ultimoAviso(ana)
+comprobar(aviso ~= nil and aviso.tipo == "venta", "al vender salta el aviso")
+
+comprobarIgual(marcador:FindFirstChild("Coins").Value, e.dinero, "el marcador de Roblox cuadra")
+
+
+-------------------------------------------------------------------
+titulo("NO SE PUEDE COMPRAR SIN DINERO")
+-------------------------------------------------------------------
+
+local nivelAntes = e.niveles.pala
+RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
+avanzar(0.4)
+e = estadoDe(ana)
+comprobarIgual(e.niveles.pala, nivelAntes, "con una carga vendida no llega para la primera pala")
+comprobar(ultimoAviso(ana).clave == "sinDinero", "y te avisa de que falta dinero")
+
+RemotoComprar.OnServerEvent:Fire(ana, "mejora", "cohete_de_mentira")
+avanzar(0.3)
+comprobar(true, "una mejora inventada no revienta el servidor")
+
+RemotoComprar.OnServerEvent:Fire(ana, 12345)
+avanzar(0.3)
+comprobar(true, "una peticion con basura dentro tampoco")
+
+
+-------------------------------------------------------------------
+titulo("EL BUCLE COMPLETO: TRABAJAR, COBRAR, MEJORAR")
+-------------------------------------------------------------------
+
+local tardo = trabajar(ana, 1, 50, 20)
+comprobar(tardo ~= nil, "junta las 50 monedas de la primera pala")
+if tardo then
+	print(("       (le ha costado %.0f segundos de juego)"):format(tardo))
+	comprobar(tardo < 90, "y las junta en menos de minuto y medio, no en diez")
+end
+
+local dineroAntes = estadoDe(ana).dinero
+RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
+avanzar(0.4)
+e = estadoDe(ana)
+comprobarIgual(e.niveles.pala, 2, "ahora si sube la pala")
+comprobarIgual(e.dinero, dineroAntes - A.mejoras[1].precio, "y cobra el precio exacto")
+comprobar(e.precios.pala > A.mejoras[1].precio, "la siguiente pala cuesta mas")
+
+-- La carretilla tiene que notarse en la capacidad.
+local capacidadAntes = e.capacidad
+trabajar(ana, 1, e.precios.carretilla, 60)
+RemotoComprar.OnServerEvent:Fire(ana, "mejora", "carretilla")
+avanzar(0.4)
+e = estadoDe(ana)
+comprobarIgual(e.capacidad, capacidadAntes + A.jugador.capacidadPorNivel, "la carretilla sube la capacidad")
+
+-- Las botas tienen que notarse al andar.
+trabajar(ana, 1, e.precios.botas, 120)
+RemotoComprar.OnServerEvent:Fire(ana, "mejora", "botas")
+avanzar(0.4)
+comprobar(humano.WalkSpeed > A.jugador.velocidadBase, "las botas hacen que ande mas rapido")
+
+
+-------------------------------------------------------------------
+titulo("LA PUERTA DE LA SEGUNDA ZONA")
+-------------------------------------------------------------------
+
+local puerta2 = puertas:FindFirstChild("Puerta_" .. A.zonas[2].clave)
+comprobar(puerta2 ~= nil, "existe la puerta de la acera")
+local prompt2 = puerta2:FindFirstChildOfClass("ProximityPrompt")
+comprobar(prompt2 ~= nil, "y se abre acercandose")
+
+-- Sin dinero no se abre.
+local dineroPobre = estadoDe(ana).dinero
+if dineroPobre < A.zonas[2].precio then
+	prompt2.Triggered:Fire(ana)
+	avanzar(0.3)
+	e = estadoDe(ana)
+	comprobar(not e.zonas[A.zonas[2].clave], "sin dinero la puerta no se abre")
+end
+
+-- Aunque te cueles, la nieve de dentro no es tuya.
+barrer(ana, 2, 4)
+e = estadoDe(ana)
+comprobarIgual(e.carga, 0, "colandote en una zona cerrada no recoges nada")
+
+local tardo2 = trabajar(ana, 1, A.zonas[2].precio, 400)
+comprobar(tardo2 ~= nil, "se puede juntar el precio de la acera")
+if tardo2 then
+	print(("       (abrir la acera: %.0f segundos mas)"):format(tardo2))
+end
+
+prompt2.Triggered:Fire(ana)
+avanzar(0.4)
+e = estadoDe(ana)
+comprobar(e.zonas[A.zonas[2].clave] == true, "con el dinero, la puerta se abre")
+
+local dineroTrasAbrir = e.dinero
+prompt2.Triggered:Fire(ana)
+avanzar(0.3)
+comprobarIgual(estadoDe(ana).dinero, dineroTrasAbrir, "abrir dos veces no cobra dos veces")
+
+-- Y ahora la nieve de la acera si cuenta, y vale mas.
+barrer(ana, 2, 6)
+e = estadoDe(ana)
+comprobar(e.carga > 0, "ya se recoge nieve en la acera")
+comprobar(e.valor >= e.carga * A.zonas[2].valor, "y cada bloque vale mas que en la entrada")
+
+
+-------------------------------------------------------------------
+titulo("LA NIEVE VUELVE")
+-------------------------------------------------------------------
+
+local grupo2 = carpeta:FindFirstChild(A.zonas[2].clave)
+local nieve2 = grupo2:FindFirstChild("Nieve")
+local function contarQuitados()
+	local n = 0
+	for _, bloque in ipairs(nieve2:GetChildren()) do
+		if bloque.Transparency == 1 then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+local quitadosAntes = contarQuitados()
+comprobar(quitadosAntes > 0, "hay huecos en la acera")
+ana:Mover(S2.centroX, 3, S2.ventaZ + 40)
+avanzar(A.mundo.regreso + 15)
+comprobar(contarQuitados() < quitadosAntes, "pasado un rato vuelve a nevar")
+
+
+-------------------------------------------------------------------
+titulo("SE GUARDA LA PARTIDA")
+-------------------------------------------------------------------
+
+local dineroFinal = estadoDe(ana).dinero
+local nivelFinal = estadoDe(ana).niveles.pala
+sale(ana)
+avanzar(0.5)
+
+local guardado = DATOS_GUARDADOS["j_" .. tostring(ana.UserId)]
+comprobar(guardado ~= nil, "al salir se guarda")
+comprobarIgual(guardado and guardado.dinero, dineroFinal, "guarda el dinero exacto")
+comprobarIgual(guardado and guardado.pala, nivelFinal, "guarda el nivel de la pala")
+comprobar(guardado and #guardado.zonas == 2, "guarda las zonas abiertas")
+
+-- Vuelve al dia siguiente.
+local ana2 = nuevoJugador("Ana")
+ana2.UserId = ana.UserId
+entra(ana2)
+avanzar(0.5)
+ana2:LoadCharacter()
+avanzar(0.5)
+local vuelta = estadoDe(ana2)
+comprobarIgual(vuelta.dinero, dineroFinal, "al volver tiene su dinero")
+comprobarIgual(vuelta.niveles.pala, nivelFinal, "y su pala")
+comprobar(vuelta.zonas[A.zonas[2].clave] == true, "y su acera abierta")
+sale(ana2)
+avanzar(0.3)
+
+
+-------------------------------------------------------------------
+titulo("SI FALLA EL GUARDADO, NO SE PISA LA PARTIDA BUENA")
+-------------------------------------------------------------------
+
+FALLA_EL_DATASTORE = true
+local pepe = nuevoJugador("Pepe")
+pepe.UserId = ana.UserId
+entra(pepe)
+avanzar(30)
+pepe:LoadCharacter()
+avanzar(0.5)
+
+local suEstado = estadoDe(pepe)
+comprobarIgual(suEstado.dinero, 0, "si no se puede leer, empieza de cero esta sesion")
+
+FALLA_EL_DATASTORE = false
+sale(pepe)
+avanzar(0.5)
+local sigueAhi = DATOS_GUARDADOS["j_" .. tostring(ana.UserId)]
+comprobarIgual(sigueAhi and sigueAhi.dinero, dineroFinal, "pero la partida vieja sigue intacta")
+
+
+-------------------------------------------------------------------
+titulo("RENACER")
+-------------------------------------------------------------------
+
+local rico = nuevoJugador("Rico")
+DATOS_GUARDADOS["j_" .. tostring(rico.UserId)] = {
+	v = 1,
+	dinero = A.renacer.precio + 1000,
+	nieveTotal = 500000,
+	renaceres = 0,
+	pala = 12,
+	carretilla = 12,
+	botas = 8,
+	zonas = { "entrada", "acera", "parque", "parking", "montana" },
+}
+entra(rico)
+avanzar(0.5)
+rico:LoadCharacter()
+avanzar(0.5)
+
+local er = estadoDe(rico)
+comprobarIgual(er.niveles.pala, 12, "carga las mejoras guardadas")
+comprobar(er.puedeRenacer == true, "con todas las zonas abiertas ya puede renacer")
+
+RemotoComprar.OnServerEvent:Fire(rico, "renacer")
+avanzar(0.5)
+er = estadoDe(rico)
+comprobarIgual(er.renaceres, 1, "renace")
+comprobarIgual(er.dinero, 0, "se queda sin dinero")
+comprobarIgual(er.niveles.pala, 1, "y sin mejoras")
+comprobarIgual(er.multiplicador, 2, "pero a partir de ahora cobra el doble")
+comprobar(er.zonas[A.zonas[5].clave] ~= true, "y las zonas se cierran otra vez")
+
+-- El doble de verdad: recoger y vender ahora paga x2.
+barrer(rico, 1, 30)
+local cargaRico = estadoDe(rico).carga
+vender(rico, 1)
+comprobarIgual(estadoDe(rico).dinero, cargaRico * A.zonas[1].valor * 2, "el x2 se nota en la caja")
+
+
+-------------------------------------------------------------------
+titulo("NO SE PUEDE RENACER ANTES DE TIEMPO")
+-------------------------------------------------------------------
+
+local novato = nuevoJugador("Novato")
+entra(novato)
+avanzar(0.5)
+novato:LoadCharacter()
+avanzar(0.5)
+RemotoComprar.OnServerEvent:Fire(novato, "renacer")
+avanzar(0.4)
+comprobarIgual(estadoDe(novato).renaceres, 0, "sin las zonas abiertas no se renace")
+comprobarIgual(ultimoAviso(novato).clave, "renacerFalta", "y te dice por que")
+
+
+-------------------------------------------------------------------
+titulo("EL SERVIDOR SE APAGA")
+-------------------------------------------------------------------
+
+comprobar(#CIERRES > 0, "hay guardado de emergencia al apagar")
+for _, fn in ipairs(CIERRES) do
+	task.spawn(fn)
+end
+avanzar(4)
+comprobar(DATOS_GUARDADOS["j_" .. tostring(rico.UserId)] ~= nil, "al apagar se guarda a los que estaban dentro")
+
+
+-------------------------------------------------------------------
+print("")
+print(("── %d bien, %d mal"):format(PASADAS, FALLOS))
+if FALLOS > 0 then
+	error(("hay %d comprobaciones que fallan"):format(FALLOS), 0)
+end

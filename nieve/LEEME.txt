@@ -1,0 +1,170 @@
+===========================================
+  QUITA TODA LA NIEVE
+  (SHOVEL ALL THE SNOW!)
+===========================================
+
+Un juego de Roblox. Tres archivos. No hay que
+dibujar ni un solo bloque a mano: el mapa entero
+se construye solo al arrancar la partida.
+
+
+-------------------------------------------
+  PONERLO EN ROBLOX  <-- LO IMPORTANTE
+-------------------------------------------
+
+Hace falta Roblox Studio (gratis, en
+create.roblox.com). Son cinco minutos:
+
+  1. Abre Studio y crea un sitio nuevo con la
+     plantilla BASEPLATE.
+
+  2. En la ventana Explorer, busca estas tres
+     carpetas y mete un archivo en cada una.
+     Boton derecho sobre la carpeta -> Insert
+     Object:
+
+     ReplicatedStorage
+       -> ModuleScript
+       -> ponle de nombre  AjustesNieve
+       -> borra lo que traiga y pega dentro
+          src/ReplicatedStorage/AjustesNieve.luau
+
+     ServerScriptService
+       -> Script
+       -> ponle de nombre  Nieve
+       -> pega dentro
+          src/ServerScriptService/Nieve.server.luau
+
+     StarterPlayer > StarterPlayerScripts
+       -> LocalScript
+       -> ponle de nombre  NieveCliente
+       -> pega dentro
+          src/StarterPlayer/StarterPlayerScripts/
+          NieveCliente.client.luau
+
+  3. Dale a PLAY. El baseplate desaparece y sale
+     el mapa con las cinco parcelas.
+
+OJO CON LOS NOMBRES: tienen que ser exactamente
+esos tres. Si el ModuleScript no se llama
+AjustesNieve, los otros dos no lo encuentran y no
+arranca nada.
+
+OJO CON EL TIPO: uno es ModuleScript, otro Script
+y otro LocalScript. Si te equivocas, el juego no
+se entera de nada y no da error claro.
+
+
+-------------------------------------------
+  SI USAS ROJO
+-------------------------------------------
+
+Ya esta el default.project.json puesto:
+
+    rojo serve
+
+y conectas desde el plugin. Los tres archivos van
+solos a su sitio.
+
+
+-------------------------------------------
+  COMO SE JUEGA
+-------------------------------------------
+
+Andas por encima de la nieve y desaparece sola.
+Cuando la carretilla se llena, vas al camion y se
+vende sola tambien. Con el dinero:
+
+  - PALA        barre mas ancho y mas rapido
+  - CARRETILLA  cabe mas, menos viajes
+  - BOTAS       andas mas rapido
+
+Y las puertas de las zonas siguientes, que tienen
+nieve mas cara.
+
+No se puede perder. No hay enemigos, ni vidas, ni
+manera de hacerlo mal. Eso es a proposito: es
+justo lo que hace que enganche.
+
+
+-------------------------------------------
+  TOCAR LOS NUMEROS
+-------------------------------------------
+
+TODO esta en AjustesNieve. No hay ni un numero
+suelto en los otros dos archivos.
+
+  Ajustes.zonas     las cinco parcelas: tamano,
+                    lo que vale su nieve y lo que
+                    cuesta abrirlas
+  Ajustes.mejoras   precios y cuanto suben
+  Ajustes.jugador   radio de la pala, capacidad,
+                    velocidad
+  Ajustes.mundo     cada cuanto vuelve a nevar
+  Ajustes.renacer   el reinicio con premio
+
+Cambias un numero, le das a PLAY y ya se ve. No
+hay que compilar nada.
+
+Para hacerlo mas facil: sube valor en Ajustes.zonas.
+Para hacerlo mas largo: sube precio.
+
+
+-------------------------------------------
+  PUBLICARLO
+-------------------------------------------
+
+  1. File -> Publish to Roblox As...
+  2. Ponle nombre, descripcion y una imagen
+  3. En create.roblox.com, en tu juego:
+     Configure -> Playability -> PUBLIC
+
+Antes de publicar, MUY IMPORTANTE:
+
+  Game Settings -> Security ->
+  Enable Studio Access to API Services: ON
+
+Sin eso, en Studio no se guardan las partidas
+(en el juego publicado si, pero mejor probarlo
+antes). El juego no se rompe: avisa y sigue
+funcionando sin guardar.
+
+
+-------------------------------------------
+  PROBARLO SIN STUDIO
+-------------------------------------------
+
+Hay un banco de pruebas que ejecuta el servidor
+de verdad fuera de Roblox:
+
+    node nieve/herramientas/probar.mjs
+    node nieve/herramientas/probar.mjs ritmo
+
+El primero comprueba que todo funciona (69
+comprobaciones). El segundo juega una partida
+entera solo y dice cuanto tarda en llegar a cada
+zona, que es lo que de verdad hay que vigilar.
+
+Hace falta el interprete luau en el PATH:
+https://github.com/luau-lang/luau/releases
+
+
+-------------------------------------------
+  SI SALE ALGO RARO
+-------------------------------------------
+
+No sale el mapa
+  Mira la consola (View -> Output). Casi siempre
+  es que el Script no esta en ServerScriptService.
+
+No se ve el HUD
+  El LocalScript tiene que estar en
+  StarterPlayerScripts, no en ServerScriptService.
+
+Dice "sin DataStore"
+  Falta activar el acceso a API Services (arriba).
+
+Va a tirones con mucha gente
+  Baja el tamano de las zonas en Ajustes.zonas.
+  Son unas 2800 piezas en total; cada casilla que
+  quitas es una pieza menos.
