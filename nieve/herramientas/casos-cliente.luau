@@ -29,6 +29,17 @@ local function sitios(indice)
 	}
 end
 
+local RemotoEstado = remotos:FindFirstChild("Estado")
+
+local function estadoDelJugador()
+	for i = #RemotoEstado._alCliente, 1, -1 do
+		if RemotoEstado._alCliente[i].jugador == yo then
+			return RemotoEstado._alCliente[i].datos
+		end
+	end
+	return {}
+end
+
 local recorrido = 0
 
 local function barrer(indice, segundosMax)
@@ -60,6 +71,7 @@ titulo("EL HUD SE CONSTRUYE")
 
 comprobar(pantalla ~= nil, "existe la pantalla del juego")
 comprobar(pantalla:FindFirstChild("Dinero") ~= nil, "hay panel de dinero")
+comprobar(pantalla.Dinero:FindFirstChild("Moneda") ~= nil, "con su moneda dibujada, no un emoji")
 comprobar(pantalla:FindFirstChild("Zona") ~= nil, "hay panel de zona")
 comprobar(pantalla:FindFirstChild("Carga") ~= nil, "hay barra de carga")
 comprobar(pantalla:FindFirstChild("BotonMejoras") ~= nil, "hay boton de mejoras")
@@ -85,6 +97,7 @@ titulo("EL HUD SE ENTERA DE LO QUE PASA")
 avanzar(1)
 local textoDinero = pantalla.Dinero.Texto
 comprobar(textoDinero.Text ~= "", "el dinero se pinta")
+comprobarIgual(textoDinero.Text, A.formatear(estadoDelJugador().dinero), "y solo el numero: sin emojis que la fuente no tiene")
 comprobar(pantalla.Zona.Nombre.Text == A.nombre(A.zonas[1].nombre, "es"), "sale el nombre de la zona en espanol")
 comprobar(string.find(pantalla.Zona.Canal.Porcentaje.Text, "limpio") ~= nil, "sale el porcentaje de limpieza")
 
@@ -101,7 +114,7 @@ local sitio = sitios(1)
 yo:Mover(sitio.centroX, 3, sitio.ventaZ)
 avanzar(0.5)
 comprobar(pantalla:FindFirstChild("Aviso") ~= nil, "al vender aparece el aviso volante")
-comprobar(textoDinero.Text ~= "🪙 0", "y el dinero ya no es cero")
+comprobar(textoDinero.Text ~= "0", "y el dinero ya no es cero")
 
 
 -------------------------------------------------------------------
@@ -166,7 +179,14 @@ local tituloTabla = tabla:FindFirstChild("Titulo", true)
 comprobarIgual(tituloTabla and tituloTabla.Text, A.texto("es", "records"), "y su titulo en espanol")
 
 local listaTabla = tabla:FindFirstChild("Lista", true)
-comprobar(listaTabla ~= nil and listaTabla.Text ~= "", "y la tabla dice algo, aunque sea que no hay nadie")
+comprobar(listaTabla ~= nil and listaTabla.Text ~= "", "y la tabla dice algo, aunque no haya nadie todavia")
+do
+	local filas = 1
+	for _ in string.gmatch(listaTabla.Text, "\n") do
+		filas = filas + 1
+	end
+	comprobarIgual(filas, A.records.cuantos, "la tabla siempre tiene sus diez filas, llenas o con raya")
+end
 
 
 -------------------------------------------------------------------

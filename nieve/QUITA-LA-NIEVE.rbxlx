@@ -600,14 +600,15 @@ local function construirNieve(zona, padre)
 	for cx = 0, zona.def.ancho - 1 do
 		zona.rejilla[cx] = {}
 		for cz = 0, zona.def.largo - 1 do
-			local altura = A.mundo.alturaNieve * (0.7 + aleatorio:NextNumber() * 0.45)
+			local altura = A.mundo.alturaNieve * (0.6 + aleatorio:NextNumber() * 1.3)
+			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
 			local px = zona.x0 + (cx + 0.5) * celda
 			local pz = zona.z0 + (cz + 0.5) * celda
 			local bloque = parte({
 				Name = "n",
 				Size = Vector3.new(celda, altura, celda),
 				Position = Vector3.new(px, 0.4 + altura / 2, pz),
-				Color = Color3.fromRGB(240, 246, 253),
+				Color = Color3.fromRGB(tono - 8, tono - 3, tono),
 				Material = Enum.Material.Snow,
 			}, carpetaNieve)
 
@@ -704,12 +705,14 @@ local function decorarZona(zona, padre)
 			CanCollide = true,
 			CanQuery = true,
 		}, padre)
-		pieza("WedgePart", {
+		parte({
 			Name = "Tejado",
-			Size = Vector3.new(18, 6, 27),
-			CFrame = CFrame.new(cx, 19, zAtras - 8) * CFrame.Angles(0, 0, math.rad(90)),
+			Size = Vector3.new(29, 1.8, 21),
+			Position = Vector3.new(cx, 16.9, zAtras - 8),
 			Color = Color3.fromRGB(238, 244, 252),
 			Material = Enum.Material.Snow,
+			CanCollide = true,
+			CanQuery = true,
 		}, padre)
 		parte({
 			Name = "Puerta",
@@ -1102,7 +1105,7 @@ do
 	if ok then
 		almacen = resultado
 	else
-		warn("[nieve] sin DataStore: la partida no se va a guardar")
+		warn("[nieve] sin DataStore: la partida no se va a guardar (es lo normal mientras el sitio no este publicado)")
 	end
 end
 
@@ -1352,7 +1355,7 @@ do
 	if ok then
 		ordenado = resultado
 	else
-		warn("[nieve] sin tabla de records")
+		warn("[nieve] sin tabla de records (es lo normal mientras el sitio no este publicado)")
 	end
 end
 
@@ -1439,7 +1442,11 @@ local function refrescarTabla()
 		return
 	end
 	if not ordenado then
-		etiquetaTabla.Text = A.texto("en", "tablaVacia")
+		local vacias = {}
+		for puesto = 1, A.records.cuantos do
+			vacias[puesto] = string.format("%2d  %-14s %8s", puesto, "-", "-")
+		end
+		etiquetaTabla.Text = table.concat(vacias, "\n")
 		return
 	end
 
@@ -1451,7 +1458,11 @@ local function refrescarTabla()
 	end
 
 	local lineas = {}
-	for puesto, fila in ipairs(paginas:GetCurrentPage()) do
+	local pagina = paginas:GetCurrentPage()
+	for puesto = 1, A.records.cuantos do
+		lineas[puesto] = string.format("%2d  %-14s %8s", puesto, "-", "-")
+	end
+	for puesto, fila in ipairs(pagina) do
 		local nombre = nombresPorId[fila.key]
 		if not nombre then
 			local id = tonumber(fila.key)
@@ -1464,14 +1475,10 @@ local function refrescarTabla()
 		if #nombre > 14 then
 			nombre = string.sub(nombre, 1, 13) .. "."
 		end
-		lineas[#lineas + 1] = string.format("%2d  %-14s %8s", puesto, nombre, A.formatear(fila.value))
+		lineas[puesto] = string.format("%2d  %-14s %8s", puesto, nombre, A.formatear(fila.value))
 	end
 
-	if #lineas == 0 then
-		etiquetaTabla.Text = A.texto("en", "tablaVacia")
-	else
-		etiquetaTabla.Text = table.concat(lineas, "\n")
-	end
+	etiquetaTabla.Text = table.concat(lineas, "\n")
 end
 
 
@@ -1988,6 +1995,7 @@ local Tween = game:GetService("TweenService")
 local Correr = game:GetService("RunService")
 local Idiomas = game:GetService("LocalizationService")
 local Sonidos = game:GetService("SoundService")
+local Interfaz = game:GetService("StarterGui")
 
 local jugador = Jugadores.LocalPlayer
 local A = require(RS:WaitForChild("AjustesNieve"))
@@ -2080,6 +2088,18 @@ local function etiqueta(props, padre)
 	return nuevo("TextLabel", props, padre)
 end
 
+task.spawn(function()
+	for _ = 1, 10 do
+		local ok = pcall(function()
+			Interfaz:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		if ok then
+			return
+		end
+		task.wait(0.5)
+	end
+end)
+
 local pantalla = nuevo("ScreenGui", {
 	Name = "NieveHUD",
 	ResetOnSpawn = false,
@@ -2099,10 +2119,21 @@ local marcoDinero = panel({
 	BackgroundTransparency = 0.12,
 }, pantalla)
 
+local moneda = nuevo("Frame", {
+	Name = "Moneda",
+	Size = UDim2.new(0, 26, 0, 26),
+	Position = UDim2.new(0, 14, 0.5, 0),
+	AnchorPoint = Vector2.new(0, 0.5),
+	BackgroundColor3 = ORO,
+	BorderSizePixel = 0,
+}, marcoDinero)
+nuevo("UICorner", { CornerRadius = UDim.new(1, 0) }, moneda)
+nuevo("UIStroke", { Color = Color3.fromRGB(176, 128, 32), Thickness = 2 }, moneda)
+
 local textoDinero = etiqueta({
 	Name = "Texto",
-	Size = UDim2.new(1, -22, 1, 0),
-	Position = UDim2.new(0, 14, 0, 0),
+	Size = UDim2.new(1, -56, 1, 0),
+	Position = UDim2.new(0, 48, 0, 0),
 	Text = "0",
 	TextColor3 = ORO,
 	TextXAlignment = Enum.TextXAlignment.Left,
@@ -2672,7 +2703,7 @@ local function refrescar(datos)
 	local dinero = datos.dinero or 0
 	local multiplicador = math.floor(datos.multiplicador or 1)
 
-	textoDinero.Text = "🪙 " .. formatear(dinero)
+	textoDinero.Text = formatear(dinero)
 	textoMultiplicador.Text = (multiplicador > 1) and ("x" .. tostring(multiplicador)) or ""
 
 	-- carga

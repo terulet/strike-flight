@@ -578,6 +578,13 @@ comprobar(listaRecords ~= nil, "con su lista")
 avanzar(A.records.refresco + 5)
 comprobar(listaRecords.Text ~= "", "y pasado el refresco, dice algo")
 comprobar(string.find(listaRecords.Text, "1") ~= nil, "empezando por el puesto 1")
+do
+	local filas = 1
+	for _ in string.gmatch(listaRecords.Text, "\n") do
+		filas = filas + 1
+	end
+	comprobarIgual(filas, A.records.cuantos, "y siempre las diez filas, para que el cartel no baile de tamano")
+end
 
 
 -------------------------------------------------------------------

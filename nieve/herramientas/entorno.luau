@@ -650,7 +650,8 @@ servicio("SoundService")
 servicio("TweenService")
 servicio("RunService")
 servicio("LocalizationService").RobloxLocaleId = "es-es"
-servicio("StarterGui")
+local Pantallas = servicio("StarterGui")
+function Pantallas:SetCoreGuiEnabled() end
 servicio("Teams")
 
 local RunService = servicios.RunService

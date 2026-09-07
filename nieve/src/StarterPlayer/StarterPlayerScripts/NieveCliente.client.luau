@@ -17,6 +17,7 @@ local Tween = game:GetService("TweenService")
 local Correr = game:GetService("RunService")
 local Idiomas = game:GetService("LocalizationService")
 local Sonidos = game:GetService("SoundService")
+local Interfaz = game:GetService("StarterGui")
 
 local jugador = Jugadores.LocalPlayer
 local A = require(RS:WaitForChild("AjustesNieve"))
@@ -109,6 +110,18 @@ local function etiqueta(props, padre)
 	return nuevo("TextLabel", props, padre)
 end
 
+task.spawn(function()
+	for _ = 1, 10 do
+		local ok = pcall(function()
+			Interfaz:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		if ok then
+			return
+		end
+		task.wait(0.5)
+	end
+end)
+
 local pantalla = nuevo("ScreenGui", {
 	Name = "NieveHUD",
 	ResetOnSpawn = false,
@@ -128,10 +141,21 @@ local marcoDinero = panel({
 	BackgroundTransparency = 0.12,
 }, pantalla)
 
+local moneda = nuevo("Frame", {
+	Name = "Moneda",
+	Size = UDim2.new(0, 26, 0, 26),
+	Position = UDim2.new(0, 14, 0.5, 0),
+	AnchorPoint = Vector2.new(0, 0.5),
+	BackgroundColor3 = ORO,
+	BorderSizePixel = 0,
+}, marcoDinero)
+nuevo("UICorner", { CornerRadius = UDim.new(1, 0) }, moneda)
+nuevo("UIStroke", { Color = Color3.fromRGB(176, 128, 32), Thickness = 2 }, moneda)
+
 local textoDinero = etiqueta({
 	Name = "Texto",
-	Size = UDim2.new(1, -22, 1, 0),
-	Position = UDim2.new(0, 14, 0, 0),
+	Size = UDim2.new(1, -56, 1, 0),
+	Position = UDim2.new(0, 48, 0, 0),
 	Text = "0",
 	TextColor3 = ORO,
 	TextXAlignment = Enum.TextXAlignment.Left,
@@ -701,7 +725,7 @@ local function refrescar(datos)
 	local dinero = datos.dinero or 0
 	local multiplicador = math.floor(datos.multiplicador or 1)
 
-	textoDinero.Text = "🪙 " .. formatear(dinero)
+	textoDinero.Text = formatear(dinero)
 	textoMultiplicador.Text = (multiplicador > 1) and ("x" .. tostring(multiplicador)) or ""
 
 	-- carga
