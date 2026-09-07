@@ -747,7 +747,9 @@ function nuevoJugador(nombre)
 
 		local raiz = crearInstancia("Part")
 		raiz.Name = "HumanoidRootPart"
-		raiz.Position = Vector3.new(0, 3, 0)
+		-- Lejos de toda parcela: si apareciera encima de la nieve estaria
+		-- recogiendo antes de que la prueba empiece, y no se veria.
+		raiz.Position = Vector3.new(0, 3, 400)
 		raiz.Parent = pers
 
 		local humano = crearInstancia("Humanoid")

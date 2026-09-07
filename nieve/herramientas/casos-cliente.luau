@@ -9,6 +9,7 @@ local A = AJUSTES
 local RS = game:GetService("ReplicatedStorage")
 local remotos = RS:FindFirstChild("NieveRemotos")
 local RemotoAviso = remotos:FindFirstChild("Aviso")
+local RemotoComprar = remotos:FindFirstChild("Comprar")
 
 local yo = JUGADOR_LOCAL
 local pantalla = yo.PlayerGui:FindFirstChild("NieveHUD")
@@ -95,6 +96,32 @@ titulo("EL HUD SE ENTERA DE LO QUE PASA")
 -------------------------------------------------------------------
 
 avanzar(1)
+
+titulo("LA GUIA, PASO A PASO")
+local guia = pantalla:FindFirstChild("Guia")
+comprobar(guia ~= nil, "hay cartel de guia")
+comprobarIgual(guia.Visible, true, "y al entrar esta puesto")
+comprobarIgual(guia.Titulo.Text, A.texto("es", "guia1"), "lo primero: anda por encima de la nieve")
+
+-- Poco rato: lo justo para recoger algo sin llenarla del todo (se llena
+-- en unos tres segundos, que es justo lo que se quiere al principio).
+barrer(1, 1.4)
+comprobarIgual(guia.Titulo.Text, A.texto("es", "guia2"), "en cuanto recoge algo, cambia a llenar la carretilla")
+
+barrer(1, 40)
+comprobarIgual(guia.Titulo.Text, A.texto("es", "guia3"), "con la carretilla llena, manda al camion")
+
+local sitio1 = sitios(1)
+yo:Mover(sitio1.centroX, 3, sitio1.ventaZ)
+avanzar(0.6)
+comprobarIgual(guia.Titulo.Text, A.texto("es", "guia4"), "ya vendida, toca comprar la primera mejora")
+
+RemotoComprar:FireServer("mejora", "pala")
+avanzar(0.5)
+comprobarIgual(guia.Visible, false, "y comprada, la guia se quita y no vuelve")
+
+
+titulo("EL HUD SE ENTERA DE LO QUE PASA")
 local textoDinero = pantalla.Dinero.Texto
 comprobar(textoDinero.Text ~= "", "el dinero se pinta")
 comprobarIgual(textoDinero.Text, A.formatear(estadoDelJugador().dinero), "y solo el numero: sin emojis que la fuente no tiene")

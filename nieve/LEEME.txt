@@ -95,6 +95,15 @@ solos a su sitio.
   COMO SE JUEGA
 -------------------------------------------
 
+Nada mas entrar sale un cartel grande que dice
+lo siguiente que hay que hacer, y no se quita
+hasta que lo haces:
+
+  1. ANDA POR ENCIMA DE LA NIEVE
+  2. SIGUE, HASTA LLENAR LA CARRETILLA
+  3. AHORA AL CAMION, A VENDERLA
+  4. PULSA MEJORAS Y COMPRA LA PALA
+
 Andas por encima de la nieve y desaparece sola.
 Cuando la carretilla se llena, vas al camion y se
 vende sola tambien. Con el dinero:
@@ -119,8 +128,9 @@ TODO esta en AjustesNieve. No hay ni un numero
 suelto en los otros dos archivos.
 
   Ajustes.zonas     las cinco parcelas: tamano,
-                    lo que vale su nieve y lo que
-                    cuesta abrirlas
+                    que suelo queda a la vista al
+                    limpiarlas, lo que vale su
+                    nieve y lo que cuesta abrirlas
   Ajustes.mejoras   precios y cuanto suben
   Ajustes.jugador   radio de la pala, capacidad,
                     velocidad

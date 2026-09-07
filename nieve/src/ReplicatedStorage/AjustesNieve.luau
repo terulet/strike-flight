@@ -111,6 +111,9 @@ Ajustes.mejoras = {
 --  celda  = lo que mide de lado una casilla, en studs. Crece con la
 --           zona: asi la parcela es mucho mas grande sin poner mas
 --           piezas, y da tiempo a que vuelva a nevar donde ya pasaste
+--  suelo/material = lo que queda A LA VISTA cuando quitas la nieve. Es
+--           media gracia del juego: no descubres hormigon, descubres
+--           cesped, el agua de la piscina o la pista de tenis
 --  valor  = lo que vale cada bloque de nieve de esa zona
 --  precio = lo que cuesta abrir la puerta
 -------------------------------------------------------------------
@@ -122,49 +125,54 @@ Ajustes.zonas = {
 		ancho = 20, largo = 14,
 		valor = 1,
 		precio = 0,
-		nombre = { es = "TU ENTRADA", en = "YOUR DRIVEWAY" },
-		suelo = Color3.fromRGB(104, 104, 112),
+		nombre = { es = "LA ENTRADA", en = "THE DRIVEWAY" },
+		suelo = Color3.fromRGB(74, 76, 82),
+		material = "Asphalt",
 		decorado = "casa",
 	},
 	{
-		clave = "acera",
+		clave = "jardin",
 		celda = 4,
 		ancho = 24, largo = 16,
-		valor = 5,
+		valor = 6,
 		precio = 500,
-		nombre = { es = "LA ACERA", en = "THE SIDEWALK" },
-		suelo = Color3.fromRGB(150, 150, 158),
-		decorado = "farolas",
+		nombre = { es = "EL JARDIN", en = "THE GARDEN" },
+		suelo = Color3.fromRGB(96, 150, 76),
+		material = "Grass",
+		decorado = "jardin",
 	},
 	{
-		clave = "parque",
+		clave = "piscina",
 		celda = 5,
 		ancho = 28, largo = 20,
-		valor = 25,
-		precio = 8000,
-		nombre = { es = "EL PARQUE", en = "THE PARK" },
-		suelo = Color3.fromRGB(92, 124, 88),
-		decorado = "arboles",
+		valor = 34,
+		precio = 7000,
+		nombre = { es = "LA PISCINA", en = "THE POOL" },
+		suelo = Color3.fromRGB(228, 216, 196),
+		material = "Concrete",
+		decorado = "piscina",
 	},
 	{
-		clave = "parking",
+		clave = "tenis",
 		celda = 6,
 		ancho = 32, largo = 22,
-		valor = 120,
-		precio = 80000,
-		nombre = { es = "EL APARCAMIENTO", en = "THE PARKING LOT" },
-		suelo = Color3.fromRGB(64, 66, 74),
-		decorado = "coches",
+		valor = 165,
+		precio = 70000,
+		nombre = { es = "LA PISTA DE TENIS", en = "THE TENNIS COURT" },
+		suelo = Color3.fromRGB(52, 104, 154),
+		material = "Concrete",
+		decorado = "tenis",
 	},
 	{
-		clave = "montana",
+		clave = "bosque",
 		celda = 7,
 		ancho = 36, largo = 24,
-		valor = 750,
-		precio = 450000,
-		nombre = { es = "LA MONTAÑA", en = "THE MOUNTAIN" },
-		suelo = Color3.fromRGB(196, 208, 224),
-		decorado = "rocas",
+		valor = 1050,
+		precio = 380000,
+		nombre = { es = "EL BOSQUE", en = "THE WOODS" },
+		suelo = Color3.fromRGB(122, 106, 88),
+		material = "Ground",
+		decorado = "bosque",
 	},
 }
 
@@ -177,7 +185,7 @@ Ajustes.zonas = {
 -------------------------------------------------------------------
 
 Ajustes.renacer = {
-	precio = 3500000,    -- lo que cuesta el primero
+	precio = 3000000,    -- lo que cuesta el primero
 	factor = 3,          -- cada uno cuesta el triple que el anterior
 	bonus = 1,           -- x2 de dinero al primero, x3 al segundo...
 }
@@ -274,6 +282,14 @@ Ajustes.textos = {
 		pistaAndar = "Anda por encima de la nieve para recogerla",
 		pistaVender = "Llevala al camion y se vende sola",
 		pistaZona = "Nieve mas cara al otro lado de la puerta",
+		guia1 = "ANDA POR ENCIMA DE LA NIEVE",
+		guia1pie = "se recoge sola, no hay que pulsar nada",
+		guia2 = "SIGUE, HASTA LLENAR LA CARRETILLA",
+		guia2pie = "mira la barra de abajo",
+		guia3 = "AHORA AL CAMION, A VENDERLA",
+		guia3pie = "acercate y se vende sola",
+		guia4 = "PULSA MEJORAS Y COMPRA LA PALA",
+		guia4pie = "cada mejora se nota enseguida",
 		bienvenida = "Bienvenido de vuelta",
 		sinGuardado = "no he podido leer tu partida: hoy no se guarda",
 		diario = "PREMIO DIARIO",
@@ -305,6 +321,14 @@ Ajustes.textos = {
 		pistaAndar = "Walk over the snow to shovel it",
 		pistaVender = "Take it to the truck, it sells itself",
 		pistaZona = "Pricier snow past the gate",
+		guia1 = "WALK OVER THE SNOW",
+		guia1pie = "it shovels itself, no buttons",
+		guia2 = "KEEP GOING, FILL THE WHEELBARROW",
+		guia2pie = "watch the bar down there",
+		guia3 = "NOW TAKE IT TO THE TRUCK",
+		guia3pie = "get close and it sells itself",
+		guia4 = "TAP UPGRADES AND BUY A SHOVEL",
+		guia4pie = "every upgrade shows right away",
 		bienvenida = "Welcome back",
 		sinGuardado = "could not read your save: progress will not be stored",
 		diario = "DAILY REWARD",

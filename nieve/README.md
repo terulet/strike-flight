@@ -49,20 +49,36 @@ parcela se te queda pequeña, abres la siguiente.
 No hay botón de recoger ni botón de vender. Cada botón que quitas es
 gente que no se cae por el camino.
 
-## El mapa
+## El mapa: una casa con su parcela
 
-Cinco parcelas en fila, separadas por puertas de hielo. La nieve de cada
-una vale más que la de la anterior.
+No cinco rectángulos en fila: **una propiedad**, con su calle delante, su
+casa, su jardín, su piscina y su pista de tenis. Separadas por setos con
+arco de madera, no por muros.
 
-| Zona | Casilla | Parcela | Bloques | Vale | Abrir |
+| Zona | Casilla | Parcela | Vale | Abrir | Qué aparece debajo |
 |---|---|---|---|---|---|
-| TU ENTRADA | 4 studs | 80 × 56 | 280 | 1 | gratis |
-| LA ACERA | 4 | 96 × 64 | 384 | 5 | 500 |
-| EL PARQUE | 5 | 140 × 100 | 560 | 25 | 8.000 |
-| EL APARCAMIENTO | 6 | 192 × 132 | 704 | 120 | 80.000 |
-| LA MONTAÑA | 7 | 252 × 168 | 864 | 750 | 450.000 |
+| LA ENTRADA | 4 studs | 80 × 56 | 1 | gratis | asfalto, con el coche aparcado |
+| EL JARDÍN | 4 | 96 × 64 | 6 | 500 | césped, mesa, barbacoa y árboles |
+| LA PISCINA | 5 | 140 × 100 | 34 | 7.000 | la piscina helada y sus tumbonas |
+| LA PISTA DE TENIS | 6 | 192 × 132 | 165 | 70.000 | la pista pintada, con su red |
+| EL BOSQUE | 7 | 252 × 168 | 1.050 | 380.000 | pinos, estanque helado y cabaña |
 
-**La casilla crece con la zona**, y no es un capricho. Con casillas de 4
+**Esa última columna es media gracia del juego.** Quitar nieve para
+descubrir hormigón gris no sabe a nada; quitarla para que aparezca el
+césped, el agua de la piscina o las líneas de la pista, sí. Por eso cada
+parcela tiene su propio suelo y su propio decorado.
+
+Y el decorado está **dentro** de la parcela, no alrededor: la mesa del
+jardín, los pinos, la piscina y la red de tenis dejan huecos sin nieve, y
+se barre a su alrededor. Cuesta un 20% de la nieve de cada parcela — que
+se compensa subiendo lo que vale cada bloque, no metiendo más piezas.
+
+El mapa entero son **2.911 piezas**, techo puesto en la prueba para que no
+se dispare: esto tiene que ir en un móvil.
+
+### Por qué la casilla crece con la zona
+
+No es un capricho. Con casillas de 4
 studs en todas partes, una parcela grande son miles de piezas y el móvil
 se arrastra. Creciendo la casilla, LA MONTAÑA mide nueve veces lo que TU
 ENTRADA y solo tiene tres veces más piezas.
@@ -83,16 +99,16 @@ No a ojo: hay un simulador que juega una partida entera solo
 con los números de ahora:
 
 ```
-   2 min 25 s   se abre LA ACERA                  (260 monedas/min)
-  10 min 40 s   se abre EL PARQUE              (2.159 monedas/min)
-  21 min 54 s   se abre EL APARCAMIENTO       (14.017 monedas/min)
-  28 min 38 s   botas al máximo               (53.888 monedas/min)
-  35 min 56 s   se abre LA MONTAÑA            (63.758 monedas/min)
-  39 min 07 s   carretilla al máximo         (290.003 monedas/min)
-  40 min 33 s   pala al máximo               (163.062 monedas/min)
-  48 min 54 s   primer RENACER               (327.297 monedas/min)
+   2 min 34 s   se abre EL JARDÍN                 (306 monedas/min)
+   9 min 52 s   se abre LA PISCINA              (1.884 monedas/min)
+  20 min 16 s   se abre LA PISTA DE TENIS      (14.701 monedas/min)
+  26 min 15 s   botas al máximo                (77.003 monedas/min)
+  30 min 13 s   se abre EL BOSQUE              (92.208 monedas/min)
+  33 min 10 s   carretilla al máximo          (301.585 monedas/min)
+  34 min 38 s   pala al máximo                (329.472 monedas/min)
+  41 min 14 s   primer RENACER                (341.309 monedas/min)
 
-  el parón más largo sin nada nuevo: 11 min
+  el parón más largo sin nada nuevo: 10 min
 ```
 
 La primera mejora se compra **en el primer minuto**: el premio de
@@ -142,6 +158,26 @@ se note bien, no mal.
 
 Es la alternativa barata a darle a cada jugador su propia parcela, que es
 lo que hacen los grandes y multiplica por veinte las piezas del mapa.
+
+## La guía: los primeros diez segundos
+
+Un juego de estos se pierde antes del primer minuto. Si no sabes qué
+hacer, te vas — y "andar por encima" no es obvio para quien nunca ha
+jugado a esto, por muy simple que parezca.
+
+Así que hay un cartel grande, debajo del nombre de la zona, que dice lo
+siguiente que toca. Y **no se quita por tiempo: se quita cuando lo haces**.
+
+| | Dice | Se va cuando |
+|---|---|---|
+| 1 | ANDA POR ENCIMA DE LA NIEVE | recoges el primer bloque |
+| 2 | SIGUE, HASTA LLENAR LA CARRETILLA | la llenas |
+| 3 | AHORA AL CAMIÓN, A VENDERLA | vendes |
+| 4 | PULSA MEJORAS Y COMPRA LA PALA | compras la primera mejora |
+
+No hay estado guardado para esto: el paso sale de lo que el jugador ya ha
+hecho (`nieveTotal`, `ventas`, si tiene alguna mejora). Nada que
+sincronizar y nada que se pueda quedar a medias.
 
 ## Volver mañana
 
@@ -215,8 +251,8 @@ los paquetes de verdad, así que se puede comprobar lo que acaba escrito en
 pantalla.
 
 ```bash
-node nieve/herramientas/probar.mjs           # 90 comprobaciones del servidor
-node nieve/herramientas/probar.mjs cliente   # 42 del HUD, ejecutado
+node nieve/herramientas/probar.mjs           # 96 comprobaciones del servidor
+node nieve/herramientas/probar.mjs cliente   # 53 del HUD, ejecutado
 node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
 
@@ -247,7 +283,7 @@ Studio.
 ## Qué está probado y qué no
 
 **Probado, ejecutando el código:** toda la lógica de arriba y el HUD
-entero — 132 comprobaciones en verde entre servidor y cliente — más el
+entero — 149 comprobaciones en verde entre servidor y cliente — más el
 análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede

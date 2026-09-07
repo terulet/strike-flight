@@ -141,7 +141,22 @@ for _, def in ipairs(A.zonas) do
 		totalBloques = totalBloques + #nieve:GetChildren()
 	end
 end
-comprobarIgual(totalBloques, totalEsperado, "hay un bloque de nieve por casilla")
+comprobar(totalBloques < totalEsperado, "el decorado deja huecos sin nieve (la mesa, la piscina, los arboles)")
+comprobar(
+	totalBloques > totalEsperado * 0.7,
+	"pero la parcela sigue siendo sobre todo nieve: " .. tostring(totalBloques) .. " de " .. tostring(totalEsperado)
+)
+
+do
+	local piezas = 0
+	for _, obj in ipairs(carpeta:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			piezas = piezas + 1
+		end
+	end
+	print(("       (el mapa son %d piezas en total)"):format(piezas))
+	comprobar(piezas < 6000, "y no se dispara: menos de 6.000 piezas, que esto va en movil")
+end
 
 local puertas = carpeta:FindFirstChild("Puertas")
 comprobarIgual(puertas and #puertas:GetChildren() or 0, #A.zonas - 1, "una puerta entre cada dos zonas")
@@ -440,7 +455,13 @@ DATOS_GUARDADOS["j_" .. tostring(rico.UserId)] = {
 	pala = 12,
 	carretilla = 12,
 	botas = 8,
-	zonas = { "entrada", "acera", "parque", "parking", "montana" },
+	zonas = (function()
+		local todas = {}
+		for i, def in ipairs(A.zonas) do
+			todas[i] = def.clave
+		end
+		return todas
+	end)(),
 }
 entra(rico)
 avanzar(0.5)

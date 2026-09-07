@@ -223,6 +223,59 @@ local textoProgreso = etiqueta({
 
 
 -------------------------------------------------------------------
+--  LA GUIA
+--
+--  Un juego de estos se pierde en los primeros diez segundos. Si no
+--  sabes que hacer, te vas. Asi que hay un cartel grande que dice lo
+--  siguiente que toca, y NO se quita por tiempo: se quita cuando lo
+--  haces.
+-------------------------------------------------------------------
+
+local marcoGuia = panel({
+	Name = "Guia",
+	Size = UDim2.new(0, 460, 0, 72),
+	Position = UDim2.new(0.5, 0, 0, 84),
+	AnchorPoint = Vector2.new(0.5, 0),
+	BackgroundColor3 = Color3.fromRGB(18, 40, 62),
+	BackgroundTransparency = 0.08,
+	Visible = false,
+}, pantalla)
+
+local bordeGuia = nuevo("UIStroke", {
+	Color = ACENTO,
+	Thickness = 3,
+	Transparency = 0.1,
+}, marcoGuia)
+
+local textoGuia = etiqueta({
+	Name = "Titulo",
+	Size = UDim2.new(1, -24, 0, 34),
+	Position = UDim2.new(0, 12, 0, 10),
+	Text = "",
+	TextSize = 24,
+	Font = Enum.Font.GothamBlack,
+	TextColor3 = ACENTO,
+}, marcoGuia)
+
+local pieGuia = etiqueta({
+	Name = "Pie",
+	Size = UDim2.new(1, -24, 0, 22),
+	Position = UDim2.new(0, 12, 0, 44),
+	Text = "",
+	TextSize = 16,
+	Font = Enum.Font.Gotham,
+	TextColor3 = Color3.fromRGB(198, 216, 238),
+}, marcoGuia)
+
+-- Late, para que se mire.
+Tween:Create(
+	bordeGuia,
+	TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ Transparency = 0.75 }
+):Play()
+
+
+-------------------------------------------------------------------
 --  CARGA (abajo en medio)
 -------------------------------------------------------------------
 
@@ -780,11 +833,26 @@ local function refrescar(datos)
 	-- puertas
 	aplicarPuertas(datos.zonas)
 
-	-- pistas
-	pista("pistaAndar", 9)
-	if lleno then
-		pista("pistaVender", 7)
+	-- la guia: el paso siguiente sale de lo que ya ha hecho, no de un
+	-- reloj. Mientras no lo haga, el cartel no se va.
+	local paso = nil
+	if (datos.nieveTotal or 0) == 0 then
+		paso = 1
+	elseif (datos.ventas or 0) == 0 then
+		paso = lleno and 3 or 2
+	elseif not datos.mejorada then
+		paso = 4
 	end
+
+	if paso then
+		marcoGuia.Visible = true
+		textoGuia.Text = T("guia" .. tostring(paso))
+		pieGuia.Text = T("guia" .. tostring(paso) .. "pie")
+	else
+		marcoGuia.Visible = false
+	end
+
+	-- pistas
 	for i = 2, #A.zonas do
 		local def = A.zonas[i]
 		if datos.zonas and not datos.zonas[def.clave] and dinero >= def.precio then

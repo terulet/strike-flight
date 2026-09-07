@@ -156,6 +156,7 @@ local function calcularZonas()
 			activas = 0,
 			casillas = {},
 			rejilla = {},
+			huecos = {},
 			ventaEn = Vector3.new(0, 0, 0),
 		}
 		mundo.zonas[i] = zona
@@ -171,9 +172,186 @@ local function calcularZonas()
 
 	mundo.minX = mundo.zonas[1].x0 - 30
 	mundo.maxX = ultima.x1 + 30
-	mundo.minZ = -largoMax / 2 - 46
-	mundo.maxZ = largoMax / 2 + 46
+	mundo.minZ = -largoMax / 2 - 62
+	mundo.maxZ = largoMax / 2 + 84
 end
+
+-------------------------------------------------------------------
+--  PIEZAS QUE SE REPITEN POR TODO EL MAPA
+-------------------------------------------------------------------
+
+local NIEVE = Color3.fromRGB(246, 250, 255)
+
+-- Marca un trozo de parcela donde NO va nieve. Sin esto, la mesa del
+-- jardin o la red de tenis saldrian medio enterradas en bloques.
+local function hueco(zona, x0, z0, x1, z1)
+	zona.huecos[#zona.huecos + 1] = {
+		x0 = math.min(x0, x1),
+		x1 = math.max(x0, x1),
+		z0 = math.min(z0, z1),
+		z1 = math.max(z0, z1),
+	}
+end
+
+local function enHueco(zona, x, z)
+	for _, h in ipairs(zona.huecos) do
+		if x >= h.x0 and x <= h.x1 and z >= h.z0 and z <= h.z1 then
+			return true
+		end
+	end
+	return false
+end
+
+local function pino(padre, x, z, escala)
+	escala = escala or 1
+	parte({
+		Name = "Tronco",
+		Size = Vector3.new(1.7 * escala, 7 * escala, 1.7 * escala),
+		Position = Vector3.new(x, 3.5 * escala, z),
+		Color = Color3.fromRGB(94, 64, 42),
+		Material = Enum.Material.Wood,
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+	for capa = 0, 2 do
+		local lado = (11 - capa * 2.8) * escala
+		local alto = 4.6 * escala
+		local y = (6.8 + capa * 3.4) * escala
+		parte({
+			Name = "Copa",
+			Size = Vector3.new(lado, alto, lado),
+			CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, math.rad(45), 0),
+			Color = Color3.fromRGB(44, 102, 62),
+			Material = Enum.Material.Grass,
+		}, padre)
+		parte({
+			Name = "CopaNieve",
+			Size = Vector3.new(lado * 0.7, 0.8 * escala, lado * 0.7),
+			CFrame = CFrame.new(x, y + alto / 2, z) * CFrame.Angles(0, math.rad(45), 0),
+			Color = NIEVE,
+			Material = Enum.Material.Snow,
+		}, padre)
+	end
+end
+
+local function seto(padre, x, z, anchoX, anchoZ)
+	parte({
+		Name = "Seto",
+		Size = Vector3.new(anchoX, 5, anchoZ),
+		Position = Vector3.new(x, 2.5, z),
+		Color = Color3.fromRGB(56, 106, 58),
+		Material = Enum.Material.LeafyGrass,
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+	parte({
+		Name = "SetoNieve",
+		Size = Vector3.new(anchoX + 0.5, 0.8, anchoZ + 0.5),
+		Position = Vector3.new(x, 5.2, z),
+		Color = NIEVE,
+		Material = Enum.Material.Snow,
+	}, padre)
+end
+
+-- Ventana mirando hacia la parcela (+Z).
+local function ventana(padre, x, y, z)
+	parte({
+		Name = "Marco",
+		Size = Vector3.new(4.6, 4.6, 0.4),
+		Position = Vector3.new(x, y, z),
+		Color = Color3.fromRGB(252, 252, 252),
+	}, padre)
+	parte({
+		Name = "Cristal",
+		Size = Vector3.new(3.7, 3.7, 0.6),
+		Position = Vector3.new(x, y, z + 0.15),
+		Color = Color3.fromRGB(142, 198, 232),
+		Material = Enum.Material.Glass,
+		Transparency = 0.25,
+	}, padre)
+	parte({
+		Name = "Cruz",
+		Size = Vector3.new(0.3, 3.7, 0.7),
+		Position = Vector3.new(x, y, z + 0.2),
+		Color = Color3.fromRGB(252, 252, 252),
+	}, padre)
+	parte({
+		Name = "Alfeizar",
+		Size = Vector3.new(5.2, 0.5, 1),
+		Position = Vector3.new(x, y - 2.5, z + 0.3),
+		Color = NIEVE,
+		Material = Enum.Material.Snow,
+	}, padre)
+end
+
+local function farola(padre, x, z)
+	parte({
+		Name = "Farola",
+		Size = Vector3.new(0.7, 16, 0.7),
+		Position = Vector3.new(x, 8, z),
+		Color = Color3.fromRGB(44, 48, 58),
+		Material = Enum.Material.Metal,
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+	parte({
+		Name = "Brazo",
+		Size = Vector3.new(3.5, 0.5, 0.5),
+		Position = Vector3.new(x + 1.7, 15.8, z),
+		Color = Color3.fromRGB(44, 48, 58),
+	}, padre)
+	parte({
+		Name = "Luz",
+		Size = Vector3.new(2.4, 0.8, 1.6),
+		Position = Vector3.new(x + 3.2, 15.3, z),
+		Color = Color3.fromRGB(255, 238, 190),
+		Material = Enum.Material.Neon,
+	}, padre)
+end
+
+local function coche(padre, x, z, color)
+	parte({
+		Name = "Coche",
+		Size = Vector3.new(7, 3.2, 15),
+		Position = Vector3.new(x, 2.3, z),
+		Color = color,
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+	parte({
+		Name = "Cabina",
+		Size = Vector3.new(6.4, 2.8, 7),
+		Position = Vector3.new(x, 5.3, z - 0.6),
+		Color = color,
+	}, padre)
+	parte({
+		Name = "Lunas",
+		Size = Vector3.new(6.6, 2, 6.6),
+		Position = Vector3.new(x, 5.4, z - 0.6),
+		Color = Color3.fromRGB(126, 172, 202),
+		Material = Enum.Material.Glass,
+		Transparency = 0.35,
+	}, padre)
+	parte({
+		Name = "TechoNieve",
+		Size = Vector3.new(6.6, 0.5, 7.2),
+		Position = Vector3.new(x, 6.9, z - 0.6),
+		Color = NIEVE,
+		Material = Enum.Material.Snow,
+	}, padre)
+	for _, dx in ipairs({ -3.5, 3.5 }) do
+		for _, dz in ipairs({ -5, 5 }) do
+			parte({
+				Name = "Rueda",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(1.2, 2.6, 2.6),
+				Position = Vector3.new(x + dx, 1.3, z + dz),
+				Color = Color3.fromRGB(26, 26, 30),
+			}, padre)
+		end
+	end
+end
+
 
 local function construirSuelo()
 	local ancho = mundo.maxX - mundo.minX
@@ -203,6 +381,9 @@ local function construirNieve(zona, padre)
 			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
 			local px = zona.x0 + (cx + 0.5) * celda
 			local pz = zona.z0 + (cz + 0.5) * celda
+			if enHueco(zona, px, pz) then
+				continue
+			end
 			local bloque = parte({
 				Name = "n",
 				Size = Vector3.new(celda, altura, celda),
@@ -227,6 +408,9 @@ local function construirNieve(zona, padre)
 			end
 		end
 	end
+	-- El total es lo que se ha puesto de verdad, no ancho por largo: los
+	-- huecos del decorado no cuentan para el "% limpio".
+	zona.total = #zona.casillas
 	zona.activas = #zona.casillas
 end
 
@@ -290,120 +474,319 @@ local function construirCamion(zona, padre)
 	zona.camion = caja
 end
 
-local function decorarZona(zona, padre)
-	local tipo = zona.def.decorado
+-------------------------------------------------------------------
+--  LO QUE HAY EN CADA ZONA
+--
+--  Cada una tiene que reconocerse de un vistazo, y sobre todo: al quitar
+--  la nieve tiene que aparecer algo que merezca la pena ver. Eso es media
+--  gracia del genero. Si debajo hay hormigon gris, limpiar no sabe a nada.
+-------------------------------------------------------------------
+
+local CREMA = Color3.fromRGB(232, 214, 186)
+local LADRILLO = Color3.fromRGB(158, 92, 74)
+local MADERA = Color3.fromRGB(126, 88, 54)
+local PIZARRA = Color3.fromRGB(72, 78, 92)
+
+-- ZONA 1 · LA ENTRADA: la casa, el garaje y el coche.
+local function decoradoCasa(zona, padre)
 	local cx = zona.centroX
-	local zAtras = zona.z0 - 12
+	local zCasa = zona.z0 - 24
+	local frente = zona.z0 - 13
 
-	if tipo == "casa" then
-		parte({
-			Name = "Casa",
-			Size = Vector3.new(26, 16, 18),
-			Position = Vector3.new(cx, 8, zAtras - 8),
-			Color = Color3.fromRGB(196, 168, 140),
-			CanCollide = true,
-			CanQuery = true,
-		}, padre)
-		parte({
-			Name = "Tejado",
-			Size = Vector3.new(29, 1.8, 21),
-			Position = Vector3.new(cx, 16.9, zAtras - 8),
-			Color = Color3.fromRGB(238, 244, 252),
-			Material = Enum.Material.Snow,
-			CanCollide = true,
-			CanQuery = true,
-		}, padre)
-		parte({
-			Name = "Puerta",
-			Size = Vector3.new(5, 8, 0.6),
-			Position = Vector3.new(cx, 4, zAtras + 1),
-			Color = Color3.fromRGB(92, 62, 44),
-		}, padre)
+	parte({ Name = "Casa", Size = Vector3.new(42, 18, 22), Position = Vector3.new(cx, 9, zCasa),
+		Color = CREMA, Material = Enum.Material.Concrete, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "Zocalo", Size = Vector3.new(43, 3.2, 23), Position = Vector3.new(cx, 1.6, zCasa),
+		Color = LADRILLO, Material = Enum.Material.Brick }, padre)
+	parte({ Name = "Tejado", Size = Vector3.new(46, 2, 26), Position = Vector3.new(cx, 19, zCasa),
+		Color = PIZARRA, Material = Enum.Material.Slate }, padre)
+	parte({ Name = "TejadoNieve", Size = Vector3.new(46.5, 1.3, 26.5), Position = Vector3.new(cx, 20.6, zCasa),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	parte({ Name = "Chimenea", Size = Vector3.new(4, 9, 4), Position = Vector3.new(cx + 15, 23.5, zCasa - 6),
+		Color = LADRILLO, Material = Enum.Material.Brick }, padre)
+	parte({ Name = "ChimeneaNieve", Size = Vector3.new(4.6, 0.8, 4.6), Position = Vector3.new(cx + 15, 28.4, zCasa - 6),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
 
-	elseif tipo == "farolas" then
-		for i = 0, 3 do
-			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 4
-			parte({
-				Name = "Farola",
-				Size = Vector3.new(0.8, 18, 0.8),
-				Position = Vector3.new(px, 9, zAtras),
-				Color = Color3.fromRGB(48, 52, 60),
-			}, padre)
-			parte({
-				Name = "Luz",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(2.4, 2.4, 2.4),
-				Position = Vector3.new(px, 18, zAtras),
-				Color = Color3.fromRGB(255, 236, 180),
-				Material = Enum.Material.Neon,
-			}, padre)
+	-- El garaje, mirando a la parcela.
+	parte({ Name = "Garaje", Size = Vector3.new(15, 10, 0.8), Position = Vector3.new(cx - 11, 5.2, frente + 0.2),
+		Color = Color3.fromRGB(206, 208, 212), Material = Enum.Material.Metal }, padre)
+	for i = 1, 5 do
+		parte({ Name = "Ranura", Size = Vector3.new(15, 0.25, 1), Position = Vector3.new(cx - 11, 0.9 + i * 1.7, frente + 0.5),
+			Color = Color3.fromRGB(168, 172, 178) }, padre)
+	end
+
+	parte({ Name = "PuertaCasa", Size = Vector3.new(5, 8.5, 0.8), Position = Vector3.new(cx + 13, 4.4, frente + 0.2),
+		Color = MADERA, Material = Enum.Material.WoodPlanks }, padre)
+	parte({ Name = "Pomo", Shape = Enum.PartType.Ball, Size = Vector3.new(0.7, 0.7, 0.7),
+		Position = Vector3.new(cx + 14.6, 4.4, frente + 0.7), Color = Color3.fromRGB(228, 190, 84), Material = Enum.Material.Metal }, padre)
+	parte({ Name = "Escalon", Size = Vector3.new(7, 0.7, 3), Position = Vector3.new(cx + 13, 0.75, frente + 2),
+		Color = Color3.fromRGB(228, 228, 232), Material = Enum.Material.Concrete }, padre)
+
+	ventana(padre, cx + 3, 12, frente + 0.1)
+	ventana(padre, cx + 20, 12, frente + 0.1)
+	ventana(padre, cx - 4, 12, frente + 0.1)
+
+	seto(padre, cx + 8, frente + 3, 4, 4)
+	seto(padre, cx + 18, frente + 3, 4, 4)
+
+	-- El coche, aparcado en la entrada: hay que quitar la nieve a su lado.
+	local xCoche = zona.x0 + 13
+	hueco(zona, xCoche - 6, -16, xCoche + 6, 4)
+	coche(padre, xCoche, -6, Color3.fromRGB(188, 62, 62))
+
+	-- El buzon, en la esquina de la parcela.
+	local xBuzon = zona.x1 - 6
+	hueco(zona, xBuzon - 3, zona.z1 - 7, xBuzon + 3, zona.z1 - 1)
+	parte({ Name = "PosteBuzon", Size = Vector3.new(0.7, 5, 0.7), Position = Vector3.new(xBuzon, 2.5, zona.z1 - 4),
+		Color = MADERA, Material = Enum.Material.Wood, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "Buzon", Size = Vector3.new(2.4, 2, 3.4), Position = Vector3.new(xBuzon, 6, zona.z1 - 4),
+		Color = Color3.fromRGB(72, 96, 156), Material = Enum.Material.Metal }, padre)
+	parte({ Name = "BuzonNieve", Size = Vector3.new(2.7, 0.5, 3.7), Position = Vector3.new(xBuzon, 7.2, zona.z1 - 4),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+
+	farola(padre, zona.x0 - 8, zona.z1 - 10)
+end
+
+-- ZONA 2 · EL JARDIN: cesped, setos, mesa y barbacoa.
+local function decoradoJardin(zona, padre)
+	local cx = zona.centroX
+
+	-- Setos rodeando el jardin, por fuera de la parcela.
+	seto(padre, cx, zona.z0 - 4, zona.x1 - zona.x0 + 8, 5)
+	for _, x in ipairs({ zona.x0 - 4, zona.x1 + 4 }) do
+		seto(padre, x, 0, 5, zona.z1 - zona.z0)
+	end
+
+	-- La caseta del jardin.
+	parte({ Name = "Caseta", Size = Vector3.new(16, 11, 12), Position = Vector3.new(cx - 26, 5.5, zona.z0 - 16),
+		Color = Color3.fromRGB(150, 108, 74), Material = Enum.Material.WoodPlanks, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "CasetaTejado", Size = Vector3.new(18, 1.6, 14), Position = Vector3.new(cx - 26, 11.6, zona.z0 - 16),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	parte({ Name = "CasetaPuerta", Size = Vector3.new(4, 7, 0.6), Position = Vector3.new(cx - 26, 3.5, zona.z0 - 10.2),
+		Color = Color3.fromRGB(96, 68, 46), Material = Enum.Material.Wood }, padre)
+
+	-- La mesa con sus sillas y su sombrilla, en el cesped.
+	local mx, mz = cx + 24, -12
+	hueco(zona, mx - 10, mz - 10, mx + 10, mz + 10)
+	parte({ Name = "Mesa", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 11, 11),
+		CFrame = CFrame.new(mx, 4, mz) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(238, 238, 240), CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "MesaNieve", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 11, 11),
+		CFrame = CFrame.new(mx, 4.5, mz) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	parte({ Name = "PataMesa", Size = Vector3.new(1, 4, 1), Position = Vector3.new(mx, 2, mz),
+		Color = Color3.fromRGB(200, 200, 204) }, padre)
+	parte({ Name = "Sombrilla", Size = Vector3.new(0.5, 13, 0.5), Position = Vector3.new(mx, 6.5, mz),
+		Color = Color3.fromRGB(180, 180, 184) }, padre)
+	parte({ Name = "SombrillaTela", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.4, 15, 15),
+		CFrame = CFrame.new(mx, 12.6, mz) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(214, 96, 88), Material = Enum.Material.Fabric }, padre)
+	for _, d in ipairs({ { 7, 0 }, { -7, 0 }, { 0, 7 }, { 0, -7 } }) do
+		parte({ Name = "Silla", Size = Vector3.new(3, 1, 3), Position = Vector3.new(mx + d[1], 2.6, mz + d[2]),
+			Color = Color3.fromRGB(238, 238, 240), CanCollide = true, CanQuery = true }, padre)
+		parte({ Name = "Respaldo", Size = Vector3.new(3, 4, 0.6), Position = Vector3.new(mx + d[1], 4.6, mz + d[2] - 1.4),
+			Color = Color3.fromRGB(238, 238, 240) }, padre)
+	end
+
+	-- La barbacoa.
+	local bx, bz = cx - 24, 14
+	hueco(zona, bx - 6, bz - 6, bx + 6, bz + 6)
+	parte({ Name = "Barbacoa", Size = Vector3.new(6, 4, 4), Position = Vector3.new(bx, 4, bz),
+		Color = Color3.fromRGB(52, 56, 64), Material = Enum.Material.Metal, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "BarbacoaPata", Size = Vector3.new(1, 2.5, 1), Position = Vector3.new(bx, 1.2, bz), Color = Color3.fromRGB(52, 56, 64) }, padre)
+	parte({ Name = "BarbacoaTapa", Size = Vector3.new(6.4, 0.6, 4.4), Position = Vector3.new(bx, 6.3, bz),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+
+	-- Tres arboles en el cesped.
+	for _, punto in ipairs({ { zona.x0 + 14, 16 }, { cx + 4, -20 }, { zona.x1 - 16, 20 } }) do
+		hueco(zona, punto[1] - 8, punto[2] - 8, punto[1] + 8, punto[2] + 8)
+		pino(padre, punto[1], punto[2], 1)
+	end
+
+	-- Macetas contra el seto del fondo.
+	for i = 0, 5 do
+		local px = zona.x0 + 10 + i * ((zona.x1 - zona.x0 - 20) / 5)
+		parte({ Name = "Maceta", Size = Vector3.new(3, 2.5, 3), Position = Vector3.new(px, 1.25, zona.z0 - 9),
+			Color = Color3.fromRGB(176, 106, 76), Material = Enum.Material.Concrete }, padre)
+		parte({ Name = "MacetaNieve", Size = Vector3.new(3.2, 0.8, 3.2), Position = Vector3.new(px, 2.8, zona.z0 - 9),
+			Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	end
+end
+
+-- ZONA 3 · LA PISCINA: helada, con su trampolin y sus tumbonas.
+local function decoradoPiscina(zona, padre)
+	local cx = zona.centroX
+	local anchoP, largoP = 62, 34
+
+	hueco(zona, cx - anchoP / 2 - 3, -largoP / 2 - 3, cx + anchoP / 2 + 3, largoP / 2 + 3)
+
+	parte({ Name = "BordePiscina", Size = Vector3.new(anchoP + 6, 0.5, largoP + 6), Position = Vector3.new(cx, 0.65, 0),
+		Color = Color3.fromRGB(246, 246, 248), Material = Enum.Material.Marble }, padre)
+	parte({ Name = "Piscina", Size = Vector3.new(anchoP, 0.6, largoP), Position = Vector3.new(cx, 0.7, 0),
+		Color = Color3.fromRGB(104, 194, 226), Material = Enum.Material.Ice, Transparency = 0.15 }, padre)
+	parte({ Name = "PiscinaFondo", Size = Vector3.new(anchoP - 2, 0.4, largoP - 2), Position = Vector3.new(cx, 0.45, 0),
+		Color = Color3.fromRGB(46, 132, 178) }, padre)
+
+	-- Trampolin.
+	local tx = cx - anchoP / 2 - 6
+	parte({ Name = "TrampolinPie", Size = Vector3.new(2, 4, 3), Position = Vector3.new(tx - 2, 2, 0),
+		Color = Color3.fromRGB(190, 194, 200), Material = Enum.Material.Metal, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "Trampolin", Size = Vector3.new(11, 0.7, 3.4), Position = Vector3.new(tx + 4, 4.2, 0),
+		Color = Color3.fromRGB(236, 238, 242) }, padre)
+
+	-- Escalera de la piscina.
+	for _, dz in ipairs({ -1.6, 1.6 }) do
+		parte({ Name = "Escalera", Size = Vector3.new(0.4, 4.5, 0.4), Position = Vector3.new(cx + anchoP / 2 - 1, 2.6, dz),
+			Color = Color3.fromRGB(214, 218, 224), Material = Enum.Material.Metal }, padre)
+	end
+
+	-- Tumbonas y sombrillas.
+	for i, dz in ipairs({ -largoP / 2 - 12, largoP / 2 + 12 }) do
+		local ux = cx - 16 + (i - 1) * 32
+		hueco(zona, ux - 8, dz - 7, ux + 8, dz + 7)
+		parte({ Name = "Tumbona", Size = Vector3.new(5, 0.7, 11), Position = Vector3.new(ux, 2, dz),
+			Color = Color3.fromRGB(240, 240, 244), CanCollide = true, CanQuery = true }, padre)
+		parte({ Name = "TumbonaRespaldo", Size = Vector3.new(5, 4, 0.7), Position = Vector3.new(ux, 4, dz - 5),
+			Color = Color3.fromRGB(240, 240, 244) }, padre)
+		parte({ Name = "TumbonaNieve", Size = Vector3.new(5.2, 0.5, 11.2), Position = Vector3.new(ux, 2.6, dz),
+			Color = NIEVE, Material = Enum.Material.Snow }, padre)
+		parte({ Name = "PieSombrilla", Size = Vector3.new(0.5, 12, 0.5), Position = Vector3.new(ux + 7, 6, dz),
+			Color = Color3.fromRGB(180, 180, 184) }, padre)
+		parte({ Name = "Sombrilla", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.2, 13, 13),
+			CFrame = CFrame.new(ux + 7, 11.6, dz) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(96, 176, 214), Material = Enum.Material.Fabric }, padre)
+	end
+
+	-- La casita de la piscina, al fondo.
+	parte({ Name = "Casita", Size = Vector3.new(22, 12, 14), Position = Vector3.new(cx, 6, zona.z0 - 16),
+		Color = Color3.fromRGB(238, 232, 220), Material = Enum.Material.Concrete, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "CasitaTejado", Size = Vector3.new(25, 1.6, 17), Position = Vector3.new(cx, 12.6, zona.z0 - 16),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	ventana(padre, cx - 6, 7, zona.z0 - 9.1)
+	ventana(padre, cx + 6, 7, zona.z0 - 9.1)
+end
+
+-- ZONA 4 · LA PISTA DE TENIS: con sus lineas pintadas y su red.
+local function decoradoTenis(zona, padre)
+	local cx = zona.centroX
+	local anchoC, largoC = 104, 48
+
+	local function linea(x, z, ancho, largo)
+		parte({ Name = "Linea", Size = Vector3.new(ancho, 0.25, largo), Position = Vector3.new(x, 0.5, z),
+			Color = Color3.fromRGB(250, 250, 252) }, padre)
+	end
+
+	linea(cx, -largoC / 2, anchoC, 0.9)
+	linea(cx, largoC / 2, anchoC, 0.9)
+	linea(cx - anchoC / 2, 0, 0.9, largoC)
+	linea(cx + anchoC / 2, 0, 0.9, largoC)
+	linea(cx - anchoC / 4, 0, 0.9, largoC * 0.7)
+	linea(cx + anchoC / 4, 0, 0.9, largoC * 0.7)
+	linea(cx, 0, anchoC * 0.5, 0.9)
+	for _, dz in ipairs({ -largoC / 2 + 6, largoC / 2 - 6 }) do
+		linea(cx, dz, anchoC, 0.7)
+	end
+
+	-- La red.
+	hueco(zona, cx - 4, -largoC / 2 - 6, cx + 4, largoC / 2 + 6)
+	parte({ Name = "Red", Size = Vector3.new(0.5, 5, largoC + 6), Position = Vector3.new(cx, 2.9, 0),
+		Color = Color3.fromRGB(38, 42, 50), Material = Enum.Material.Fabric, Transparency = 0.25 }, padre)
+	parte({ Name = "RedBanda", Size = Vector3.new(0.7, 1, largoC + 6), Position = Vector3.new(cx, 5.6, 0),
+		Color = Color3.fromRGB(248, 248, 250) }, padre)
+	for _, dz in ipairs({ -largoC / 2 - 3, largoC / 2 + 3 }) do
+		parte({ Name = "PosteRed", Size = Vector3.new(1, 6.5, 1), Position = Vector3.new(cx, 3.2, dz),
+			Color = Color3.fromRGB(52, 56, 64), Material = Enum.Material.Metal, CanCollide = true, CanQuery = true }, padre)
+	end
+
+	-- Valla de la pista, por fuera de la parcela.
+	local pasos = 14
+	for i = 0, pasos do
+		local px = zona.x0 + i * ((zona.x1 - zona.x0) / pasos)
+		for _, pz in ipairs({ zona.z0 - 5, zona.z1 + 5 }) do
+			parte({ Name = "PosteValla", Size = Vector3.new(0.5, 13, 0.5), Position = Vector3.new(px, 6.5, pz),
+				Color = Color3.fromRGB(96, 104, 118), Material = Enum.Material.Metal }, padre)
 		end
-
-	elseif tipo == "arboles" then
-		for i = 0, 5 do
-			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 6
-			local pz = (i % 2 == 0) and (zAtras - 4) or (zona.z1 + 4)
-			parte({
-				Name = "Tronco",
-				Size = Vector3.new(2.4, 12, 2.4),
-				Position = Vector3.new(px, 6, pz),
-				Color = Color3.fromRGB(94, 66, 46),
-				Material = Enum.Material.Wood,
-			}, padre)
-			for capa = 0, 2 do
-				parte({
-					Name = "Copa",
-					Shape = Enum.PartType.Ball,
-					Size = Vector3.new(13 - capa * 3, 8 - capa * 1.6, 13 - capa * 3),
-					Position = Vector3.new(px, 12 + capa * 3.4, pz),
-					Color = Color3.fromRGB(236, 244, 252),
-					Material = Enum.Material.Snow,
-				}, padre)
-			end
+	end
+	for _, pz in ipairs({ zona.z0 - 5, zona.z1 + 5 }) do
+		for _, py in ipairs({ 4, 9, 13 }) do
+			parte({ Name = "TravesanoValla", Size = Vector3.new(zona.x1 - zona.x0, 0.35, 0.35),
+				Position = Vector3.new(cx, py, pz), Color = Color3.fromRGB(96, 104, 118) }, padre)
 		end
+	end
 
-	elseif tipo == "coches" then
-		local colores = {
-			Color3.fromRGB(196, 72, 72),
-			Color3.fromRGB(72, 116, 196),
-			Color3.fromRGB(220, 196, 88),
-			Color3.fromRGB(88, 176, 128),
-		}
-		for i = 0, 3 do
-			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 4
-			parte({
-				Name = "Coche",
-				Size = Vector3.new(8, 4, 14),
-				Position = Vector3.new(px, 2.4, zAtras - 6),
-				Color = colores[i + 1],
-				CanCollide = true,
-				CanQuery = true,
-			}, padre)
-			parte({
-				Name = "Techo",
-				Size = Vector3.new(7, 3, 7),
-				Position = Vector3.new(px, 5.6, zAtras - 6),
-				Color = Color3.fromRGB(238, 246, 254),
-				Material = Enum.Material.Snow,
-			}, padre)
-		end
+	-- Banco y marcador.
+	local bx = zona.x0 + 14
+	parte({ Name = "Banco", Size = Vector3.new(4, 1, 12), Position = Vector3.new(bx, 3, zona.z1 + 10),
+		Color = MADERA, Material = Enum.Material.WoodPlanks, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "BancoNieve", Size = Vector3.new(4.2, 0.5, 12.2), Position = Vector3.new(bx, 3.7, zona.z1 + 10),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	for _, dz in ipairs({ -4.5, 4.5 }) do
+		parte({ Name = "PataBanco", Size = Vector3.new(3.4, 2.6, 0.8), Position = Vector3.new(bx, 1.3, zona.z1 + 10 + dz),
+			Color = Color3.fromRGB(84, 88, 98) }, padre)
+	end
+end
 
-	elseif tipo == "rocas" then
-		for i = 0, 6 do
-			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 7
-			local pz = (i % 2 == 0) and (zAtras - 6) or (zona.z1 + 8)
-			local tam = 10 + aleatorio:NextNumber() * 14
-			parte({
-				Name = "Roca",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(tam, tam * 0.8, tam),
-				Position = Vector3.new(px, tam * 0.2, pz),
-				Color = Color3.fromRGB(224, 234, 246),
-				Material = Enum.Material.Snow,
-				CanCollide = true,
-				CanQuery = true,
-			}, padre)
-		end
+-- ZONA 5 · EL BOSQUE: pinos, cabana y estanque helado.
+local function decoradoBosque(zona, padre)
+	local cx = zona.centroX
+
+	local sitios = {
+		{ zona.x0 + 20, -50 }, { zona.x0 + 46, 22 }, { zona.x0 + 74, -28 },
+		{ cx + 10, 44 }, { cx + 34, -14 }, { zona.x1 - 58, 52 },
+		{ zona.x1 - 26, -46 }, { zona.x1 - 16, 18 }, { cx - 30, 8 },
+	}
+	for i, punto in ipairs(sitios) do
+		local escala = 1 + ((i % 3) * 0.25)
+		hueco(zona, punto[1] - 9 * escala, punto[2] - 9 * escala, punto[1] + 9 * escala, punto[2] + 9 * escala)
+		pino(padre, punto[1], punto[2], escala)
+	end
+
+	-- El estanque helado.
+	local ex, ez = zona.x0 + 30, 40
+	hueco(zona, ex - 24, ez - 16, ex + 24, ez + 16)
+	parte({ Name = "Estanque", Size = Vector3.new(46, 0.5, 30), Position = Vector3.new(ex, 0.65, ez),
+		Color = Color3.fromRGB(150, 206, 226), Material = Enum.Material.Ice, Transparency = 0.1 }, padre)
+	for i = 0, 7 do
+		local ang = i * math.pi / 4
+		parte({ Name = "Piedra", Shape = Enum.PartType.Ball, Size = Vector3.new(4, 3, 4),
+			Position = Vector3.new(ex + math.cos(ang) * 25, 0.8, ez + math.sin(ang) * 17),
+			Color = Color3.fromRGB(150, 150, 156), Material = Enum.Material.Slate }, padre)
+	end
+
+	-- La cabana.
+	parte({ Name = "Cabana", Size = Vector3.new(26, 14, 20), Position = Vector3.new(cx + 40, 7, zona.z0 - 18),
+		Color = Color3.fromRGB(122, 84, 56), Material = Enum.Material.WoodPlanks, CanCollide = true, CanQuery = true }, padre)
+	parte({ Name = "CabanaTejado", Size = Vector3.new(30, 2, 24), Position = Vector3.new(cx + 40, 15, zona.z0 - 18),
+		Color = NIEVE, Material = Enum.Material.Snow }, padre)
+	parte({ Name = "CabanaPuerta", Size = Vector3.new(5, 8, 0.7), Position = Vector3.new(cx + 40, 4, zona.z0 - 8.2),
+		Color = Color3.fromRGB(88, 60, 40), Material = Enum.Material.Wood }, padre)
+	ventana(padre, cx + 32, 8, zona.z0 - 8.1)
+	ventana(padre, cx + 48, 8, zona.z0 - 8.1)
+	parte({ Name = "CabanaChimenea", Size = Vector3.new(3.5, 8, 3.5), Position = Vector3.new(cx + 50, 19, zona.z0 - 22),
+		Color = Color3.fromRGB(128, 122, 116), Material = Enum.Material.Slate }, padre)
+
+	-- Rocas nevadas sueltas.
+	for i = 0, 5 do
+		local px = zona.x0 + 30 + i * ((zona.x1 - zona.x0 - 60) / 5)
+		local tam = 9 + aleatorio:NextNumber() * 10
+		hueco(zona, px - tam, zona.z0 + 8 - tam, px + tam, zona.z0 + 8 + tam)
+		parte({ Name = "Roca", Shape = Enum.PartType.Ball, Size = Vector3.new(tam, tam * 0.7, tam),
+			Position = Vector3.new(px, tam * 0.2, zona.z0 + 8), Color = Color3.fromRGB(226, 234, 244),
+			Material = Enum.Material.Snow, CanCollide = true, CanQuery = true }, padre)
+	end
+end
+
+local DECORADOS = {
+	casa = decoradoCasa,
+	jardin = decoradoJardin,
+	piscina = decoradoPiscina,
+	tenis = decoradoTenis,
+	bosque = decoradoBosque,
+}
+
+local function decorarZona(zona, padre)
+	local montar = DECORADOS[zona.def.decorado]
+	if montar then
+		montar(zona, padre)
 	end
 end
 
@@ -412,7 +795,9 @@ end
 -- tres mil y eso si se nota en un movil.
 local function sombrasEnDecorado(grupo)
 	for _, obj in ipairs(grupo:GetChildren()) do
-		if obj:IsA("BasePart") and obj.Name ~= "Parcela" and obj.Name ~= "PuntoVenta" then
+		local grande = obj:IsA("BasePart")
+			and (obj.Size.X > 3 or obj.Size.Y > 3 or obj.Size.Z > 3)
+		if grande and obj.Name ~= "Parcela" and obj.Name ~= "PuntoVenta" then
 			obj.CastShadow = true
 		end
 	end
@@ -430,16 +815,50 @@ local function construirPuertas()
 		local anterior = mundo.zonas[i - 1]
 		local px = (anterior.x1 + zona.x0) / 2
 
+		-- Un seto alto con su arco de madera. Los muros de hielo quedaban
+		-- de maqueta; un seto es lo que separa dos parcelas de verdad.
 		local muro = parte({
 			Name = "Puerta_" .. zona.clave,
-			Size = Vector3.new(2.5, A.mundo.alturaValla, largo),
+			Size = Vector3.new(5, A.mundo.alturaValla, largo),
 			Position = Vector3.new(px, A.mundo.alturaValla / 2, (mundo.minZ + mundo.maxZ) / 2),
-			Color = Color3.fromRGB(150, 214, 255),
-			Material = Enum.Material.Ice,
-			Transparency = 0.35,
+			Color = Color3.fromRGB(52, 100, 56),
+			Material = Enum.Material.LeafyGrass,
 			CanCollide = true,
 			CanQuery = true,
 		}, carpeta)
+
+		-- Lo decorativo cuelga del propio seto: cuando la zona se abre, el
+		-- cliente lo esconde todo de una vez.
+		parte({
+			Name = "NieveEncima",
+			Size = Vector3.new(6, 1.2, largo),
+			Position = Vector3.new(px, A.mundo.alturaValla + 0.6, (mundo.minZ + mundo.maxZ) / 2),
+			Color = NIEVE,
+			Material = Enum.Material.Snow,
+		}, muro)
+		for _, dz in ipairs({ -7, 7 }) do
+			parte({
+				Name = "PosteArco",
+				Size = Vector3.new(2, A.mundo.alturaValla + 5, 2),
+				Position = Vector3.new(px, (A.mundo.alturaValla + 5) / 2, dz),
+				Color = MADERA,
+				Material = Enum.Material.WoodPlanks,
+			}, muro)
+		end
+		parte({
+			Name = "VigaArco",
+			Size = Vector3.new(3, 2, 18),
+			Position = Vector3.new(px, A.mundo.alturaValla + 4, 0),
+			Color = MADERA,
+			Material = Enum.Material.WoodPlanks,
+		}, muro)
+		parte({
+			Name = "VigaNieve",
+			Size = Vector3.new(3.4, 0.8, 18.4),
+			Position = Vector3.new(px, A.mundo.alturaValla + 5.4, 0),
+			Color = NIEVE,
+			Material = Enum.Material.Snow,
+		}, muro)
 		muro:SetAttribute("zona", zona.clave)
 		muro:SetAttribute("precio", zona.def.precio)
 		muro:SetAttribute("indice", i)
@@ -459,7 +878,6 @@ local function construirPuertas()
 end
 
 local function construirValla()
-	local grosor = 3
 	local alto = A.mundo.alturaValla
 	local ancho = mundo.maxX - mundo.minX
 	local largo = mundo.maxZ - mundo.minZ
@@ -467,22 +885,84 @@ local function construirValla()
 	local centroZ = (mundo.minZ + mundo.maxZ) / 2
 
 	local lados = {
-		{ Vector3.new(ancho, alto, grosor), Vector3.new(centroX, alto / 2, mundo.minZ) },
-		{ Vector3.new(ancho, alto, grosor), Vector3.new(centroX, alto / 2, mundo.maxZ) },
-		{ Vector3.new(grosor, alto, largo), Vector3.new(mundo.minX, alto / 2, centroZ) },
-		{ Vector3.new(grosor, alto, largo), Vector3.new(mundo.maxX, alto / 2, centroZ) },
+		{ Vector3.new(ancho, alto, 6), Vector3.new(centroX, alto / 2, mundo.minZ) },
+		{ Vector3.new(ancho, alto, 6), Vector3.new(centroX, alto / 2, mundo.maxZ) },
+		{ Vector3.new(6, alto, largo), Vector3.new(mundo.minX, alto / 2, centroZ) },
+		{ Vector3.new(6, alto, largo), Vector3.new(mundo.maxX, alto / 2, centroZ) },
 	}
 	for i, lado in ipairs(lados) do
 		parte({
-			Name = "Valla" .. i,
+			Name = "Seto" .. i,
 			Size = lado[1],
 			Position = lado[2],
-			Color = Color3.fromRGB(190, 214, 240),
-			Material = Enum.Material.Ice,
-			Transparency = 0.55,
+			Color = Color3.fromRGB(48, 94, 52),
+			Material = Enum.Material.LeafyGrass,
 			CanCollide = true,
 			CanQuery = true,
 		}, mundo.carpeta)
+		parte({
+			Name = "SetoNieve" .. i,
+			Size = lado[1] + Vector3.new(0.6, 0, 0.6),
+			Position = lado[2] + Vector3.new(0, alto / 2 + 0.5, 0),
+			Color = NIEVE,
+			Material = Enum.Material.Snow,
+		}, mundo.carpeta)
+	end
+
+	-- Pinos por detras, para que el fondo no sea una pared verde.
+	local paso = 46
+	local cuantos = math.floor(ancho / paso)
+	for i = 0, cuantos do
+		local px = mundo.minX + 10 + i * paso
+		pino(mundo.carpeta, px, mundo.minZ - 14, 1.1 + (i % 3) * 0.3)
+	end
+end
+
+-- La calle por delante de todas las parcelas: es lo que ata el sitio y lo
+-- que hace que parezca un barrio y no cinco rectangulos en el aire.
+local function construirCalle()
+	local ancho = mundo.maxX - mundo.minX
+	local centroX = (mundo.minX + mundo.maxX) / 2
+	local zAcera = mundo.maxZ - 62
+	local zCalle = mundo.maxZ - 40
+
+	parte({
+		Name = "Acera",
+		Size = Vector3.new(ancho, 0.6, 14),
+		Position = Vector3.new(centroX, 0.3, zAcera),
+		Color = Color3.fromRGB(206, 206, 210),
+		Material = Enum.Material.Concrete,
+	}, mundo.carpeta)
+	parte({
+		Name = "Bordillo",
+		Size = Vector3.new(ancho, 1, 1.6),
+		Position = Vector3.new(centroX, 0.5, zAcera + 7.8),
+		Color = Color3.fromRGB(228, 228, 232),
+		Material = Enum.Material.Concrete,
+	}, mundo.carpeta)
+	parte({
+		Name = "Calzada",
+		Size = Vector3.new(ancho, 0.5, 30),
+		Position = Vector3.new(centroX, 0.25, zCalle),
+		Color = Color3.fromRGB(58, 58, 64),
+		Material = Enum.Material.Asphalt,
+	}, mundo.carpeta)
+
+	local paso = 26
+	local rayas = math.floor(ancho / paso)
+	for i = 0, rayas do
+		parte({
+			Name = "Raya",
+			Size = Vector3.new(11, 0.2, 1.2),
+			Position = Vector3.new(mundo.minX + 8 + i * paso, 0.55, zCalle),
+			Color = Color3.fromRGB(238, 232, 190),
+		}, mundo.carpeta)
+	end
+
+	local separacion = 150
+	local cuantas = math.floor(ancho / separacion)
+	for i = 0, cuantas do
+		farola(mundo.carpeta, mundo.minX + 40 + i * separacion, zAcera - 5)
 	end
 end
 
@@ -492,8 +972,8 @@ local function ambientar()
 	Luz.Ambient = Color3.fromRGB(126, 136, 156)
 	Luz.OutdoorAmbient = Color3.fromRGB(158, 172, 196)
 	Luz.FogColor = Color3.fromRGB(214, 226, 240)
-	Luz.FogEnd = 1100
-	Luz.FogStart = 220
+	Luz.FogEnd = 1800
+	Luz.FogStart = 420
 	Luz.GeographicLatitude = 60
 	Luz.GlobalShadows = true
 
@@ -530,17 +1010,19 @@ local function construirMundo()
 			Size = Vector3.new(zona.x1 - zona.x0, 0.4, zona.z1 - zona.z0),
 			Position = Vector3.new(zona.centroX, 0.2, 0),
 			Color = zona.def.suelo,
-			Material = Enum.Material.Concrete,
+			Material = Enum.Material[zona.def.material or "Concrete"],
 		}, grupo)
 
+		-- El decorado primero: es quien dice donde NO va nieve.
+		decorarZona(zona, grupo)
 		construirNieve(zona, grupo)
 		construirCamion(zona, grupo)
-		decorarZona(zona, grupo)
 		sombrasEnDecorado(grupo)
 	end
 
 	construirPuertas()
 	construirValla()
+	construirCalle()
 	ambientar()
 
 	local primera = mundo.zonas[1]
@@ -583,6 +1065,7 @@ local function nuevoEstado()
 		niveles = { pala = 1, carretilla = 1, botas = 1 },
 		zonas = { [A.zonas[1].clave] = true },
 		codigos = {},
+		ventas = 0,
 		racha = 0,
 		ultimoDia = 0,
 		ultimoPremio = 0,
@@ -745,6 +1228,7 @@ local function serializar(estado)
 		dinero = math.floor(estado.dinero),
 		nieveTotal = math.floor(estado.nieveTotal),
 		renaceres = estado.renaceres,
+		ventas = estado.ventas,
 		racha = estado.racha,
 		ultimoDia = estado.ultimoDia,
 		ultimoPremio = estado.ultimoPremio,
@@ -763,6 +1247,7 @@ local function aplicarDatos(estado, datos)
 	estado.dinero = math.max(0, tonumber(datos.dinero) or 0)
 	estado.nieveTotal = math.max(0, tonumber(datos.nieveTotal) or 0)
 	estado.renaceres = math.max(0, math.floor(tonumber(datos.renaceres) or 0))
+	estado.ventas = math.max(0, math.floor(tonumber(datos.ventas) or 0))
 	estado.racha = math.clamp(math.floor(tonumber(datos.racha) or 0), 0, A.diario.rachaMaxima)
 	estado.ultimoDia = math.max(0, math.floor(tonumber(datos.ultimoDia) or 0))
 	estado.ultimoPremio = math.max(0, math.floor(tonumber(datos.ultimoPremio) or 0))
@@ -1337,6 +1822,7 @@ local function vender(jugador, estado, pos)
 			estado.dinero = estado.dinero + ganado
 			estado.carga = 0
 			estado.valor = 0
+			estado.ventas = estado.ventas + 1
 			refrescarMarcador(jugador, estado)
 			RemotoAviso:FireClient(jugador, { tipo = "venta", cantidad = ganado })
 			return
@@ -1356,8 +1842,20 @@ local function paqueteDe(estado)
 		local nivel = estado.niveles[def.clave] or 1
 		precios[def.clave] = (nivel >= def.niveles) and -1 or precioMejora(def, nivel)
 	end
+	-- El tutorial del cliente se saca de aqui: no hace falta guardar por
+	-- donde va, se deduce de lo que el jugador ya ha hecho.
+	local mejorada = false
+	for _, def in ipairs(A.mejoras) do
+		if (estado.niveles[def.clave] or 1) > 1 then
+			mejorada = true
+		end
+	end
+
 	return {
 		dinero = math.floor(estado.dinero),
+		nieveTotal = math.floor(estado.nieveTotal),
+		ventas = estado.ventas,
+		mejorada = mejorada,
 		carga = estado.carga,
 		capacidad = capacidadDe(estado),
 		valor = math.floor(estado.valor * multiplicadorDe(estado)),
