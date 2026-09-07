@@ -38,6 +38,10 @@ avanzar(0.5)
 jugador:LoadCharacter()
 avanzar(0.5)
 
+-- Ahora hay que mantener pulsado para cavar.
+local RemotoCavar = remotos:FindFirstChild("Cavar")
+RemotoCavar.OnServerEvent:Fire(jugador, true)
+
 local hitos = {}
 local viajes = 0
 
@@ -73,15 +77,23 @@ local parcela = PARCELA.registro[1]
 local px, pz = puerta.Position.X, puerta.Position.Z
 local LIMITE = 60 * 45
 
+-- Una persona no cruza el crater de punta a punta cada tres segundos:
+-- cava lo que tiene al lado, tirando hacia la puerta. Sin esto, lo que se
+-- mide es el paseo y no el juego.
 local function mejorCasilla()
+	local pers = jugador.Character
+	local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
+	local yo = raiz and raiz.Position or Vector3.new(0, 0, 0)
 	local mejor, mx, mz = nil, nil, nil
 	for cx = 0, parcela.ancho - 1 do
 		for cz = 0, parcela.largo - 1 do
 			if parcela:puedeExcavar(cx, cz) then
 				local x, z = parcela:centro(cx, cz)
-				local d = (x - px) ^ 2 + (z - pz) ^ 2
-				if not mejor or d < mejor then
-					mejor, mx, mz = d, x, z
+				local aLaPuerta = math.sqrt((x - px) ^ 2 + (z - pz) ^ 2)
+				local aMi = math.sqrt((x - yo.X) ^ 2 + (z - yo.Z) ^ 2)
+				local nota = aLaPuerta + aMi * 2.5
+				if not mejor or nota < mejor then
+					mejor, mx, mz = nota, x, z
 				end
 			end
 		end
@@ -113,8 +125,9 @@ while reloj < LIMITE do
 		if not x then
 			break
 		end
+		-- Una persona no da un paso por palada: se planta y cava un rato.
 		andarHasta(x, z)
-		avanzar(A.jugador.tic * 6)
+		avanzar(A.jugador.golpe * 7)
 	end
 	revisarAvisos()
 end

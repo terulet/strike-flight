@@ -25,15 +25,22 @@ Ajustes.idiomaFijo = nil
 Ajustes.nieve = {
 	celda = 4,          -- studs de lado (es el cubo del terreno de Roblox)
 	capa = 2,           -- studs de alto por capa
-	capasMaximas = 8,   -- 16 studs de nieve: entierra una casa
+	-- 10 capas = 20 studs. Tiene que tapar el tejado ENTERO, o el
+	-- "descubrimiento" del tejado llega cuando ya se veia desde el minuto
+	-- cero. La altura de la casa manda sobre este numero.
+	capasMaximas = 10,
 
 	-- LA REGLA QUE HACE QUE NO TE QUEDES ENCERRADO: dos casillas vecinas
 	-- no pueden diferenciarse en mas de una capa. Se aplica al generar y
 	-- al excavar, asi que no hay forma de abrir un pozo vertical.
-	desnivelMaximo = 1,
+	-- Dos capas (4 studs). Con una, el cono que hay que vaciar para llegar
+	-- al fondo era enorme y el juego bloqueaba con la casa ya a la vista.
+	-- Con dos, el cono es la cuarta parte y se sigue sin poder abrir un
+	-- pozo del que no se salga: 4 studs se saltan.
+	desnivelMaximo = 2,
 
 	-- Contra la fachada se amontona mas.
-	capasContraLaCasa = 10,
+	capasContraLaCasa = 12,
 }
 
 
@@ -57,9 +64,11 @@ Ajustes.parcela = {
 
 Ajustes.jugador = {
 	tic = 0.12,
+	-- Cavar es una ACCION: hay que mantener pulsado. Quieto no pasa nada.
+	golpe = 0.42,       -- lo que dura una palada de principio a fin
 	radio = 11,         -- lo ancho que barre la pala (casi 3 casillas)
-	potencia = 4,       -- casillas por tic
-	capacidad = 250,    -- capas que caben en la carretilla
+	potencia = 14,      -- casillas por palada (casi toda la cuchara)
+	capacidad = 700,    -- capas que caben en la carretilla
 	velocidad = 16,
 	radioDescarga = 12,
 	alturaMaxima = 40,  -- por encima de esto no se excava
@@ -76,8 +85,12 @@ Ajustes.jugador = {
 Ajustes.casa = {
 	ancho = 34,
 	fondo = 24,
-	alto = 15,
-	alturaChimenea = 26,   -- tiene que superar las 8 capas (16 studs)
+	alto = 11,
+	alturaChimenea = 28,   -- tiene que superar las 10 capas (20 studs)
+	pasosTejado = 6,       -- escalones de la cubierta inclinada
+	altoPaso = 1.05,
+	porcheFondo = 9,
+	garajeAncho = 16,
 	puertaAncho = 6,
 	puertaAlto = 9,
 }
@@ -90,10 +103,14 @@ Ajustes.casa = {
 --  capa, se da por descubierto y se avisa.
 -------------------------------------------------------------------
 
+-- La altura en studs a la que cada cosa queda a la vista. El servidor la
+-- convierte en capas con la geometria de la casa: asi el aviso salta
+-- cuando la cosa se ve DE VERDAD, y no antes ni despues.
 Ajustes.hallazgos = {
-	{ clave = "tejado", capas = 5, nombre = { es = "EL TEJADO", en = "THE ROOF" } },
-	{ clave = "ventana", capas = 3, nombre = { es = "UNA VENTANA", en = "A WINDOW" } },
-	{ clave = "puerta", capas = 0, nombre = { es = "¡LA PUERTA DE TU CASA!", en = "YOUR FRONT DOOR!" } },
+	{ clave = "tejado", donde = "alrededor", nombre = { es = "EL TEJADO", en = "THE ROOF" } },
+	{ clave = "ventana", donde = "fachada", nombre = { es = "UNA VENTANA", en = "A WINDOW" } },
+	{ clave = "porche", donde = "fachada", nombre = { es = "EL PORCHE", en = "THE PORCH" } },
+	{ clave = "puerta", donde = "fachada", nombre = { es = "¡LA PUERTA DE TU CASA!", en = "YOUR FRONT DOOR!" } },
 }
 
 
@@ -126,6 +143,9 @@ Ajustes.textos = {
 		monedas = "MONEDAS",
 		descubierto = "HAS DESCUBIERTO",
 		profundidad = "%d capas de nieve encima",
+		cavar = "CAVAR",
+		manten = "MANTEN PULSADO PARA CAVAR",
+		mantenPie = "raton, espacio, o el boton de la derecha",
 		ensancha = "AQUI YA NO BAJAS: ensancha el hoyo",
 	},
 	en = {
@@ -140,6 +160,9 @@ Ajustes.textos = {
 		monedas = "COINS",
 		descubierto = "YOU UNCOVERED",
 		profundidad = "%d layers of snow on top",
+		cavar = "DIG",
+		manten = "HOLD TO DIG",
+		mantenPie = "mouse, space, or the button on the right",
 		ensancha = "CANNOT GO DEEPER HERE: widen the pit",
 	},
 }

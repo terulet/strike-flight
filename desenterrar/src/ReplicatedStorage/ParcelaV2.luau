@@ -20,6 +20,16 @@ local Terreno = workspace.Terrain
 local CELDA = A.nieve.celda
 local CAPA = A.nieve.capa
 
+-- La altura real de una casilla. La ultima capa no llega entera: cada
+-- casilla se queda a una altura un poco distinta, y asi la superficie no
+-- son terrazas planas y cuadradas sino nieve con relieve.
+local function alturaDe(c)
+	if c.restante <= 0 then
+		return 0
+	end
+	return (c.restante - 1) * CAPA + CAPA * c.rugosidad
+end
+
 local Parcela = {}
 Parcela.__index = Parcela
 
@@ -73,16 +83,22 @@ function Parcela:contiene(x, z)
 		and z <= self.origen.Z + self.largo * CELDA
 end
 
--- Una casilla solo se puede cavar si NINGUNA vecina esta mas alta. Para
--- bajar hay que ensanchar: asi la pendiente sale sola y no hay pozos.
+-- Se puede cavar una casilla mientras al bajarla no se abra un escalon de
+-- mas de desnivelMaximo con ninguna de sus ocho vecinas.
+--
+-- La cuenta: si baja de r a r-1, hace falta que toda vecina cumpla
+-- r(vecina) <= r - 1 + desnivelMaximo. Con desnivel 1 eso es "ninguna
+-- vecina mas alta"; con 2 ya se permite empezar el hoyo sin haber
+-- alisado medio campo antes, que era lo que hacia el juego pesadisimo.
 function Parcela:puedeExcavar(cx, cz)
 	local c = self:casilla(cx, cz)
 	if not c or c.muro or c.restante <= 0 then
 		return false
 	end
+	local tope = c.restante - 1 + A.nieve.desnivelMaximo
 	for _, d in ipairs(VECINAS) do
 		local v = self:casilla(cx + d[1], cz + d[2])
-		if v and not v.muro and v.restante > c.restante then
+		if v and not v.muro and v.restante > tope then
 			return false
 		end
 	end
@@ -102,15 +118,30 @@ function Parcela:excavar(cx, cz)
 	local c = self:casilla(cx, cz)
 	local x, z = self:centro(cx, cz)
 
+	local antes = alturaDe(c)
+	c.restante = c.restante - 1
+	local despues = alturaDe(c)
+
+	-- Se quita justo la rebanada que sobra, ni mas ni menos: asi lo que se
+	-- ve y lo que dice el modelo no se separan nunca.
+	local grosor = antes - despues + 0.4
 	Terreno:FillBlock(
-		CFrame.new(x, (c.restante - 0.5) * CAPA, z),
-		Vector3.new(CELDA + 0.2, CAPA + 0.2, CELDA + 0.2),
+		CFrame.new(x, (antes + despues) / 2 + 0.2, z),
+		Vector3.new(CELDA + 0.3, grosor, CELDA + 0.3),
 		Enum.Material.Air
 	)
 
-	c.restante = c.restante - 1
+	-- Al llegar al suelo, una cucharada redonda: es la marca de la palada.
+	if c.restante <= 0 then
+		Terreno:FillBall(Vector3.new(x, 0.6, z), CELDA * 0.72, Enum.Material.Air)
+	end
 	self.capasQuitadas = self.capasQuitadas + 1
 	return true
+end
+
+function Parcela:alturaEn(cx, cz)
+	local c = self:casilla(cx, cz)
+	return c and alturaDe(c) or 0
 end
 
 function Parcela:limpio()
@@ -147,6 +178,9 @@ function Parcela:generar(perfil)
 				inicial = capas,
 				restante = capas,
 				muro = muro == true,
+				-- Cuanto de la capa de arriba esta puesta: rompe el efecto
+				-- baldosa sin desajustar el modelo, que sigue en enteros.
+				rugosidad = 0.6 + ((cx * 7 + cz * 13) % 9) / 20,
 			}
 		end
 	end
@@ -195,9 +229,10 @@ function Parcela:nevar()
 			local c = self.casillas[cx][cz]
 			if c.restante > 0 then
 				local x, z = self:centro(cx, cz)
+				local alto = alturaDe(c)
 				Terreno:FillBlock(
-					CFrame.new(x, c.restante * CAPA / 2, z),
-					Vector3.new(CELDA, c.restante * CAPA, CELDA),
+					CFrame.new(x, alto / 2, z),
+					Vector3.new(CELDA, alto, CELDA),
 					Enum.Material.Snow
 				)
 			end

@@ -24,7 +24,10 @@ La version anterior sigue entera en  nieve\
   3. PLAY
 
 Apareces en suelo firme, al borde del manto de
-nieve. Subes por la rampa, y a cavar.
+nieve. Subes por la rampa.
+
+CAVAR ES MANTENER PULSADO: raton, espacio, o el
+boton grande de la derecha. Quieto no pasa nada.
 
 
 -------------------------------------------
@@ -36,9 +39,14 @@ nieve. Subes por la rampa, y a cavar.
   - Cuando aparece el tejado, se nota?
   - Y cuando aparece la puerta?
 
-Medido con el simulador: el tejado asoma a los
-30 segundos y la puerta a los 5 minutos y medio,
-moviendo 1.250 capas de nieve y con 5 viajes al
+Medido con el simulador:
+
+  0:49  asoma EL TEJADO
+  1:07  asoma EL PORCHE
+  1:11  asoma UNA VENTANA
+  3:49  ¡LA PUERTA!
+
+moviendo 1.400 capas de nieve y con 2 viajes al
 monton.
 
 
@@ -46,9 +54,9 @@ monton.
   LA REGLA QUE LO SOSTIENE TODO
 -------------------------------------------
 
-Solo se puede cavar una casilla si NINGUNA de sus
-ocho vecinas esta mas alta. O sea: para bajar hay
-que ensanchar.
+Al bajar una casilla no se puede abrir un escalon
+de mas de dos capas con ninguna de sus ocho
+vecinas. O sea: para bajar hay que ensanchar.
 
 Eso hace imposible cavarse un pozo del que no se
 sale, y hace que la rampa se forme sola.

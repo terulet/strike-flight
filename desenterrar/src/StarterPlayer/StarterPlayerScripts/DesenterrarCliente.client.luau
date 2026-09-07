@@ -12,6 +12,7 @@ local Tween = game:GetService("TweenService")
 local Idiomas = game:GetService("LocalizationService")
 local Sonidos = game:GetService("SoundService")
 local Interfaz = game:GetService("StarterGui")
+local Entrada = game:GetService("UserInputService")
 
 local jugador = Jugadores.LocalPlayer
 local A = require(RS:WaitForChild("AjustesV2"))
@@ -19,6 +20,7 @@ local A = require(RS:WaitForChild("AjustesV2"))
 local remotos = RS:WaitForChild("DesenterrarRemotos")
 local RemotoEstado = remotos:WaitForChild("Estado")
 local RemotoAviso = remotos:WaitForChild("Aviso")
+local RemotoCavar = remotos:WaitForChild("Cavar")
 
 local idioma = A.idiomaFijo
 if not idioma then
@@ -214,6 +216,97 @@ local textoCarga = etiqueta({
 }, canalCarga)
 
 
+-- Cavar: hay que MANTENER PULSADO. Quieto no pasa nada.
+----------------------------------------------------------------------
+
+local botonCavar = nuevo("TextButton", {
+	Name = "Cavar",
+	Size = UDim2.new(0, 150, 0, 150),
+	Position = UDim2.new(1, -24, 1, -120),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundColor3 = ACENTO,
+	BorderSizePixel = 0,
+	Text = T("cavar"),
+	TextColor3 = Color3.fromRGB(8, 16, 28),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 30,
+	AutoButtonColor = false,
+}, pantalla)
+nuevo("UICorner", { CornerRadius = UDim.new(1, 0) }, botonCavar)
+nuevo("UIStroke", { Color = BLANCO, Thickness = 3, Transparency = 0.4 }, botonCavar)
+
+local pistaCavar = etiqueta({
+	Name = "Pista",
+	Size = UDim2.new(0, 460, 0, 26),
+	Position = UDim2.new(0.5, 0, 1, -84),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Text = T("manten"),
+	TextSize = 19,
+	Font = Enum.Font.GothamBlack,
+	TextColor3 = Color3.fromRGB(255, 226, 150),
+}, pantalla)
+nuevo("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2, Transparency = 0.4 }, pistaCavar)
+
+local pistaCavarPie = etiqueta({
+	Name = "PistaPie",
+	Size = UDim2.new(0, 460, 0, 20),
+	Position = UDim2.new(0.5, 0, 1, -62),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Text = T("mantenPie"),
+	TextSize = 15,
+	Font = Enum.Font.Gotham,
+	TextColor3 = Color3.fromRGB(206, 224, 246),
+}, pantalla)
+
+local cavando = false
+local porRaton, porTecla, porBoton = false, false, false
+
+local function repasarCavado()
+	local quiere = porRaton or porTecla or porBoton
+	if quiere == cavando then
+		return
+	end
+	cavando = quiere
+	botonCavar.BackgroundColor3 = quiere and Color3.fromRGB(255, 208, 92) or ACENTO
+	botonCavar.Size = quiere and UDim2.new(0, 138, 0, 138) or UDim2.new(0, 150, 0, 150)
+	RemotoCavar:FireServer(quiere)
+end
+
+Entrada.InputBegan:Connect(function(entrada, escrito)
+	if escrito then
+		return
+	end
+	if entrada.UserInputType == Enum.UserInputType.MouseButton1 then
+		porRaton = true
+	elseif entrada.KeyCode == Enum.KeyCode.Space or entrada.KeyCode == Enum.KeyCode.E then
+		porTecla = true
+	end
+	repasarCavado()
+end)
+
+Entrada.InputEnded:Connect(function(entrada)
+	if entrada.UserInputType == Enum.UserInputType.MouseButton1 then
+		porRaton = false
+	elseif entrada.KeyCode == Enum.KeyCode.Space or entrada.KeyCode == Enum.KeyCode.E then
+		porTecla = false
+	end
+	repasarCavado()
+end)
+
+botonCavar.MouseButton1Down:Connect(function()
+	porBoton = true
+	repasarCavado()
+end)
+botonCavar.MouseButton1Up:Connect(function()
+	porBoton = false
+	repasarCavado()
+end)
+botonCavar.MouseLeave:Connect(function()
+	porBoton = false
+	repasarCavado()
+end)
+
+
 -- Sonido y avisos ---------------------------------------------------
 
 local sonidos = {
@@ -316,11 +409,16 @@ local function refrescar(datos)
 	barraCarga.BackgroundColor3 = lleno and Color3.fromRGB(255, 128, 128) or ACENTO
 	textoCarga.Text = lleno and T("lleno") or (T("carga") .. "  " .. tostring(carga) .. " / " .. tostring(capacidad))
 
-	if carga > cargaAnterior and os.clock() - ultimoRaspado > 0.19 then
+	if carga > cargaAnterior and os.clock() - ultimoRaspado > 0.15 then
 		ultimoRaspado = os.clock()
 		sonar("pala")
 	end
 	cargaAnterior = carga
+
+	-- La pista de "manten pulsado" solo hasta que se entera.
+	local yaSabe = (datos.nieveTotal or 0) > 0 or carga > 0
+	pistaCavar.Visible = not yaSabe
+	pistaCavarPie.Visible = not yaSabe
 
 	local capas = datos.capasPuerta or 0
 	local hallazgos = datos.hallazgos or {}

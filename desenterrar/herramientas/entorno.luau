@@ -526,6 +526,9 @@ local function crearInstancia(clase)
 	function obj:Play()
 		rawset(self, "_veces", (rawget(self, "_veces") or 0) + 1)
 	end
+	function obj:Emit(cuantas)
+		rawset(self, "_emitidas", (rawget(self, "_emitidas") or 0) + (cuantas or 1))
+	end
 	function obj:Stop() end
 
 	return setmetatable(obj, metaInstancia)
@@ -577,8 +580,28 @@ function terreno:FillBlock(marco, tam, material)
 		material = material and material.Name or "?",
 	}
 end
+function terreno:FillBall(centro, radio, material)
+	RELLENOS[#RELLENOS + 1] = {
+		x = centro and centro.X or 0,
+		y = centro and centro.Y or 0,
+		z = centro and centro.Z or 0,
+		radio = radio,
+		bola = true,
+		material = material and material.Name or "?",
+	}
+end
 function terreno:ReplaceMaterial() end
 terreno.Parent = workspace
+
+function bolasDe(material)
+	local total = 0
+	for _, orden in ipairs(RELLENOS) do
+		if orden.bola and orden.material == material then
+			total = total + 1
+		end
+	end
+	return total
+end
 
 function rellenosDe(material)
 	local total = 0

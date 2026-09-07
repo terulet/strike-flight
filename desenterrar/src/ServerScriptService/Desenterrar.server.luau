@@ -9,22 +9,25 @@
 	            Hoy hay una; manana una por jugador, y el excavador no se
 	            entera porque siempre recibe SOBRE QUE parcela actua.
 
-	  puedeExcavar()  la regla que hace imposible quedarse encerrado: solo
-	            se puede cavar una casilla que no tenga ninguna vecina mas
-	            alta. Para bajar hay que ensanchar, asi que la pendiente
-	            se forma sola y nunca hay un pozo vertical.
+	  puedeExcavar()  la regla que hace imposible quedarse encerrado: al
+	            bajar una casilla no se puede abrir con sus ocho vecinas un
+	            escalon mayor que desnivelMaximo. Para bajar hay que
+	            ensanchar, la pendiente se forma sola y no hay pozos.
+
+	  Y cavar es una ACCION: hay que mantener pulsado. Quieto no pasa nada.
 ]]
 
 local Jugadores = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local Luz = game:GetService("Lighting")
+local Tweens = game:GetService("TweenService")
 
 local A = require(RS:WaitForChild("AjustesV2"))
 local Parcela = require(RS:WaitForChild("ParcelaV2"))
 
 local Terreno = workspace.Terrain
 local CELDA = A.nieve.celda
-local aleatorio = Random.new(20260907)
+
 
 
 -------------------------------------------------------------------
@@ -65,6 +68,12 @@ local RemotoAviso = Instance.new("RemoteEvent")
 RemotoAviso.Name = "Aviso"
 RemotoAviso.Parent = remotos
 
+-- El cliente dice cuando esta pulsando. Sin esto no se cava: quieto no
+-- pasa nada, que era justo la queja.
+local RemotoCavar = Instance.new("RemoteEvent")
+RemotoCavar.Name = "Cavar"
+RemotoCavar.Parent = remotos
+
 
 -------------------------------------------------------------------
 --  EL MUNDO
@@ -72,6 +81,10 @@ RemotoAviso.Parent = remotos
 
 local parcelas = {}
 local mundo = { carpeta = nil, salida = CFrame.new(0, 5, 0) }
+
+-- Se define mas abajo; construirParcela la necesita para dejar el HUD con
+-- el numero correcto desde el primer momento.
+local revisarHallazgos
 
 local function parcelaEn(x, z)
 	for _, p in ipairs(parcelas) do
@@ -108,93 +121,161 @@ local function construirCasa(parcela, padre)
 	grupo.Name = "Casa"
 	grupo.Parent = padre
 
-	parte({
-		Name = "Cuerpo",
-		Size = Vector3.new(A.casa.ancho, A.casa.alto, A.casa.fondo),
-		Position = Vector3.new(m.x, A.casa.alto / 2, m.z),
-		Color = Color3.fromRGB(232, 214, 186),
-		Material = Enum.Material.Concrete,
-		CanCollide = true,
-		CanQuery = true,
-	}, grupo)
-	parte({
-		Name = "Zocalo",
-		Size = Vector3.new(A.casa.ancho + 1, 3, A.casa.fondo + 1),
-		Position = Vector3.new(m.x, 1.5, m.z),
-		Color = Color3.fromRGB(158, 92, 74),
-		Material = Enum.Material.Brick,
-	}, grupo)
-	parte({
-		Name = "Tejado",
-		Size = Vector3.new(A.casa.ancho + 5, 2, A.casa.fondo + 5),
-		Position = Vector3.new(m.x, A.casa.alto + 1, m.z),
-		Color = Color3.fromRGB(72, 78, 92),
-		Material = Enum.Material.Slate,
-		CanCollide = true,
-		CanQuery = true,
-	}, grupo)
-	parte({
-		Name = "TejadoNieve",
-		Size = Vector3.new(A.casa.ancho + 5.4, 1.2, A.casa.fondo + 5.4),
-		Position = Vector3.new(m.x, A.casa.alto + 2.6, m.z),
-		Color = NIEVE,
-		Material = Enum.Material.Snow,
-	}, grupo)
+	local CREMA = Color3.fromRGB(238, 224, 198)
+	local LADRILLO = Color3.fromRGB(152, 88, 70)
+	local PIZARRA = Color3.fromRGB(64, 70, 84)
+	local MADERA = Color3.fromRGB(122, 82, 50)
+	local CALIDA = Color3.fromRGB(255, 214, 138)
 
-	-- La chimenea: lo unico que asoma por encima de la nevada.
-	parte({
-		Name = "Chimenea",
-		Size = Vector3.new(5, A.casa.alturaChimenea, 5),
-		Position = Vector3.new(m.x + A.casa.ancho / 2 - 5, A.casa.alturaChimenea / 2, m.z - A.casa.fondo / 4),
-		Color = Color3.fromRGB(158, 92, 74),
-		Material = Enum.Material.Brick,
-		CanCollide = true,
-		CanQuery = true,
-	}, grupo)
-	parte({
-		Name = "ChimeneaNieve",
-		Size = Vector3.new(5.6, 1, 5.6),
-		Position = Vector3.new(m.x + A.casa.ancho / 2 - 5, A.casa.alturaChimenea + 0.5, m.z - A.casa.fondo / 4),
-		Color = NIEVE,
-		Material = Enum.Material.Snow,
-	}, grupo)
-
-	-- La puerta, en la fachada que mira al hueco de salida.
-	local zFachada = m.z + A.casa.fondo / 2
-	parte({
-		Name = "Puerta",
-		Size = Vector3.new(A.casa.puertaAncho, A.casa.puertaAlto, 0.8),
-		Position = Vector3.new(m.x, A.casa.puertaAlto / 2, zFachada + 0.3),
-		Color = Color3.fromRGB(126, 78, 44),
-		Material = Enum.Material.WoodPlanks,
-		CanCollide = true,
-		CanQuery = true,
-	}, grupo)
-	parte({
-		Name = "Pomo",
-		Shape = Enum.PartType.Ball,
-		Size = Vector3.new(0.8, 0.8, 0.8),
-		Position = Vector3.new(m.x + 2, A.casa.puertaAlto / 2, zFachada + 0.8),
-		Color = Color3.fromRGB(228, 190, 84),
-		Material = Enum.Material.Metal,
-	}, grupo)
-	for _, dx in ipairs({ -11, 11 }) do
-		parte({
-			Name = "Marco",
-			Size = Vector3.new(5.6, 5.6, 0.4),
-			Position = Vector3.new(m.x + dx, 9, zFachada + 0.2),
-			Color = Color3.fromRGB(252, 252, 252),
-		}, grupo)
-		parte({
-			Name = "Cristal",
-			Size = Vector3.new(4.6, 4.6, 0.6),
-			Position = Vector3.new(m.x + dx, 9, zFachada + 0.35),
-			Color = Color3.fromRGB(142, 198, 232),
-			Material = Enum.Material.Glass,
-			Transparency = 0.2,
+	local function pieza(nombre, tam, pos, color, material, solido)
+		return parte({
+			Name = nombre,
+			Size = tam,
+			Position = pos,
+			Color = color,
+			Material = material or Enum.Material.SmoothPlastic,
+			CanCollide = solido ~= false,
+			CanQuery = solido ~= false,
 		}, grupo)
 	end
 
+	local zFachada = m.z + A.casa.fondo / 2
+
+	-- Cuerpo y zocalo.
+	pieza("Cuerpo", Vector3.new(A.casa.ancho, A.casa.alto, A.casa.fondo),
+		Vector3.new(m.x, A.casa.alto / 2, m.z), CREMA, Enum.Material.Concrete)
+	pieza("Zocalo", Vector3.new(A.casa.ancho + 1.4, 3.2, A.casa.fondo + 1.4),
+		Vector3.new(m.x, 1.6, m.z), LADRILLO, Enum.Material.Brick)
+	-- Esquinas de piedra: dan silueta.
+	for _, dx in ipairs({ -1, 1 }) do
+		pieza("Esquina", Vector3.new(2.2, A.casa.alto, 2.2),
+			Vector3.new(m.x + dx * (A.casa.ancho / 2 - 1), A.casa.alto / 2, m.z + A.casa.fondo / 2 - 1),
+			Color3.fromRGB(216, 206, 190), Enum.Material.Concrete)
+	end
+
+	-- Cubierta inclinada, a escalones. Cada uno con su nieve encima: a
+	-- distancia lee como un tejado a dos aguas y no puede salir torcido,
+	-- que es lo que pasa con las cunas si aciertas mal el giro.
+	local alturaTejado = A.casa.alto
+	for i = 0, A.casa.pasosTejado - 1 do
+		local encogido = i * (A.casa.ancho * 0.42 / A.casa.pasosTejado)
+		local y = A.casa.alto + 0.6 + i * A.casa.altoPaso
+		local anchoPaso = A.casa.ancho + 5 - encogido * 2
+		pieza("Tejado" .. i, Vector3.new(anchoPaso, A.casa.altoPaso, A.casa.fondo + 5),
+			Vector3.new(m.x, y, m.z), PIZARRA, Enum.Material.Slate)
+		pieza("TejadoNieve" .. i, Vector3.new(anchoPaso + 0.4, 0.55, A.casa.fondo + 5.4),
+			Vector3.new(m.x, y + A.casa.altoPaso * 0.6, m.z), NIEVE, Enum.Material.Snow, false)
+		alturaTejado = y + A.casa.altoPaso
+	end
+	-- Caballete.
+	pieza("Caballete", Vector3.new(4, 1.4, A.casa.fondo + 6),
+		Vector3.new(m.x, alturaTejado + 0.4, m.z), PIZARRA, Enum.Material.Slate)
+	alturaTejado = alturaTejado + 1.1
+
+	-- Chimenea, lo unico que asoma cuando esta todo enterrado.
+	local chx = m.x + A.casa.ancho / 2 - 6
+	local chz = m.z - A.casa.fondo / 4
+	pieza("Chimenea", Vector3.new(5, A.casa.alturaChimenea, 5),
+		Vector3.new(chx, A.casa.alturaChimenea / 2, chz), LADRILLO, Enum.Material.Brick)
+	pieza("ChimeneaBoca", Vector3.new(6, 1.2, 6),
+		Vector3.new(chx, A.casa.alturaChimenea + 0.6, chz), PIZARRA, Enum.Material.Slate)
+	pieza("ChimeneaNieve", Vector3.new(6.2, 0.6, 6.2),
+		Vector3.new(chx, A.casa.alturaChimenea + 1.4, chz), NIEVE, Enum.Material.Snow, false)
+
+	-- El porche: suelo, cuatro postes, baranda y su tejadillo.
+	local zPorche = zFachada + A.casa.porcheFondo / 2
+	pieza("PorcheSuelo", Vector3.new(A.casa.ancho * 0.62, 1, A.casa.porcheFondo),
+		Vector3.new(m.x, 1.5, zPorche), MADERA, Enum.Material.WoodPlanks)
+	for _, dx in ipairs({ -1, 1 }) do
+		for _, dz in ipairs({ -1, 1 }) do
+			pieza("Poste", Vector3.new(1.2, 12, 1.2),
+				Vector3.new(m.x + dx * (A.casa.ancho * 0.29), 8, zPorche + dz * (A.casa.porcheFondo / 2 - 1)),
+				Color3.fromRGB(248, 246, 240), Enum.Material.WoodPlanks)
+		end
+		pieza("Baranda", Vector3.new(1, 1, A.casa.porcheFondo - 2),
+			Vector3.new(m.x + dx * (A.casa.ancho * 0.29), 4.4, zPorche),
+			Color3.fromRGB(248, 246, 240), Enum.Material.WoodPlanks)
+	end
+	local alturaPorche = 14.2
+	pieza("PorcheTejado", Vector3.new(A.casa.ancho * 0.68, 1.2, A.casa.porcheFondo + 2),
+		Vector3.new(m.x, alturaPorche, zPorche), PIZARRA, Enum.Material.Slate)
+	pieza("PorcheNieve", Vector3.new(A.casa.ancho * 0.68 + 0.4, 0.6, A.casa.porcheFondo + 2.4),
+		Vector3.new(m.x, alturaPorche + 0.9, zPorche), NIEVE, Enum.Material.Snow, false)
+	for i = 0, 2 do
+		pieza("Escalon", Vector3.new(A.casa.ancho * 0.4, 0.6, 2),
+			Vector3.new(m.x, 0.4 + i * 0.5, zPorche + A.casa.porcheFondo / 2 + 2 - i * 2),
+			Color3.fromRGB(228, 224, 216), Enum.Material.Concrete)
+	end
+
+	-- El garaje, pegado a un lado.
+	local gx = m.x - A.casa.ancho / 2 - A.casa.garajeAncho / 2
+	pieza("Garaje", Vector3.new(A.casa.garajeAncho, A.casa.alto - 2, A.casa.fondo - 4),
+		Vector3.new(gx, (A.casa.alto - 2) / 2, m.z), CREMA, Enum.Material.Concrete)
+	pieza("GarajeTejado", Vector3.new(A.casa.garajeAncho + 3, 1.2, A.casa.fondo - 1),
+		Vector3.new(gx, A.casa.alto - 1.4, m.z), PIZARRA, Enum.Material.Slate)
+	pieza("GarajeNieve", Vector3.new(A.casa.garajeAncho + 3.4, 0.6, A.casa.fondo - 0.6),
+		Vector3.new(gx, A.casa.alto - 0.5, m.z), NIEVE, Enum.Material.Snow, false)
+	pieza("GarajePuerta", Vector3.new(A.casa.garajeAncho - 3, 8, 0.7),
+		Vector3.new(gx, 4.2, m.z + (A.casa.fondo - 4) / 2 + 0.3),
+		Color3.fromRGB(206, 208, 212), Enum.Material.Metal)
+	for i = 1, 4 do
+		pieza("GarajeRanura", Vector3.new(A.casa.garajeAncho - 3, 0.25, 0.9),
+			Vector3.new(gx, 1 + i * 1.6, m.z + (A.casa.fondo - 4) / 2 + 0.5),
+			Color3.fromRGB(168, 172, 178), Enum.Material.Metal, false)
+	end
+
+	-- La puerta, con su marco, su corona y su farol encendido.
+	pieza("MarcoPuerta", Vector3.new(A.casa.puertaAncho + 2, A.casa.puertaAlto + 1.6, 0.5),
+		Vector3.new(m.x, (A.casa.puertaAlto + 1.6) / 2, zFachada + 0.1),
+		Color3.fromRGB(250, 248, 244))
+	local puerta = pieza("Puerta", Vector3.new(A.casa.puertaAncho, A.casa.puertaAlto, 0.8),
+		Vector3.new(m.x, A.casa.puertaAlto / 2, zFachada + 0.4), MADERA, Enum.Material.WoodPlanks)
+	pieza("Pomo", Vector3.new(0.8, 0.8, 0.8),
+		Vector3.new(m.x + 2, A.casa.puertaAlto / 2, zFachada + 0.9),
+		Color3.fromRGB(236, 196, 96), Enum.Material.Metal, false)
+	pieza("Corona", Vector3.new(3, 3, 0.5),
+		Vector3.new(m.x, A.casa.puertaAlto - 1.6, zFachada + 0.9),
+		Color3.fromRGB(52, 112, 60), Enum.Material.Grass, false)
+	local farol = pieza("Farol", Vector3.new(1.4, 2, 1.4),
+		Vector3.new(m.x + A.casa.puertaAncho / 2 + 2, A.casa.puertaAlto, zFachada + 0.9),
+		CALIDA, Enum.Material.Neon, false)
+	local luzFarol = Instance.new("PointLight")
+	luzFarol.Color = CALIDA
+	luzFarol.Brightness = 2
+	luzFarol.Range = 18
+	luzFarol.Parent = farol
+
+	-- Ventanas encendidas: la casa se ve viva segun aparece.
+	local alturaVentana = 0
+	local yVentana = 6.4
+	local medioAlto = 3.1
+	for _, dx in ipairs({ -13, 13 }) do
+		pieza("Marco", Vector3.new(6.2, 6.2, 0.4), Vector3.new(m.x + dx, yVentana, zFachada + 0.1),
+			Color3.fromRGB(250, 248, 244), nil, false)
+		local cristal = pieza("Cristal", Vector3.new(5.2, 5.2, 0.5),
+			Vector3.new(m.x + dx, yVentana, zFachada + 0.3), CALIDA, Enum.Material.Neon, false)
+		local luz = Instance.new("PointLight")
+		luz.Color = CALIDA
+		luz.Brightness = 1.6
+		luz.Range = 22
+		luz.Parent = cristal
+		pieza("Cruz", Vector3.new(0.35, 5.2, 0.7), Vector3.new(m.x + dx, yVentana, zFachada + 0.4),
+			Color3.fromRGB(250, 248, 244), nil, false)
+		for _, lado in ipairs({ -1, 1 }) do
+			pieza("Contraventana", Vector3.new(1.6, 6.4, 0.4),
+				Vector3.new(m.x + dx + lado * 4, yVentana, zFachada + 0.15),
+				Color3.fromRGB(76, 104, 132), Enum.Material.WoodPlanks, false)
+		end
+		alturaVentana = yVentana + medioAlto
+	end
+
+	-- Las alturas de verdad, para que los hallazgos salten cuando toca.
+	m.alturaTejado = alturaTejado
+	m.alturaPorche = alturaPorche + 1.5
+	m.alturaVentana = alturaVentana
+	m.alturaPuerta = A.casa.puertaAlto
+	m.puerta = puerta
+	m.zFachada = zFachada
 	return m
 end
 
@@ -206,7 +287,6 @@ local function construirParcela(parcela)
 
 	local anchoS = parcela.ancho * CELDA
 	local largoS = parcela.largo * CELDA
-	local cxCentro = parcela.ancho / 2
 
 	parte({
 		Name = "Suelo",
@@ -266,6 +346,10 @@ local function construirParcela(parcela)
 	}, grupo)
 
 	parcela:nevar()
+	-- Deja el contador de la puerta bien puesto ANTES del primer paquete:
+	-- si no, el HUD empieza diciendo un numero y al segundo salta a otro.
+	parcela.hallazgos = {}
+	revisarHallazgos(parcela)
 
 	grupo:SetAttribute("casillas", parcela.ancho * parcela.largo)
 	grupo:SetAttribute("capas", parcela.capasTotales)
@@ -344,19 +428,165 @@ local function anunciar(parcela, def)
 	end
 end
 
-local function revisarHallazgos(parcela)
+local function alturaMaxima(parcela, cx0, cz0, cx1, cz1)
+	local peor = 0
+	for cx = cx0, cx1 do
+		for cz = cz0, cz1 do
+			local h = parcela:alturaEn(cx, cz)
+			if h > peor then
+				peor = h
+			end
+		end
+	end
+	return peor
+end
+
+-- Un hallazgo salta cuando la nieve baja POR DEBAJO de la altura real de
+-- la cosa. Nada de umbrales a ojo: la casa dice a que altura esta cada
+-- pieza y de ahi sale el aviso, asi que lo que se anuncia es lo que se ve.
+function revisarHallazgos(parcela)
 	local m = parcela.casa
 	if not m then
 		return
 	end
-	local encima = parcela:capasEncima(m.cxCentro - 1, m.cz1 + 1, m.cxCentro + 1, m.cz1 + 2)
-	parcela.capasEnLaPuerta = encima
+
+	-- Todo se mide POR DELANTE, que es desde donde mira el jugador. Medir
+	-- el tejado contra los ventisqueros de detras lo dejaba escondido
+	-- hasta el final, y salta el ultimo siendo lo mas alto de la casa.
+	-- Todo se mide en la MISMA linea de vision: lo que hay delante de la
+	-- puerta, que es desde donde mira el jugador. Asi los avisos salen en
+	-- orden de altura -- tejado, porche, ventana, puerta -- y cada uno
+	-- justo cuando esa pieza asoma de verdad.
+	local fachada = alturaMaxima(parcela, m.cxCentro - 1, m.cz1 + 1, m.cxCentro + 1, m.cz1 + 3)
+
+	parcela.capasEnLaPuerta = math.ceil(fachada / A.nieve.capa)
+	parcela.alturaFachada = fachada
+
+	local altura = {
+		tejado = { hasta = m.alturaTejado, mide = fachada },
+		porche = { hasta = m.alturaPorche, mide = fachada },
+		ventana = { hasta = m.alturaVentana, mide = fachada },
+		puerta = { hasta = 0.5, mide = fachada },
+	}
+
 	for _, def in ipairs(A.hallazgos) do
-		if not parcela.hallazgos[def.clave] and encima <= def.capas then
+		local u = altura[def.clave]
+		if u and not parcela.hallazgos[def.clave] and u.mide < u.hasta then
 			parcela.hallazgos[def.clave] = true
 			anunciar(parcela, def)
 		end
 	end
+end
+
+
+-------------------------------------------------------------------
+--  LA PALA
+-------------------------------------------------------------------
+
+local REPOSO = CFrame.new(0, -0.6, -0.5) * CFrame.Angles(math.rad(20), 0, 0)
+local GOLPE = CFrame.new(0, -1.1, -1.4) * CFrame.Angles(math.rad(78), 0, 0)
+
+local function darPala(jugador, pers, estado)
+	local vieja = pers:FindFirstChild("Pala")
+	if vieja then
+		vieja:Destroy()
+	end
+	local brazo = pers:FindFirstChild("RightHand") or pers:FindFirstChild("Right Arm")
+	if not brazo then
+		local humano = pers:FindFirstChildOfClass("Humanoid")
+		local esR15 = humano ~= nil and humano.RigType == Enum.HumanoidRigType.R15
+		brazo = pers:WaitForChild(esR15 and "RightHand" or "Right Arm", 8)
+	end
+	if not brazo then
+		return
+	end
+
+	local grupo = Instance.new("Model")
+	grupo.Name = "Pala"
+
+	local function trozo(nombre, tam, color, material)
+		local p = Instance.new("Part")
+		p.Name = nombre
+		p.Size = tam
+		p.Color = color
+		p.Material = material or Enum.Material.SmoothPlastic
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.Parent = grupo
+		return p
+	end
+
+	local mango = trozo("Mango", Vector3.new(0.32, 4.2, 0.32), Color3.fromRGB(132, 92, 56), Enum.Material.Wood)
+	mango.CFrame = brazo.CFrame * REPOSO
+	local hoja = trozo("Hoja", Vector3.new(2.4, 0.24, 2.2), Color3.fromRGB(210, 224, 240), Enum.Material.Metal)
+	hoja.CFrame = mango.CFrame * CFrame.new(0, -2.3, -0.6)
+	local union = Instance.new("WeldConstraint")
+	union.Part0 = mango
+	union.Part1 = hoja
+	union.Parent = hoja
+
+	-- Motor6D y no soldadura: asi se puede animar el golpe moviendo C0.
+	local motor = Instance.new("Motor6D")
+	motor.Name = "Empunadura"
+	motor.Part0 = brazo
+	motor.Part1 = mango
+	motor.C0 = REPOSO
+	motor.Parent = brazo
+
+	local punto = Instance.new("Attachment")
+	punto.Name = "Polvo"
+	punto.Parent = hoja
+	local emisor = Instance.new("ParticleEmitter")
+	emisor.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emisor.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+	emisor.Size = NumberSequence.new(2.2)
+	emisor.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.05),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emisor.Lifetime = NumberRange.new(0.4, 0.9)
+	emisor.Speed = NumberRange.new(8, 16)
+	emisor.SpreadAngle = Vector2.new(50, 50)
+	emisor.Acceleration = Vector3.new(0, -22, 0)
+	emisor.Rate = 0
+	emisor.Enabled = false
+	emisor.Parent = punto
+
+	grupo.Parent = pers
+	estado.motor = motor
+	estado.emisor = emisor
+end
+
+-- El golpe: la pala baja de verdad y salta la nieve.
+local function animarGolpe(estado)
+	if not estado.motor then
+		return
+	end
+	pcall(function()
+		Tweens:Create(
+			estado.motor,
+			TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ C0 = GOLPE }
+		):Play()
+	end)
+	task.delay(0.14, function()
+		if estado.emisor then
+			pcall(function()
+				estado.emisor:Emit(16)
+			end)
+		end
+		if estado.motor then
+			pcall(function()
+				Tweens:Create(
+					estado.motor,
+					TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{ C0 = REPOSO }
+				):Play()
+			end)
+		end
+	end)
 end
 
 
@@ -388,7 +618,11 @@ local function excavarPara(jugador, estado, pos)
 	-- Se barre TODA la pala buscando casillas validas: que una este
 	-- bloqueada no tira el golpe, se coge otra. Y si no hay ninguna
 	-- valida pero si queda nieve, es que hay que ensanchar, y se dice.
-	local hechas = 0
+	-- Se recogen las casillas de la cuchara y se atacan DE MAS ALTA A MAS
+	-- BAJA. Al bajar una, sus vecinas quedan al mismo nivel y tambien se
+	-- pueden bajar en la misma palada: una cuchara mueve una cucharada, no
+	-- tres casillas sueltas.
+	local candidatas = {}
 	local habiaNieve = false
 	for cx = cxMin, cxMax do
 		for cz = czMin, czMax do
@@ -398,17 +632,22 @@ local function excavarPara(jugador, estado, pos)
 				local c = parcela:casilla(cx, cz)
 				if c and not c.muro and c.restante > 0 then
 					habiaNieve = true
-					if parcela:excavar(cx, cz) then
-						hechas = hechas + 1
-						if hechas >= potencia then
-							break
-						end
-					end
+					candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante }
 				end
 			end
 		end
+	end
+	table.sort(candidatas, function(a, b)
+		return a.alto > b.alto
+	end)
+
+	local hechas = 0
+	for _, casilla in ipairs(candidatas) do
 		if hechas >= potencia then
 			break
+		end
+		if parcela:excavar(casilla.cx, casilla.cz) then
+			hechas = hechas + 1
 		end
 	end
 
@@ -474,6 +713,7 @@ local function paqueteDe(estado)
 		limpio = parcela and parcela:limpio() or 0,
 		capasPuerta = parcela and parcela.capasEnLaPuerta or A.nieve.capasMaximas,
 		bloqueado = estado.bloqueado == true,
+		cavando = estado.cavando == true,
 		hallazgos = hallazgos,
 	}
 end
@@ -499,22 +739,42 @@ local function alEntrar(jugador)
 		carga = 0,
 		nieveTotal = 0,
 		excavando = false,
+		cavando = false,
+		ultimoGolpe = 0,
 		-- De momento todos comparten la parcela 1. El dia que haya una por
 		-- jugador solo cambia esta linea: el excavador ya trabaja por id.
 		parcela = 1,
 	}
 
-	jugador.CharacterAdded:Connect(function(pers)
+	local function alAparecer(pers)
 		local humano = pers:WaitForChild("Humanoid", 8)
 		if humano then
 			humano.WalkSpeed = A.jugador.velocidad
 		end
-	end)
+		local estado = estados[jugador]
+		if estado then
+			estado.motor = nil
+			estado.emisor = nil
+			darPala(jugador, pers, estado)
+		end
+	end
+	jugador.CharacterAdded:Connect(alAparecer)
+	if jugador.Character then
+		task.spawn(alAparecer, jugador.Character)
+	end
 end
 
 local function alSalir(jugador)
 	estados[jugador] = nil
 end
+
+
+RemotoCavar.OnServerEvent:Connect(function(jugador, quiere)
+	local estado = estados[jugador]
+	if estado then
+		estado.cavando = quiere == true
+	end
+end)
 
 
 -------------------------------------------------------------------
@@ -539,7 +799,13 @@ local function ticJuego()
 		local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
 		if raiz then
 			estado.excavando = false
-			excavarPara(jugador, estado, raiz.Position)
+			-- Solo se cava si el jugador esta pulsando, y a golpes: una
+			-- palada cada tantos segundos, no un chorro continuo.
+			if estado.cavando and (os.clock() - (estado.ultimoGolpe or 0)) >= A.jugador.golpe then
+				estado.ultimoGolpe = os.clock()
+				excavarPara(jugador, estado, raiz.Position)
+				animarGolpe(estado)
+			end
 			descargarPara(jugador, estado, raiz.Position)
 		end
 	end

@@ -12,6 +12,7 @@ local RS = game:GetService("ReplicatedStorage")
 local remotos = RS:FindFirstChild("DesenterrarRemotos")
 local RemotoEstado = remotos:FindFirstChild("Estado")
 local RemotoAviso = remotos:FindFirstChild("Aviso")
+local RemotoCavar = remotos:FindFirstChild("Cavar")
 
 local carpeta = workspace:FindFirstChild("Desenterrar")
 
@@ -116,7 +117,11 @@ for _ = 1, 200 do
 		intentos = intentos + 1
 	end
 end
-comprobarIgual(intentos, 1, "insistiendo en una sola casilla solo se baja una capa: no hay pozo vertical")
+comprobarIgual(
+	intentos,
+	A.nieve.desnivelMaximo,
+	"insistiendo en una sola casilla se baja el desnivel permitido y ni una capa mas: no hay pozo vertical"
+)
 comprobar(peorDesnivel(pozo) <= A.nieve.desnivelMaximo, "y la pendiente sigue entera")
 
 -- Y en diagonal, que es por donde se colaba con cuatro vecinas.
@@ -129,7 +134,49 @@ comprobar(peorDesnivel(diagonal) <= A.nieve.desnivelMaximo, "tampoco por las dia
 
 
 -------------------------------------------------------------------
-titulo("SE EXCAVA, SE CARGA Y SE DESCARGA")
+titulo("LA CASA MERECE LA PENA")
+-------------------------------------------------------------------
+
+local casaGrupo = grupo:FindFirstChild("Casa")
+for _, pieza in ipairs({ "PorcheSuelo", "PorcheTejado", "Garaje", "GarajePuerta", "Caballete", "Corona", "Farol" }) do
+	comprobar(casaGrupo:FindFirstChild(pieza) ~= nil, "la casa tiene " .. pieza)
+end
+
+local pasos = 0
+local encendidas = 0
+local tejadoMasAlto = 0
+for _, pieza in ipairs(casaGrupo:GetChildren()) do
+	local nombre = pieza.Name
+	if string.sub(nombre, 1, 11) ~= "TejadoNieve" and string.sub(nombre, 1, 6) == "Tejado" then
+		pasos = pasos + 1
+	end
+	if string.sub(nombre, 1, 6) == "Tejado" or nombre == "Caballete" then
+		local arriba = pieza.Position.Y + pieza.Size.Y / 2
+		if arriba > tejadoMasAlto then
+			tejadoMasAlto = arriba
+		end
+	end
+end
+for _, pieza in ipairs(casaGrupo:GetDescendants()) do
+	if pieza.ClassName == "PointLight" then
+		encendidas = encendidas + 1
+	end
+end
+comprobarIgual(pasos, A.casa.pasosTejado, "y su cubierta inclinada a escalones")
+comprobar(encendidas >= 3, "con luces calidas encendidas dentro")
+
+-- Lo que asoma y lo que no al empezar: de esto depende que los hallazgos
+-- no sean mentira.
+local nieveGeneral = A.nieve.capasMaximas * A.nieve.capa
+comprobar(chimenea.Size.Y > nieveGeneral, "la chimenea asoma sobre la nevada")
+comprobar(
+	tejadoMasAlto < nieveGeneral,
+	"y el tejado NO asoma: si asomara, su hallazgo llegaria tarde y seria mentira"
+)
+
+
+-------------------------------------------------------------------
+titulo("CAVAR ES UNA ACCION, NO UN AUTOMATISMO")
 -------------------------------------------------------------------
 
 local ana = nuevoJugador("Ana")
@@ -141,7 +188,11 @@ avanzar(0.5)
 local e = estadoDe(ana)
 comprobar(e ~= nil, "el cliente recibe el estado")
 comprobarIgual(e.carga, 0, "empieza con la carretilla vacia")
-comprobarIgual(e.capasPuerta, A.nieve.capasMaximas, "y con la puerta enterrada del todo")
+comprobarIgual(
+	e.capasPuerta,
+	A.nieve.capasContraLaCasa,
+	"y el HUD nace con las capas REALES que hay delante de la puerta, sin saltos"
+)
 
 -- Al lado del hueco de salida hay nieve: se cava ahi.
 local parcela1 = nil
@@ -154,10 +205,23 @@ do
 	ana:Mover(x, 3, z)
 	parcela1 = { x = x, z = z }
 end
-avanzar(1.5)
+-- Quieto encima de la nieve y sin pulsar: no puede pasar nada.
+avanzar(2)
 e = estadoDe(ana)
-comprobar(e.carga > 0, "al andar por la nieve se excava")
+comprobarIgual(e.carga, 0, "quieto encima de la nieve NO se excava solo")
+
+RemotoCavar.OnServerEvent:Fire(ana, true)
+avanzar(2)
+e = estadoDe(ana)
+comprobar(e.carga > 0, "manteniendo pulsado si se excava")
 comprobar(rellenosDe("Air") > 0, "y se abre el terreno de verdad")
+
+RemotoCavar.OnServerEvent:Fire(ana, false)
+avanzar(0.5) -- que llegue un paquete fresco: el ultimo era de antes de soltar
+local alSoltar = estadoDe(ana).carga
+avanzar(2)
+comprobarIgual(estadoDe(ana).carga, alSoltar, "y al soltar, se para en seco")
+RemotoCavar.OnServerEvent:Fire(ana, true)
 
 -- Se llena y se descarga en el monton.
 for _ = 1, 60 do
@@ -188,7 +252,9 @@ titulo("NO SE PIERDE EL GOLPE")
 
 -- En medio de un hoyo ya nivelado no se puede bajar mas: hay que decirlo.
 local hoyo = parcelaDePrueba()
-hoyo:excavar(20, 20)
+for _ = 1, A.nieve.desnivelMaximo do
+	hoyo:excavar(20, 20)
+end
 comprobar(not hoyo:puedeExcavar(20, 20), "en el fondo del hoyo ya no se baja")
 comprobar(hoyo:puedeExcavar(21, 20), "pero al lado si: por ahi se ensancha")
 
