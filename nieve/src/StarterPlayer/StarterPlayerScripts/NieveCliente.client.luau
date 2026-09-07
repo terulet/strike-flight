@@ -650,11 +650,31 @@ end)
 --  AVISOS
 -------------------------------------------------------------------
 
-local sonidoVenta = nuevo("Sound", {
-	Name = "NieveVenta",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.45,
-}, Sonidos)
+-- Un Sound por cada aviso, montados una vez.
+local sonidos = {}
+for clave, def in pairs(A.sonidos) do
+	sonidos[clave] = nuevo("Sound", {
+		Name = "Nieve_" .. clave,
+		SoundId = def.id,
+		Volume = def.volumen or 0.5,
+		PlaybackSpeed = def.tono or 1,
+	}, Sonidos)
+end
+
+-- Un pelin de variacion en el tono, o repetido cansa enseguida.
+local function sonar(clave, variacion)
+	local sonido = sonidos[clave]
+	local def = A.sonidos[clave]
+	if not sonido or not def then
+		return
+	end
+	pcall(function()
+		if variacion then
+			sonido.PlaybackSpeed = (def.tono or 1) * (0.9 + math.random() * 0.2)
+		end
+		sonido:Play()
+	end)
+end
 
 local function aviso(texto, color)
 	if texto == nil or texto == "" then
@@ -788,6 +808,10 @@ end)
 
 local APAGADO = Color3.fromRGB(70, 78, 92)
 
+local cargaAnterior = 0
+local llenoAntes = false
+local ultimoRaspado = 0
+
 local function refrescar(datos)
 	local dinero = datos.dinero or 0
 	local multiplicador = math.floor(datos.multiplicador or 1)
@@ -799,6 +823,17 @@ local function refrescar(datos)
 	local capacidad = math.max(1, datos.capacidad or 1)
 	local carga = datos.carga or 0
 	local lleno = carga >= capacidad
+
+	-- Suena al barrer, no mas de cinco veces por segundo.
+	if carga > cargaAnterior and os.clock() - ultimoRaspado > 0.19 then
+		ultimoRaspado = os.clock()
+		sonar("pala", true)
+	end
+	if lleno and not llenoAntes then
+		sonar("lleno")
+	end
+	cargaAnterior = carga
+	llenoAntes = lleno
 	local ratio = math.clamp(carga / capacidad, 0, 1)
 	Tween:Create(barraCarga, TweenInfo.new(0.18), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
 	barraCarga.BackgroundColor3 = lleno and ROJO or ACENTO
@@ -883,33 +918,31 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 	end
 	if datos.tipo == "venta" then
 		aviso(string.format(T("vendido"), formatear(datos.cantidad or 0)), ORO)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("venta")
 	elseif datos.tipo == "texto" then
 		aviso(T(datos.clave), ROJO)
+		sonar("error")
 	elseif datos.tipo == "zona" then
 		aviso(nombreZona[datos.clave] or "", VERDE)
+		sonar("zona")
 	elseif datos.tipo == "mejora" then
 		aviso(
 			(nombreMejora[datos.clave] or "") .. " " .. string.format(T("nivel"), datos.nivel or 1),
 			ACENTO
 		)
+		sonar("mejora")
 	elseif datos.tipo == "diario" then
 		aviso(T("diario") .. "  +" .. formatear(datos.cantidad or 0), ORO)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("premio")
 		task.delay(1.4, function()
 			aviso(string.format(T("diarioRacha"), datos.racha or 1), VERDE)
 		end)
 	elseif datos.tipo == "codigo" then
 		aviso("+" .. formatear(datos.cantidad or 0), VERDE)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("premio")
 	elseif datos.tipo == "renacer" then
 		aviso(T("renacer") .. " x" .. tostring((datos.nivel or 0) + 1), ORO)
+		sonar("zona")
 	end
 end)
 

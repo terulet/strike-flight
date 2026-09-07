@@ -139,6 +139,7 @@ suelto en los otros dos archivos.
   Ajustes.mundo     cada cuanto vuelve a nevar
   Ajustes.renacer   el reinicio con premio
   Ajustes.diario    el premio de cada dia
+  Ajustes.sonidos   que suena y con que tono
   Ajustes.codigos   los codigos que se pueden canjear
 
 Cambias un numero, le das a PLAY y ya se ve. No

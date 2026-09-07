@@ -145,6 +145,29 @@ comprobar(textoDinero.Text ~= "0", "y el dinero ya no es cero")
 
 
 -------------------------------------------------------------------
+titulo("SUENA")
+-------------------------------------------------------------------
+
+local Sonidos = game:GetService("SoundService")
+
+for clave, def in pairs(A.sonidos) do
+	local sonido = Sonidos:FindFirstChild("Nieve_" .. clave)
+	comprobar(sonido ~= nil, "hay sonido de " .. clave)
+	if sonido then
+		comprobarIgual(sonido.SoundId, def.id, "y apunta a " .. def.id)
+		comprobar(
+			string.sub(def.id, 1, 11) == "rbxasset://",
+			"que viene dentro del cliente: no depende de ningun id de la biblioteca"
+		)
+	end
+end
+
+comprobar((Sonidos.Nieve_pala._veces or 0) > 0, "la pala ha raspado al recoger")
+comprobar((Sonidos.Nieve_lleno._veces or 0) > 0, "y ha avisado al llenarse la carretilla")
+comprobar((Sonidos.Nieve_venta._veces or 0) > 0, "y ha sonado la caja al vender")
+
+
+-------------------------------------------------------------------
 titulo("EL PANEL DE MEJORAS")
 -------------------------------------------------------------------
 

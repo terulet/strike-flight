@@ -216,6 +216,36 @@ Ajustes.renacer = {
 
 
 -------------------------------------------------------------------
+--  SONIDOS
+--
+--  Estos vienen DENTRO del cliente de Roblox (rbxasset://): no son ids
+--  de la biblioteca, no hay que subir nada, no se los puede llevar la
+--  moderacion y no fallan por permisos.
+--
+--  Son los que usa el propio script de personaje de Roblox, o sea que
+--  estan en todos los clientes hoy. No son sonidos de pala: son los de
+--  Roblox con el tono cambiado para que peguen. Un paso de plastico a la
+--  mitad de velocidad suena a raspar nieve; un chapoteo grave, a descargar
+--  la carretilla.
+--
+--  Si quieres unos de verdad: en Studio, Toolbox > Audio, buscas "shovel"
+--  o "snow", copias el id y lo pones aqui como "rbxassetid://123456789".
+--
+--  tono 1 = como es. Menos de 1 = mas grave. Mas de 1 = mas agudo.
+-------------------------------------------------------------------
+
+Ajustes.sonidos = {
+	pala = { id = "rbxasset://sounds/action_footsteps_plastic.mp3", tono = 0.5, volumen = 0.35 },
+	lleno = { id = "rbxasset://sounds/action_jump_land.mp3", tono = 1.5, volumen = 0.45 },
+	venta = { id = "rbxasset://sounds/impact_water.mp3", tono = 0.85, volumen = 0.6 },
+	mejora = { id = "rbxasset://sounds/action_jump.mp3", tono = 1.35, volumen = 0.5 },
+	zona = { id = "rbxasset://sounds/action_jump_land.mp3", tono = 0.7, volumen = 0.75 },
+	premio = { id = "rbxasset://sounds/impact_water.mp3", tono = 1.5, volumen = 0.65 },
+	error = { id = "rbxasset://sounds/action_get_up.mp3", tono = 0.9, volumen = 0.4 },
+}
+
+
+-------------------------------------------------------------------
 --  PASES (opcional, para cuando lo publiques)
 --
 --  Crea el pase en la web de Roblox, copia su id y pegalo aqui.
@@ -3299,11 +3329,31 @@ end)
 --  AVISOS
 -------------------------------------------------------------------
 
-local sonidoVenta = nuevo("Sound", {
-	Name = "NieveVenta",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.45,
-}, Sonidos)
+-- Un Sound por cada aviso, montados una vez.
+local sonidos = {}
+for clave, def in pairs(A.sonidos) do
+	sonidos[clave] = nuevo("Sound", {
+		Name = "Nieve_" .. clave,
+		SoundId = def.id,
+		Volume = def.volumen or 0.5,
+		PlaybackSpeed = def.tono or 1,
+	}, Sonidos)
+end
+
+-- Un pelin de variacion en el tono, o repetido cansa enseguida.
+local function sonar(clave, variacion)
+	local sonido = sonidos[clave]
+	local def = A.sonidos[clave]
+	if not sonido or not def then
+		return
+	end
+	pcall(function()
+		if variacion then
+			sonido.PlaybackSpeed = (def.tono or 1) * (0.9 + math.random() * 0.2)
+		end
+		sonido:Play()
+	end)
+end
 
 local function aviso(texto, color)
 	if texto == nil or texto == "" then
@@ -3437,6 +3487,10 @@ end)
 
 local APAGADO = Color3.fromRGB(70, 78, 92)
 
+local cargaAnterior = 0
+local llenoAntes = false
+local ultimoRaspado = 0
+
 local function refrescar(datos)
 	local dinero = datos.dinero or 0
 	local multiplicador = math.floor(datos.multiplicador or 1)
@@ -3448,6 +3502,17 @@ local function refrescar(datos)
 	local capacidad = math.max(1, datos.capacidad or 1)
 	local carga = datos.carga or 0
 	local lleno = carga >= capacidad
+
+	-- Suena al barrer, no mas de cinco veces por segundo.
+	if carga > cargaAnterior and os.clock() - ultimoRaspado > 0.19 then
+		ultimoRaspado = os.clock()
+		sonar("pala", true)
+	end
+	if lleno and not llenoAntes then
+		sonar("lleno")
+	end
+	cargaAnterior = carga
+	llenoAntes = lleno
 	local ratio = math.clamp(carga / capacidad, 0, 1)
 	Tween:Create(barraCarga, TweenInfo.new(0.18), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
 	barraCarga.BackgroundColor3 = lleno and ROJO or ACENTO
@@ -3532,33 +3597,31 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 	end
 	if datos.tipo == "venta" then
 		aviso(string.format(T("vendido"), formatear(datos.cantidad or 0)), ORO)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("venta")
 	elseif datos.tipo == "texto" then
 		aviso(T(datos.clave), ROJO)
+		sonar("error")
 	elseif datos.tipo == "zona" then
 		aviso(nombreZona[datos.clave] or "", VERDE)
+		sonar("zona")
 	elseif datos.tipo == "mejora" then
 		aviso(
 			(nombreMejora[datos.clave] or "") .. " " .. string.format(T("nivel"), datos.nivel or 1),
 			ACENTO
 		)
+		sonar("mejora")
 	elseif datos.tipo == "diario" then
 		aviso(T("diario") .. "  +" .. formatear(datos.cantidad or 0), ORO)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("premio")
 		task.delay(1.4, function()
 			aviso(string.format(T("diarioRacha"), datos.racha or 1), VERDE)
 		end)
 	elseif datos.tipo == "codigo" then
 		aviso("+" .. formatear(datos.cantidad or 0), VERDE)
-		pcall(function()
-			sonidoVenta:Play()
-		end)
+		sonar("premio")
 	elseif datos.tipo == "renacer" then
 		aviso(T("renacer") .. " x" .. tostring((datos.nivel or 0) + 1), ORO)
+		sonar("zona")
 	end
 end)
 

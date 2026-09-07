@@ -523,7 +523,9 @@ local function crearInstancia(clase)
 		return rawget(self, "_pivote") or CFrame.new(0, 0, 0)
 	end
 
-	function obj:Play() end
+	function obj:Play()
+		rawset(self, "_veces", (rawget(self, "_veces") or 0) + 1)
+	end
 	function obj:Stop() end
 
 	return setmetatable(obj, metaInstancia)

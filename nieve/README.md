@@ -178,6 +178,37 @@ transparencia sale más barato y no se puede torcer.
 
 La nieve que salta al barrer sale de la hoja de la pala, no del cuerpo.
 
+## Suena
+
+Raspar la pala al barrer, el aviso de carretilla llena, el golpe seco de
+descargarla en el camión, la puerta que se abre. Sin eso, barrer es mover
+un muñeco por una pantalla.
+
+Y no hay ni un audio subido: todos son **sonidos que vienen dentro del
+cliente de Roblox** (`rbxasset://`), los mismos que usa su propio script de
+personaje. Ventaja: existen en todos los clientes hoy, no hay nada que
+subir, no dependen de un id de la biblioteca y no se los puede llevar la
+moderación. Inconveniente: no son sonidos de pala.
+
+Así que están doblados a base de tono. Un paso de plástico a media
+velocidad suena a raspar nieve; un chapoteo grave, a descargar la
+carretilla; el mismo chapoteo agudo, a premio.
+
+| Cuándo | Qué suena | Tono |
+|---|---|---|
+| barriendo | `action_footsteps_plastic` | 0,5 |
+| carretilla llena | `action_jump_land` | 1,5 |
+| vender | `impact_water` | 0,85 |
+| mejora comprada | `action_jump` | 1,35 |
+| zona abierta | `action_jump_land` | 0,7 |
+| premio o código | `impact_water` | 1,5 |
+
+El raspado lleva freno (cinco por segundo como mucho) y un poco de
+variación de tono, que repetido igual cansa en treinta segundos.
+
+Cambiarlos por unos de verdad es una línea en `Ajustes.sonidos`: en
+Studio, Toolbox → Audio, copias el id y lo pones como `rbxassetid://…`.
+
 ## La guía: los primeros diez segundos
 
 Un juego de estos se pierde antes del primer minuto. Si no sabes qué
@@ -271,7 +302,7 @@ pantalla.
 
 ```bash
 node nieve/herramientas/probar.mjs           # 102 comprobaciones del servidor
-node nieve/herramientas/probar.mjs cliente   # 53 del HUD, ejecutado
+node nieve/herramientas/probar.mjs cliente   # 77 del HUD, ejecutado
 node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
 
@@ -302,7 +333,7 @@ Studio.
 ## Qué está probado y qué no
 
 **Probado, ejecutando el código:** toda la lógica de arriba y el HUD
-entero — 155 comprobaciones en verde entre servidor y cliente — más el
+entero — 179 comprobaciones en verde entre servidor y cliente — más el
 análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede

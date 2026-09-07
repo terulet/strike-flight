@@ -192,6 +192,36 @@ Ajustes.renacer = {
 
 
 -------------------------------------------------------------------
+--  SONIDOS
+--
+--  Estos vienen DENTRO del cliente de Roblox (rbxasset://): no son ids
+--  de la biblioteca, no hay que subir nada, no se los puede llevar la
+--  moderacion y no fallan por permisos.
+--
+--  Son los que usa el propio script de personaje de Roblox, o sea que
+--  estan en todos los clientes hoy. No son sonidos de pala: son los de
+--  Roblox con el tono cambiado para que peguen. Un paso de plastico a la
+--  mitad de velocidad suena a raspar nieve; un chapoteo grave, a descargar
+--  la carretilla.
+--
+--  Si quieres unos de verdad: en Studio, Toolbox > Audio, buscas "shovel"
+--  o "snow", copias el id y lo pones aqui como "rbxassetid://123456789".
+--
+--  tono 1 = como es. Menos de 1 = mas grave. Mas de 1 = mas agudo.
+-------------------------------------------------------------------
+
+Ajustes.sonidos = {
+	pala = { id = "rbxasset://sounds/action_footsteps_plastic.mp3", tono = 0.5, volumen = 0.35 },
+	lleno = { id = "rbxasset://sounds/action_jump_land.mp3", tono = 1.5, volumen = 0.45 },
+	venta = { id = "rbxasset://sounds/impact_water.mp3", tono = 0.85, volumen = 0.6 },
+	mejora = { id = "rbxasset://sounds/action_jump.mp3", tono = 1.35, volumen = 0.5 },
+	zona = { id = "rbxasset://sounds/action_jump_land.mp3", tono = 0.7, volumen = 0.75 },
+	premio = { id = "rbxasset://sounds/impact_water.mp3", tono = 1.5, volumen = 0.65 },
+	error = { id = "rbxasset://sounds/action_get_up.mp3", tono = 0.9, volumen = 0.4 },
+}
+
+
+-------------------------------------------------------------------
 --  PASES (opcional, para cuando lo publiques)
 --
 --  Crea el pase en la web de Roblox, copia su id y pegalo aqui.
