@@ -51,9 +51,19 @@ Ajustes.idiomaFijo = nil
 -------------------------------------------------------------------
 
 Ajustes.mundo = {
-	celda = 4,            -- studs de lado por defecto (cada zona puede pisarlo)
+	-- LA NIEVE ES TERRENO DE ROBLOX, no piezas. Es lo unico que se ve
+	-- como una capa de nieve de verdad: continua, con volumen, y se
+	-- puede excavar. Ademas no cuesta ni una pieza del presupuesto.
+	--
+	-- Ponlo en false y vuelve a la nieve hecha de piezas (mas fea, pero
+	-- si el terreno diera guerra ahi esta).
+	nieveTerreno = true,
+	grosorNieve = 2.5,    -- lo que levanta la capa sobre el suelo
+
+	-- El terreno va en cubos de 4 studs: la casilla tiene que ser 4.
+	celda = 4,
 	alturaNieve = 1,      -- grosor del bloque
-	separacion = 26,      -- calle entre una zona y la siguiente
+	separacion = 28,      -- calle entre zonas (multiplo de 4: lo pide el terreno)
 	alturaValla = 16,     -- alto de las puertas y del vallado
 
 	-- Cada bloque recogido vuelve a nevar pasados estos segundos.
@@ -132,9 +142,9 @@ Ajustes.mejoras = {
 --  LAS ZONAS
 --
 --  ancho y largo van en casillas, no en studs
---  celda  = lo que mide de lado una casilla, en studs. Crece con la
---           zona: asi la parcela es mucho mas grande sin poner mas
---           piezas, y da tiempo a que vuelva a nevar donde ya pasaste
+--  La casilla es de 4 studs en todas: es el cubo del terreno. Las zonas
+--  de despues son mas grandes a base de MAS casillas, que ahora salen
+--  gratis en piezas
 --  suelo/material = lo que queda A LA VISTA cuando quitas la nieve. Es
 --           media gracia del juego: no descubres hormigon, descubres
 --           cesped, el agua de la piscina o la pista de tenis
@@ -145,7 +155,6 @@ Ajustes.mejoras = {
 Ajustes.zonas = {
 	{
 		clave = "entrada",
-		celda = 4,
 		ancho = 20, largo = 14,
 		valor = 1,
 		precio = 0,
@@ -156,7 +165,6 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "jardin",
-		celda = 4,
 		ancho = 24, largo = 16,
 		valor = 6,
 		precio = 500,
@@ -167,9 +175,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "piscina",
-		celda = 5,
-		ancho = 28, largo = 20,
-		valor = 34,
+		ancho = 36, largo = 26,
+		valor = 20,
 		precio = 7000,
 		nombre = { es = "LA PISCINA", en = "THE POOL" },
 		suelo = Color3.fromRGB(228, 216, 196),
@@ -178,9 +185,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "tenis",
-		celda = 6,
-		ancho = 32, largo = 22,
-		valor = 165,
+		ancho = 48, largo = 32,
+		valor = 90,
 		precio = 70000,
 		nombre = { es = "LA PISTA DE TENIS", en = "THE TENNIS COURT" },
 		suelo = Color3.fromRGB(52, 104, 154),
@@ -189,9 +195,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "bosque",
-		celda = 7,
-		ancho = 36, largo = 24,
-		valor = 1050,
+		ancho = 64, largo = 42,
+		valor = 420,
 		precio = 380000,
 		nombre = { es = "EL BOSQUE", en = "THE WOODS" },
 		suelo = Color3.fromRGB(122, 106, 88),
@@ -475,6 +480,11 @@ local A = require(RS:WaitForChild("AjustesNieve"))
 
 local aleatorio = Random.new(20260906)
 
+local Terreno = workspace.Terrain
+local CON_TERRENO = A.mundo.nieveTerreno == true
+local BASE_NIEVE = 0.4                  -- lo alto que queda la parcela
+local GROSOR = A.mundo.grosorNieve
+
 
 -------------------------------------------------------------------
 --  UTILIDADES
@@ -577,6 +587,11 @@ local mundo = {
 }
 
 local function limpiarPlantilla()
+	if CON_TERRENO then
+		pcall(function()
+			Terreno:Clear()
+		end)
+	end
 	for _, obj in ipairs(workspace:GetChildren()) do
 		if obj.Name == "Baseplate" or obj.Name == "Nieve" then
 			obj:Destroy()
@@ -822,6 +837,33 @@ local function construirSuelo()
 	}, mundo.carpeta)
 end
 
+-- Un cubo de nieve del terreno, puesto o quitado. Al quitar se pide un
+-- poco mas de sitio del que se lleno, o quedan restos en los bordes.
+local function nieveEn(x, z, poner)
+	if poner then
+		Terreno:FillBlock(
+			CFrame.new(x, BASE_NIEVE + GROSOR / 2, z),
+			Vector3.new(A.mundo.celda, GROSOR, A.mundo.celda),
+			Enum.Material.Snow
+		)
+	else
+		Terreno:FillBlock(
+			CFrame.new(x, BASE_NIEVE + GROSOR / 2, z),
+			Vector3.new(A.mundo.celda + 0.2, GROSOR + 2, A.mundo.celda + 0.2),
+			Enum.Material.Air
+		)
+	end
+end
+
+-- Pinta una casilla como puesta o recogida, sea terreno o pieza.
+local function pintarCasilla(casilla, hayNieve)
+	if CON_TERRENO then
+		nieveEn(casilla.x, casilla.z, hayNieve)
+	elseif casilla.parte then
+		casilla.parte.Transparency = hayNieve and 0 or 1
+	end
+end
+
 local function construirNieve(zona, padre)
 	local celda = zona.celda
 	local carpetaNieve = Instance.new("Folder")
@@ -838,29 +880,29 @@ local function construirNieve(zona, padre)
 				continue
 			end
 
-			-- Un cubo parece una baldosa. Un elipsoide mas ancho que la
-			-- casilla, girado y movido un poco, se solapa con los vecinos
-			-- y lo que se ve es un manto con bultos: nieve, no suelo.
-			-- Bajo y MUY ancho: asi cada monton pisa a sus cuatro vecinos y
-			-- lo que se ve es una costra continua con bultos. Alto y
-			-- estrecho se leen como huevos sueltos, que es lo que pasaba.
-			local ancho = celda * (1.5 + aleatorio:NextNumber() * 0.3)
-			local altura = A.mundo.alturaNieve
-				* math.sqrt(celda / 4)
-				* (0.5 + aleatorio:NextNumber() * 0.55)
-			local desvioX = (aleatorio:NextNumber() - 0.5) * celda * 0.36
-			local desvioZ = (aleatorio:NextNumber() - 0.5) * celda * 0.36
-			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
-
-			local bloque = parte({
-				Name = "n",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(ancho, altura, ancho * (0.88 + aleatorio:NextNumber() * 0.24)),
-				CFrame = CFrame.new(px + desvioX, 0.4 + altura * 0.16, pz + desvioZ)
-					* CFrame.Angles(0, aleatorio:NextNumber() * math.pi, 0),
-				Color = Color3.fromRGB(tono - 8, tono - 3, tono),
-				Material = Enum.Material.Snow,
-			}, carpetaNieve)
+			local bloque = nil
+			if not CON_TERRENO then
+				-- Camino de repuesto. OJO: una pieza con Shape=Ball se
+				-- dibuja como esfera del eje MAS PEQUENO, asi que para
+				-- una cupula ancha y plana hace falta una malla.
+				local ancho = celda * (1.5 + aleatorio:NextNumber() * 0.3)
+				local altura = A.mundo.alturaNieve * (0.5 + aleatorio:NextNumber() * 0.55)
+				local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
+				bloque = parte({
+					Name = "n",
+					Size = Vector3.new(ancho, altura, ancho * (0.88 + aleatorio:NextNumber() * 0.24)),
+					CFrame = CFrame.new(
+						px + (aleatorio:NextNumber() - 0.5) * celda * 0.36,
+						BASE_NIEVE + altura * 0.16,
+						pz + (aleatorio:NextNumber() - 0.5) * celda * 0.36
+					) * CFrame.Angles(0, aleatorio:NextNumber() * math.pi, 0),
+					Color = Color3.fromRGB(tono - 8, tono - 3, tono),
+					Material = Enum.Material.Snow,
+				}, carpetaNieve)
+				local malla = Instance.new("SpecialMesh")
+				malla.MeshType = Enum.MeshType.Sphere
+				malla.Parent = bloque
+			end
 
 			local casilla = {
 				parte = bloque,
@@ -873,11 +915,29 @@ local function construirNieve(zona, padre)
 			zona.casillas[#zona.casillas + 1] = casilla
 
 			hechas = hechas + 1
-			if hechas % 400 == 0 then
+			if hechas % 600 == 0 then
 				task.wait()
 			end
 		end
 	end
+
+	-- Con terreno se nieva la parcela entera de una vez y luego se
+	-- destapan los huecos del decorado: son dos ordenes en vez de miles.
+	if CON_TERRENO then
+		Terreno:FillBlock(
+			CFrame.new(zona.centroX, BASE_NIEVE + GROSOR / 2, (zona.z0 + zona.z1) / 2),
+			Vector3.new(zona.x1 - zona.x0, GROSOR, zona.z1 - zona.z0),
+			Enum.Material.Snow
+		)
+		for _, h in ipairs(zona.huecos) do
+			Terreno:FillBlock(
+				CFrame.new((h.x0 + h.x1) / 2, BASE_NIEVE + GROSOR / 2, (h.z0 + h.z1) / 2),
+				Vector3.new(h.x1 - h.x0, GROSOR + 2, h.z1 - h.z0),
+				Enum.Material.Air
+			)
+		end
+	end
+
 	-- El total es lo que se ha puesto de verdad, no ancho por largo: los
 	-- huecos del decorado no cuentan para el "% limpio".
 	zona.total = #zona.casillas
@@ -1561,6 +1621,7 @@ local function construirMundo()
 		-- El decorado primero: es quien dice donde NO va nieve.
 		decorarZona(zona, grupo)
 		construirNieve(zona, grupo)
+		grupo:SetAttribute("casillas", zona.total)
 		construirCamion(zona, grupo)
 		sombrasEnDecorado(grupo)
 	end
@@ -2531,7 +2592,7 @@ local function recoger(jugador, estado, pos)
 					local dz = casilla.z - pos.Z
 					if dx * dx + dz * dz <= radio2 then
 						casilla.activa = false
-						casilla.parte.Transparency = 1
+						pintarCasilla(casilla, false)
 						casilla.vuelveEn = vuelveEn
 						zona.activas = zona.activas - 1
 						cogidas = cogidas + 1
@@ -2736,7 +2797,7 @@ local function ticNieve()
 		for _, casilla in ipairs(zona.casillas) do
 			if not casilla.activa and casilla.vuelveEn <= ahora then
 				casilla.activa = true
-				casilla.parte.Transparency = 0
+				pintarCasilla(casilla, true)
 				zona.activas = zona.activas + 1
 				devueltas = devueltas + 1
 				if devueltas >= A.mundo.maxRegresoPorTanda then

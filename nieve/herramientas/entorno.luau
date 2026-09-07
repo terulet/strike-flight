@@ -559,6 +559,36 @@ end
 workspace = crearInstancia("Workspace")
 workspace.Name = "Workspace"
 workspace.CurrentCamera = crearInstancia("Camera")
+
+-- El terreno de Roblox, lo justo para poder comprobar que se nieva y se
+-- excava donde toca. Se apunta cada orden para poder mirarla luego.
+RELLENOS = {}
+local terreno = crearInstancia("Terrain")
+terreno.Name = "Terrain"
+function terreno:Clear()
+	RELLENOS = {}
+end
+function terreno:FillBlock(marco, tam, material)
+	RELLENOS[#RELLENOS + 1] = {
+		x = marco and marco.Position and marco.Position.X or 0,
+		y = marco and marco.Position and marco.Position.Y or 0,
+		z = marco and marco.Position and marco.Position.Z or 0,
+		tam = tam,
+		material = material and material.Name or "?",
+	}
+end
+function terreno:ReplaceMaterial() end
+terreno.Parent = workspace
+
+function rellenosDe(material)
+	local total = 0
+	for _, orden in ipairs(RELLENOS) do
+		if orden.material == material then
+			total = total + 1
+		end
+	end
+	return total
+end
 -- En Roblox la camara SIEMPRE tiene CFrame; sin esto el codigo que la
 -- sigue peta aqui y no alli, que es justo lo contrario de lo que quiero.
 workspace.CurrentCamera.CFrame = CFrame.new(0, 20, 0)

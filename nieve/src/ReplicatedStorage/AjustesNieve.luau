@@ -27,9 +27,19 @@ Ajustes.idiomaFijo = nil
 -------------------------------------------------------------------
 
 Ajustes.mundo = {
-	celda = 4,            -- studs de lado por defecto (cada zona puede pisarlo)
+	-- LA NIEVE ES TERRENO DE ROBLOX, no piezas. Es lo unico que se ve
+	-- como una capa de nieve de verdad: continua, con volumen, y se
+	-- puede excavar. Ademas no cuesta ni una pieza del presupuesto.
+	--
+	-- Ponlo en false y vuelve a la nieve hecha de piezas (mas fea, pero
+	-- si el terreno diera guerra ahi esta).
+	nieveTerreno = true,
+	grosorNieve = 2.5,    -- lo que levanta la capa sobre el suelo
+
+	-- El terreno va en cubos de 4 studs: la casilla tiene que ser 4.
+	celda = 4,
 	alturaNieve = 1,      -- grosor del bloque
-	separacion = 26,      -- calle entre una zona y la siguiente
+	separacion = 28,      -- calle entre zonas (multiplo de 4: lo pide el terreno)
 	alturaValla = 16,     -- alto de las puertas y del vallado
 
 	-- Cada bloque recogido vuelve a nevar pasados estos segundos.
@@ -108,9 +118,9 @@ Ajustes.mejoras = {
 --  LAS ZONAS
 --
 --  ancho y largo van en casillas, no en studs
---  celda  = lo que mide de lado una casilla, en studs. Crece con la
---           zona: asi la parcela es mucho mas grande sin poner mas
---           piezas, y da tiempo a que vuelva a nevar donde ya pasaste
+--  La casilla es de 4 studs en todas: es el cubo del terreno. Las zonas
+--  de despues son mas grandes a base de MAS casillas, que ahora salen
+--  gratis en piezas
 --  suelo/material = lo que queda A LA VISTA cuando quitas la nieve. Es
 --           media gracia del juego: no descubres hormigon, descubres
 --           cesped, el agua de la piscina o la pista de tenis
@@ -121,7 +131,6 @@ Ajustes.mejoras = {
 Ajustes.zonas = {
 	{
 		clave = "entrada",
-		celda = 4,
 		ancho = 20, largo = 14,
 		valor = 1,
 		precio = 0,
@@ -132,7 +141,6 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "jardin",
-		celda = 4,
 		ancho = 24, largo = 16,
 		valor = 6,
 		precio = 500,
@@ -143,9 +151,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "piscina",
-		celda = 5,
-		ancho = 28, largo = 20,
-		valor = 34,
+		ancho = 36, largo = 26,
+		valor = 20,
 		precio = 7000,
 		nombre = { es = "LA PISCINA", en = "THE POOL" },
 		suelo = Color3.fromRGB(228, 216, 196),
@@ -154,9 +161,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "tenis",
-		celda = 6,
-		ancho = 32, largo = 22,
-		valor = 165,
+		ancho = 48, largo = 32,
+		valor = 90,
 		precio = 70000,
 		nombre = { es = "LA PISTA DE TENIS", en = "THE TENNIS COURT" },
 		suelo = Color3.fromRGB(52, 104, 154),
@@ -165,9 +171,8 @@ Ajustes.zonas = {
 	},
 	{
 		clave = "bosque",
-		celda = 7,
-		ancho = 36, largo = 24,
-		valor = 1050,
+		ancho = 64, largo = 42,
+		valor = 420,
 		precio = 380000,
 		nombre = { es = "EL BOSQUE", en = "THE WOODS" },
 		suelo = Color3.fromRGB(122, 106, 88),

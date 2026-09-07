@@ -73,7 +73,7 @@ jardín, los pinos, la piscina y la red de tenis dejan huecos sin nieve, y
 se barre a su alrededor. Cuesta un 20% de la nieve de cada parcela — que
 se compensa subiendo lo que vale cada bloque, no metiendo más piezas.
 
-El mapa entero son **3.147 piezas**, techo puesto en la prueba para que no
+El mapa entero son **816 piezas**, techo puesto en la prueba para que no
 se dispare: esto tiene que ir en un móvil.
 
 ### Por qué la casilla crece con la zona
@@ -158,6 +158,28 @@ se note bien, no mal.
 
 Es la alternativa barata a darle a cada jugador su propia parcela, que es
 lo que hacen los grandes y multiplica por veinte las piezas del mapa.
+
+## La nieve es TERRENO, no piezas
+
+Una alfombra de piezas no parece nieve por mucho que se retoque, y el
+intento anterior lo demostró de la peor manera: una pieza con `Shape =
+Ball` se dibuja como **esfera del eje más pequeño**, así que pedir
+`(6,5 × 1 × 6,5)` esperando una cúpula ancha daba una bolita de 1 stud. El
+suelo quedaba sembrado de guijarros.
+
+Ahora la nieve es **terreno de Roblox** con material Snow. Es continua,
+tiene volumen, se excava de verdad y —lo que no es poca cosa— **no gasta
+ni una pieza**: el mapa pasa de 3.147 piezas a **816**.
+
+El terreno va en cubos de 4 studs, así que la casilla vuelve a ser de 4 en
+todas las zonas y las de después son más grandes a base de más casillas,
+que ahora salen gratis. La parcela entera se nieva con una sola orden y
+luego se destapan los huecos del decorado; durante la partida solo se
+excava la casilla que se recoge.
+
+Queda el camino viejo por si el terreno diera guerra
+(`Ajustes.mundo.nieveTerreno = false`), ya con la malla que le faltaba
+para que las cúpulas sean cúpulas.
 
 ## Que la nieve parezca nieve
 
@@ -344,7 +366,7 @@ los paquetes de verdad, así que se puede comprobar lo que acaba escrito en
 pantalla.
 
 ```bash
-node nieve/herramientas/probar.mjs           # 111 comprobaciones del servidor
+node nieve/herramientas/probar.mjs           # 114 comprobaciones del servidor
 node nieve/herramientas/probar.mjs cliente   # 77 del HUD, ejecutado
 node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
@@ -376,7 +398,7 @@ Studio.
 ## Qué está probado y qué no
 
 **Probado, ejecutando el código:** toda la lógica de arriba y el HUD
-entero — 188 comprobaciones en verde entre servidor y cliente — más el
+entero — 191 comprobaciones en verde entre servidor y cliente — más el
 análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede

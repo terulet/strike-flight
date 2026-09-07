@@ -136,10 +136,9 @@ end
 local totalBloques = 0
 for _, def in ipairs(A.zonas) do
 	local grupo = carpeta:FindFirstChild(def.clave)
-	local nieve = grupo and grupo:FindFirstChild("Nieve")
-	if nieve then
-		totalBloques = totalBloques + #nieve:GetChildren()
-	end
+	-- Con la nieve hecha de terreno no hay una pieza por casilla, asi que
+	-- cada zona publica cuantas casillas tiene.
+	totalBloques = totalBloques + (grupo and grupo:GetAttribute("casillas") or 0)
 end
 comprobar(totalBloques < totalEsperado, "el decorado deja huecos sin nieve (la mesa, la piscina, los arboles)")
 comprobar(
@@ -163,6 +162,9 @@ comprobarIgual(puertas and #puertas:GetChildren() or 0, #A.zonas - 1, "una puert
 
 local salida = carpeta:FindFirstChild("Salida")
 comprobar(salida ~= nil and salida.ClassName == "SpawnLocation", "hay sitio donde aparecer")
+
+comprobar(rellenosDe("Snow") >= #A.zonas, "se ha nevado cada parcela con terreno, no con piezas")
+comprobar(rellenosDe("Air") > 0, "y se han destapado los huecos del decorado")
 
 for _, def in ipairs(A.zonas) do
 	local grupo = carpeta:FindFirstChild(def.clave)
@@ -233,10 +235,12 @@ titulo("RECOGER NIEVE")
 -------------------------------------------------------------------
 
 local dineroAlEntrar = e.dinero
+local aireAntes = rellenosDe("Air")
 ana:Mover(S1.centroX, 3, S1.centroZ)
 avanzar(0.6)
 e = estadoDe(ana)
 comprobar(e.carga > 0, "al pisar la nieve, se recoge")
+comprobar(rellenosDe("Air") > aireAntes, "y se excava el terreno de verdad donde pisa")
 
 barrer(ana, 1, 40)
 e = estadoDe(ana)
@@ -245,15 +249,7 @@ comprobarIgual(e.dinero, dineroAlEntrar, "recoger no da dinero: hay que venderla
 comprobar(e.valor > 0, "la carga vale algo")
 
 -- La nieve pisada desaparece de verdad.
-local grupo1 = carpeta:FindFirstChild(A.zonas[1].clave)
-local nieve1 = grupo1:FindFirstChild("Nieve")
-local invisibles = 0
-for _, bloque in ipairs(nieve1:GetChildren()) do
-	if bloque.Transparency == 1 then
-		invisibles = invisibles + 1
-	end
-end
-comprobar(invisibles > 0, "los bloques recogidos se quitan de la vista")
+comprobar(estadoDe(ana).limpio > 0, "y la parcela empieza a contar como limpia")
 
 -- Con carga encima, el monton de la carretilla tiene que verse.
 comprobar(
@@ -410,23 +406,11 @@ comprobar(e.valor >= e.carga * A.zonas[2].valor, "y cada bloque vale mas que en 
 titulo("LA NIEVE VUELVE")
 -------------------------------------------------------------------
 
-local grupo2 = carpeta:FindFirstChild(A.zonas[2].clave)
-local nieve2 = grupo2:FindFirstChild("Nieve")
-local function contarQuitados()
-	local n = 0
-	for _, bloque in ipairs(nieve2:GetChildren()) do
-		if bloque.Transparency == 1 then
-			n = n + 1
-		end
-	end
-	return n
-end
-
-local quitadosAntes = contarQuitados()
-comprobar(quitadosAntes > 0, "hay huecos en la acera")
+local limpioAntes = estadoDe(ana).limpio
+comprobar(limpioAntes > 0, "el jardin tiene trozos limpios")
 ana:Mover(S2.centroX, 3, S2.ventaZ + 40)
 avanzar(A.mundo.regreso + 15)
-comprobar(contarQuitados() < quitadosAntes, "pasado un rato vuelve a nevar")
+comprobar(estadoDe(ana).limpio < limpioAntes, "pasado un rato vuelve a nevar")
 
 
 -------------------------------------------------------------------
