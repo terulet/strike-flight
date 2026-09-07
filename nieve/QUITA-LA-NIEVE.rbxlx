@@ -1,0 +1,2837 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+  <Item class="Workspace" referent="RBX0">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+  <Item class="Lighting" referent="RBX1">
+    <Properties>
+      <string name="Name">Lighting</string>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="RBX2">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="ModuleScript" referent="RBX3">
+      <Properties>
+        <string name="Name">AjustesNieve</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	AJUSTES  —  ¡QUITA TODA LA NIEVE!  /  SHOVEL ALL THE SNOW!
+
+	Todo lo que se toca esta aqui. Los otros dos archivos no llevan
+	ni un numero suelto: leen de esta tabla.
+
+	Cambias un numero, le das a jugar, y ya se ve. No hay que compilar
+	nada ni tocar el resto del codigo.
+
+	Este archivo va en:  ReplicatedStorage  (ModuleScript, nombre "AjustesNieve")
+]]
+
+local Ajustes = {}
+
+Ajustes.version = "1.0.0"
+
+-- Nombre que sale en el cartel de la entrada.
+Ajustes.titulo = { es = "¡QUITA TODA LA NIEVE!", en = "SHOVEL ALL THE SNOW!" }
+
+-- El idioma se saca del jugador (español o ingles). Pon "es" o "en" aqui
+-- para forzarlo siempre a uno.
+Ajustes.idiomaFijo = nil
+
+
+-------------------------------------------------------------------
+--  EL MUNDO
+-------------------------------------------------------------------
+
+Ajustes.mundo = {
+	celda = 4,            -- studs de lado por defecto (cada zona puede pisarlo)
+	alturaNieve = 1,      -- grosor del bloque
+	separacion = 26,      -- calle entre una zona y la siguiente
+	alturaValla = 16,     -- alto de las puertas y del vallado
+
+	-- Cada bloque recogido vuelve a nevar pasados estos segundos.
+	-- Con gente el mapa se queda pelado, asi que la nieve vuelve mas
+	-- rapido cuanta mas gente hay (ver regresoMinimo).
+	regreso = 40,
+	regresoPorJugador = 6,   -- divisor: 40s con 1 jugador, ~9s con 20
+	regresoMinimo = 8,
+	maxRegresoPorTanda = 120, -- bloques que vuelven por segundo, como mucho
+}
+
+
+-------------------------------------------------------------------
+--  EL JUGADOR
+-------------------------------------------------------------------
+
+Ajustes.jugador = {
+	tic = 0.1,              -- cada cuanto se mira si hay nieve debajo
+
+	radioBase = 5.5,        -- lo ancho que barre la pala, en studs
+	radioPorNivel = 0.75,
+
+	potenciaBase = 1,       -- bloques por tic (10 por segundo con tic 0.1)
+	potenciaPorNivel = 1,
+
+	capacidadBase = 30,     -- bloques que caben antes de ir a vender
+	capacidadPorNivel = 20,
+
+	velocidadBase = 16,     -- lo normal de Roblox
+	velocidadPorNivel = 1.3,
+
+	radioVenta = 11,        -- cerca del camion se vende solo
+	alturaMaxima = 14,      -- si vuelas por encima de esto, no recoges
+}
+
+
+-------------------------------------------------------------------
+--  LAS MEJORAS
+--
+--  precio = lo que cuesta pasar del nivel 1 al 2
+--  factor = cuanto se multiplica cada nivel siguiente
+-------------------------------------------------------------------
+
+Ajustes.mejoras = {
+	{
+		clave = "pala",
+		niveles = 15,
+		precio = 40,
+		factor = 2.0,
+		nombre = { es = "PALA", en = "SHOVEL" },
+		desc = { es = "barre mas ancho y mas rapido", en = "wider and faster scoop" },
+		color = Color3.fromRGB(120, 205, 255),
+	},
+	{
+		clave = "carretilla",
+		niveles = 15,
+		precio = 30,
+		factor = 2.0,
+		nombre = { es = "CARRETILLA", en = "WHEELBARROW" },
+		desc = { es = "cabe mas nieve, menos viajes", en = "more snow, fewer trips" },
+		color = Color3.fromRGB(255, 208, 92),
+	},
+	{
+		clave = "botas",
+		niveles = 10,
+		precio = 100,
+		factor = 2.3,
+		nombre = { es = "BOTAS", en = "BOOTS" },
+		desc = { es = "andas mas rapido", en = "you walk faster" },
+		color = Color3.fromRGB(150, 240, 170),
+	},
+}
+
+
+-------------------------------------------------------------------
+--  LAS ZONAS
+--
+--  ancho y largo van en casillas, no en studs
+--  celda  = lo que mide de lado una casilla, en studs. Crece con la
+--           zona: asi la parcela es mucho mas grande sin poner mas
+--           piezas, y da tiempo a que vuelva a nevar donde ya pasaste
+--  valor  = lo que vale cada bloque de nieve de esa zona
+--  precio = lo que cuesta abrir la puerta
+-------------------------------------------------------------------
+
+Ajustes.zonas = {
+	{
+		clave = "entrada",
+		celda = 4,
+		ancho = 20, largo = 14,
+		valor = 1,
+		precio = 0,
+		nombre = { es = "TU ENTRADA", en = "YOUR DRIVEWAY" },
+		suelo = Color3.fromRGB(104, 104, 112),
+		decorado = "casa",
+	},
+	{
+		clave = "acera",
+		celda = 4,
+		ancho = 24, largo = 16,
+		valor = 5,
+		precio = 500,
+		nombre = { es = "LA ACERA", en = "THE SIDEWALK" },
+		suelo = Color3.fromRGB(150, 150, 158),
+		decorado = "farolas",
+	},
+	{
+		clave = "parque",
+		celda = 5,
+		ancho = 28, largo = 20,
+		valor = 25,
+		precio = 8000,
+		nombre = { es = "EL PARQUE", en = "THE PARK" },
+		suelo = Color3.fromRGB(92, 124, 88),
+		decorado = "arboles",
+	},
+	{
+		clave = "parking",
+		celda = 6,
+		ancho = 32, largo = 22,
+		valor = 120,
+		precio = 80000,
+		nombre = { es = "EL APARCAMIENTO", en = "THE PARKING LOT" },
+		suelo = Color3.fromRGB(64, 66, 74),
+		decorado = "coches",
+	},
+	{
+		clave = "montana",
+		celda = 7,
+		ancho = 36, largo = 24,
+		valor = 750,
+		precio = 450000,
+		nombre = { es = "LA MONTAÑA", en = "THE MOUNTAIN" },
+		suelo = Color3.fromRGB(196, 208, 224),
+		decorado = "rocas",
+	},
+}
+
+
+-------------------------------------------------------------------
+--  RENACER
+--
+--  Se vacia todo (dinero, mejoras y zonas) a cambio de cobrar mas
+--  para siempre. Es lo que hace que la segunda partida sea corta.
+-------------------------------------------------------------------
+
+Ajustes.renacer = {
+	precio = 3500000,    -- lo que cuesta el primero
+	factor = 3,          -- cada uno cuesta el triple que el anterior
+	bonus = 1,           -- x2 de dinero al primero, x3 al segundo...
+}
+
+
+-------------------------------------------------------------------
+--  PASES (opcional, para cuando lo publiques)
+--
+--  Crea el pase en la web de Roblox, copia su id y pegalo aqui.
+--  Con 0 el pase no existe y no pasa nada.
+-------------------------------------------------------------------
+
+Ajustes.pases = {
+	dobleDinero = 0,
+	dobleCarretilla = 0,
+}
+
+
+-------------------------------------------------------------------
+--  PREMIO DIARIO
+--
+--  El premio se mide en BLOQUES DE TU MEJOR ZONA, no en monedas
+--  fijas. Asi es un regalo el primer dia y sigue siendo un regalo
+--  veinte horas de juego despues.
+-------------------------------------------------------------------
+
+Ajustes.diario = {
+	bloques = 250,
+	rachaMaxima = 7,
+	horasParaPerderla = 48,  -- si tardas mas en volver, la racha se cae a 1
+}
+
+
+-------------------------------------------------------------------
+--  CODIGOS
+--
+--  Para soltarlos en TikTok o en la descripcion del juego. Se canjean
+--  una vez por jugador. Anadir uno es anadir una linea aqui.
+-------------------------------------------------------------------
+
+Ajustes.codigos = {
+	{ clave = "NIEVE", bloques = 300 },
+	{ clave = "GRACIAS", bloques = 400 },
+	{ clave = "PRIMERANEVADA", bloques = 800 },
+}
+
+
+-------------------------------------------------------------------
+--  TABLA DE RECORDS
+--
+--  Se ordena por nieve recogida en total, que es lo unico que no se
+--  borra al renacer.
+-------------------------------------------------------------------
+
+Ajustes.records = {
+	almacen = "RecordNieveV1",
+	cuantos = 10,
+	refresco = 90,     -- cada cuantos segundos se relee la tabla
+}
+
+
+-------------------------------------------------------------------
+--  GUARDADO
+-------------------------------------------------------------------
+
+Ajustes.guardado = {
+	almacen = "NieveV1",  -- cambiar el nombre = empezar de cero todo el mundo
+	cada = 120,           -- autoguardado, en segundos
+	intentos = 3,
+}
+
+
+-------------------------------------------------------------------
+--  TEXTOS
+-------------------------------------------------------------------
+
+Ajustes.textos = {
+	es = {
+		monedas = "MONEDAS",
+		carga = "CARGA",
+		lleno = "¡LLENA! vete al camion",
+		limpio = "%d%% limpio",
+		mejoras = "MEJORAS",
+		comprar = "COMPRAR",
+		maximo = "AL MAXIMO",
+		nivel = "Nv %d",
+		renacer = "RENACER",
+		renacerDesc = "vacia todo y cobras x%d para siempre",
+		renacerFalta = "abre todas las zonas primero",
+		vender = "VENDER",
+		abrir = "ABRIR",
+		sinDinero = "te falta dinero",
+		vendido = "+%s",
+		pistaAndar = "Anda por encima de la nieve para recogerla",
+		pistaVender = "Llevala al camion y se vende sola",
+		pistaZona = "Nieve mas cara al otro lado de la puerta",
+		bienvenida = "Bienvenido de vuelta",
+		sinGuardado = "no he podido leer tu partida: hoy no se guarda",
+		diario = "PREMIO DIARIO",
+		diarioRacha = "dia %d seguido",
+		codigos = "CODIGOS",
+		codigoCaja = "escribe un codigo",
+		canjear = "CANJEAR",
+		codigoMal = "ese codigo no existe",
+		codigoUsado = "ese ya lo has usado",
+		records = "MAS NIEVE RECOGIDA",
+		tablaVacia = "todavia no hay nadie",
+	},
+	en = {
+		monedas = "COINS",
+		carga = "LOAD",
+		lleno = "FULL! get to the truck",
+		limpio = "%d%% clean",
+		mejoras = "UPGRADES",
+		comprar = "BUY",
+		maximo = "MAXED",
+		nivel = "Lv %d",
+		renacer = "REBIRTH",
+		renacerDesc = "wipes everything, you earn x%d forever",
+		renacerFalta = "open every area first",
+		vender = "SELL",
+		abrir = "OPEN",
+		sinDinero = "not enough coins",
+		vendido = "+%s",
+		pistaAndar = "Walk over the snow to shovel it",
+		pistaVender = "Take it to the truck, it sells itself",
+		pistaZona = "Pricier snow past the gate",
+		bienvenida = "Welcome back",
+		sinGuardado = "could not read your save: progress will not be stored",
+		diario = "DAILY REWARD",
+		diarioRacha = "day %d in a row",
+		codigos = "CODES",
+		codigoCaja = "type a code",
+		canjear = "REDEEM",
+		codigoMal = "that code does not exist",
+		codigoUsado = "you already used that one",
+		records = "MOST SNOW SHOVELED",
+		tablaVacia = "nobody here yet",
+	},
+}
+
+-- Devuelve el texto en el idioma pedido. Si falta, tira del ingles.
+function Ajustes.texto(idioma, clave)
+	local tabla = Ajustes.textos[idioma] or Ajustes.textos.en
+	return tabla[clave] or Ajustes.textos.en[clave] or clave
+end
+
+local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx" }
+
+-- 1234567 -> "1.23M". Lo usan el HUD y los carteles del mundo.
+function Ajustes.formatear(numero)
+	local n = math.floor(tonumber(numero) or 0)
+	if n < 1000 then
+		return tostring(n)
+	end
+	local valor = n
+	local i = 1
+	while valor >= 1000 and i < #SUFIJOS do
+		valor = valor / 1000
+		i = i + 1
+	end
+	local texto
+	if valor < 10 then
+		texto = string.format("%.2f", valor)
+	elseif valor < 100 then
+		texto = string.format("%.1f", valor)
+	else
+		texto = string.format("%.0f", valor)
+	end
+	if string.find(texto, "%.") then
+		texto = string.gsub(texto, "0+$", "")
+		texto = string.gsub(texto, "%.$", "")
+	end
+	return texto .. SUFIJOS[i]
+end
+
+-- Los nombres de zonas y mejoras viven en su propia tabla ({es=..., en=...}).
+function Ajustes.nombre(tabla, idioma)
+	if type(tabla) ~= "table" then
+		return tostring(tabla)
+	end
+	return tabla[idioma] or tabla.en or ""
+end
+
+return Ajustes
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="RBX4">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Script" referent="RBX5">
+      <Properties>
+        <string name="Name">Nieve</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	¡QUITA TODA LA NIEVE!  —  servidor
+
+	Construye el mapa entero por codigo (no hay que dibujar nada en
+	Studio), lleva las cuentas y guarda las partidas.
+
+	El servidor manda en todo lo que vale dinero: el cliente solo pide
+	cosas y enseña numeros. Asi no hay nada que trampear desde fuera.
+
+	Este archivo va en:  ServerScriptService  (Script, nombre "Nieve")
+]]
+
+local Jugadores = game:GetService("Players")
+local Almacenes = game:GetService("DataStoreService")
+local Mercado = game:GetService("MarketplaceService")
+local Luz = game:GetService("Lighting")
+local RS = game:GetService("ReplicatedStorage")
+
+local A = require(RS:WaitForChild("AjustesNieve"))
+
+local aleatorio = Random.new(20260906)
+
+
+-------------------------------------------------------------------
+--  UTILIDADES
+-------------------------------------------------------------------
+
+local function pieza(clase, props, padre)
+	local p = Instance.new(clase)
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.SmoothPlastic
+	for clave, valor in pairs(props) do
+		p[clave] = valor
+	end
+	p.Parent = padre
+	return p
+end
+
+local function parte(props, padre)
+	return pieza("Part", props, padre)
+end
+
+-- Cartel flotante. El cliente le cambia el texto a su idioma.
+local function cartel(adornee, texto, tipo, altura, ancho)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Cartel"
+	gui.Adornee = adornee
+	gui.Size = UDim2.new(ancho or 11, 0, 2.6, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, altura or 6, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.MaxDistance = 220
+
+	local fondo = Instance.new("Frame")
+	fondo.Size = UDim2.fromScale(1, 1)
+	fondo.BackgroundColor3 = Color3.fromRGB(12, 18, 30)
+	fondo.BackgroundTransparency = 0.15
+	fondo.BorderSizePixel = 0
+	fondo.Parent = gui
+
+	local esquina = Instance.new("UICorner")
+	esquina.CornerRadius = UDim.new(0, 12)
+	esquina.Parent = fondo
+
+	local borde = Instance.new("UIStroke")
+	borde.Color = Color3.fromRGB(120, 205, 255)
+	borde.Thickness = 2
+	borde.Transparency = 0.3
+	borde.Parent = fondo
+
+	local etiqueta = Instance.new("TextLabel")
+	etiqueta.Name = "Texto"
+	etiqueta.Size = UDim2.fromScale(0.9, 0.75)
+	etiqueta.Position = UDim2.fromScale(0.05, 0.125)
+	etiqueta.BackgroundTransparency = 1
+	etiqueta.Font = Enum.Font.GothamBlack
+	etiqueta.TextColor3 = Color3.fromRGB(255, 255, 255)
+	etiqueta.TextScaled = true
+	etiqueta.Text = texto
+	etiqueta.Parent = fondo
+
+	gui:SetAttribute("tipo", tipo)
+	gui.Parent = adornee
+	return gui
+end
+
+
+-------------------------------------------------------------------
+--  REMOTOS
+-------------------------------------------------------------------
+
+local remotos = Instance.new("Folder")
+remotos.Name = "NieveRemotos"
+remotos.Parent = RS
+
+local function nuevoRemoto(nombre)
+	local r = Instance.new("RemoteEvent")
+	r.Name = nombre
+	r.Parent = remotos
+	return r
+end
+
+local RemotoEstado = nuevoRemoto("Estado")   -- servidor -> cliente, el HUD entero
+local RemotoAviso = nuevoRemoto("Aviso")     -- servidor -> cliente, mensajitos
+local RemotoComprar = nuevoRemoto("Comprar") -- cliente -> servidor, mejoras y renacer
+
+
+-------------------------------------------------------------------
+--  EL MUNDO
+-------------------------------------------------------------------
+
+local mundo = {
+	zonas = {},
+	porClave = {},
+	carpeta = nil,
+	puertas = nil,
+	spawnCFrame = CFrame.new(0, 5, 0),
+}
+
+local function limpiarPlantilla()
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "Baseplate" or obj.Name == "Nieve" then
+			obj:Destroy()
+		elseif obj:IsA("SpawnLocation") then
+			obj:Destroy()
+		end
+	end
+	local viejo = RS:FindFirstChild("NieveRemotos")
+	if viejo and viejo ~= remotos then
+		viejo:Destroy()
+	end
+end
+
+local function calcularZonas()
+	local x = 0
+	for i, def in ipairs(A.zonas) do
+		-- Cada zona puede tener la casilla mas grande que la anterior.
+		local celda = def.celda or A.mundo.celda
+		local anchoS = def.ancho * celda
+		local largoS = def.largo * celda
+		local zona = {
+			indice = i,
+			clave = def.clave,
+			def = def,
+			celda = celda,
+			x0 = x,
+			x1 = x + anchoS,
+			z0 = -largoS / 2,
+			z1 = largoS / 2,
+			centroX = x + anchoS / 2,
+			total = def.ancho * def.largo,
+			activas = 0,
+			casillas = {},
+			rejilla = {},
+			ventaEn = Vector3.new(0, 0, 0),
+		}
+		mundo.zonas[i] = zona
+		mundo.porClave[def.clave] = zona
+		x = x + anchoS + A.mundo.separacion
+	end
+
+	local ultima = mundo.zonas[#mundo.zonas]
+	local largoMax = 0
+	for _, zona in ipairs(mundo.zonas) do
+		largoMax = math.max(largoMax, zona.z1 - zona.z0)
+	end
+
+	mundo.minX = mundo.zonas[1].x0 - 30
+	mundo.maxX = ultima.x1 + 30
+	mundo.minZ = -largoMax / 2 - 46
+	mundo.maxZ = largoMax / 2 + 46
+end
+
+local function construirSuelo()
+	local ancho = mundo.maxX - mundo.minX
+	local largo = mundo.maxZ - mundo.minZ
+	parte({
+		Name = "Suelo",
+		Size = Vector3.new(ancho, 4, largo),
+		Position = Vector3.new((mundo.minX + mundo.maxX) / 2, -2, (mundo.minZ + mundo.maxZ) / 2),
+		Color = Color3.fromRGB(228, 236, 246),
+		Material = Enum.Material.Snow,
+		CanCollide = true,
+		CanQuery = true,
+	}, mundo.carpeta)
+end
+
+local function construirNieve(zona, padre)
+	local celda = zona.celda
+	local carpetaNieve = Instance.new("Folder")
+	carpetaNieve.Name = "Nieve"
+	carpetaNieve.Parent = padre
+
+	local hechas = 0
+	for cx = 0, zona.def.ancho - 1 do
+		zona.rejilla[cx] = {}
+		for cz = 0, zona.def.largo - 1 do
+			local altura = A.mundo.alturaNieve * (0.7 + aleatorio:NextNumber() * 0.45)
+			local px = zona.x0 + (cx + 0.5) * celda
+			local pz = zona.z0 + (cz + 0.5) * celda
+			local bloque = parte({
+				Name = "n",
+				Size = Vector3.new(celda, altura, celda),
+				Position = Vector3.new(px, 0.4 + altura / 2, pz),
+				Color = Color3.fromRGB(240, 246, 253),
+				Material = Enum.Material.Snow,
+			}, carpetaNieve)
+
+			local casilla = {
+				parte = bloque,
+				x = px,
+				z = pz,
+				activa = true,
+				vuelveEn = 0,
+			}
+			zona.rejilla[cx][cz] = casilla
+			zona.casillas[#zona.casillas + 1] = casilla
+
+			hechas = hechas + 1
+			if hechas % 400 == 0 then
+				task.wait()
+			end
+		end
+	end
+	zona.activas = #zona.casillas
+end
+
+local function construirCamion(zona, padre)
+	local cx = zona.centroX
+	local cz = zona.z1 + 13
+
+	parte({
+		Name = "PuntoVenta",
+		Size = Vector3.new(22, 0.3, 14),
+		Position = Vector3.new(cx, 0.15, cz - 4),
+		Color = Color3.fromRGB(120, 205, 255),
+		Material = Enum.Material.Neon,
+		Transparency = 0.55,
+	}, padre)
+
+	local caja = parte({
+		Name = "Caja",
+		Size = Vector3.new(16, 8, 9),
+		Position = Vector3.new(cx + 2, 5.4, cz + 4),
+		Color = Color3.fromRGB(48, 60, 82),
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+
+	parte({
+		Name = "Cabina",
+		Size = Vector3.new(7, 6.5, 9),
+		Position = Vector3.new(cx - 9.5, 4.6, cz + 4),
+		Color = Color3.fromRGB(206, 76, 76),
+		CanCollide = true,
+		CanQuery = true,
+	}, padre)
+
+	for _, dx in ipairs({ -9, 1, 7 }) do
+		for _, dz in ipairs({ -4.6, 4.6 }) do
+			parte({
+				Name = "Rueda",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(1.6, 3.2, 3.2),
+				CFrame = CFrame.new(cx + dx, 1.5, cz + 4 + dz),
+				Color = Color3.fromRGB(28, 28, 32),
+			}, padre)
+		end
+	end
+
+	-- El monton de nieve ya vendida, para que se vea a donde va.
+	for i = 1, 4 do
+		parte({
+			Name = "Monton",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(6 + i, 6 + i, 6 + i),
+			Position = Vector3.new(cx + 12 + i * 2.5, 0.6, cz + 6),
+			Color = Color3.fromRGB(246, 250, 255),
+			Material = Enum.Material.Snow,
+		}, padre)
+	end
+
+	cartel(caja, "SELL", "vender", 7, 12)
+	zona.ventaEn = Vector3.new(cx, 0, cz - 4)
+	zona.camion = caja
+end
+
+local function decorarZona(zona, padre)
+	local tipo = zona.def.decorado
+	local cx = zona.centroX
+	local zAtras = zona.z0 - 12
+
+	if tipo == "casa" then
+		parte({
+			Name = "Casa",
+			Size = Vector3.new(26, 16, 18),
+			Position = Vector3.new(cx, 8, zAtras - 8),
+			Color = Color3.fromRGB(196, 168, 140),
+			CanCollide = true,
+			CanQuery = true,
+		}, padre)
+		pieza("WedgePart", {
+			Name = "Tejado",
+			Size = Vector3.new(18, 6, 27),
+			CFrame = CFrame.new(cx, 19, zAtras - 8) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(238, 244, 252),
+			Material = Enum.Material.Snow,
+		}, padre)
+		parte({
+			Name = "Puerta",
+			Size = Vector3.new(5, 8, 0.6),
+			Position = Vector3.new(cx, 4, zAtras + 1),
+			Color = Color3.fromRGB(92, 62, 44),
+		}, padre)
+
+	elseif tipo == "farolas" then
+		for i = 0, 3 do
+			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 4
+			parte({
+				Name = "Farola",
+				Size = Vector3.new(0.8, 18, 0.8),
+				Position = Vector3.new(px, 9, zAtras),
+				Color = Color3.fromRGB(48, 52, 60),
+			}, padre)
+			parte({
+				Name = "Luz",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(2.4, 2.4, 2.4),
+				Position = Vector3.new(px, 18, zAtras),
+				Color = Color3.fromRGB(255, 236, 180),
+				Material = Enum.Material.Neon,
+			}, padre)
+		end
+
+	elseif tipo == "arboles" then
+		for i = 0, 5 do
+			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 6
+			local pz = (i % 2 == 0) and (zAtras - 4) or (zona.z1 + 4)
+			parte({
+				Name = "Tronco",
+				Size = Vector3.new(2.4, 12, 2.4),
+				Position = Vector3.new(px, 6, pz),
+				Color = Color3.fromRGB(94, 66, 46),
+				Material = Enum.Material.Wood,
+			}, padre)
+			for capa = 0, 2 do
+				parte({
+					Name = "Copa",
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(13 - capa * 3, 8 - capa * 1.6, 13 - capa * 3),
+					Position = Vector3.new(px, 12 + capa * 3.4, pz),
+					Color = Color3.fromRGB(236, 244, 252),
+					Material = Enum.Material.Snow,
+				}, padre)
+			end
+		end
+
+	elseif tipo == "coches" then
+		local colores = {
+			Color3.fromRGB(196, 72, 72),
+			Color3.fromRGB(72, 116, 196),
+			Color3.fromRGB(220, 196, 88),
+			Color3.fromRGB(88, 176, 128),
+		}
+		for i = 0, 3 do
+			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 4
+			parte({
+				Name = "Coche",
+				Size = Vector3.new(8, 4, 14),
+				Position = Vector3.new(px, 2.4, zAtras - 6),
+				Color = colores[i + 1],
+				CanCollide = true,
+				CanQuery = true,
+			}, padre)
+			parte({
+				Name = "Techo",
+				Size = Vector3.new(7, 3, 7),
+				Position = Vector3.new(px, 5.6, zAtras - 6),
+				Color = Color3.fromRGB(238, 246, 254),
+				Material = Enum.Material.Snow,
+			}, padre)
+		end
+
+	elseif tipo == "rocas" then
+		for i = 0, 6 do
+			local px = zona.x0 + (i + 0.5) * (zona.x1 - zona.x0) / 7
+			local pz = (i % 2 == 0) and (zAtras - 6) or (zona.z1 + 8)
+			local tam = 10 + aleatorio:NextNumber() * 14
+			parte({
+				Name = "Roca",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(tam, tam * 0.8, tam),
+				Position = Vector3.new(px, tam * 0.2, pz),
+				Color = Color3.fromRGB(224, 234, 246),
+				Material = Enum.Material.Snow,
+				CanCollide = true,
+				CanQuery = true,
+			}, padre)
+		end
+	end
+end
+
+local function construirPuertas()
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Puertas"
+	carpeta.Parent = mundo.carpeta
+	mundo.puertas = carpeta
+
+	local largo = mundo.maxZ - mundo.minZ
+	for i = 2, #mundo.zonas do
+		local zona = mundo.zonas[i]
+		local anterior = mundo.zonas[i - 1]
+		local px = (anterior.x1 + zona.x0) / 2
+
+		local muro = parte({
+			Name = "Puerta_" .. zona.clave,
+			Size = Vector3.new(2.5, A.mundo.alturaValla, largo),
+			Position = Vector3.new(px, A.mundo.alturaValla / 2, (mundo.minZ + mundo.maxZ) / 2),
+			Color = Color3.fromRGB(150, 214, 255),
+			Material = Enum.Material.Ice,
+			Transparency = 0.35,
+			CanCollide = true,
+			CanQuery = true,
+		}, carpeta)
+		muro:SetAttribute("zona", zona.clave)
+		muro:SetAttribute("precio", zona.def.precio)
+		muro:SetAttribute("indice", i)
+
+		cartel(muro, "OPEN", "puerta", A.mundo.alturaValla / 2 + 3, 16)
+
+		local aviso = Instance.new("ProximityPrompt")
+		aviso.Name = "Abrir"
+		aviso.ActionText = "OPEN"
+		aviso.ObjectText = A.nombre(zona.def.nombre, "en")
+		aviso.HoldDuration = 0.4
+		aviso.MaxActivationDistance = 14
+		aviso.RequiresLineOfSight = false
+		aviso.Parent = muro
+		muro:SetAttribute("promptListo", true)
+	end
+end
+
+local function construirValla()
+	local grosor = 3
+	local alto = A.mundo.alturaValla
+	local ancho = mundo.maxX - mundo.minX
+	local largo = mundo.maxZ - mundo.minZ
+	local centroX = (mundo.minX + mundo.maxX) / 2
+	local centroZ = (mundo.minZ + mundo.maxZ) / 2
+
+	local lados = {
+		{ Vector3.new(ancho, alto, grosor), Vector3.new(centroX, alto / 2, mundo.minZ) },
+		{ Vector3.new(ancho, alto, grosor), Vector3.new(centroX, alto / 2, mundo.maxZ) },
+		{ Vector3.new(grosor, alto, largo), Vector3.new(mundo.minX, alto / 2, centroZ) },
+		{ Vector3.new(grosor, alto, largo), Vector3.new(mundo.maxX, alto / 2, centroZ) },
+	}
+	for i, lado in ipairs(lados) do
+		parte({
+			Name = "Valla" .. i,
+			Size = lado[1],
+			Position = lado[2],
+			Color = Color3.fromRGB(190, 214, 240),
+			Material = Enum.Material.Ice,
+			Transparency = 0.55,
+			CanCollide = true,
+			CanQuery = true,
+		}, mundo.carpeta)
+	end
+end
+
+local function ambientar()
+	Luz.ClockTime = 15.5
+	Luz.Brightness = 2.2
+	Luz.Ambient = Color3.fromRGB(126, 136, 156)
+	Luz.OutdoorAmbient = Color3.fromRGB(158, 172, 196)
+	Luz.FogColor = Color3.fromRGB(214, 226, 240)
+	Luz.FogEnd = 1100
+	Luz.FogStart = 220
+	Luz.GeographicLatitude = 60
+
+	if not Luz:FindFirstChildOfClass("Atmosphere") then
+		local aire = Instance.new("Atmosphere")
+		aire.Density = 0.36
+		aire.Offset = 0.1
+		aire.Color = Color3.fromRGB(214, 226, 242)
+		aire.Decay = Color3.fromRGB(160, 178, 200)
+		aire.Glare = 0.2
+		aire.Haze = 1.6
+		aire.Parent = Luz
+	end
+end
+
+local function construirMundo()
+	limpiarPlantilla()
+	calcularZonas()
+
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Nieve"
+	carpeta.Parent = workspace
+	mundo.carpeta = carpeta
+
+	construirSuelo()
+
+	for _, zona in ipairs(mundo.zonas) do
+		local grupo = Instance.new("Folder")
+		grupo.Name = zona.clave
+		grupo.Parent = carpeta
+
+		parte({
+			Name = "Parcela",
+			Size = Vector3.new(zona.x1 - zona.x0, 0.4, zona.z1 - zona.z0),
+			Position = Vector3.new(zona.centroX, 0.2, 0),
+			Color = zona.def.suelo,
+			Material = Enum.Material.Concrete,
+		}, grupo)
+
+		construirNieve(zona, grupo)
+		construirCamion(zona, grupo)
+		decorarZona(zona, grupo)
+	end
+
+	construirPuertas()
+	construirValla()
+	ambientar()
+
+	local primera = mundo.zonas[1]
+	local sitio = Instance.new("SpawnLocation")
+	sitio.Name = "Salida"
+	sitio.Size = Vector3.new(14, 1, 14)
+	sitio.Position = Vector3.new(primera.centroX, 0.5, primera.z1 + 24)
+	sitio.Anchored = true
+	sitio.CanCollide = true
+	sitio.Transparency = 0.4
+	sitio.Color = Color3.fromRGB(120, 205, 255)
+	sitio.Material = Enum.Material.Neon
+	sitio.Duration = 0
+	sitio.Neutral = true
+	sitio.Parent = carpeta
+	mundo.spawnCFrame = CFrame.new(sitio.Position + Vector3.new(0, 4, 0))
+end
+
+
+-------------------------------------------------------------------
+--  ESTADO DE CADA JUGADOR
+-------------------------------------------------------------------
+
+local estados = {}
+
+local mejoraPorClave = {}
+for _, def in ipairs(A.mejoras) do
+	mejoraPorClave[def.clave] = def
+end
+
+local TOPE_ENTERO = 2147483647
+
+local function nuevoEstado()
+	return {
+		dinero = 0,
+		nieveTotal = 0,
+		renaceres = 0,
+		carga = 0,
+		valor = 0,
+		niveles = { pala = 1, carretilla = 1, botas = 1 },
+		zonas = { [A.zonas[1].clave] = true },
+		codigos = {},
+		racha = 0,
+		ultimoDia = 0,
+		ultimoPremio = 0,
+		pases = {},
+		zonaVista = A.zonas[1].clave,
+		cargado = false,
+		puedeGuardar = false,
+		recogiendo = false,
+		emisor = nil,
+		ultimaPeticion = 0,
+	}
+end
+
+local function radioDe(estado)
+	return A.jugador.radioBase + (estado.niveles.pala - 1) * A.jugador.radioPorNivel
+end
+
+local function potenciaDe(estado)
+	return A.jugador.potenciaBase + (estado.niveles.pala - 1) * A.jugador.potenciaPorNivel
+end
+
+local function capacidadDe(estado)
+	local base = A.jugador.capacidadBase + (estado.niveles.carretilla - 1) * A.jugador.capacidadPorNivel
+	if estado.pases.dobleCarretilla then
+		base = base * 2
+	end
+	return base
+end
+
+local function velocidadDe(estado)
+	return A.jugador.velocidadBase + (estado.niveles.botas - 1) * A.jugador.velocidadPorNivel
+end
+
+local function multiplicadorDe(estado)
+	local mult = 1 + estado.renaceres * A.renacer.bonus
+	if estado.pases.dobleDinero then
+		mult = mult * 2
+	end
+	return mult
+end
+
+local function precioMejora(def, nivel)
+	return math.floor(def.precio * def.factor ^ (nivel - 1))
+end
+
+local function precioRenacer(estado)
+	return math.floor(A.renacer.precio * A.renacer.factor ^ estado.renaceres)
+end
+
+local function tieneTodasLasZonas(estado)
+	for _, def in ipairs(A.zonas) do
+		if not estado.zonas[def.clave] then
+			return false
+		end
+	end
+	return true
+end
+
+local function avisar(jugador, clave, extra)
+	local paquete = extra or {}
+	paquete.tipo = "texto"
+	paquete.clave = clave
+	RemotoAviso:FireClient(jugador, paquete)
+end
+
+
+-------------------------------------------------------------------
+--  MARCADOR DE ROBLOX
+-------------------------------------------------------------------
+
+local function crearMarcador(jugador)
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "leaderstats"
+
+	local monedas = Instance.new("IntValue")
+	monedas.Name = "Coins"
+	monedas.Parent = carpeta
+
+	local nieve = Instance.new("IntValue")
+	nieve.Name = "Snow"
+	nieve.Parent = carpeta
+
+	local renaceres = Instance.new("IntValue")
+	renaceres.Name = "Rebirths"
+	renaceres.Parent = carpeta
+
+	carpeta.Parent = jugador
+end
+
+local function refrescarMarcador(jugador, estado)
+	local carpeta = jugador:FindFirstChild("leaderstats")
+	if not carpeta then
+		return
+	end
+	local monedas = carpeta:FindFirstChild("Coins")
+	local nieve = carpeta:FindFirstChild("Snow")
+	local renaceres = carpeta:FindFirstChild("Rebirths")
+	if monedas then
+		monedas.Value = math.clamp(math.floor(estado.dinero), 0, TOPE_ENTERO)
+	end
+	if nieve then
+		nieve.Value = math.clamp(math.floor(estado.nieveTotal), 0, TOPE_ENTERO)
+	end
+	if renaceres then
+		renaceres.Value = estado.renaceres
+	end
+end
+
+
+-------------------------------------------------------------------
+--  GUARDADO
+-------------------------------------------------------------------
+
+local almacen = nil
+do
+	local ok, resultado = pcall(function()
+		return Almacenes:GetDataStore(A.guardado.almacen)
+	end)
+	if ok then
+		almacen = resultado
+	else
+		warn("[nieve] sin DataStore: la partida no se va a guardar")
+	end
+end
+
+local function claveDe(jugador)
+	return "j_" .. tostring(jugador.UserId)
+end
+
+local function reintentar(fn)
+	for intento = 1, A.guardado.intentos do
+		local ok, resultado = pcall(fn)
+		if ok then
+			return true, resultado
+		end
+		if intento < A.guardado.intentos then
+			task.wait(2 ^ intento)
+		else
+			warn("[nieve] fallo de DataStore: " .. tostring(resultado))
+		end
+	end
+	return false, nil
+end
+
+local function serializar(estado)
+	local zonas = {}
+	for clave, abierta in pairs(estado.zonas) do
+		if abierta then
+			zonas[#zonas + 1] = clave
+		end
+	end
+	local codigos = {}
+	for clave, usado in pairs(estado.codigos) do
+		if usado then
+			codigos[#codigos + 1] = clave
+		end
+	end
+	return {
+		v = 1,
+		dinero = math.floor(estado.dinero),
+		nieveTotal = math.floor(estado.nieveTotal),
+		renaceres = estado.renaceres,
+		racha = estado.racha,
+		ultimoDia = estado.ultimoDia,
+		ultimoPremio = estado.ultimoPremio,
+		codigos = codigos,
+		pala = estado.niveles.pala,
+		carretilla = estado.niveles.carretilla,
+		botas = estado.niveles.botas,
+		zonas = zonas,
+	}
+end
+
+local function aplicarDatos(estado, datos)
+	if type(datos) ~= "table" then
+		return
+	end
+	estado.dinero = math.max(0, tonumber(datos.dinero) or 0)
+	estado.nieveTotal = math.max(0, tonumber(datos.nieveTotal) or 0)
+	estado.renaceres = math.max(0, math.floor(tonumber(datos.renaceres) or 0))
+	estado.racha = math.clamp(math.floor(tonumber(datos.racha) or 0), 0, A.diario.rachaMaxima)
+	estado.ultimoDia = math.max(0, math.floor(tonumber(datos.ultimoDia) or 0))
+	estado.ultimoPremio = math.max(0, math.floor(tonumber(datos.ultimoPremio) or 0))
+
+	if type(datos.codigos) == "table" then
+		estado.codigos = {}
+		for _, clave in ipairs(datos.codigos) do
+			if type(clave) == "string" then
+				estado.codigos[clave] = true
+			end
+		end
+	end
+
+	for _, def in ipairs(A.mejoras) do
+		local nivel = math.floor(tonumber(datos[def.clave]) or 1)
+		estado.niveles[def.clave] = math.clamp(nivel, 1, def.niveles)
+	end
+
+	if type(datos.zonas) == "table" then
+		estado.zonas = {}
+		for _, clave in ipairs(datos.zonas) do
+			if mundo.porClave[clave] then
+				estado.zonas[clave] = true
+			end
+		end
+	end
+	-- La primera zona es de todos, pase lo que pase.
+	estado.zonas[A.zonas[1].clave] = true
+end
+
+local function guardar(jugador)
+	local estado = estados[jugador]
+	if not estado or not estado.cargado or not estado.puedeGuardar or not almacen then
+		return
+	end
+	local datos = serializar(estado)
+	reintentar(function()
+		almacen:SetAsync(claveDe(jugador), datos)
+		return true
+	end)
+end
+
+
+-------------------------------------------------------------------
+--  COMPRAS
+-------------------------------------------------------------------
+
+local function aplicarVelocidad(jugador, estado)
+	local pers = jugador.Character
+	local humano = pers and pers:FindFirstChildOfClass("Humanoid")
+	if humano then
+		humano.WalkSpeed = velocidadDe(estado)
+	end
+end
+
+local function comprarMejora(jugador, estado, clave)
+	local def = mejoraPorClave[clave]
+	if not def then
+		return
+	end
+	local nivel = estado.niveles[clave] or 1
+	if nivel >= def.niveles then
+		return
+	end
+	local precio = precioMejora(def, nivel)
+	if estado.dinero < precio then
+		avisar(jugador, "sinDinero")
+		return
+	end
+	estado.dinero = estado.dinero - precio
+	estado.niveles[clave] = nivel + 1
+	if clave == "botas" then
+		aplicarVelocidad(jugador, estado)
+	end
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "mejora", clave = clave, nivel = nivel + 1 })
+end
+
+local function hacerRenacer(jugador, estado)
+	if not tieneTodasLasZonas(estado) then
+		avisar(jugador, "renacerFalta")
+		return
+	end
+	local precio = precioRenacer(estado)
+	if estado.dinero < precio then
+		avisar(jugador, "sinDinero")
+		return
+	end
+
+	estado.renaceres = estado.renaceres + 1
+	estado.dinero = 0
+	estado.carga = 0
+	estado.valor = 0
+	estado.niveles = { pala = 1, carretilla = 1, botas = 1 }
+	estado.zonas = { [A.zonas[1].clave] = true }
+	estado.zonaVista = A.zonas[1].clave
+
+	local pers = jugador.Character
+	if pers then
+		pcall(function()
+			pers:PivotTo(mundo.spawnCFrame)
+		end)
+	end
+	aplicarVelocidad(jugador, estado)
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "renacer", nivel = estado.renaceres })
+	guardar(jugador)
+end
+
+
+-------------------------------------------------------------------
+--  PREMIO DIARIO Y CODIGOS
+-------------------------------------------------------------------
+
+local function valorMaximoDe(estado)
+	local mejor = A.zonas[1].valor
+	for _, def in ipairs(A.zonas) do
+		if estado.zonas[def.clave] and def.valor > mejor then
+			mejor = def.valor
+		end
+	end
+	return mejor
+end
+
+local function comprobarPremio(jugador, estado)
+	local ahora = os.time()
+	local dia = math.floor(ahora / 86400)
+	if estado.ultimoDia == dia then
+		return
+	end
+
+	-- Volver al dia siguiente suma racha; tardar dos dias la reinicia.
+	local desde = estado.ultimoPremio or 0
+	if desde > 0 and (ahora - desde) <= A.diario.horasParaPerderla * 3600 then
+		estado.racha = math.min(A.diario.rachaMaxima, (estado.racha or 0) + 1)
+	else
+		estado.racha = 1
+	end
+	estado.ultimoDia = dia
+	estado.ultimoPremio = ahora
+
+	local premio = math.floor(valorMaximoDe(estado) * A.diario.bloques * estado.racha)
+	estado.dinero = estado.dinero + premio
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "diario", cantidad = premio, racha = estado.racha })
+end
+
+local codigosPorClave = {}
+for _, def in ipairs(A.codigos) do
+	codigosPorClave[string.upper(def.clave)] = def
+end
+
+local function canjearCodigo(jugador, estado, texto)
+	if type(texto) ~= "string" or #texto > 32 then
+		return
+	end
+	local clave = string.upper((string.gsub(texto, "%s", "")))
+	local def = codigosPorClave[clave]
+	if not def then
+		avisar(jugador, "codigoMal")
+		return
+	end
+	if estado.codigos[clave] then
+		avisar(jugador, "codigoUsado")
+		return
+	end
+
+	estado.codigos[clave] = true
+	local premio = math.floor(valorMaximoDe(estado) * def.bloques)
+	estado.dinero = estado.dinero + premio
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "codigo", cantidad = premio, clave = clave })
+	guardar(jugador)
+end
+
+
+-------------------------------------------------------------------
+--  TABLA DE RECORDS
+--
+--  Se ordena por nieve recogida en total, que es lo unico que no se
+--  borra al renacer. Vive en un poste al lado de la salida.
+-------------------------------------------------------------------
+
+local ordenado = nil
+do
+	local ok, resultado = pcall(function()
+		return Almacenes:GetOrderedDataStore(A.records.almacen)
+	end)
+	if ok then
+		ordenado = resultado
+	else
+		warn("[nieve] sin tabla de records")
+	end
+end
+
+local nombresPorId = {}
+local etiquetaTabla = nil
+
+local function subirRecord(jugador, estado)
+	if not ordenado or not estado or not estado.puedeGuardar then
+		return
+	end
+	pcall(function()
+		ordenado:SetAsync(tostring(jugador.UserId), math.floor(estado.nieveTotal))
+	end)
+end
+
+local function construirTabla()
+	local primera = mundo.zonas[1]
+	local poste = parte({
+		Name = "Tabla",
+		Size = Vector3.new(1.6, 15, 1.6),
+		Position = Vector3.new(primera.centroX - 30, 7.5, primera.z1 + 24),
+		Color = Color3.fromRGB(56, 66, 86),
+		CanCollide = true,
+		CanQuery = true,
+	}, mundo.carpeta)
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Records"
+	gui.Adornee = poste
+	gui.Size = UDim2.new(17, 0, 13, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
+	gui.MaxDistance = 280
+	gui.LightInfluence = 0
+
+	local fondo = Instance.new("Frame")
+	fondo.Size = UDim2.fromScale(1, 1)
+	fondo.BackgroundColor3 = Color3.fromRGB(12, 18, 30)
+	fondo.BackgroundTransparency = 0.15
+	fondo.BorderSizePixel = 0
+	fondo.Parent = gui
+
+	local esquina = Instance.new("UICorner")
+	esquina.CornerRadius = UDim.new(0, 14)
+	esquina.Parent = fondo
+
+	local borde = Instance.new("UIStroke")
+	borde.Color = Color3.fromRGB(120, 205, 255)
+	borde.Thickness = 2
+	borde.Transparency = 0.3
+	borde.Parent = fondo
+
+	local titulo = Instance.new("TextLabel")
+	titulo.Name = "Titulo"
+	titulo.Size = UDim2.fromScale(0.92, 0.15)
+	titulo.Position = UDim2.fromScale(0.04, 0.04)
+	titulo.BackgroundTransparency = 1
+	titulo.Font = Enum.Font.GothamBlack
+	titulo.TextColor3 = Color3.fromRGB(120, 205, 255)
+	titulo.TextScaled = true
+	titulo.Text = "MOST SNOW SHOVELED"
+	titulo.Parent = fondo
+
+	local lista = Instance.new("TextLabel")
+	lista.Name = "Lista"
+	lista.Size = UDim2.fromScale(0.92, 0.74)
+	lista.Position = UDim2.fromScale(0.04, 0.21)
+	lista.BackgroundTransparency = 1
+	-- Fuente de ancho fijo: si no, las columnas bailan.
+	lista.Font = Enum.Font.Code
+	lista.TextColor3 = Color3.fromRGB(236, 244, 255)
+	lista.TextScaled = true
+	lista.TextXAlignment = Enum.TextXAlignment.Left
+	lista.TextYAlignment = Enum.TextYAlignment.Top
+	lista.Text = ""
+	lista.Parent = fondo
+
+	gui:SetAttribute("tipo", "records")
+	gui.Parent = poste
+	etiquetaTabla = lista
+end
+
+local function refrescarTabla()
+	if not etiquetaTabla then
+		return
+	end
+	if not ordenado then
+		etiquetaTabla.Text = A.texto("en", "tablaVacia")
+		return
+	end
+
+	local ok, paginas = pcall(function()
+		return ordenado:GetSortedAsync(false, A.records.cuantos)
+	end)
+	if not ok then
+		return
+	end
+
+	local lineas = {}
+	for puesto, fila in ipairs(paginas:GetCurrentPage()) do
+		local nombre = nombresPorId[fila.key]
+		if not nombre then
+			local id = tonumber(fila.key)
+			local hecho, resultado = pcall(function()
+				return Jugadores:GetNameFromUserIdAsync(id)
+			end)
+			nombre = (hecho and resultado) or "?"
+			nombresPorId[fila.key] = nombre
+		end
+		if #nombre > 14 then
+			nombre = string.sub(nombre, 1, 13) .. "."
+		end
+		lineas[#lineas + 1] = string.format("%2d  %-14s %8s", puesto, nombre, A.formatear(fila.value))
+	end
+
+	if #lineas == 0 then
+		etiquetaTabla.Text = A.texto("en", "tablaVacia")
+	else
+		etiquetaTabla.Text = table.concat(lineas, "\n")
+	end
+end
+
+
+RemotoComprar.OnServerEvent:Connect(function(jugador, tipo, clave)
+	local estado = estados[jugador]
+	if not estado or not estado.cargado then
+		return
+	end
+	if type(tipo) ~= "string" then
+		return
+	end
+	if clave ~= nil and type(clave) ~= "string" then
+		return
+	end
+
+	local ahora = os.clock()
+	if ahora - estado.ultimaPeticion < 0.12 then
+		return
+	end
+	estado.ultimaPeticion = ahora
+
+	if tipo == "mejora" then
+		comprarMejora(jugador, estado, clave)
+	elseif tipo == "renacer" then
+		hacerRenacer(jugador, estado)
+	elseif tipo == "codigo" then
+		canjearCodigo(jugador, estado, clave)
+	end
+end)
+
+local function conectarPuertas()
+	for _, muro in ipairs(mundo.puertas:GetChildren()) do
+		local aviso = muro:FindFirstChildOfClass("ProximityPrompt")
+		local clave = muro:GetAttribute("zona")
+		if aviso and clave then
+			aviso.Triggered:Connect(function(jugador)
+				local estado = estados[jugador]
+				if not estado or not estado.cargado then
+					return
+				end
+				if estado.zonas[clave] then
+					return
+				end
+				local zona = mundo.porClave[clave]
+				if not zona then
+					return
+				end
+				local precio = zona.def.precio
+				if estado.dinero < precio then
+					avisar(jugador, "sinDinero")
+					return
+				end
+				estado.dinero = estado.dinero - precio
+				estado.zonas[clave] = true
+				refrescarMarcador(jugador, estado)
+				RemotoAviso:FireClient(jugador, { tipo = "zona", clave = clave })
+				guardar(jugador)
+			end)
+		end
+	end
+end
+
+
+-------------------------------------------------------------------
+--  LA PALA Y EL POLVO DE NIEVE
+-------------------------------------------------------------------
+
+local function darPala(jugador, pers)
+	local humano = pers:FindFirstChildOfClass("Humanoid")
+	if not humano then
+		return
+	end
+	local mochila = jugador:FindFirstChildOfClass("Backpack")
+	if not mochila then
+		return
+	end
+	for _, sitio in ipairs({ pers, mochila }) do
+		local vieja = sitio:FindFirstChild("Pala")
+		if vieja then
+			vieja:Destroy()
+		end
+	end
+
+	local herramienta = Instance.new("Tool")
+	herramienta.Name = "Pala"
+	herramienta.ToolTip = "Pala"
+	herramienta.RequiresHandle = true
+	herramienta.CanBeDropped = false
+	herramienta.Grip = CFrame.new(0, -1.3, 0)
+
+	local mango = Instance.new("Part")
+	mango.Name = "Handle"
+	mango.Size = Vector3.new(0.32, 4.2, 0.32)
+	mango.Color = Color3.fromRGB(120, 84, 52)
+	mango.Material = Enum.Material.Wood
+	mango.CanCollide = false
+	mango.Massless = true
+	mango.Parent = herramienta
+
+	local hoja = Instance.new("Part")
+	hoja.Name = "Hoja"
+	hoja.Size = Vector3.new(2.3, 0.25, 1.9)
+	hoja.CFrame = CFrame.new(0, -2.2, -0.5)
+	hoja.Color = Color3.fromRGB(196, 212, 232)
+	hoja.Material = Enum.Material.Metal
+	hoja.CanCollide = false
+	hoja.Massless = true
+	hoja.Parent = herramienta
+
+	local union = Instance.new("WeldConstraint")
+	union.Part0 = mango
+	union.Part1 = hoja
+	union.Parent = mango
+
+	herramienta.Parent = mochila
+	pcall(function()
+		humano:EquipTool(herramienta)
+	end)
+end
+
+local function prepararPolvo(pers, estado)
+	local raiz = pers:FindFirstChild("HumanoidRootPart")
+	if not raiz then
+		return
+	end
+	local punto = Instance.new("Attachment")
+	punto.Name = "PolvoNieve"
+	punto.Position = Vector3.new(0, -2.2, -1.6)
+	punto.Parent = raiz
+
+	local emisor = Instance.new("ParticleEmitter")
+	emisor.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emisor.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+	emisor.Size = NumberSequence.new(1.5)
+	emisor.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emisor.Lifetime = NumberRange.new(0.35, 0.75)
+	emisor.Rate = 42
+	emisor.Speed = NumberRange.new(3, 8)
+	emisor.SpreadAngle = Vector2.new(40, 40)
+	emisor.Acceleration = Vector3.new(0, -14, 0)
+	emisor.LightEmission = 0.4
+	emisor.Enabled = false
+	emisor.Parent = punto
+
+	estado.emisor = emisor
+end
+
+
+-------------------------------------------------------------------
+--  RECOGER Y VENDER
+-------------------------------------------------------------------
+
+local function tiempoRegreso()
+	local cuantos = #Jugadores:GetPlayers()
+	local segundos = A.mundo.regreso / (1 + cuantos / A.mundo.regresoPorJugador)
+	return math.max(A.mundo.regresoMinimo, segundos)
+end
+
+local function zonaEn(pos)
+	for _, zona in ipairs(mundo.zonas) do
+		if pos.X >= zona.x0 and pos.X <= zona.x1 and pos.Z >= zona.z0 and pos.Z <= zona.z1 then
+			return zona
+		end
+	end
+	return nil
+end
+
+local function recoger(jugador, estado, pos)
+	if pos.Y > A.jugador.alturaMaxima then
+		return
+	end
+	local zona = zonaEn(pos)
+	if not zona then
+		return
+	end
+	estado.zonaVista = zona.clave
+	if not estado.zonas[zona.clave] then
+		return
+	end
+
+	local capacidad = capacidadDe(estado)
+	local hueco = capacidad - estado.carga
+	if hueco <= 0 then
+		return
+	end
+
+	local celda = zona.celda
+	local radio = radioDe(estado)
+	local radio2 = radio * radio
+	local potencia = math.min(potenciaDe(estado), hueco)
+
+	local cxMin = math.max(0, math.floor((pos.X - radio - zona.x0) / celda))
+	local cxMax = math.min(zona.def.ancho - 1, math.floor((pos.X + radio - zona.x0) / celda))
+	local czMin = math.max(0, math.floor((pos.Z - radio - zona.z0) / celda))
+	local czMax = math.min(zona.def.largo - 1, math.floor((pos.Z + radio - zona.z0) / celda))
+
+	local vuelveEn = os.clock() + tiempoRegreso()
+	local cogidas = 0
+
+	for cx = cxMin, cxMax do
+		local columna = zona.rejilla[cx]
+		if columna then
+			for cz = czMin, czMax do
+				local casilla = columna[cz]
+				if casilla and casilla.activa then
+					local dx = casilla.x - pos.X
+					local dz = casilla.z - pos.Z
+					if dx * dx + dz * dz <= radio2 then
+						casilla.activa = false
+						casilla.parte.Transparency = 1
+						casilla.vuelveEn = vuelveEn
+						zona.activas = zona.activas - 1
+						cogidas = cogidas + 1
+						if cogidas >= potencia then
+							break
+						end
+					end
+				end
+			end
+		end
+		if cogidas >= potencia then
+			break
+		end
+	end
+
+	if cogidas > 0 then
+		estado.carga = estado.carga + cogidas
+		estado.valor = estado.valor + cogidas * zona.def.valor
+		estado.nieveTotal = estado.nieveTotal + cogidas
+		estado.recogiendo = true
+	end
+end
+
+local function vender(jugador, estado, pos)
+	if estado.carga <= 0 then
+		return
+	end
+	local plano = Vector3.new(pos.X, 0, pos.Z)
+	for _, zona in ipairs(mundo.zonas) do
+		if estado.zonas[zona.clave] and (plano - zona.ventaEn).Magnitude <= A.jugador.radioVenta then
+			local ganado = math.floor(estado.valor * multiplicadorDe(estado))
+			estado.dinero = estado.dinero + ganado
+			estado.carga = 0
+			estado.valor = 0
+			refrescarMarcador(jugador, estado)
+			RemotoAviso:FireClient(jugador, { tipo = "venta", cantidad = ganado })
+			return
+		end
+	end
+end
+
+
+-------------------------------------------------------------------
+--  LO QUE VE EL CLIENTE
+-------------------------------------------------------------------
+
+local function paqueteDe(estado)
+	local zona = mundo.porClave[estado.zonaVista] or mundo.zonas[1]
+	local precios = {}
+	for _, def in ipairs(A.mejoras) do
+		local nivel = estado.niveles[def.clave] or 1
+		precios[def.clave] = (nivel >= def.niveles) and -1 or precioMejora(def, nivel)
+	end
+	return {
+		dinero = math.floor(estado.dinero),
+		carga = estado.carga,
+		capacidad = capacidadDe(estado),
+		valor = math.floor(estado.valor * multiplicadorDe(estado)),
+		niveles = estado.niveles,
+		precios = precios,
+		zonas = estado.zonas,
+		zona = zona.clave,
+		limpio = 1 - (zona.activas / math.max(1, zona.total)),
+		renaceres = estado.renaceres,
+		precioRenacer = precioRenacer(estado),
+		puedeRenacer = tieneTodasLasZonas(estado),
+		multiplicador = multiplicadorDe(estado),
+	}
+end
+
+
+-------------------------------------------------------------------
+--  ENTRAR Y SALIR
+-------------------------------------------------------------------
+
+local function comprobarPases(jugador, estado)
+	for clave, id in pairs(A.pases) do
+		if type(id) == "number" and id > 0 then
+			local ok, tiene = pcall(function()
+				return Mercado:UserOwnsGamePassAsync(jugador.UserId, id)
+			end)
+			estado.pases[clave] = (ok and tiene) or false
+		end
+	end
+end
+
+local function alAparecer(jugador, pers)
+	local estado = estados[jugador]
+	if not estado then
+		return
+	end
+	local humano = pers:WaitForChild("Humanoid", 8)
+	if not humano then
+		return
+	end
+	estado.emisor = nil
+	estado.recogiendo = false
+	humano.WalkSpeed = velocidadDe(estado)
+	darPala(jugador, pers)
+	prepararPolvo(pers, estado)
+end
+
+local function alEntrar(jugador)
+	crearMarcador(jugador)
+
+	local estado = nuevoEstado()
+	estados[jugador] = estado
+
+	if almacen then
+		local ok, datos = reintentar(function()
+			return almacen:GetAsync(claveDe(jugador))
+		end)
+		-- Si la lectura falla NO guardamos: mejor una partida perdida
+		-- que machacar la buena con una vacia.
+		if ok then
+			if datos then
+				aplicarDatos(estado, datos)
+			end
+			estado.puedeGuardar = true
+		else
+			estado.puedeGuardar = false
+			avisar(jugador, "sinGuardado")
+		end
+	end
+
+	-- Se ha podido ir mientras leiamos.
+	if estados[jugador] ~= estado or jugador.Parent == nil then
+		return
+	end
+
+	estado.cargado = true
+	comprobarPremio(jugador, estado)
+	refrescarMarcador(jugador, estado)
+	task.spawn(comprobarPases, jugador, estado)
+
+	jugador.CharacterAdded:Connect(function(pers)
+		alAparecer(jugador, pers)
+	end)
+	if jugador.Character then
+		task.spawn(alAparecer, jugador, jugador.Character)
+	end
+end
+
+local function alSalir(jugador)
+	subirRecord(jugador, estados[jugador])
+	guardar(jugador)
+	estados[jugador] = nil
+end
+
+
+-------------------------------------------------------------------
+--  BUCLES
+-------------------------------------------------------------------
+
+local function bucle(nombre, cada, fn)
+	task.spawn(function()
+		while true do
+			task.wait(cada)
+			local ok, err = pcall(fn)
+			if not ok then
+				warn("[nieve] fallo en " .. nombre .. ": " .. tostring(err))
+			end
+		end
+	end)
+end
+
+local function ticJuego()
+	for jugador, estado in pairs(estados) do
+		if estado.cargado then
+			local pers = jugador.Character
+			local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
+			if raiz then
+				local antes = estado.recogiendo
+				estado.recogiendo = false
+				recoger(jugador, estado, raiz.Position)
+				vender(jugador, estado, raiz.Position)
+				if estado.emisor and estado.recogiendo ~= antes then
+					estado.emisor.Enabled = estado.recogiendo
+				end
+			end
+		end
+	end
+end
+
+local function ticNieve()
+	local ahora = os.clock()
+	local devueltas = 0
+	for _, zona in ipairs(mundo.zonas) do
+		for _, casilla in ipairs(zona.casillas) do
+			if not casilla.activa and casilla.vuelveEn <= ahora then
+				casilla.activa = true
+				casilla.parte.Transparency = 0
+				zona.activas = zona.activas + 1
+				devueltas = devueltas + 1
+				if devueltas >= A.mundo.maxRegresoPorTanda then
+					return
+				end
+			end
+		end
+	end
+end
+
+local function ticEstado()
+	for jugador, estado in pairs(estados) do
+		if estado.cargado then
+			RemotoEstado:FireClient(jugador, paqueteDe(estado))
+		end
+	end
+end
+
+local function ticGuardado()
+	-- Copia primero: guardar cede el hilo y alguien puede irse en medio,
+	-- y no se recorre una tabla que esta cambiando.
+	local lista = {}
+	for jugador in pairs(estados) do
+		lista[#lista + 1] = jugador
+	end
+	for _, jugador in ipairs(lista) do
+		if estados[jugador] then
+			guardar(jugador)
+			subirRecord(jugador, estados[jugador])
+			task.wait(0.2)
+		end
+	end
+end
+
+
+-------------------------------------------------------------------
+--  ARRANQUE
+-------------------------------------------------------------------
+
+Jugadores.CharacterAutoLoads = false
+Jugadores.PlayerAdded:Connect(alEntrar)
+Jugadores.PlayerRemoving:Connect(alSalir)
+
+construirMundo()
+conectarPuertas()
+construirTabla()
+task.spawn(refrescarTabla)
+
+Jugadores.CharacterAutoLoads = true
+for _, jugador in ipairs(Jugadores:GetPlayers()) do
+	if not estados[jugador] then
+		task.spawn(alEntrar, jugador)
+	end
+	if not jugador.Character then
+		task.spawn(function()
+			pcall(function()
+				jugador:LoadCharacter()
+			end)
+		end)
+	end
+end
+
+bucle("recogida", A.jugador.tic, ticJuego)
+bucle("nieve", 1, ticNieve)
+bucle("estado", 0.3, ticEstado)
+bucle("guardado", A.guardado.cada, ticGuardado)
+bucle("records", A.records.refresco, refrescarTabla)
+
+game:BindToClose(function()
+	for _, jugador in ipairs(Jugadores:GetPlayers()) do
+		task.spawn(guardar, jugador)
+	end
+	task.wait(3)
+end)
+
+print("[nieve] mundo listo: " .. tostring(#mundo.zonas) .. " zonas")
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="RBX6">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="RBX7">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+    <Item class="LocalScript" referent="RBX8">
+      <Properties>
+        <string name="Name">NieveCliente</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	¡QUITA TODA LA NIEVE!  —  cliente
+
+	El HUD, el panel de mejoras y los avisos. No decide nada: pide y
+	enseña lo que le manda el servidor.
+
+	La interfaz se construye por codigo, asi que no hay que dibujar
+	nada en Studio.
+
+	Este archivo va en:  StarterPlayer > StarterPlayerScripts
+	                     (LocalScript, nombre "NieveCliente")
+]]
+
+local Jugadores = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local Tween = game:GetService("TweenService")
+local Correr = game:GetService("RunService")
+local Idiomas = game:GetService("LocalizationService")
+local Sonidos = game:GetService("SoundService")
+
+local jugador = Jugadores.LocalPlayer
+local A = require(RS:WaitForChild("AjustesNieve"))
+
+local remotos = RS:WaitForChild("NieveRemotos")
+local RemotoEstado = remotos:WaitForChild("Estado")
+local RemotoAviso = remotos:WaitForChild("Aviso")
+local RemotoComprar = remotos:WaitForChild("Comprar")
+
+
+-------------------------------------------------------------------
+--  IDIOMA Y NUMEROS
+-------------------------------------------------------------------
+
+local idioma = A.idiomaFijo
+if not idioma then
+	local codigo = ""
+	pcall(function()
+		codigo = Idiomas.RobloxLocaleId or ""
+	end)
+	idioma = (string.sub(string.lower(codigo), 1, 2) == "es") and "es" or "en"
+end
+
+local function T(clave)
+	return A.texto(idioma, clave)
+end
+
+local nombreZona = {}
+for _, def in ipairs(A.zonas) do
+	nombreZona[def.clave] = A.nombre(def.nombre, idioma)
+end
+
+local nombreMejora = {}
+local descMejora = {}
+for _, def in ipairs(A.mejoras) do
+	nombreMejora[def.clave] = A.nombre(def.nombre, idioma)
+	descMejora[def.clave] = A.nombre(def.desc, idioma)
+end
+
+-- El formateo de numeros vive en los ajustes: lo comparten HUD y carteles.
+local formatear = A.formatear
+
+
+-------------------------------------------------------------------
+--  PIEZAS DE INTERFAZ
+-------------------------------------------------------------------
+
+local FONDO = Color3.fromRGB(14, 20, 32)
+local ACENTO = Color3.fromRGB(120, 205, 255)
+local ORO = Color3.fromRGB(255, 208, 92)
+local VERDE = Color3.fromRGB(126, 232, 156)
+local ROJO = Color3.fromRGB(255, 128, 128)
+local BLANCO = Color3.fromRGB(255, 255, 255)
+
+local function nuevo(clase, props, padre)
+	local obj = Instance.new(clase)
+	for clave, valor in pairs(props) do
+		obj[clave] = valor
+	end
+	if padre then
+		obj.Parent = padre
+	end
+	return obj
+end
+
+local function redondear(obj, radio)
+	nuevo("UICorner", { CornerRadius = UDim.new(0, radio or 14) }, obj)
+end
+
+local function panel(props, padre)
+	-- __radio es nuestro, no una propiedad de Roblox: fuera antes de crear nada.
+	local radio = props.__radio or 14
+	props.__radio = nil
+	local marco = nuevo("Frame", props, padre)
+	marco.BorderSizePixel = 0
+	redondear(marco, radio)
+	nuevo("UIStroke", {
+		Color = BLANCO,
+		Transparency = 0.86,
+		Thickness = 1.5,
+	}, marco)
+	return marco
+end
+
+local function etiqueta(props, padre)
+	props.BackgroundTransparency = props.BackgroundTransparency or 1
+	props.TextColor3 = props.TextColor3 or BLANCO
+	props.Font = props.Font or Enum.Font.GothamBold
+	props.BorderSizePixel = 0
+	return nuevo("TextLabel", props, padre)
+end
+
+local pantalla = nuevo("ScreenGui", {
+	Name = "NieveHUD",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, jugador:WaitForChild("PlayerGui"))
+
+
+-------------------------------------------------------------------
+--  DINERO (arriba a la izquierda)
+-------------------------------------------------------------------
+
+local marcoDinero = panel({
+	Name = "Dinero",
+	Size = UDim2.new(0, 216, 0, 54),
+	Position = UDim2.new(0, 14, 0, 14),
+	BackgroundColor3 = FONDO,
+	BackgroundTransparency = 0.12,
+}, pantalla)
+
+local textoDinero = etiqueta({
+	Name = "Texto",
+	Size = UDim2.new(1, -22, 1, 0),
+	Position = UDim2.new(0, 14, 0, 0),
+	Text = "0",
+	TextColor3 = ORO,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 26,
+}, marcoDinero)
+
+local textoMultiplicador = etiqueta({
+	Name = "Multi",
+	Size = UDim2.new(0, 60, 1, 0),
+	Position = UDim2.new(1, -68, 0, 0),
+	Text = "",
+	TextColor3 = VERDE,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	TextSize = 18,
+}, marcoDinero)
+
+
+-------------------------------------------------------------------
+--  ZONA (arriba en medio)
+-------------------------------------------------------------------
+
+local marcoZona = panel({
+	Name = "Zona",
+	Size = UDim2.new(0, 300, 0, 60),
+	Position = UDim2.new(0.5, 0, 0, 14),
+	AnchorPoint = Vector2.new(0.5, 0),
+	BackgroundColor3 = FONDO,
+	BackgroundTransparency = 0.12,
+}, pantalla)
+
+local textoZona = etiqueta({
+	Name = "Nombre",
+	Size = UDim2.new(1, -20, 0, 26),
+	Position = UDim2.new(0, 10, 0, 6),
+	Text = "",
+	TextSize = 19,
+	Font = Enum.Font.GothamBlack,
+}, marcoZona)
+
+local canalProgreso = nuevo("Frame", {
+	Name = "Canal",
+	Size = UDim2.new(1, -24, 0, 12),
+	Position = UDim2.new(0, 12, 0, 36),
+	BackgroundColor3 = Color3.fromRGB(40, 50, 68),
+	BorderSizePixel = 0,
+}, marcoZona)
+redondear(canalProgreso, 6)
+
+local barraProgreso = nuevo("Frame", {
+	Name = "Relleno",
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = ACENTO,
+	BorderSizePixel = 0,
+}, canalProgreso)
+redondear(barraProgreso, 6)
+
+local textoProgreso = etiqueta({
+	Name = "Porcentaje",
+	Size = UDim2.new(1, 0, 1, 0),
+	Text = "",
+	TextSize = 11,
+	TextColor3 = Color3.fromRGB(200, 214, 234),
+}, canalProgreso)
+
+
+-------------------------------------------------------------------
+--  CARGA (abajo en medio)
+-------------------------------------------------------------------
+
+local marcoCarga = panel({
+	Name = "Carga",
+	Size = UDim2.new(0, 340, 0, 50),
+	Position = UDim2.new(0.5, 0, 1, -22),
+	AnchorPoint = Vector2.new(0.5, 1),
+	BackgroundColor3 = FONDO,
+	BackgroundTransparency = 0.12,
+}, pantalla)
+
+local canalCarga = nuevo("Frame", {
+	Name = "Canal",
+	Size = UDim2.new(1, -16, 1, -16),
+	Position = UDim2.new(0, 8, 0, 8),
+	BackgroundColor3 = Color3.fromRGB(34, 44, 60),
+	BorderSizePixel = 0,
+}, marcoCarga)
+redondear(canalCarga, 10)
+
+local barraCarga = nuevo("Frame", {
+	Name = "Relleno",
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = ACENTO,
+	BorderSizePixel = 0,
+}, canalCarga)
+redondear(barraCarga, 10)
+
+local textoCarga = etiqueta({
+	Name = "Texto",
+	Size = UDim2.new(1, -16, 1, 0),
+	Position = UDim2.new(0, 10, 0, 0),
+	Text = "",
+	TextSize = 18,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, canalCarga)
+
+local textoValor = etiqueta({
+	Name = "Valor",
+	Size = UDim2.new(0, 120, 1, 0),
+	Position = UDim2.new(1, -130, 0, 0),
+	Text = "",
+	TextSize = 18,
+	TextColor3 = ORO,
+	TextXAlignment = Enum.TextXAlignment.Right,
+}, canalCarga)
+
+local textoPista = etiqueta({
+	Name = "Pista",
+	Size = UDim2.new(0, 460, 0, 26),
+	Position = UDim2.new(0.5, 0, 1, -80),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Text = "",
+	TextSize = 17,
+	TextColor3 = Color3.fromRGB(214, 230, 250),
+	TextTransparency = 0,
+}, pantalla)
+nuevo("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2, Transparency = 0.35 }, textoPista)
+
+
+-------------------------------------------------------------------
+--  BOTONES DE LA DERECHA
+-------------------------------------------------------------------
+
+local botonMejoras = nuevo("TextButton", {
+	Name = "BotonMejoras",
+	Size = UDim2.new(0, 138, 0, 58),
+	Position = UDim2.new(1, -16, 0.5, 44),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundColor3 = ACENTO,
+	BorderSizePixel = 0,
+	Text = T("mejoras"),
+	TextColor3 = Color3.fromRGB(8, 16, 28),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 20,
+	AutoButtonColor = true,
+}, pantalla)
+redondear(botonMejoras, 16)
+
+local botonRenacer = nuevo("TextButton", {
+	Name = "BotonRenacer",
+	Size = UDim2.new(0, 138, 0, 58),
+	Position = UDim2.new(1, -16, 0.5, -24),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundColor3 = ORO,
+	BorderSizePixel = 0,
+	Text = T("renacer"),
+	TextColor3 = Color3.fromRGB(38, 26, 4),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 20,
+	AutoButtonColor = true,
+	Visible = false,
+}, pantalla)
+redondear(botonRenacer, 16)
+
+
+-------------------------------------------------------------------
+--  PANEL DE MEJORAS
+-------------------------------------------------------------------
+
+local panelMejoras = panel({
+	Name = "PanelMejoras",
+	Size = UDim2.new(0, 380, 0.82, 0),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = FONDO,
+	BackgroundTransparency = 0.05,
+	Visible = false,
+}, pantalla)
+
+nuevo("UISizeConstraint", {
+	MaxSize = Vector2.new(380, 520),
+	MinSize = Vector2.new(300, 260),
+}, panelMejoras)
+
+etiqueta({
+	Name = "Titulo",
+	Size = UDim2.new(1, -70, 0, 40),
+	Position = UDim2.new(0, 18, 0, 10),
+	Text = T("mejoras"),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextSize = 24,
+	Font = Enum.Font.GothamBlack,
+}, panelMejoras)
+
+local botonCerrar = nuevo("TextButton", {
+	Name = "Cerrar",
+	Size = UDim2.new(0, 38, 0, 38),
+	Position = UDim2.new(1, -14, 0, 12),
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(48, 58, 78),
+	BorderSizePixel = 0,
+	Text = "X",
+	TextColor3 = BLANCO,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+}, panelMejoras)
+redondear(botonCerrar, 12)
+
+local lista = nuevo("ScrollingFrame", {
+	Name = "Lista",
+	Size = UDim2.new(1, -28, 1, -70),
+	Position = UDim2.new(0, 14, 0, 58),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ScrollBarThickness = 6,
+	ScrollBarImageColor3 = ACENTO,
+}, panelMejoras)
+
+nuevo("UIPadding", { PaddingRight = UDim.new(0, 10) }, lista)
+
+nuevo("UIListLayout", {
+	Padding = UDim.new(0, 10),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, lista)
+
+local filas = {}
+
+for orden, def in ipairs(A.mejoras) do
+	local fila = panel({
+		Name = def.clave,
+		Size = UDim2.new(1, 0, 0, 80),
+		BackgroundColor3 = Color3.fromRGB(24, 32, 48),
+		BackgroundTransparency = 0.1,
+		LayoutOrder = orden,
+		__radio = 12,
+	}, lista)
+
+	local nombre = etiqueta({
+		Name = "Nombre",
+		Size = UDim2.new(1, -150, 0, 24),
+		Position = UDim2.new(0, 14, 0, 10),
+		Text = nombreMejora[def.clave],
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = def.color,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+	}, fila)
+
+	etiqueta({
+		Name = "Desc",
+		Size = UDim2.new(1, -150, 0, 20),
+		Position = UDim2.new(0, 14, 0, 34),
+		Text = descMejora[def.clave],
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(168, 184, 206),
+		TextSize = 14,
+		Font = Enum.Font.Gotham,
+	}, fila)
+
+	local nivel = etiqueta({
+		Name = "Nivel",
+		Size = UDim2.new(1, -150, 0, 18),
+		Position = UDim2.new(0, 14, 0, 54),
+		Text = "",
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(140, 156, 180),
+		TextSize = 13,
+		Font = Enum.Font.Gotham,
+	}, fila)
+
+	local boton = nuevo("TextButton", {
+		Name = "Comprar",
+		Size = UDim2.new(0, 124, 0, 56),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = VERDE,
+		BorderSizePixel = 0,
+		Text = "",
+		TextColor3 = Color3.fromRGB(8, 24, 14),
+		Font = Enum.Font.GothamBlack,
+		TextSize = 17,
+		AutoButtonColor = true,
+	}, fila)
+	redondear(boton, 12)
+
+	boton.Activated:Connect(function()
+		RemotoComprar:FireServer("mejora", def.clave)
+	end)
+
+	filas[def.clave] = { fila = fila, nombre = nombre, nivel = nivel, boton = boton, def = def }
+end
+
+local filaRenacer = panel({
+	Name = "renacer",
+	Size = UDim2.new(1, 0, 0, 80),
+	BackgroundColor3 = Color3.fromRGB(40, 34, 14),
+	BackgroundTransparency = 0.1,
+	LayoutOrder = 99,
+	__radio = 12,
+}, lista)
+
+etiqueta({
+	Name = "Nombre",
+	Size = UDim2.new(1, -150, 0, 24),
+	Position = UDim2.new(0, 14, 0, 12),
+	Text = T("renacer"),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextColor3 = ORO,
+	TextSize = 18,
+	Font = Enum.Font.GothamBlack,
+}, filaRenacer)
+
+local descRenacer = etiqueta({
+	Name = "Desc",
+	Size = UDim2.new(1, -150, 0, 38),
+	Position = UDim2.new(0, 14, 0, 34),
+	Text = "",
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextColor3 = Color3.fromRGB(196, 180, 140),
+	TextSize = 13,
+	TextWrapped = true,
+	Font = Enum.Font.Gotham,
+}, filaRenacer)
+
+local botonRenacerPanel = nuevo("TextButton", {
+	Name = "Comprar",
+	Size = UDim2.new(0, 124, 0, 56),
+	Position = UDim2.new(1, -12, 0.5, 0),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundColor3 = ORO,
+	BorderSizePixel = 0,
+	Text = "",
+	TextColor3 = Color3.fromRGB(38, 26, 4),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 17,
+	AutoButtonColor = true,
+}, filaRenacer)
+redondear(botonRenacerPanel, 12)
+
+
+-------------------------------------------------------------------
+--  CODIGOS
+-------------------------------------------------------------------
+
+local filaCodigo = panel({
+	Name = "codigo",
+	Size = UDim2.new(1, 0, 0, 88),
+	BackgroundColor3 = Color3.fromRGB(18, 34, 28),
+	BackgroundTransparency = 0.1,
+	LayoutOrder = 100,
+	__radio = 12,
+}, lista)
+
+etiqueta({
+	Name = "Nombre",
+	Size = UDim2.new(1, -28, 0, 22),
+	Position = UDim2.new(0, 14, 0, 8),
+	Text = T("codigos"),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextColor3 = VERDE,
+	TextSize = 17,
+	Font = Enum.Font.GothamBlack,
+}, filaCodigo)
+
+local cajaCodigo = nuevo("TextBox", {
+	Name = "Caja",
+	Size = UDim2.new(1, -150, 0, 44),
+	Position = UDim2.new(0, 14, 0, 34),
+	BackgroundColor3 = Color3.fromRGB(10, 16, 26),
+	BorderSizePixel = 0,
+	Text = "",
+	PlaceholderText = T("codigoCaja"),
+	PlaceholderColor3 = Color3.fromRGB(122, 138, 160),
+	ClearTextOnFocus = false,
+	TextColor3 = BLANCO,
+	Font = Enum.Font.GothamBold,
+	TextSize = 16,
+}, filaCodigo)
+redondear(cajaCodigo, 10)
+
+local botonCodigo = nuevo("TextButton", {
+	Name = "Canjear",
+	Size = UDim2.new(0, 124, 0, 44),
+	Position = UDim2.new(1, -12, 0, 34),
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = VERDE,
+	BorderSizePixel = 0,
+	Text = T("canjear"),
+	TextColor3 = Color3.fromRGB(8, 24, 14),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 16,
+	AutoButtonColor = true,
+}, filaCodigo)
+redondear(botonCodigo, 12)
+
+local function enviarCodigo()
+	local texto = cajaCodigo.Text
+	if texto and texto ~= "" then
+		RemotoComprar:FireServer("codigo", texto)
+		cajaCodigo.Text = ""
+	end
+end
+
+botonCodigo.Activated:Connect(enviarCodigo)
+cajaCodigo.FocusLost:Connect(function(intro)
+	if intro then
+		enviarCodigo()
+	end
+end)
+
+
+local function alternarPanel(abierto)
+	panelMejoras.Visible = abierto
+end
+
+botonMejoras.Activated:Connect(function()
+	alternarPanel(not panelMejoras.Visible)
+end)
+botonCerrar.Activated:Connect(function()
+	alternarPanel(false)
+end)
+botonRenacer.Activated:Connect(function()
+	alternarPanel(true)
+end)
+botonRenacerPanel.Activated:Connect(function()
+	RemotoComprar:FireServer("renacer")
+end)
+
+
+-------------------------------------------------------------------
+--  AVISOS
+-------------------------------------------------------------------
+
+local sonidoVenta = nuevo("Sound", {
+	Name = "NieveVenta",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.45,
+}, Sonidos)
+
+local function aviso(texto, color)
+	if texto == nil or texto == "" then
+		return
+	end
+
+	-- Si ya hay avisos en el aire, este sale un poco mas arriba: dos
+	-- mensajes a la vez no pueden caer en el mismo sitio.
+	local vivos = 0
+	for _, hijo in ipairs(pantalla:GetChildren()) do
+		if hijo.Name == "Aviso" then
+			vivos = vivos + 1
+		end
+	end
+	local desvio = math.min(vivos, 3) * 46
+
+	local nota = etiqueta({
+		Name = "Aviso",
+		Size = UDim2.new(0, 320, 0, 44),
+		Position = UDim2.new(0.5, 0, 0.62, -desvio),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Text = texto,
+		TextColor3 = color or BLANCO,
+		TextSize = 30,
+		Font = Enum.Font.GothamBlack,
+	}, pantalla)
+	nuevo("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 3, Transparency = 0.4 }, nota)
+
+	Tween:Create(nota, TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0.5, -desvio),
+		TextTransparency = 1,
+	}):Play()
+	task.delay(1.3, function()
+		nota:Destroy()
+	end)
+end
+
+local pistaHasta = 0
+local pistasVistas = {}
+
+local function pista(clave, segundos)
+	if pistasVistas[clave] then
+		return
+	end
+	pistasVistas[clave] = true
+	textoPista.Text = T(clave)
+	pistaHasta = os.clock() + (segundos or 7)
+end
+
+
+-------------------------------------------------------------------
+--  PUERTAS Y CARTELES
+-------------------------------------------------------------------
+
+local function etiquetarCartel(gui)
+	if not gui:IsA("BillboardGui") then
+		return
+	end
+	local tipo = gui:GetAttribute("tipo")
+	if tipo == "vender" then
+		local texto = gui:FindFirstChild("Texto", true)
+		if texto then
+			texto.Text = T("vender")
+		end
+	elseif tipo == "records" then
+		local titulo = gui:FindFirstChild("Titulo", true)
+		if titulo then
+			titulo.Text = T("records")
+		end
+	end
+end
+
+local function aplicarPuertas(zonas)
+	local raiz = workspace:FindFirstChild("Nieve")
+	local carpeta = raiz and raiz:FindFirstChild("Puertas")
+	if not carpeta then
+		return
+	end
+	for _, muro in ipairs(carpeta:GetChildren()) do
+		local clave = muro:GetAttribute("zona")
+		if clave and muro:IsA("BasePart") then
+			local abierta = zonas ~= nil and zonas[clave] == true
+			local precio = muro:GetAttribute("precio") or 0
+
+			muro.CanCollide = not abierta
+			muro.Transparency = abierta and 1 or 0.35
+
+			local cartel = muro:FindFirstChild("Cartel")
+			if cartel then
+				cartel.Enabled = not abierta
+				local texto = cartel:FindFirstChild("Texto", true)
+				if texto then
+					texto.Text = (nombreZona[clave] or "") .. "\n" .. T("abrir") .. "  " .. formatear(precio)
+				end
+			end
+
+			local prompt = muro:FindFirstChildOfClass("ProximityPrompt")
+			if prompt then
+				prompt.Enabled = not abierta
+				prompt.ActionText = T("abrir") .. "  " .. formatear(precio)
+				prompt.ObjectText = nombreZona[clave] or ""
+			end
+		end
+	end
+end
+
+task.spawn(function()
+	local raiz = workspace:WaitForChild("Nieve", 30)
+	if not raiz then
+		return
+	end
+	for _, obj in ipairs(raiz:GetDescendants()) do
+		etiquetarCartel(obj)
+	end
+	raiz.DescendantAdded:Connect(etiquetarCartel)
+end)
+
+
+-------------------------------------------------------------------
+--  EL HUD, AL RITMO DEL SERVIDOR
+-------------------------------------------------------------------
+
+local APAGADO = Color3.fromRGB(70, 78, 92)
+
+local function refrescar(datos)
+	local dinero = datos.dinero or 0
+	local multiplicador = math.floor(datos.multiplicador or 1)
+
+	textoDinero.Text = "🪙 " .. formatear(dinero)
+	textoMultiplicador.Text = (multiplicador > 1) and ("x" .. tostring(multiplicador)) or ""
+
+	-- carga
+	local capacidad = math.max(1, datos.capacidad or 1)
+	local carga = datos.carga or 0
+	local lleno = carga >= capacidad
+	local ratio = math.clamp(carga / capacidad, 0, 1)
+	Tween:Create(barraCarga, TweenInfo.new(0.18), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
+	barraCarga.BackgroundColor3 = lleno and ROJO or ACENTO
+	textoCarga.Text = lleno and T("lleno") or ("❄ " .. formatear(carga) .. " / " .. formatear(capacidad))
+	textoValor.Text = ((datos.valor or 0) > 0) and ("+" .. formatear(datos.valor)) or ""
+
+	-- zona
+	textoZona.Text = nombreZona[datos.zona] or ""
+	local limpio = math.clamp(datos.limpio or 0, 0, 1)
+	Tween:Create(barraProgreso, TweenInfo.new(0.25), { Size = UDim2.new(limpio, 0, 1, 0) }):Play()
+	textoProgreso.Text = string.format(T("limpio"), math.floor(limpio * 100 + 0.5))
+
+	-- mejoras
+	for clave, fila in pairs(filas) do
+		local nivel = (datos.niveles and datos.niveles[clave]) or 1
+		local precio = (datos.precios and datos.precios[clave]) or -1
+		fila.nivel.Text = string.format(T("nivel"), nivel) .. " / " .. tostring(fila.def.niveles)
+		if precio < 0 then
+			fila.boton.Text = T("maximo")
+			fila.boton.BackgroundColor3 = APAGADO
+		else
+			fila.boton.Text = formatear(precio)
+			fila.boton.BackgroundColor3 = (dinero >= precio) and VERDE or APAGADO
+		end
+	end
+
+	-- renacer
+	local puede = datos.puedeRenacer == true
+	local precioRenacer = datos.precioRenacer or 0
+	botonRenacer.Visible = puede
+	descRenacer.Text = puede
+		and string.format(T("renacerDesc"), multiplicador + 1)
+		or T("renacerFalta")
+	botonRenacerPanel.Text = puede and formatear(precioRenacer) or "-"
+	botonRenacerPanel.BackgroundColor3 = (puede and dinero >= precioRenacer) and ORO or APAGADO
+
+	-- puertas
+	aplicarPuertas(datos.zonas)
+
+	-- pistas
+	pista("pistaAndar", 9)
+	if lleno then
+		pista("pistaVender", 7)
+	end
+	for i = 2, #A.zonas do
+		local def = A.zonas[i]
+		if datos.zonas and not datos.zonas[def.clave] and dinero >= def.precio then
+			pista("pistaZona", 7)
+			break
+		end
+	end
+end
+
+RemotoEstado.OnClientEvent:Connect(function(datos)
+	if type(datos) ~= "table" then
+		return
+	end
+	local ok, err = pcall(refrescar, datos)
+	if not ok then
+		warn("[nieve] fallo al pintar el HUD: " .. tostring(err))
+	end
+end)
+
+RemotoAviso.OnClientEvent:Connect(function(datos)
+	if type(datos) ~= "table" then
+		return
+	end
+	if datos.tipo == "venta" then
+		aviso(string.format(T("vendido"), formatear(datos.cantidad or 0)), ORO)
+		pcall(function()
+			sonidoVenta:Play()
+		end)
+	elseif datos.tipo == "texto" then
+		aviso(T(datos.clave), ROJO)
+	elseif datos.tipo == "zona" then
+		aviso(nombreZona[datos.clave] or "", VERDE)
+	elseif datos.tipo == "mejora" then
+		aviso(
+			(nombreMejora[datos.clave] or "") .. " " .. string.format(T("nivel"), datos.nivel or 1),
+			ACENTO
+		)
+	elseif datos.tipo == "diario" then
+		aviso(T("diario") .. "  +" .. formatear(datos.cantidad or 0), ORO)
+		pcall(function()
+			sonidoVenta:Play()
+		end)
+		task.delay(1.4, function()
+			aviso(string.format(T("diarioRacha"), datos.racha or 1), VERDE)
+		end)
+	elseif datos.tipo == "codigo" then
+		aviso("+" .. formatear(datos.cantidad or 0), VERDE)
+		pcall(function()
+			sonidoVenta:Play()
+		end)
+	elseif datos.tipo == "renacer" then
+		aviso(T("renacer") .. " x" .. tostring((datos.nivel or 0) + 1), ORO)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.3)
+		if textoPista.Text ~= "" and os.clock() > pistaHasta then
+			textoPista.Text = ""
+		end
+	end
+end)
+
+
+-------------------------------------------------------------------
+--  QUE NIEVE
+-------------------------------------------------------------------
+
+local nube = nil
+
+local function prepararNube()
+	local camara = workspace.CurrentCamera
+	if not camara then
+		return
+	end
+	nube = nuevo("Part", {
+		Name = "NieveCayendo",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(70, 1, 70),
+		CFrame = CFrame.new(0, 100, 0),
+	}, camara)
+
+	nuevo("ParticleEmitter", {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
+		Size = NumberSequence.new(0.42),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.25),
+			NumberSequenceKeypoint.new(0.8, 0.35),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Lifetime = NumberRange.new(3, 4.5),
+		Rate = 70,
+		Speed = NumberRange.new(2, 5),
+		SpreadAngle = Vector2.new(25, 25),
+		Acceleration = Vector3.new(3, -14, 1),
+		EmissionDirection = Enum.NormalId.Bottom,
+		LightEmission = 0.5,
+		LockedToPart = false,
+	}, nube)
+end
+
+prepararNube()
+
+Correr.RenderStepped:Connect(function()
+	local camara = workspace.CurrentCamera
+	if not camara then
+		return
+	end
+	if not nube or nube.Parent == nil then
+		prepararNube()
+		return
+	end
+	if nube.Parent ~= camara then
+		nube.Parent = camara
+	end
+	nube.CFrame = CFrame.new(camara.CFrame.Position + Vector3.new(0, 32, 0))
+end)
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+    </Item>
+  </Item>
+</roblox>

@@ -13,7 +13,31 @@ se construye solo al arrancar la partida.
 -------------------------------------------
 
 Hace falta Roblox Studio (gratis, en
-create.roblox.com). Son cinco minutos:
+create.roblox.com).
+
+  1. Descarga  QUITA-LA-NIEVE.rbxlx
+
+  2. Doble clic. Se abre en Studio.
+     (o dentro de Studio: File > Open from File)
+
+  3. PLAY
+
+Ya esta. Los tres scripts vienen dentro, cada uno
+en su servicio, con su nombre y su tipo.
+
+OJO: en el editor el mapa se ve VACIO, y es lo
+normal. El mundo entero se construye al arrancar
+la partida, no antes. Le das a Play y aparece.
+
+Si tocas los .luau hay que volver a generar el
+sitio, o se queda con la version vieja dentro:
+
+    node nieve/herramientas/empaquetar.mjs
+
+
+-------------------------------------------
+  PONERLO A MANO (si lo otro falla)
+-------------------------------------------
 
   1. Abre Studio y crea un sitio nuevo con la
      plantilla BASEPLATE.

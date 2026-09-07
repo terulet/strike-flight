@@ -8,7 +8,13 @@ Tres archivos de Luau. El mapa entero se construye por código al arrancar
 la partida, así que no hay nada que dibujar en Studio: se pegan los tres
 scripts y hay juego.
 
-Para ponerlo en Roblox, mira `LEEME.txt`. Esto de aquí es el porqué.
+Para jugarlo: descargas `QUITA-LA-NIEVE.rbxlx`, doble clic y Play — el
+sitio viene con los tres scripts ya colocados. Los detalles y la vía a
+mano, en `LEEME.txt`. Esto de aquí es el porqué.
+
+El sitio se regenera con `node nieve/herramientas/empaquetar.mjs`, que
+además comprueba que el código que queda dentro es idéntico al de los
+`.luau`, carácter a carácter.
 
 ## De dónde sale
 
