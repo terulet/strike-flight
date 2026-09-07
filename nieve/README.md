@@ -73,7 +73,7 @@ jardín, los pinos, la piscina y la red de tenis dejan huecos sin nieve, y
 se barre a su alrededor. Cuesta un 20% de la nieve de cada parcela — que
 se compensa subiendo lo que vale cada bloque, no metiendo más piezas.
 
-El mapa entero son **2.911 piezas**, techo puesto en la prueba para que no
+El mapa entero son **3.147 piezas**, techo puesto en la prueba para que no
 se dispare: esto tiene que ir en un móvil.
 
 ### Por qué la casilla crece con la zona
@@ -158,6 +158,33 @@ se note bien, no mal.
 
 Es la alternativa barata a darle a cada jugador su propia parcela, que es
 lo que hacen los grandes y multiplica por veinte las piezas del mapa.
+
+## Que la nieve parezca nieve
+
+Un cubo de 4×4 studs con la cara plana no parece nieve: parece una
+baldosa. Y 2.800 baldosas alineadas en cuadrícula parecen un suelo de
+cocina, que es exactamente lo que parecía.
+
+Cada montón es ahora **un elipsoide más ancho que su casilla**, girado al
+azar y movido un poco de su centro. Al ser más anchos se solapan con los
+vecinos, así que no hay juntas ni líneas rectas: lo que se ve es un manto
+con bultos. Y sigue siendo **una sola pieza por casilla**, que es lo que
+importa para el móvil.
+
+El giro y el desplazamiento son solo de cara a la galería: para recoger se
+sigue usando el centro exacto de la casilla, así que no cambia nada del
+juego.
+
+## El camión
+
+Era dos cajas y cuatro cilindros. Ahora es un volquete: chasis con tres
+ejes, cabina con luna inclinada, ventanillas, parrilla con barras,
+parachoques, faros, retrovisores y tubo de escape; caja basculante con
+laterales, frente, puerta trasera y refuerzos; seis ruedas con llanta y
+guardabarros; y la nieve ya descargada asomando por arriba.
+
+Unas 40 piezas por camión, cinco camiones. El mapa entero sigue en 3.147
+piezas.
 
 ## El equipo se ve, y crece
 
@@ -278,7 +305,23 @@ partida.
 
 ## El guardado
 
-DataStore, con reintentos y espera creciente.
+DataStore con `UpdateAsync`, reintentos y espera creciente.
+
+`UpdateAsync` y no `SetAsync` por un motivo concreto: si el mismo jugador
+está en dos servidores a la vez —dos aparatos, o ha vuelto a entrar antes
+de que el primero guardase— `SetAsync` machaca a ciegas y el último en
+escribir borra lo del otro. Con `UpdateAsync` se ve lo que hay guardado
+antes de escribir, y de todo lo que solo puede subir (nieve de toda la
+vida, ventas, renaceres, racha, códigos canjeados) se queda lo más alto de
+los dos.
+
+El dinero y los niveles **no** se fusionan: ahí manda la sesión que ha
+jugado. Fusionarlos sería regalar monedas a quien abra el juego en dos
+sitios.
+
+Y un caso con trampa: renacer *cierra* las zonas, así que la fusión no
+puede resucitarlas. Solo se juntan las zonas abiertas si el número de
+renaceres coincide en los dos registros.
 
 La regla importante: **si la lectura falla, esa sesión no guarda**. Más
 vale perder una partida de hoy que machacar la de tres semanas con un
@@ -301,7 +344,7 @@ los paquetes de verdad, así que se puede comprobar lo que acaba escrito en
 pantalla.
 
 ```bash
-node nieve/herramientas/probar.mjs           # 102 comprobaciones del servidor
+node nieve/herramientas/probar.mjs           # 111 comprobaciones del servidor
 node nieve/herramientas/probar.mjs cliente   # 77 del HUD, ejecutado
 node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
@@ -333,7 +376,7 @@ Studio.
 ## Qué está probado y qué no
 
 **Probado, ejecutando el código:** toda la lógica de arriba y el HUD
-entero — 179 comprobaciones en verde entre servidor y cliente — más el
+entero — 188 comprobaciones en verde entre servidor y cliente — más el
 análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede

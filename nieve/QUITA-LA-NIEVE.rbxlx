@@ -832,17 +832,27 @@ local function construirNieve(zona, padre)
 	for cx = 0, zona.def.ancho - 1 do
 		zona.rejilla[cx] = {}
 		for cz = 0, zona.def.largo - 1 do
-			local altura = A.mundo.alturaNieve * (0.6 + aleatorio:NextNumber() * 1.3)
-			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
 			local px = zona.x0 + (cx + 0.5) * celda
 			local pz = zona.z0 + (cz + 0.5) * celda
 			if enHueco(zona, px, pz) then
 				continue
 			end
+
+			-- Un cubo parece una baldosa. Un elipsoide mas ancho que la
+			-- casilla, girado y movido un poco, se solapa con los vecinos
+			-- y lo que se ve es un manto con bultos: nieve, no suelo.
+			local ancho = celda * (1.22 + aleatorio:NextNumber() * 0.26)
+			local altura = A.mundo.alturaNieve * (0.9 + aleatorio:NextNumber() * 1.5)
+			local desvioX = (aleatorio:NextNumber() - 0.5) * celda * 0.36
+			local desvioZ = (aleatorio:NextNumber() - 0.5) * celda * 0.36
+			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
+
 			local bloque = parte({
 				Name = "n",
-				Size = Vector3.new(celda, altura, celda),
-				Position = Vector3.new(px, 0.4 + altura / 2, pz),
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(ancho, altura, ancho * (0.88 + aleatorio:NextNumber() * 0.24)),
+				CFrame = CFrame.new(px + desvioX, 0.4 + altura * 0.26, pz + desvioZ)
+					* CFrame.Angles(0, aleatorio:NextNumber() * math.pi, 0),
 				Color = Color3.fromRGB(tono - 8, tono - 3, tono),
 				Material = Enum.Material.Snow,
 			}, carpetaNieve)
@@ -871,63 +881,138 @@ end
 
 local function construirCamion(zona, padre)
 	local cx = zona.centroX
-	local cz = zona.z1 + 13
+	local cz = zona.z1 + 22
+	local suelo = 0
 
+	-- Todo relativo al morro del camion, que mira hacia -X.
+	local function trozo(nombre, tam, dx, dy, dz, color, material, giro)
+		local cf = CFrame.new(cx + dx, suelo + dy, cz + dz)
+		if giro then
+			cf = cf * CFrame.Angles(giro[1] or 0, giro[2] or 0, giro[3] or 0)
+		end
+		return parte({
+			Name = nombre,
+			Size = tam,
+			CFrame = cf,
+			Color = color,
+			Material = material or Enum.Material.SmoothPlastic,
+			CanCollide = true,
+			CanQuery = true,
+		}, padre)
+	end
+
+	local ROJO = Color3.fromRGB(178, 46, 46)
+	local ROJO_OSCURO = Color3.fromRGB(126, 32, 32)
+	local CHASIS = Color3.fromRGB(38, 40, 46)
+	local ACERO = Color3.fromRGB(158, 164, 174)
+	local CRISTAL = Color3.fromRGB(120, 168, 200)
+
+	-- Sitio donde se vende: un rectangulo que se ve desde lejos.
 	parte({
 		Name = "PuntoVenta",
-		Size = Vector3.new(22, 0.3, 14),
-		Position = Vector3.new(cx, 0.15, cz - 4),
+		Size = Vector3.new(24, 0.3, 16),
+		Position = Vector3.new(cx, 0.15, cz - 10),
 		Color = Color3.fromRGB(120, 205, 255),
 		Material = Enum.Material.Neon,
 		Transparency = 0.55,
 	}, padre)
 
-	local caja = parte({
-		Name = "Caja",
-		Size = Vector3.new(16, 8, 9),
-		Position = Vector3.new(cx + 2, 5.4, cz + 4),
-		Color = Color3.fromRGB(48, 60, 82),
-		CanCollide = true,
-		CanQuery = true,
-	}, padre)
+	-- Chasis y ejes.
+	trozo("Chasis", Vector3.new(34, 1.2, 7), 0, 3, 0, CHASIS, Enum.Material.Metal)
+	for _, dx in ipairs({ -11, 6, 10.5 }) do
+		trozo("Eje", Vector3.new(1.2, 1.2, 9.6), dx, 2.6, 0, CHASIS, Enum.Material.Metal)
+	end
 
-	parte({
-		Name = "Cabina",
-		Size = Vector3.new(7, 6.5, 9),
-		Position = Vector3.new(cx - 9.5, 4.6, cz + 4),
-		Color = Color3.fromRGB(206, 76, 76),
-		CanCollide = true,
-		CanQuery = true,
-	}, padre)
+	-- Cabina: morro, techo, luna delantera inclinada y ventanillas.
+	trozo("Cabina", Vector3.new(9, 7.5, 8.6), -12, 7.4, 0, ROJO, Enum.Material.Metal)
+	trozo("TechoCabina", Vector3.new(9.4, 0.7, 9), -12, 11.4, 0, ROJO_OSCURO, Enum.Material.Metal)
+	trozo("NieveTecho", Vector3.new(9.6, 0.5, 9.2), -12, 11.9, 0, NIEVE, Enum.Material.Snow)
+	trozo("Luna", Vector3.new(0.5, 4.6, 7.8), -7.4, 9.4, 0, CRISTAL, Enum.Material.Glass, { 0, 0, math.rad(-16) })
+	for _, dz in ipairs({ -4.4, 4.4 }) do
+		trozo("Ventanilla", Vector3.new(4.4, 3, 0.4), -12.5, 9.4, dz, CRISTAL, Enum.Material.Glass)
+	end
+	trozo("Parrilla", Vector3.new(0.6, 4, 7.6), -16.6, 6.4, 0, ACERO, Enum.Material.Metal)
+	for i = 1, 4 do
+		trozo("Barra", Vector3.new(0.8, 0.35, 7.8), -16.8, 5 + i * 0.9, 0, CHASIS, Enum.Material.Metal)
+	end
+	trozo("Parachoques", Vector3.new(1.4, 1.8, 9.4), -17.2, 3.4, 0, ACERO, Enum.Material.Metal)
+	for _, dz in ipairs({ -3, 3 }) do
+		trozo("Faro", Vector3.new(0.5, 1.5, 2.2), -17, 5.6, dz, Color3.fromRGB(255, 242, 196), Enum.Material.Neon)
+	end
+	for _, dz in ipairs({ -5, 5 }) do
+		trozo("Retrovisor", Vector3.new(0.4, 2.2, 1), -14.6, 10, dz, CHASIS, Enum.Material.Metal)
+		trozo("BrazoRetro", Vector3.new(1.6, 0.3, 0.3), -13.8, 10, dz, CHASIS, Enum.Material.Metal)
+	end
+	trozo("Tubo", Vector3.new(1, 8, 1), -7.6, 11, -4.2, ACERO, Enum.Material.Metal)
 
-	for _, dx in ipairs({ -9, 1, 7 }) do
-		for _, dz in ipairs({ -4.6, 4.6 }) do
-			parte({
-				Name = "Rueda",
-				Shape = Enum.PartType.Cylinder,
-				Size = Vector3.new(1.6, 3.2, 3.2),
-				CFrame = CFrame.new(cx + dx, 1.5, cz + 4 + dz),
-				Color = Color3.fromRGB(28, 28, 32),
-			}, padre)
+	-- Volquete: suelo, laterales, frente, puerta trasera y refuerzos.
+	trozo("VolqueteSuelo", Vector3.new(21, 0.8, 9.6), 4, 4.4, 0, ROJO_OSCURO, Enum.Material.Metal)
+	for _, dz in ipairs({ -4.8, 4.8 }) do
+		trozo("VolqueteLado", Vector3.new(21, 6, 0.7), 4, 7.6, dz, ROJO, Enum.Material.Metal)
+	end
+	trozo("VolqueteFrente", Vector3.new(0.7, 6.6, 9.6), -6.4, 7.9, 0, ROJO, Enum.Material.Metal)
+	trozo("VolquetePuerta", Vector3.new(0.7, 5.4, 9.6), 14.4, 7.3, 0, ROJO_OSCURO, Enum.Material.Metal)
+	for i = 0, 4 do
+		for _, dz in ipairs({ -5.1, 5.1 }) do
+			trozo("Refuerzo", Vector3.new(0.6, 6, 0.5), -4 + i * 4.2, 7.6, dz, ROJO_OSCURO, Enum.Material.Metal)
 		end
 	end
 
-	-- El monton de nieve ya vendida, para que se vea a donde va.
+	-- La nieve que ya se ha descargado, asomando por el volquete.
+	parte({
+		Name = "CargaNieve",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(19, 5, 9),
+		Position = Vector3.new(cx + 4, suelo + 9.6, cz),
+		Color = NIEVE,
+		Material = Enum.Material.Snow,
+	}, padre)
+
+	-- Seis ruedas con su llanta.
+	for _, dx in ipairs({ -11, 6, 10.5 }) do
+		for _, dz in ipairs({ -4.8, 4.8 }) do
+			parte({
+				Name = "RuedaCamion",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(2.4, 5.6, 5.6),
+				CFrame = CFrame.new(cx + dx, suelo + 2.8, cz + dz) * CFrame.Angles(0, 0, math.rad(90)),
+				Color = Color3.fromRGB(26, 26, 30),
+				Material = Enum.Material.Metal,
+			}, padre)
+			parte({
+				Name = "LlantaCamion",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(2.6, 2.8, 2.8),
+				CFrame = CFrame.new(cx + dx, suelo + 2.8, cz + dz) * CFrame.Angles(0, 0, math.rad(90)),
+				Color = ACERO,
+				Material = Enum.Material.Metal,
+			}, padre)
+		end
+		trozo("Guardabarros", Vector3.new(6.4, 0.5, 11), dx, 6, 0, CHASIS, Enum.Material.Metal)
+	end
+
+	-- El monton de nieve ya vendida, al lado.
 	for i = 1, 4 do
 		parte({
 			Name = "Monton",
 			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(6 + i, 6 + i, 6 + i),
-			Position = Vector3.new(cx + 12 + i * 2.5, 0.6, cz + 6),
+			Size = Vector3.new(9 + i * 2, 5 + i, 9 + i * 2),
+			Position = Vector3.new(cx + 22 + i * 3, 0.6, cz + 5),
 			Color = Color3.fromRGB(246, 250, 255),
 			Material = Enum.Material.Snow,
 		}, padre)
 	end
 
-	cartel(caja, "SELL", "vender", 7, 12)
-	zona.ventaEn = Vector3.new(cx, 0, cz - 4)
+	local caja = padre:FindFirstChild("Cabina")
+	if caja then
+		cartel(caja, "SELL", "vender", 9, 12)
+	end
+	-- El punto de venta, justo fuera de la parcela: si cayera dentro se
+	-- venderia solo mientras barres y no habria viaje que hacer.
+	zona.ventaEn = Vector3.new(cx, 0, cz - 10)
 	zona.camion = caja
 end
+
 
 -------------------------------------------------------------------
 --  LO QUE HAY EN CADA ZONA
@@ -1378,8 +1463,8 @@ end
 local function construirCalle()
 	local ancho = mundo.maxX - mundo.minX
 	local centroX = (mundo.minX + mundo.maxX) / 2
-	local zAcera = mundo.maxZ - 62
-	local zCalle = mundo.maxZ - 40
+	local zAcera = mundo.maxZ - 46
+	local zCalle = mundo.maxZ - 24
 
 	parte({
 		Name = "Acera",
@@ -1397,7 +1482,7 @@ local function construirCalle()
 	}, mundo.carpeta)
 	parte({
 		Name = "Calzada",
-		Size = Vector3.new(ancho, 0.5, 30),
+		Size = Vector3.new(ancho, 0.5, 26),
 		Position = Vector3.new(centroX, 0.25, zCalle),
 		Color = Color3.fromRGB(58, 58, 64),
 		Material = Enum.Material.Asphalt,
@@ -1484,7 +1569,7 @@ local function construirMundo()
 	local sitio = Instance.new("SpawnLocation")
 	sitio.Name = "Salida"
 	sitio.Size = Vector3.new(14, 1, 14)
-	sitio.Position = Vector3.new(primera.centroX, 0.5, primera.z1 + 24)
+	sitio.Position = Vector3.new(primera.centroX, 0.5, primera.z1 + 42)
 	sitio.Anchored = true
 	sitio.CanCollide = true
 	sitio.Transparency = 0.4
@@ -1981,7 +2066,7 @@ local function construirTabla()
 	local poste = parte({
 		Name = "Tabla",
 		Size = Vector3.new(1.4, 13, 1.4),
-		Position = Vector3.new(primera.x0 - 18, 6.5, primera.z1 + 20),
+		Position = Vector3.new(primera.x0 - 16, 6.5, primera.z1 + 40),
 		Color = Color3.fromRGB(56, 66, 86),
 		CanCollide = true,
 		CanQuery = true,

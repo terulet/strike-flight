@@ -166,7 +166,18 @@ comprobar(salida ~= nil and salida.ClassName == "SpawnLocation", "hay sitio dond
 
 for _, def in ipairs(A.zonas) do
 	local grupo = carpeta:FindFirstChild(def.clave)
-	comprobar(grupo ~= nil and grupo:FindFirstChild("Caja") ~= nil, "la zona " .. def.clave .. " tiene camion")
+	local ruedas = 0
+	if grupo then
+		for _, pieza in ipairs(grupo:GetChildren()) do
+			if pieza.Name == "RuedaCamion" then
+				ruedas = ruedas + 1
+			end
+		end
+	end
+	comprobar(
+		grupo ~= nil and grupo:FindFirstChild("Cabina") ~= nil and grupo:FindFirstChild("VolqueteSuelo") ~= nil and ruedas == 6,
+		"la zona " .. def.clave .. " tiene camion con cabina, volquete y seis ruedas"
+	)
 end
 
 
