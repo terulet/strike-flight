@@ -1,0 +1,22 @@
+{
+  "name": "desentierra",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "AjustesV2": { "$path": "src/ReplicatedStorage/AjustesV2.luau" },
+      "ParcelaV2": { "$path": "src/ReplicatedStorage/ParcelaV2.luau" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Desenterrar": { "$path": "src/ServerScriptService/Desenterrar.server.luau" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "DesenterrarCliente": { "$path": "src/StarterPlayer/StarterPlayerScripts/DesenterrarCliente.client.luau" }
+      }
+    }
+  }
+}

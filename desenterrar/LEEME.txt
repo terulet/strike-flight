@@ -1,0 +1,89 @@
+===========================================
+  DESENTIERRA
+  (primera vertical)
+===========================================
+
+Ha caido la mayor nevada de la historia. Solo
+asoma una chimenea. Es la tuya.
+
+Esto NO es el juego entero: es el trozo que
+tiene que demostrar que la idea funciona. Si
+descubrir esa puerta emociona, hay juego. Si no,
+mejor saberlo aqui que despues de construir el
+pueblo.
+
+La version anterior sigue entera en  nieve\
+
+
+-------------------------------------------
+  PROBARLO
+-------------------------------------------
+
+  1. Descarga DESENTIERRA.rbxlx
+  2. Doble clic (o File > Open from File)
+  3. PLAY
+
+Apareces en suelo firme, al borde del manto de
+nieve. Subes por la rampa, y a cavar.
+
+
+-------------------------------------------
+  LO QUE HAY QUE MIRAR
+-------------------------------------------
+
+  - Se ve la chimenea desde el principio?
+  - Cavar entretiene o cansa?
+  - Cuando aparece el tejado, se nota?
+  - Y cuando aparece la puerta?
+
+Medido con el simulador: el tejado asoma a los
+30 segundos y la puerta a los 5 minutos y medio,
+moviendo 1.250 capas de nieve y con 5 viajes al
+monton.
+
+
+-------------------------------------------
+  LA REGLA QUE LO SOSTIENE TODO
+-------------------------------------------
+
+Solo se puede cavar una casilla si NINGUNA de sus
+ocho vecinas esta mas alta. O sea: para bajar hay
+que ensanchar.
+
+Eso hace imposible cavarse un pozo del que no se
+sale, y hace que la rampa se forme sola.
+
+Efecto de lado que conviene saber: solo se cava
+en lo mas alto. Por eso el manto nace plano y
+alto, y no en forma de hoyo: si nacieras en el
+fondo de uno, no podrias cavar nada.
+
+
+-------------------------------------------
+  TOCAR LOS NUMEROS
+-------------------------------------------
+
+Todo en AjustesV2:
+
+  nieve.capasMaximas   lo hondo que esta todo
+  nieve.capa           studs por capa (2)
+  jugador.radio        lo ancho que barre la pala
+  jugador.potencia     casillas por golpe
+  jugador.capacidad    lo que cabe en la carretilla
+  casa.*               la casa y su chimenea
+  hallazgos            que aparece y a que capa
+
+
+-------------------------------------------
+  PRUEBAS
+-------------------------------------------
+
+    node desenterrar/herramientas/probar.mjs
+    node desenterrar/herramientas/probar.mjs medir
+
+La primera comprueba 27 cosas, y la que manda es
+esta: pase lo que pase, dos casillas vecinas no
+acaban nunca con mas de un nivel de diferencia.
+Si eso se rompe, hay pozos, y el juego se rompe.
+
+La segunda mide lo que cuesta llegar a la puerta.
