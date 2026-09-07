@@ -386,8 +386,13 @@ local function construirNieve(zona, padre)
 			-- Un cubo parece una baldosa. Un elipsoide mas ancho que la
 			-- casilla, girado y movido un poco, se solapa con los vecinos
 			-- y lo que se ve es un manto con bultos: nieve, no suelo.
-			local ancho = celda * (1.22 + aleatorio:NextNumber() * 0.26)
-			local altura = A.mundo.alturaNieve * (0.9 + aleatorio:NextNumber() * 1.5)
+			-- Bajo y MUY ancho: asi cada monton pisa a sus cuatro vecinos y
+			-- lo que se ve es una costra continua con bultos. Alto y
+			-- estrecho se leen como huevos sueltos, que es lo que pasaba.
+			local ancho = celda * (1.5 + aleatorio:NextNumber() * 0.3)
+			local altura = A.mundo.alturaNieve
+				* math.sqrt(celda / 4)
+				* (0.5 + aleatorio:NextNumber() * 0.55)
 			local desvioX = (aleatorio:NextNumber() - 0.5) * celda * 0.36
 			local desvioZ = (aleatorio:NextNumber() - 0.5) * celda * 0.36
 			local tono = 243 + math.floor(aleatorio:NextNumber() * 12)
@@ -396,7 +401,7 @@ local function construirNieve(zona, padre)
 				Name = "n",
 				Shape = Enum.PartType.Ball,
 				Size = Vector3.new(ancho, altura, ancho * (0.88 + aleatorio:NextNumber() * 0.24)),
-				CFrame = CFrame.new(px + desvioX, 0.4 + altura * 0.26, pz + desvioZ)
+				CFrame = CFrame.new(px + desvioX, 0.4 + altura * 0.16, pz + desvioZ)
 					* CFrame.Angles(0, aleatorio:NextNumber() * math.pi, 0),
 				Color = Color3.fromRGB(tono - 8, tono - 3, tono),
 				Material = Enum.Material.Snow,
@@ -1847,11 +1852,12 @@ local function montarCarretilla(pers, raiz, escala)
 	local grupo = Instance.new("Model")
 	grupo.Name = "Carretilla"
 
-	local ancho = 4.4 * escala
-	local alto = 2.4 * escala
-	local fondo = 5.4 * escala
-	-- Delante del jugador: en Roblox el frente de una pieza es su -Z.
-	local base = raiz.CFrame * CFrame.new(0, -1.5, -3.6)
+	local ancho = 2.9 * escala
+	local alto = 1.7 * escala
+	local fondo = 3.6 * escala
+	-- Por delante y casi a ras de suelo. Antes iba tan grande y tan pegada
+	-- que el muneco parecia ir metido dentro de un cajon.
+	local base = raiz.CFrame * CFrame.new(0, -2.35, -3.3)
 
 	local function trozo(nombre, tam, cf, color, material)
 		local pieza2 = Instance.new("Part")
@@ -1889,7 +1895,7 @@ local function montarCarretilla(pers, raiz, escala)
 	-- El monton: escalones apagados que se van encendiendo al llenarse.
 	local montones = {}
 	for i = 1, ESCALONES_MONTON do
-		local altura = (alto * 1.15 / ESCALONES_MONTON)
+		local altura = (alto * 1.25 / ESCALONES_MONTON)
 		local encogido = 1 - (i - 1) * 0.09
 		local capa = trozo(
 			"Monton" .. i,
@@ -1980,7 +1986,10 @@ equipar = function(jugador)
 	end
 
 	local hoja = montarPala(pers, brazo, 1 + (estado.niveles.pala - 1) * 0.09)
-	estado.montones = montarCarretilla(pers, raiz, 1 + (estado.niveles.carretilla - 1) * 0.07)
+	-- Crece, pero con tope: a 15 niveles sin freno acabaria siendo un
+	-- contenedor mas grande que el jugador.
+	local tamCarretilla = math.min(1.5, 1 + (estado.niveles.carretilla - 1) * 0.045)
+	estado.montones = montarCarretilla(pers, raiz, tamCarretilla)
 	prepararPolvo(hoja, estado)
 end
 
