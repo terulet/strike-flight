@@ -190,6 +190,34 @@ end
 
 
 -------------------------------------------------------------------
+titulo("UN CARTEL QUE LLEGA TARDE")
+-------------------------------------------------------------------
+
+-- Los carteles del mundo no llegan todos a la vez. El que aparece cuando
+-- el cliente ya esta en marcha tiene que traducirse igual: asi es como el
+-- de records se quedaba en ingles mientras el del camion salia bien.
+do
+	local poste = Instance.new("Part")
+	poste.Name = "PosteTarde"
+	poste.Parent = workspace.Nieve
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Cartel"
+	local marco = Instance.new("Frame")
+	marco.Parent = gui
+	local texto = Instance.new("TextLabel")
+	texto.Name = "Texto"
+	texto.Text = "SELL"
+	texto.Parent = marco
+	gui:SetAttribute("tipo", "vender")
+	gui.Parent = poste
+
+	avanzar(0.3)
+	comprobarIgual(texto.Text, A.texto("es", "vender"), "un cartel que llega tarde tambien se traduce")
+end
+
+
+-------------------------------------------------------------------
 titulo("EL PREMIO DIARIO EN PANTALLA")
 -------------------------------------------------------------------
 

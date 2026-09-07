@@ -708,10 +708,19 @@ task.spawn(function()
 	if not raiz then
 		return
 	end
-	for _, obj in ipairs(raiz:GetDescendants()) do
-		etiquetarCartel(obj)
-	end
+	-- Primero se escucha y DESPUES se repasa lo que ya hay. Al reves se
+	-- pierde todo lo que llegue entre una cosa y la otra: por eso el
+	-- cartel de records se quedaba en ingles y el del camion no.
 	raiz.DescendantAdded:Connect(etiquetarCartel)
+
+	local function repasar()
+		for _, obj in ipairs(raiz:GetDescendants()) do
+			etiquetarCartel(obj)
+		end
+	end
+
+	repasar()
+	task.delay(3, repasar)
 end)
 
 

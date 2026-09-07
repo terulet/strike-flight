@@ -1146,56 +1146,68 @@ end
 -------------------------------------------------------------------
 
 local function darPala(jugador, pers)
-	local humano = pers:FindFirstChildOfClass("Humanoid")
-	if not humano then
-		return
-	end
-	local mochila = jugador:FindFirstChildOfClass("Backpack")
-	if not mochila then
-		return
-	end
-	for _, sitio in ipairs({ pers, mochila }) do
-		local vieja = sitio:FindFirstChild("Pala")
-		if vieja then
-			vieja:Destroy()
-		end
+	local vieja = pers:FindFirstChild("Pala")
+	if vieja then
+		vieja:Destroy()
 	end
 
-	local herramienta = Instance.new("Tool")
-	herramienta.Name = "Pala"
-	herramienta.ToolTip = "Pala"
-	herramienta.RequiresHandle = true
-	herramienta.CanBeDropped = false
-	herramienta.Grip = CFrame.new(0, -1.3, 0)
+	-- Sin Tool: se suelda al brazo. Con Tool.Grip hay que adivinar como
+	-- esta orientada la mano y la pala acaba flotando al lado del muneco.
+	--
+	-- El personaje llega por piezas, asi que el brazo puede no estar
+	-- todavia: se espera al que toque segun sea R6 o R15.
+	local brazo = pers:FindFirstChild("RightHand") or pers:FindFirstChild("Right Arm")
+	if not brazo then
+		local humano = pers:FindFirstChildOfClass("Humanoid")
+		local esR15 = humano ~= nil and humano.RigType == Enum.HumanoidRigType.R15
+		brazo = pers:WaitForChild(esR15 and "RightHand" or "Right Arm", 8)
+	end
+	if not brazo then
+		warn("[nieve] no encuentro el brazo: este jugador se queda sin pala")
+		return
+	end
+	local esR15 = pers:FindFirstChild("RightHand") ~= nil
+
+	local grupo = Instance.new("Model")
+	grupo.Name = "Pala"
 
 	local mango = Instance.new("Part")
-	mango.Name = "Handle"
-	mango.Size = Vector3.new(0.32, 4.2, 0.32)
-	mango.Color = Color3.fromRGB(120, 84, 52)
+	mango.Name = "Mango"
+	mango.Size = Vector3.new(0.16, 2.4, 0.16)
+	mango.Color = Color3.fromRGB(126, 88, 54)
 	mango.Material = Enum.Material.Wood
 	mango.CanCollide = false
+	mango.CanQuery = false
+	mango.CanTouch = false
 	mango.Massless = true
-	mango.Parent = herramienta
+	mango.CFrame = brazo.CFrame
+		* CFrame.new(0, esR15 and -0.45 or -0.95, -0.2)
+		* CFrame.Angles(math.rad(18), 0, 0)
+	mango.Parent = grupo
 
 	local hoja = Instance.new("Part")
 	hoja.Name = "Hoja"
-	hoja.Size = Vector3.new(2.3, 0.25, 1.9)
-	hoja.CFrame = CFrame.new(0, -2.2, -0.5)
-	hoja.Color = Color3.fromRGB(196, 212, 232)
+	hoja.Size = Vector3.new(1, 0.14, 0.85)
+	hoja.Color = Color3.fromRGB(198, 214, 234)
 	hoja.Material = Enum.Material.Metal
 	hoja.CanCollide = false
+	hoja.CanQuery = false
+	hoja.CanTouch = false
 	hoja.Massless = true
-	hoja.Parent = herramienta
+	hoja.CFrame = mango.CFrame * CFrame.new(0, -1.25, -0.3)
+	hoja.Parent = grupo
 
-	local union = Instance.new("WeldConstraint")
-	union.Part0 = mango
-	union.Part1 = hoja
-	union.Parent = mango
+	local alBrazo = Instance.new("WeldConstraint")
+	alBrazo.Part0 = brazo
+	alBrazo.Part1 = mango
+	alBrazo.Parent = mango
 
-	herramienta.Parent = mochila
-	pcall(function()
-		humano:EquipTool(herramienta)
-	end)
+	local alMango = Instance.new("WeldConstraint")
+	alMango.Part0 = mango
+	alMango.Part1 = hoja
+	alMango.Parent = hoja
+
+	grupo.Parent = pers
 end
 
 local function prepararPolvo(pers, estado)

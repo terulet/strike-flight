@@ -323,6 +323,15 @@ local metaInstancia = {
 				if senal then
 					senal:Fire(t)
 				end
+				-- DescendantAdded sube por toda la rama, como en Roblox.
+				local nodo = valor
+				while nodo do
+					local abajo = rawget(nodo, "DescendantAdded")
+					if abajo then
+						abajo:Fire(t)
+					end
+					nodo = rawget(nodo, "_padre")
+				end
 			end
 			return
 		end
@@ -339,6 +348,13 @@ local function crearInstancia(clase)
 		_atributos = {},
 		_destruida = false,
 	}
+
+	if BASE_PARTE[clase] then
+		-- En Roblox una pieza SIEMPRE tiene esto puesto.
+		obj.CFrame = CFrame.new(0, 0, 0)
+		obj.Position = Vector3.new(0, 0, 0)
+		obj.Size = Vector3.new(1, 1, 1)
+	end
 
 	obj.ChildAdded = nuevaSenal()
 	obj.DescendantAdded = nuevaSenal()
@@ -737,6 +753,10 @@ function nuevoJugador(nombre)
 		local humano = crearInstancia("Humanoid")
 		humano.Name = "Humanoid"
 		humano.Parent = pers
+
+		local brazo = crearInstancia("Part")
+		brazo.Name = "Right Arm"
+		brazo.Parent = pers
 
 		pers.Parent = workspace
 		self.Character = pers

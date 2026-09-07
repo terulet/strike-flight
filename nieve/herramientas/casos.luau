@@ -170,8 +170,14 @@ comprobar(marcador ~= nil, "se le pone marcador")
 comprobar(marcador and marcador:FindFirstChild("Coins") ~= nil, "el marcador lleva monedas")
 
 local pala = ana.Character and ana.Character:FindFirstChild("Pala")
-local palaEnMochila = ana:FindFirstChildOfClass("Backpack"):FindFirstChild("Pala")
-comprobar(pala ~= nil or palaEnMochila ~= nil, "le dan una pala")
+comprobar(pala ~= nil, "le dan una pala")
+comprobar(pala and pala:FindFirstChild("Mango") ~= nil, "con su mango")
+comprobar(pala and pala:FindFirstChild("Hoja") ~= nil, "y su hoja")
+local soldadura = pala and pala.Mango:FindFirstChildOfClass("WeldConstraint")
+comprobar(
+	soldadura ~= nil and soldadura.Part0 == ana.Character:FindFirstChild("Right Arm"),
+	"soldada al brazo, que si no flota al lado del muneco"
+)
 
 local humano = ana.Character:FindFirstChild("Humanoid")
 comprobarIgual(humano.WalkSpeed, A.jugador.velocidadBase, "anda a la velocidad de partida")
