@@ -23,7 +23,7 @@
       <Properties>
         <string name="Name">Ajustes</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  ajustes
+	LA GRAN TORMENTA  —  ajustes
 
 	Tercera vertical. Las dos anteriores demostraron que desenterrar
 	engancha. Esta hace que no se pierda: varias parcelas de verdad, una
@@ -55,14 +55,14 @@
 
 local Ajustes = {}
 
-Ajustes.version = "4.0.0-el-barrio-despierta"
+Ajustes.version = "5.0.0-la-gran-tormenta"
 Ajustes.idiomaFijo = nil
 
 -- Version del GUARDADO, aparte de la del juego. Si cambia la forma del
 -- mundo (medidas, sitios, perfil de nieve), sube esto: lo guardado deja
 -- de encajar y hay que rehacer la nevada. El dinero y los hallazgos se
 -- conservan igual, que es lo que le dolería perder a alguien.
-Ajustes.esquema = 1
+Ajustes.esquema = 2
 
 
 -------------------------------------------------------------------
@@ -85,7 +85,7 @@ Ajustes.nieve = {
 	desnivelMaximo = 2,
 
 	capasContraLaCasa = 13,
-	capasContraElGaraje = 26,
+	capasContraElGaraje = 30,
 	capasContraElVecino = 24,
 }
 
@@ -141,7 +141,7 @@ Ajustes.sitio = {
 	-- delante de tu casa y volvio a nevar encima. Esa es la excusa, y es
 	-- tambien lo que hace que el quitanieves pueda trabajar.
 	capasCalzada = 6,
-	capasCarretera = 21,  -- el muro que dejo la maquina en tu entrada
+	capasCarretera = 26,  -- el muro que dejo la maquina en tu entrada
 	anchoBerma = 9,       -- casillas de muro a cada lado de tu entrada
 
 	cxBuzon = 4,
@@ -155,6 +155,14 @@ Ajustes.sitio = {
 	capasEntradaPasable = 2,
 	-- Cuando se da la calle por abierta hasta la plaza.
 	capasCalleAbierta = 1,
+
+	-- LO QUE TRAE LA TORMENTA. Todo esto esta construido desde el primer
+	-- dia, debajo de la nieve; la tormenta solo vuelve a taparlo.
+	czAceraSur = 16,      -- la acera de tu lado (dos casillas de ancho)
+	czAceraNorte = 35,    -- la de enfrente
+	cxParada = 56,        -- la parada del autobus, en la acera sur
+	czAyuntamiento = 38,  -- el ayuntamiento, al fondo de la plaza
+	czArcenNorte = 31,    -- por donde se rodea si cae un arbol
 }
 
 
@@ -188,6 +196,7 @@ Ajustes.herramientas = {
 		potencia = 3,
 		radio = 11,
 		dejaCapas = 0,
+		dejaTormenta = 0,   -- la pala llega hasta el suelo, tambien en tormenta
 	},
 	sopladora = {
 		clave = "sopladora",
@@ -198,6 +207,10 @@ Ajustes.herramientas = {
 		ancho = 30,
 		fondo = 16,
 		dejaCapas = 2,
+		-- Deja tambien una capa de la nieve nueva: por eso las puertas y
+		-- los escalones siguen siendo trabajo de pala aunque haya
+		-- sopladora.
+		dejaTormenta = 1,
 		desvio = 17,
 	},
 	quitanieves = {
@@ -209,14 +222,136 @@ Ajustes.herramientas = {
 		ancho = 30,       -- la cuchilla, de lado a lado
 		fondo = 14,
 		dejaCapas = 0,    -- raspa hasta el asfalto...
+		dejaTormenta = 0,
 		-- ...pero solo muerde donde ya queda poca nieve. Contra el muro de
 		-- tu entrada (diecisiete capas) no puede: eso es de pala y
 		-- sopladora. Y es tambien lo que puede pisar sin atascarse.
-		capasMaximas = 6,
+		-- Lo que traga la cuchilla, contando la nevada vieja Y la de
+		-- tormenta. Tiene que dar para la calzada (seis capas) con una
+		-- tormenta entera encima (tres mas): si no, en cuanto nevara la
+		-- maquina no podria ni salir a la calle que viene a limpiar.
+		-- Contra el muro de tu entrada sigue sin poder, que es lo suyo.
+		capasMaximas = 14,
 		velocidad = 10,
 		giro = 1.7,       -- radianes por segundo
 		desvio = 22,      -- a que distancia deja los montones
 	},
+}
+
+
+-------------------------------------------------------------------
+--  LA TORMENTA
+--
+--  La idea entera en una linea: que el mundo vuelva a necesitarte SIN
+--  borrar nada de lo que ya has hecho.
+--
+--  Por eso la nieve de tormenta es otra capa, encima y aparte: cae poca
+--  (tres capas como mucho), no cae sobre lo que ya has descubierto, no
+--  se guarda y se derrite al terminar. Por mucho que nieve, tu puerta
+--  sigue abierta y tus herramientas siguen siendo tuyas.
+-------------------------------------------------------------------
+
+Ajustes.tormenta = {
+	capasMaximas = 9,       -- lo hondo que llega a cuajar EN UN BLOQUEO
+	capasCalle = 5,         -- y lo que cuaja en el resto de la calle
+	-- EN LA CALZADA, MENOS. La pala del quitanieves traga catorce capas
+	-- contando lo que ya hubiera debajo; si un ventisquero de tormenta
+	-- sobre la calzada se pasara de ahi, la maquina no podria ni entrar
+	-- en su propio bloqueo. Ocho mas las seis de la calle son catorce
+	-- justas.
+	capasEnCalzada = 8,
+	calma = 7,              -- segundos de calma y celebracion en la plaza
+	aviso = 5,              -- la radio, el cielo y el viento, antes de cuajar
+	-- OJO: cada ola echa UNA capa. Sobre los bloqueos cae en todas las
+	-- olas (son ventisqueros: ahi es donde el viento amontona), y sobre
+	-- el resto de la calle solo en una de cada dos, a manchas. Asi que
+	-- lo hondo que cuaja de verdad lo manda esto tanto como los topes de
+	-- arriba: con trece olas, nueve capas en un bloqueo y cinco fuera.
+	olas = 13,              -- en cuantas tandas cae la nieve
+	entreOlas = 2.2,        -- segundos entre tanda y tanda
+	porLote = 240,          -- casillas por fotograma: nada de golpes secos
+	derretirPorLote = 320,
+
+	-- CUANTOS BLOQUEOS SALEN NO SE DECIDE CONTANDO, SE DECIDE EN MINUTOS.
+	-- Un tramo de calle se lo lleva el quitanieves en cuarenta segundos y
+	-- la acera del ayuntamiento son dos minutos de pala: pedir "cinco
+	-- bloqueos" daba tormentas de siete minutos y tormentas de trece con
+	-- las mismas reglas. Aqui se dice cuanto trabajo queremos, en
+	-- segundos, y entran los bloqueos que quepan.
+	--
+	-- Con mas gente NO se multiplica la nieve: se pide un poco mas de
+	-- faena y se ensanchan las aceras (nunca la calzada, que la hace uno
+	-- solo). Jugar acompanado no puede ser un castigo.
+	trabajoSolo = 680,
+	trabajoAcompanado = 820,
+	-- Lo que no es cavar: andar de una casilla a otra, los viajes al
+	-- monton con la carretilla llena, dar la vuelta con la maquina. Es
+	-- multiplicador sobre el tiempo de cavar puro.
+	entorpecimiento = { calzada = 3, acera = 2, puerta = 2.2 },
+	-- Como mucho dos bloqueos de calzada por tormenta, contando el arbol:
+	-- quitanieves hay uno solo, y todo lo que sea calle lo hace la misma
+	-- persona seguido.
+	maximoDeCalzada = 2,
+	anchoExtraPorJugador = 1,
+	maximoJugadoresQueCuentan = 3,
+
+	-- El arbol caido. No se puede quitar con nada: obliga a abrir el
+	-- desvio y a rodear.
+	probabilidadArbol = 0.65,
+
+	-- Cada cuanto se recuerda al jugador que hay algo que hacer, si lleva
+	-- rato sin cerrar un bloqueo.
+	empujon = 100,
+}
+
+-- La lista de la que sale cada tormenta. No salen todos cada vez: por eso
+-- el recorrido cambia y no se repite el mismo paseo.
+--
+-- Y estan los tres tipos a proposito, porque el quitanieves NO puede
+-- resolverlo todo:
+--
+--    calzada  nieve honda sobre el asfalto        -> quitanieves
+--    acera    caminos estrechos, fuera de calzada -> sopladora
+--    puerta   puertas, escalones, nieve prensada  -> pala
+Ajustes.bloqueos = {
+	{
+		clave = "acceso", tipo = "calzada", herramienta = "quitanieves",
+		nombre = { es = "EL ACCESO AL PUEBLO", en = "THE WAY INTO TOWN" },
+	},
+	{
+		clave = "ruta", tipo = "calzada", herramienta = "quitanieves",
+		nombre = { es = "LA RUTA PRINCIPAL", en = "THE MAIN ROUTE" },
+	},
+	{
+		clave = "cruce", tipo = "calzada", herramienta = "quitanieves",
+		nombre = { es = "EL CRUCE DE LA PLAZA", en = "THE SQUARE CROSSING" },
+	},
+	{
+		clave = "parada", tipo = "acera", herramienta = "sopladora",
+		nombre = { es = "LA PARADA DEL AUTOBUS", en = "THE BUS STOP" },
+	},
+	{
+		clave = "vecino", tipo = "acera", herramienta = "sopladora",
+		nombre = { es = "EL CAMINO DEL VECINO", en = "THE NEIGHBOUR'S PATH" },
+	},
+	-- Los dos de pala van a los escalones, y NO a la puerta ni al garaje,
+	-- por una razon de fondo: esas casillas estan protegidas y ahi no
+	-- puede volver a nevar nunca. Un bloqueo encima de una puerta ya
+	-- descubierta seria justo lo que este evento no puede hacer.
+	{
+		clave = "escalones", tipo = "puerta", herramienta = "pala",
+		nombre = { es = "LOS ESCALONES DE TU CASA", en = "YOUR FRONT STEPS" },
+	},
+	{
+		clave = "ayuntamiento", tipo = "puerta", herramienta = "pala",
+		nombre = { es = "LA ENTRADA DEL AYUNTAMIENTO", en = "THE TOWN HALL STEPS" },
+	},
+}
+
+-- El desvio no se elige: aparece solo cuando cae el arbol.
+Ajustes.desvio = {
+	clave = "desvio", tipo = "calzada", herramienta = "quitanieves",
+	nombre = { es = "EL DESVIO", en = "THE DETOUR" },
 }
 
 
@@ -331,6 +466,8 @@ Ajustes.hallazgos = {
 	{ clave = "coche", nombre = { es = "¡TU COCHE!", en = "YOUR CAR!" } },
 	{ clave = "carretera", nombre = { es = "¡LA CARRETERA!", en = "THE ROAD!" } },
 	{ clave = "vecino", nombre = { es = "¡LA PUERTA DEL VECINO!", en = "YOUR NEIGHBOUR'S DOOR!" } },
+	{ clave = "buzonVecino", nombre = { es = "EL BUZON DE ENFRENTE", en = "THE NEIGHBOUR'S MAILBOX" } },
+	{ clave = "parada", nombre = { es = "¡LA PARADA DEL AUTOBUS!", en = "THE BUS STOP!" } },
 	{ clave = "plaza", nombre = { es = "¡LA PLAZA DEL PUEBLO!", en = "THE TOWN SQUARE!" } },
 }
 
@@ -379,6 +516,25 @@ Ajustes.textos = {
 		ajena = "ayudando a %s",
 		guardado = "partida guardada",
 		sinGuardado = "SIN GUARDADO (Studio): la partida no se conserva",
+		tormentaViene = "AVISO METEOROLOGICO",
+		tormentaVienePie = "vuelve a nevar. Y fuerte",
+		rutaTitulo = "MANTEN ABIERTA LA RUTA DE EMERGENCIA",
+		rutaPie = "el camion de suministros no puede pasar",
+		bloqueosQuedan = "quedan %d bloqueos",
+		bloqueoUltimo = "queda 1 bloqueo",
+		despejado1 = "DESPEJADO",
+		camionEnCamino = "EL CAMION YA VIENE",
+		camionLlega = "¡EL CAMION HA LLEGADO A LA PLAZA!",
+		arbolCaido = "UN ARBOL CAIDO CORTA LA CALLE",
+		arbolPie = "no se puede quitar: hay que rodear por el arcen",
+		tormentaFin = "LA TORMENTA HA PASADO",
+		reputacion = "REPUTACION",
+		tormentasSuperadas = "TORMENTAS",
+		ayuntamiento = "EL AYUNTAMIENTO HA ABIERTO",
+		balizaNueva = "TU QUITANIEVES LLEVA AHORA LUZ DE EMERGENCIA",
+		soloQuitanieves = "esto es nieve de calzada: quitanieves",
+		soloSopladora = "aqui no entra la maquina: sopladora",
+		soloPalaAqui = "nieve prensada: solo con la PALA",
 	},
 	en = {
 		lleno = "WHEELBARROW FULL! dump it on the pile",
@@ -407,6 +563,25 @@ Ajustes.textos = {
 		ajena = "helping %s",
 		guardado = "game saved",
 		sinGuardado = "NO SAVING (Studio): this game will not be kept",
+		tormentaViene = "WEATHER WARNING",
+		tormentaVienePie = "it is snowing again. Hard",
+		rutaTitulo = "KEEP THE EMERGENCY ROUTE OPEN",
+		rutaPie = "the supply truck cannot get through",
+		bloqueosQuedan = "%d blockages left",
+		bloqueoUltimo = "1 blockage left",
+		despejado1 = "CLEAR",
+		camionEnCamino = "THE TRUCK IS ON ITS WAY",
+		camionLlega = "THE TRUCK MADE IT TO THE SQUARE!",
+		arbolCaido = "A FALLEN TREE BLOCKS THE ROAD",
+		arbolPie = "it cannot be moved: go round by the shoulder",
+		tormentaFin = "THE STORM HAS PASSED",
+		reputacion = "REPUTATION",
+		tormentasSuperadas = "STORMS",
+		ayuntamiento = "THE TOWN HALL IS OPEN",
+		balizaNueva = "YOUR PLOW NOW CARRIES AN EMERGENCY BEACON",
+		soloQuitanieves = "this is roadway snow: use the plow",
+		soloSopladora = "the plow cannot reach here: blower",
+		soloPalaAqui = "packed snow: SHOVEL only",
 	},
 }
 
@@ -440,7 +615,7 @@ return Ajustes
       <Properties>
         <string name="Name">Parcela</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  la parcela
+	LA GRAN TORMENTA  —  la parcela
 
 	El modelo de la nieve, y nada mas. Vive aparte a proposito: ahora hay
 	cinco parcelas a la vez, una por jugador, y quien excava siempre dice
@@ -458,10 +633,27 @@ return Ajustes
 	                  puedan bajar la misma casilla dos veces ni romper la
 	                  pendiente entre los dos.
 
-	  comprimir()     la nieve entera en una cadena corta, por tramos. Son
-	                  4.560 casillas: guardarlas una a una serian miles de
-	                  claves, y en una tabla suelta ocuparia una barbaridad
-	                  para lo que es.
+	  comprimir()     la nieve HISTORICA entera en una cadena corta, por
+	                  tramos. Son miles de casillas: guardarlas una a una
+	                  serian miles de claves, y en una tabla suelta
+	                  ocuparia una barbaridad para lo que es.
+
+	Y desde esta fase hay DOS NIEVES en cada casilla, y no se mezclan
+	nunca:
+
+	  restante   LA NEVADA HISTORICA. La gorda, la del principio. Es la
+	             que se guarda, la que esconde la casa y la que obedece la
+	             regla de la pendiente. Lo que se quita de aqui, se queda
+	             quitado para siempre.
+
+	  tormenta   LA NIEVE DE TORMENTA. Cae encima, es poca y es temporal.
+	             NO se guarda, NO obedece la pendiente (es nieve recien
+	             caida, se aparta de una palada) y se derrite entera
+	             cuando la tormenta pasa.
+
+	Que sean dos cosas distintas es lo que permite que una tormenta vuelva
+	a dar trabajo sin deshacer nada de lo conseguido: por mucho que nieve,
+	la puerta que ya has descubierto sigue descubierta debajo.
 
 	Este archivo va en:  ReplicatedStorage  (ModuleScript, "Parcela")
 ]]
@@ -481,6 +673,11 @@ local function alturaDe(c)
 		return 0
 	end
 	return (c.restante - 1) * CAPA + CAPA * c.rugosidad
+end
+
+-- Lo que se ve de verdad: la nevada historica con la de tormenta encima.
+local function alturaTotalDe(c)
+	return alturaDe(c) + c.tormenta * CAPA
 end
 
 local Parcela = {}
@@ -552,10 +749,21 @@ end
 -- El "minimo" es el suelo que la herramienta NO baja. La pala y el
 -- quitanieves lo dejan en cero; la sopladora deja un colchon porque no
 -- raspa el suelo, y por eso no descubre nada: eso es cosa de la pala.
-function Parcela:puedeExcavar(cx, cz, minimo)
+-- Lo primero que se quita es siempre lo de arriba: la nieve de tormenta.
+-- Y esa no obedece la pendiente, porque es nieve recien caida: se aparta
+-- de una palada y se puede quitar en cualquier orden. Solo cuando ya no
+-- queda tormenta se toca la nevada historica, y ahi manda la regla.
+function Parcela:puedeExcavar(cx, cz, minimo, minimoTormenta)
 	minimo = minimo or 0
+	minimoTormenta = minimoTormenta or 0
 	local c = self:casilla(cx, cz)
-	if not c or c.muro or c.restante <= minimo then
+	if not c or c.muro then
+		return false
+	end
+	if c.tormenta > minimoTormenta then
+		return true
+	end
+	if c.restante <= minimo then
 		return false
 	end
 	local tope = c.restante - 1 + A.nieve.desnivelMaximo
@@ -574,12 +782,27 @@ end
 -- task.wait en medio. Si se cediera el hilo entre las dos cosas, dos
 -- jugadores cavando juntos podrian pasar los dos la comprobacion y bajar
 -- la misma casilla dos veces: nieve duplicada y pendiente rota.
-function Parcela:excavar(cx, cz, minimo)
-	if not self:puedeExcavar(cx, cz, minimo) then
+function Parcela:excavar(cx, cz, minimo, minimoTormenta)
+	if not self:puedeExcavar(cx, cz, minimo, minimoTormenta) then
 		return false
 	end
 	local c = self:casilla(cx, cz)
 	local x, z = self:centro(cx, cz)
+
+	-- Si hay tormenta encima, es lo unico que se puede tocar: la nevada
+	-- historica esta debajo y no se llega a ella hasta apartar esto.
+	if c.tormenta > (minimoTormenta or 0) then
+		local antes = alturaTotalDe(c)
+		c.tormenta = c.tormenta - 1
+		local despues = alturaTotalDe(c)
+		Terreno:FillBlock(
+			CFrame.new(x, (antes + despues) / 2 + 0.2, z),
+			Vector3.new(CELDA + 0.3, antes - despues + 0.4, CELDA + 0.3),
+			Enum.Material.Air
+		)
+		self.capasTormentaQuitadas = (self.capasTormentaQuitadas or 0) + 1
+		return true
+	end
 
 	local antes = alturaDe(c)
 	c.restante = c.restante - 1
@@ -609,6 +832,13 @@ end
 
 function Parcela:alturaEn(cx, cz)
 	local c = self:casilla(cx, cz)
+	return c and alturaTotalDe(c) or 0
+end
+
+-- La historica sola, sin contar lo que haya caido encima hoy. Es la que
+-- dice si algo esta descubierto: una tormenta no des-descubre nada.
+function Parcela:alturaHistoricaEn(cx, cz)
+	local c = self:casilla(cx, cz)
 	return c and alturaDe(c) or 0
 end
 
@@ -634,19 +864,46 @@ function Parcela:capasEncima(cx0, cz0, cx1, cz1)
 	return peor
 end
 
--- Lo mas alto que queda en un trozo, en STUDS. Los hallazgos se miden
--- asi: contra la altura de verdad de la cosa que hay debajo.
+-- Lo mas alto que queda en un trozo, en STUDS, contando SOLO la nevada
+-- historica. Los hallazgos se miden asi a proposito: lo que se descubre
+-- se descubre para siempre, y que caiga nieve nueva encima no puede
+-- volver a taparlo.
 function Parcela:alturaMaximaEn(cx0, cz0, cx1, cz1)
 	local peor = 0
 	for cx = cx0, cx1 do
 		for cz = cz0, cz1 do
-			local h = self:alturaEn(cx, cz)
+			local h = self:alturaHistoricaEn(cx, cz)
 			if h > peor then
 				peor = h
 			end
 		end
 	end
 	return peor
+end
+
+-- Y lo mismo para la de tormenta: cuanta nieve nueva queda encima de un
+-- trozo. Es lo que dice si un bloqueo esta despejado.
+function Parcela:capasTormentaEncima(cx0, cz0, cx1, cz1)
+	local peor = 0
+	for cx = cx0, cx1 do
+		for cz = cz0, cz1 do
+			local c = self:casilla(cx, cz)
+			if c and not c.muro and c.tormenta > peor then
+				peor = c.tormenta
+			end
+		end
+	end
+	return peor
+end
+
+function Parcela:tormentaTotal()
+	local suma = 0
+	for cx = 0, self.ancho - 1 do
+		for cz = 0, self.largo - 1 do
+			suma = suma + self.casillas[cx][cz].tormenta
+		end
+	end
+	return suma
 end
 
 -- Solo calle: donde puede trabajar el quitanieves.
@@ -662,7 +919,19 @@ function Parcela:pisable(cx, cz, capasMaximas)
 	if not c or c.muro then
 		return false
 	end
-	return c.restante <= capasMaximas
+	-- Cuenta lo que hay de verdad encima, historico mas tormenta: la
+	-- maquina no sabe de que ano es la nieve que tiene delante.
+	return c.restante + c.tormenta <= capasMaximas
+end
+
+-- Cuanto hay encima de una casilla en total, para saber si a una
+-- herramienta le da la cuchilla.
+function Parcela:capasTotalesEn(cx, cz)
+	local c = self:casilla(cx, cz)
+	if not c or c.muro then
+		return 0
+	end
+	return c.restante + c.tormenta
 end
 
 
@@ -681,6 +950,9 @@ function Parcela:generar(perfil)
 			self.casillas[cx][cz] = {
 				inicial = capas,
 				restante = capas,
+				-- La de tormenta empieza siempre a cero: no se hereda ni se
+				-- guarda, cae y se derrite dentro de la misma partida.
+				tormenta = 0,
 				muro = muro == true,
 				calle = calle == true,
 				-- Cuanto de la capa de arriba esta puesta: rompe el efecto
@@ -761,6 +1033,90 @@ function Parcela:nevar()
 		end
 	end
 end
+
+-------------------------------------------------------------------
+--  LA NIEVE DE TORMENTA
+--
+--  Cae encima de la historica y se derrite al terminar. No se guarda
+--  jamas: si alguien sale a mitad de tormenta, no pierde nada de lo suyo,
+--  simplemente la tormenta se queda en el servidor.
+--
+--  Y hay casillas PROTEGIDAS: encima de lo que ya se ha descubierto no
+--  cae nieve nueva. Esto vive aqui, en el modelo, y no en quien organiza
+--  la tormenta, porque es la garantia mas importante de todo el evento:
+--  una tormenta nunca puede volver a enterrar una puerta que ya has
+--  encontrado.
+-------------------------------------------------------------------
+
+-- Marca un trozo como intocable para las tormentas. Se llama al descubrir
+-- algo, y ya no se quita.
+function Parcela:proteger(cx0, cz0, cx1, cz1)
+	for cx = cx0, cx1 do
+		for cz = cz0, cz1 do
+			local c = self:casilla(cx, cz)
+			if c then
+				c.protegida = true
+			end
+		end
+	end
+end
+
+function Parcela:estaProtegida(cx, cz)
+	local c = self:casilla(cx, cz)
+	return c ~= nil and c.protegida == true
+end
+
+-- Deja caer capas sobre una casilla, sin pasar del tope. Devuelve cuantas
+-- ha puesto de verdad, que puede ser cero.
+function Parcela:nevarTormentaEn(cx, cz, capas, tope)
+	local c = self:casilla(cx, cz)
+	if not c or c.muro or c.protegida then
+		return 0
+	end
+	local antes = c.tormenta
+	local quiero = math.min(antes + capas, tope)
+	if quiero <= antes then
+		return 0
+	end
+	local x, z = self:centro(cx, cz)
+	local desde = alturaTotalDe(c)
+	c.tormenta = quiero
+	local hasta = alturaTotalDe(c)
+	Terreno:FillBlock(
+		CFrame.new(x, (desde + hasta) / 2, z),
+		Vector3.new(CELDA, hasta - desde, CELDA),
+		Enum.Material.Snow
+	)
+	return quiero - antes
+end
+
+-- Se derrite lo que quede. Devuelve cuantas casillas ha limpiado, para
+-- poder hacerlo por lotes y no en un solo fotograma.
+function Parcela:derretirTormenta(cuantas)
+	local hechas = 0
+	for cx = 0, self.ancho - 1 do
+		for cz = 0, self.largo - 1 do
+			local c = self.casillas[cx][cz]
+			if c.tormenta > 0 then
+				local x, z = self:centro(cx, cz)
+				local desde = alturaTotalDe(c)
+				c.tormenta = 0
+				local hasta = alturaTotalDe(c)
+				Terreno:FillBlock(
+					CFrame.new(x, (desde + hasta) / 2 + 0.2, z),
+					Vector3.new(CELDA + 0.3, desde - hasta + 0.4, CELDA + 0.3),
+					Enum.Material.Air
+				)
+				hechas = hechas + 1
+				if cuantas and hechas >= cuantas then
+					return hechas
+				end
+			end
+		end
+	end
+	return hechas
+end
+
 
 -- Borra del terreno todo lo que hay sobre la parcela. Se usa al soltar
 -- una parcela para el siguiente jugador.
@@ -864,6 +1220,9 @@ function Parcela:descomprimir(texto)
 			end
 			quitadas = quitadas + (c.inicial - r)
 			c.restante = r
+			-- Lo guardado es solo la nevada historica: cargar una partida
+			-- nunca trae tormenta de otro dia.
+			c.tormenta = 0
 		end
 	end
 	self.capasQuitadas = quitadas
@@ -884,7 +1243,7 @@ return Parcela
       <Properties>
         <string name="Name">Mundo</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  construir el mundo
+	LA GRAN TORMENTA  —  construir el mundo
 
 	Todo lo que se puede volver a levantar a partir de los ajustes vive
 	aqui, y por eso nada de esto se guarda: casas, calles, luces, humo,
@@ -1413,6 +1772,80 @@ function Mundo.calle(parcela, padre, m)
 		}, grupo)
 	end
 
+	-- LAS ACERAS. Van fuera de la calzada a proposito: el quitanieves solo
+	-- puede con lo que es calle, asi que aqui hace falta la sopladora.
+	-- Es lo que impide que la maquina grande lo resuelva todo.
+	local aceras = {}
+	for _, dato in ipairs({
+		{ S.czAceraSur, "AceraSur" },
+		{ S.czAceraNorte, "AceraNorte" },
+	}) do
+		local zA = parcela.origen.Z + dato[1] * CELDA
+		aceras[#aceras + 1] = parte({
+			Name = dato[2],
+			Size = Vector3.new(anchoS + 40, 0.5, CELDA * 2),
+			Position = Vector3.new(parcela.origen.X + anchoS / 2, 0.25, zA + CELDA),
+			Color = Color3.fromRGB(178, 176, 172),
+			Material = Enum.Material.Concrete,
+			CanCollide = true,
+			CanQuery = true,
+		}, grupo)
+	end
+
+	-- Los arcenes, que es por donde se rodea si cae un arbol.
+	for _, cz in ipairs({ czCal0 - 2, czCal1 + 2 }) do
+		parte({
+			Name = "Arcen",
+			Size = Vector3.new(anchoS + 40, 0.45, CELDA * 3),
+			Position = Vector3.new(parcela.origen.X + anchoS / 2, 0.22,
+				parcela.origen.Z + (cz + 0.5) * CELDA),
+			Color = Color3.fromRGB(92, 92, 96),
+			Material = Enum.Material.Asphalt,
+			CanCollide = true,
+			CanQuery = true,
+		}, grupo)
+	end
+
+	-- LA PARADA DEL AUTOBUS, en la acera de tu lado.
+	local xParada = parcela.origen.X + (S.cxParada + 0.5) * CELDA
+	local zParada = parcela.origen.Z + (S.czAceraSur + 1) * CELDA
+	parte({
+		Name = "ParadaTecho",
+		Size = Vector3.new(14, 0.6, 7),
+		Position = Vector3.new(xParada, 8.4, zParada),
+		Color = Color3.fromRGB(64, 78, 96),
+		Material = Enum.Material.Metal,
+		CanCollide = true,
+		CanQuery = true,
+	}, grupo)
+	for _, dx in ipairs({ -6.5, 6.5 }) do
+		parte({
+			Name = "ParadaPoste",
+			Size = Vector3.new(0.7, 8.4, 0.7),
+			Position = Vector3.new(xParada + dx, 4.2, zParada),
+			Color = Color3.fromRGB(64, 78, 96),
+			Material = Enum.Material.Metal,
+			CanCollide = true,
+			CanQuery = true,
+		}, grupo)
+	end
+	parte({
+		Name = "ParadaBanco",
+		Size = Vector3.new(11, 0.6, 2),
+		Position = Vector3.new(xParada, 2.4, zParada - 2),
+		Color = MADERA,
+		Material = Enum.Material.WoodPlanks,
+		CanCollide = true,
+		CanQuery = true,
+	}, grupo)
+	local farolParada = parte({
+		Name = "ParadaLuz",
+		Size = Vector3.new(2.4, 0.5, 2.4),
+		Position = Vector3.new(xParada, 7.9, zParada),
+		Color = Color3.fromRGB(255, 246, 214),
+		Material = Enum.Material.SmoothPlastic,
+	}, grupo)
+
 	-- LA PLAZA: la calle se ensancha al final. Aqui termina esta version.
 	local xP = parcela.origen.X + (S.cxPlaza + 0.5) * CELDA
 	local zP = (zC0 + zC1) / 2
@@ -1599,6 +2032,29 @@ function Mundo.calle(parcela, padre, m)
 		CanQuery = true,
 	}, grupo)
 
+	-- El buzon de enfrente, en la acera del vecino. Aparece de camino a su
+	-- puerta: si no, son cinco minutos de cruzar la calle sin que pase
+	-- nada.
+	local vbx, vbz = parcela:centro(A.sitio.cxCasa, A.sitio.czAceraNorte)
+	parte({
+		Name = "PosteBuzonVecino",
+		Size = Vector3.new(0.7, 6, 0.7),
+		Position = Vector3.new(vbx, 3, vbz),
+		Color = MADERA,
+		Material = Enum.Material.Wood,
+		CanCollide = true,
+		CanQuery = true,
+	}, grupo)
+	parte({
+		Name = "BuzonVecino",
+		Size = Vector3.new(2.2, 2, 4),
+		Position = Vector3.new(vbx, 7, vbz),
+		Color = Color3.fromRGB(62, 108, 168),
+		Material = Enum.Material.Metal,
+		CanCollide = true,
+		CanQuery = true,
+	}, grupo)
+
 	-- La marca de nieve: el palo que asoma y dice "cava aqui". Sin algo
 	-- asi, el jugador aparece y no sabe hacia donde dar la primera palada.
 	parte({
@@ -1632,12 +2088,252 @@ function Mundo.calle(parcela, padre, m)
 		zCalle = zP,
 		buzonCx = S.cxBuzon, buzonCz = S.czBuzon,
 		alturaBuzon = 6.2,
+		aceras = aceras,
+		parada = { pieza = farolParada, luz = luzDe(farolParada, Color3.fromRGB(255, 240, 200), 0, 20),
+			cx = S.cxParada, cz = S.czAceraSur },
+		buzonVecinoCx = S.cxCasa, buzonVecinoCz = S.czAceraNorte,
+		alturaBuzonVecino = 6.2,
 		cocheCx = m.garajeCx, cocheCz = S.czCoche,
 		alturaCoche = 7.4,
 		faros = faros,
 		pitido = sonidoDe(grupo:FindFirstChild("Coche"), "Pitido",
 			"rbxasset://sounds/action_get_up.mp3", 0.7, 1.9, false),
 	}
+end
+
+
+-------------------------------------------------------------------
+--  EL AYUNTAMIENTO
+--
+--  Esta ahi desde el primer dia, al fondo de la plaza, con las persianas
+--  bajadas. Se abre al superar la primera tormenta, y dentro no hay
+--  tienda ni menu: hay un MAPA con tres sitios mas del pueblo todavia
+--  enterrados. Es el gancho, y nada mas que el gancho.
+-------------------------------------------------------------------
+
+function Mundo.ayuntamiento(parcela, padre)
+	local grupo = Instance.new("Folder")
+	grupo.Name = "Ayuntamiento"
+	grupo.Parent = padre
+
+	local S = A.sitio
+	local x = parcela.origen.X + (S.cxPlaza + 0.5) * CELDA
+	local z = parcela.origen.Z + (S.czAyuntamiento + 3) * CELDA
+	local zFachada = z - 12
+
+	local function pieza(nombre, tam, pos, color, material, solido)
+		return parte({
+			Name = nombre,
+			Size = tam,
+			Position = pos,
+			Color = color,
+			Material = material or Enum.Material.SmoothPlastic,
+			CanCollide = solido ~= false,
+			CanQuery = solido ~= false,
+		}, grupo)
+	end
+
+	local PIEDRA = Color3.fromRGB(214, 206, 190)
+	pieza("Cuerpo", Vector3.new(46, 20, 24), Vector3.new(x, 10, z), PIEDRA, Enum.Material.Concrete)
+	pieza("Zocalo", Vector3.new(48, 3, 26), Vector3.new(x, 1.5, z),
+		Color3.fromRGB(150, 142, 130), Enum.Material.Brick)
+	pieza("Cornisa", Vector3.new(50, 1.6, 28), Vector3.new(x, 20.6, z), PIEDRA, Enum.Material.Concrete)
+	pieza("CornisaNieve", Vector3.new(50.4, 0.6, 28.4), Vector3.new(x, 21.6, z),
+		NIEVE, Enum.Material.Snow, false)
+	-- El fronton y las columnas: se tiene que ver que es EL edificio.
+	pieza("Fronton", Vector3.new(26, 6, 3), Vector3.new(x, 24, zFachada + 0.5),
+		PIEDRA, Enum.Material.Concrete)
+	for _, dx in ipairs({ -9, -3, 3, 9 }) do
+		pieza("Columna", Vector3.new(2.6, 20, 2.6), Vector3.new(x + dx, 10, zFachada + 0.5),
+			Color3.fromRGB(232, 226, 214), Enum.Material.Concrete)
+	end
+	-- La torre del reloj.
+	pieza("Torre", Vector3.new(10, 14, 10), Vector3.new(x, 27, z + 2), PIEDRA, Enum.Material.Concrete)
+	local esfera = pieza("Reloj", Vector3.new(6, 6, 0.5), Vector3.new(x, 30, z - 3),
+		Color3.fromRGB(248, 244, 232), Enum.Material.SmoothPlastic, false)
+	pieza("TorreTejado", Vector3.new(12, 3, 12), Vector3.new(x, 35.5, z + 2),
+		Color3.fromRGB(78, 66, 84), Enum.Material.Slate)
+
+	local recibidor = pieza("Recibidor", Vector3.new(10, 12, 0.5),
+		Vector3.new(x, 6, zFachada + 1.6), Color3.fromRGB(20, 20, 22),
+		Enum.Material.SmoothPlastic, false)
+	local puerta = pieza("Puerta", Vector3.new(10, 12, 0.9), Vector3.new(x, 6, zFachada + 1),
+		Color3.fromRGB(96, 66, 44), Enum.Material.WoodPlanks)
+
+	-- EL MAPA. Dentro, colgado, con tres sitios marcados que todavia no se
+	-- pueden visitar. Es lo unico que hay dentro, y sobra.
+	local mapa = pieza("Mapa", Vector3.new(20, 11, 0.4), Vector3.new(x, 9, z + 9),
+		Color3.fromRGB(238, 230, 206), Enum.Material.SmoothPlastic, false)
+	local lienzo = Instance.new("SurfaceGui")
+	lienzo.Name = "Sitios"
+	lienzo.Face = Enum.NormalId.Front
+	lienzo.CanvasSize = Vector2.new(600, 330)
+	lienzo.Parent = mapa
+	local marco = Instance.new("Frame")
+	marco.Size = UDim2.new(1, 0, 1, 0)
+	marco.BackgroundTransparency = 1
+	marco.Parent = lienzo
+	local titulo = Instance.new("TextLabel")
+	titulo.Size = UDim2.new(1, 0, 0, 70)
+	titulo.BackgroundTransparency = 1
+	titulo.Text = "VALNEVADA"
+	titulo.TextColor3 = Color3.fromRGB(52, 44, 36)
+	titulo.Font = Enum.Font.GothamBlack
+	titulo.TextScaled = true
+	titulo.Parent = marco
+	local sitios = { "LA ESCUELA", "LA GASOLINERA", "EL PARQUE DE BOMBEROS" }
+	for i, nombre in ipairs(sitios) do
+		local fila = Instance.new("TextLabel")
+		fila.Size = UDim2.new(1, -40, 0, 60)
+		fila.Position = UDim2.new(0, 20, 0, 80 + (i - 1) * 74)
+		fila.BackgroundTransparency = 1
+		fila.Text = "X   " .. nombre
+		fila.TextColor3 = Color3.fromRGB(150, 62, 48)
+		fila.Font = Enum.Font.GothamBold
+		fila.TextXAlignment = Enum.TextXAlignment.Left
+		fila.TextScaled = true
+		fila.Parent = marco
+	end
+
+	return {
+		x = x,
+		z = z,
+		zFachada = zFachada,
+		puerta = puerta,
+		recibidor = recibidor,
+		luz = luzDe(recibidor, CALIDA, 0, 40),
+		reloj = esfera,
+		luzReloj = luzDe(esfera, Color3.fromRGB(255, 236, 200), 0, 26),
+		mapa = mapa,
+		cx0 = S.cxPlaza - 6, cx1 = S.cxPlaza + 6,
+		cz0 = S.czAyuntamiento, cz1 = S.czAyuntamiento + 6,
+	}
+end
+
+
+-------------------------------------------------------------------
+--  LO QUE TRAE LA TORMENTA
+--
+--  El arbol caido y el camion de suministros. Los dos nacen escondidos y
+--  aparecen cuando toca.
+-------------------------------------------------------------------
+
+function Mundo.arbol(parcela, padre)
+	local grupo = Instance.new("Model")
+	grupo.Name = "ArbolCaido"
+
+	local piezas = {}
+	local function trozo(nombre, tam, desplazado, color, material, forma)
+		local p = parte({
+			Name = nombre,
+			Size = tam,
+			Color = color,
+			Material = material or Enum.Material.Wood,
+			CanCollide = true,
+			CanQuery = true,
+			CastShadow = true,
+			Transparency = 1,
+		}, grupo)
+		if forma then
+			p.Shape = forma
+		end
+		piezas[#piezas + 1] = { pieza = p, sitio = desplazado }
+		return p
+	end
+
+	local tronco = trozo("Tronco", Vector3.new(30, 5, 5), CFrame.new(0, 2.6, 0),
+		Color3.fromRGB(94, 66, 44), Enum.Material.Wood)
+	trozo("Cepellon", Vector3.new(7, 7, 7), CFrame.new(-16, 3, 0),
+		Color3.fromRGB(72, 54, 40), Enum.Material.Ground)
+	for _, dato in ipairs({ { 6, 4, 1 }, { -2, 3.6, -1 }, { 10, 3.2, -1 } }) do
+		trozo("Rama", Vector3.new(9, 1.4, 1.4),
+			CFrame.new(dato[1], 5.4, dato[3] * 3) * CFrame.Angles(0, math.rad(dato[3] * 40), 0),
+			Color3.fromRGB(84, 60, 40), Enum.Material.Wood)
+		trozo("Hojas", Vector3.new(9, 6, 9), CFrame.new(dato[1] + 4, 6, dato[3] * 5),
+			Color3.fromRGB(66, 92, 62), Enum.Material.Grass, Enum.PartType.Ball)
+	end
+	trozo("NieveEncima", Vector3.new(30, 0.8, 5.4), CFrame.new(0, 5.4, 0),
+		NIEVE, Enum.Material.Snow)
+
+	grupo.PrimaryPart = tronco
+	grupo.Parent = padre
+
+	local function colocar(cf)
+		for _, p in ipairs(piezas) do
+			p.pieza.CFrame = cf * p.sitio
+		end
+	end
+	local function ver(si)
+		for _, p in ipairs(piezas) do
+			p.pieza.Transparency = si and 0 or 1
+			p.pieza.CanCollide = si
+		end
+	end
+	ver(false)
+
+	return { grupo = grupo, colocar = colocar, ver = ver, tronco = tronco }
+end
+
+function Mundo.camion(parcela, padre)
+	local grupo = Instance.new("Model")
+	grupo.Name = "CamionSuministros"
+
+	local piezas = {}
+	local function trozo(nombre, tam, desplazado, color, material, forma)
+		local p = parte({
+			Name = nombre,
+			Size = tam,
+			Color = color,
+			Material = material or Enum.Material.Metal,
+			CanCollide = true,
+			CanQuery = true,
+			CastShadow = true,
+			Transparency = 1,
+		}, grupo)
+		if forma then
+			p.Shape = forma
+		end
+		piezas[#piezas + 1] = { pieza = p, sitio = desplazado }
+		return p
+	end
+
+	local BLANCO = Color3.fromRGB(238, 238, 240)
+	local caja = trozo("Caja", Vector3.new(10, 10, 20), CFrame.new(0, 1, 4), BLANCO)
+	trozo("Cabina", Vector3.new(9.4, 7, 8), CFrame.new(0, -0.4, -8),
+		Color3.fromRGB(196, 62, 52))
+	trozo("Cristal", Vector3.new(8, 3.4, 0.4), CFrame.new(0, 1.4, -12),
+		Color3.fromRGB(150, 200, 226), Enum.Material.Glass)
+	trozo("Morro", Vector3.new(9.4, 3, 2), CFrame.new(0, -2.6, -13),
+		Color3.fromRGB(196, 62, 52))
+	local cruz = trozo("Cruz", Vector3.new(6, 6, 0.3), CFrame.new(0, 2, 14.2),
+		Color3.fromRGB(214, 70, 60), Enum.Material.SmoothPlastic)
+	for _, dx in ipairs({ -1, 1 }) do
+		trozo("Faro", Vector3.new(1.8, 1.2, 0.6), CFrame.new(dx * 3, -1.6, -13),
+			Color3.fromRGB(255, 246, 208), Enum.Material.Neon)
+		for _, dz in ipairs({ -9, 2, 9 }) do
+			trozo("Rueda", Vector3.new(1.8, 5, 5), CFrame.new(dx * 5.2, -4.4, dz)
+				* CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(26, 26, 30))
+		end
+	end
+
+	grupo.PrimaryPart = caja
+	grupo.Parent = padre
+
+	local function colocar(cf)
+		for _, p in ipairs(piezas) do
+			p.pieza.CFrame = cf * p.sitio
+		end
+	end
+	local function ver(si)
+		for _, p in ipairs(piezas) do
+			p.pieza.Transparency = si and 0 or 1
+			p.pieza.CanCollide = si
+		end
+	end
+	ver(false)
+
+	local motor = sonidoDe(caja, "Motor", "rbxasset://sounds/action_falling.mp3", 0, 0.6, true)
+	return { grupo = grupo, colocar = colocar, ver = ver, caja = caja, cruz = cruz, motor = motor }
 end
 
 
@@ -1714,7 +2410,7 @@ end
 --  cavar nada. Naciendo arriba, en el llano, todo vale.
 -------------------------------------------------------------------
 
-function Mundo.perfil(parcela, m, v)
+function Mundo.perfil(parcela, m, v, ayto)
 	local S = A.sitio
 
 	local function dentro(cx, cz, cx0, cz0, cx1, cz1)
@@ -1735,6 +2431,9 @@ function Mundo.perfil(parcela, m, v)
 		if dentro(cx, cz, v.cx0, v.cz0, v.cx1, v.cz1) then
 			return 0, true, false
 		end
+		if ayto and dentro(cx, cz, ayto.cx0, ayto.cz0, ayto.cx1, ayto.cz1) then
+			return 0, true, false
+		end
 
 		-- Donde puede trabajar el quitanieves: la calzada, la plaza y tu
 		-- entrada de coches. Todo lo demas es jardin, y ahi la maquina no
@@ -1749,11 +2448,17 @@ function Mundo.perfil(parcela, m, v)
 			and cz > m.cz1 and cz < czCal0
 		local calle = enCalzada or enPlaza or enEntrada
 
+		-- Las aceras. NO son calle: el quitanieves no puede con ellas, y
+		-- por eso hace falta la sopladora. Pero estan tan despejadas como
+		-- la calzada, porque el pueblo las limpio en su dia.
+		local enAcera = (cz >= S.czAceraSur and cz <= S.czAceraSur + 1)
+			or (cz >= S.czAceraNorte and cz <= S.czAceraNorte + 1)
+
 		local capas = A.nieve.capasMaximas
 
 		-- Por la calzada paso el quitanieves municipal hace dias: hay
 		-- menos nieve que en los jardines, y por eso la maquina puede.
-		if enCalzada or enPlaza then
+		if enCalzada or enPlaza or enAcera then
 			capas = S.capasCalzada
 		end
 
@@ -1778,7 +2483,13 @@ function Mundo.perfil(parcela, m, v)
 		-- quitanieves no pueda romperlo (solo traga seis capas).
 		local aLaCalle = math.abs(cz - S.czCarretera)
 		local aLaEntrada = math.abs(cx - m.garajeCx)
-		if aLaCalle <= 7 and aLaEntrada <= S.anchoBerma then
+		-- OJO CON EL ANCHO: el muro tapa la calzada SOLO delante de tu
+		-- entrada. Si se extendiera por toda la calle, el tramo de poniente
+		-- quedaria enterrado para siempre bajo nieve historica, y ni el
+		-- quitanieves ni el camion de suministros podrian entrar nunca al
+		-- pueblo por ahi.
+		local enLaCalzada = cz >= czCal0 and cz <= czCal1
+		if aLaCalle <= 7 and aLaEntrada <= S.anchoBerma and (not enLaCalzada or aLaEntrada <= 5) then
 			local caida = math.max(aLaCalle, math.max(0, aLaEntrada - 2))
 			capas = math.max(capas, S.capasCarretera - caida)
 		end
@@ -1835,7 +2546,7 @@ return Mundo
       <Properties>
         <string name="Name">Guardado</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  el guardado
+	LA GRAN TORMENTA  —  el guardado
 
 	Una partida son diez o veinte minutos. Perderla al salir empieza a
 	doler, asi que a partir de aqui se guarda de verdad.
@@ -1848,6 +2559,13 @@ return Mundo
 	    herramientas    lo que ya ha encontrado
 	    mundo           puerta abierta, garaje abierto, farolas, vecino
 	    nieve           su parcela entera, por tramos
+	    tormentas       cuantas ha superado
+	    reputacion      lo que vale en el pueblo
+	    recompensas     lo que se ha ganado (la baliza, el ayuntamiento)
+
+	Y una cosa que NO se guarda a proposito: la tormenta que este cayendo.
+	Es del servidor, no del jugador. Si alguien sale a mitad de tormenta
+	no pierde nada de lo suyo; simplemente sale, y ya esta.
 
 	Lo que NO se guarda, porque se vuelve a construir solo: la casa, las
 	particulas, los montones de adorno, las luces, el modelo del
@@ -1874,9 +2592,18 @@ local Guardado = {}
 -- pisaria las partidas de la gente que este jugando. El sufijo _DEV es la
 -- unica linea que separa una cosa de la otra, y por eso va aqui arriba y
 -- no escondida en medio.
-Guardado.nombreTienda = "BarrioDespierta_v" .. A.esquema
+Guardado.nombreTienda = "GranTormenta_v" .. A.esquema
 if Correr:IsStudio() then
 	Guardado.nombreTienda = Guardado.nombreTienda .. "_DEV"
+end
+
+-- Y se dice EN VOZ ALTA al arrancar, siempre, no solo cuando algo falla.
+-- Es lo unico que separa una prueba en Studio de pisarle la partida a
+-- quien este jugando: tiene que poder comprobarse de un vistazo en el
+-- Output, sin fiarse de que este bien escrito mas arriba.
+if Correr:IsStudio() then
+	warn("[tormenta] ESTAS EN STUDIO: se guarda en " .. Guardado.nombreTienda
+		.. ", nunca en el de produccion.")
 end
 
 -- nil = todavia no se sabe. true/false una vez se ha probado de verdad.
@@ -1908,10 +2635,9 @@ local function avisarUnaVez(porque)
 		return
 	end
 	Guardado.avisado = true
-	warn("[barrio] SIN GUARDADO EN LA NUBE: " .. tostring(porque))
-	warn("[barrio] se juega igual, pero la partida solo dura lo que dure este servidor.")
-	warn("[barrio] en Studio: Game Settings > Security > Enable Studio Access to API Services.")
-	warn("[barrio] (en Studio se guarda en " .. Guardado.nombreTienda .. ", nunca en el de produccion.)")
+	warn("[tormenta] SIN GUARDADO EN LA NUBE: " .. tostring(porque))
+	warn("[tormenta] se juega igual, pero la partida solo dura lo que dure este servidor.")
+	warn("[tormenta] en Studio: Game Settings > Security > Enable Studio Access to API Services.")
 end
 
 -- Cuatro intentos, esperando cada vez el doble. Los fallos del DataStore
@@ -1931,7 +2657,7 @@ local function conReintentos(que, fn)
 			espera = espera * 2
 		end
 	end
-	warn(("[barrio] %s ha fallado %d veces: %s"):format(que, INTENTOS, tostring(ultimo)))
+	warn(("[tormenta] %s ha fallado %d veces: %s"):format(que, INTENTOS, tostring(ultimo)))
 	return false, ultimo
 end
 
@@ -1968,6 +2694,7 @@ end
 table.sort(CLAVES_HERRAMIENTA)
 
 local CLAVES_MUNDO = { "puerta", "garaje", "farolas", "vecinoFuera", "quitanieves" }
+local CLAVES_PREMIO = { "baliza", "ayuntamiento" }
 
 function Guardado.nuevo()
 	return {
@@ -1978,6 +2705,9 @@ function Guardado.nuevo()
 		hallazgos = {},
 		herramientas = { pala = true },
 		mundo = {},
+		recompensas = {},
+		tormentas = 0,
+		reputacion = 0,
 		nieve = nil,
 		cuando = 0,
 	}
@@ -2003,6 +2733,11 @@ function Guardado.sanear(datos)
 		hallazgos = copiaDeBanderas(datos.hallazgos, CLAVES_HALLAZGO),
 		herramientas = copiaDeBanderas(datos.herramientas, CLAVES_HERRAMIENTA),
 		mundo = copiaDeBanderas(datos.mundo, CLAVES_MUNDO),
+		recompensas = copiaDeBanderas(datos.recompensas, CLAVES_PREMIO),
+		-- El record de tormentas superadas y lo que vale en el pueblo.
+		-- Esto si es permanente: es lo unico que te llevas de un evento.
+		tormentas = math.clamp(math.floor(tonumber(datos.tormentas) or 0), 0, 1e9),
+		reputacion = math.clamp(math.floor(tonumber(datos.reputacion) or 0), 0, 1e9),
 		-- La nieve entera, por tramos. Si es enorme, algo va mal: mas vale
 		-- rehacer la nevada que subir un churro de medio mega.
 		nieve = (type(datos.nieve) == "string" and #datos.nieve < 100000) and datos.nieve or nil,
@@ -2055,7 +2790,7 @@ end
 function Guardado.guardar(jugador, datos)
 	local limpio = Guardado.sanear(datos)
 	if not limpio then
-		warn("[barrio] no guardo: los datos no encajan con el esquema " .. tostring(A.esquema))
+		warn("[tormenta] no guardo: los datos no encajan con el esquema " .. tostring(A.esquema))
 		return false, "descartado"
 	end
 	limpio.cuando = os.time()
@@ -2096,11 +2831,497 @@ return Guardado
         <bool name="Disabled">false</bool>
       </Properties>
     </Item>
-    <Item class="Script" referent="RBX8">
+    <Item class="ModuleScript" referent="RBX8">
+      <Properties>
+        <string name="Name">Tormenta</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	LA GRAN TORMENTA  —  el evento
+
+	La pregunta de esta fase es si apetece seguir limpiando el pueblo
+	despues de haber terminado la historia. La respuesta que intenta dar
+	esto: que vuelva a hacer falta el jugador SIN quitarle nada.
+
+	Por eso la tormenta:
+
+	  - cae en otra capa (nieve de tormenta), encima de la historica
+	  - no cae encima de lo que ya se ha descubierto
+	  - no cierra puertas, no quita herramientas, no reinicia el guion
+	  - no se guarda: es del servidor, y se derrite al terminar
+
+	Y por eso la mision NO se puede resolver con una sola herramienta:
+
+	    calzada  nieve honda sobre asfalto        -> quitanieves
+	    acera    caminos estrechos, fuera de ella -> sopladora
+	    puerta   escalones y nieve prensada       -> pala
+
+	Cada tormenta coge unos cuantos bloqueos de la lista, no todos, asi
+	que el recorrido cambia. Y si cae el arbol, hay que rodear por el
+	arcen, que es otra calle mas que abrir.
+
+	Este archivo va en:  ServerScriptService  (ModuleScript, "Tormenta")
+]]
+
+local RS = game:GetService("ReplicatedStorage")
+local A = require(RS:WaitForChild("Ajustes"))
+
+local CELDA = A.nieve.celda
+
+local Tormenta = {}
+
+-- Se puede fijar para que las pruebas sepan que va a salir.
+Tormenta.semilla = nil
+
+
+-------------------------------------------------------------------
+--  DONDE ESTA CADA BLOQUEO
+--
+--  Todas las zonas salen de la geometria de la parcela, para que mover
+--  una casa no deje un bloqueo colgado en mitad de un jardin.
+--
+--  Y ninguna cae encima de lo que ya esta descubierto: eso lo garantiza
+--  la parcela (las casillas protegidas), pero ademas las zonas estan
+--  elegidas fuera a proposito.
+-------------------------------------------------------------------
+
+function Tormenta.zonas(parcela, ancho)
+	local S = A.sitio
+	local m = parcela.casa
+	local v = parcela.vecino
+	ancho = ancho or 0
+
+	-- Las zonas son GRANDES a proposito: un bloqueo tiene que dar trabajo
+	-- de verdad, no ser un cuadradito de tres casillas. Y con mas gente se
+	-- ensanchan un poco mas, que es la unica forma honrada de que jugar
+	-- acompanado dure menos sin caer mas nieve por cabeza.
+	-- LO ANCHO DE UN BLOQUEO DE CALZADA NO SE TOCA. Es exactamente la
+	-- calzada, ni una fila mas: fuera de ella el quitanieves no pisa (ni
+	-- debe), asi que un bloqueo que se salga un solo carril no hay forma
+	-- humana de despejarlo y la tormenta no termina nunca. El ancho extra
+	-- por jugador se da a lo LARGO de la calle, mas abajo.
+	local mitad = math.floor(S.anchoCarretera / 2)
+	local czA, czB = S.czCarretera - mitad, S.czCarretera + mitad
+
+	-- Ninguna zona toca el borde de la parcela. Es una leccion cara: el
+	-- quitanieves comprueba cuatro puntos alrededor antes de moverse, y en
+	-- la ultima casilla alguno cae ya fuera. Un bloqueo que llegue al
+	-- borde es un bloqueo que no se puede despejar nunca.
+	local MARGEN = 2
+	local function dentroDeLaParcela(z)
+		return {
+			math.max(MARGEN, z[1]),
+			math.max(MARGEN, z[2]),
+			math.min(parcela.ancho - 1 - MARGEN, z[3]),
+			math.min(parcela.largo - 1 - MARGEN, z[4]),
+		}
+	end
+
+	local sitios = {
+		-- La entrada al pueblo, por donde viene el camion.
+		-- OJO: las zonas de calzada tienen que quedar FUERA del muro que la
+		-- maquina municipal dejo delante de tu entrada. Ese muro es nieve
+		-- historica de tres metros; el quitanieves no puede con el (ni
+		-- debe), asi que un bloqueo que lo pise no se despeja nunca.
+		acceso = { 2, czA, m.garajeCx - 7, czB },
+		-- El tramo largo de en medio. Y OJO: las zonas de calzada NO se
+		-- ensanchan con la gente que haya. Quitanieves hay uno, asi que
+		-- toda la calzada la hace la misma persona una detras de otra:
+		-- alargarla por venir acompanado es exactamente convertir la
+		-- ayuda en un castigo. Lo que se ensancha es lo que se puede
+		-- repartir, que son las aceras y las puertas.
+		ruta = { m.garajeCx + 7, czA, 64, czB },
+		-- El cruce, ya en la plaza.
+		cruce = { S.cxPlaza - 11, czA, S.cxPlaza + 11, czB },
+		-- La parada del autobus: acera, fuera de la calzada.
+		-- La acera del sur, pasada tu casa. NO se estira mas hacia
+		-- poniente, y no es un capricho: por ahi estan la rampa del
+		-- garaje (que es calle, y por la calle no se manda a nadie con
+		-- la sopladora), tu coche y tu propia puerta. Todo eso ya lo
+		-- desenterraste, y encima de lo desenterrado no vuelve a nevar.
+		parada = {
+			math.max(S.cxParada - 39 - ancho * 2, m.cxCentro + 26), S.czAceraSur,
+			S.cxParada + 39 + ancho * 2, S.czAceraSur + 1,
+		},
+		-- El camino que sube a casa del vecino, entre la acera y su
+		-- puerta. Su puerta NO: esa esta descubierta y es intocable.
+		vecino = {
+			v.cxCentro - 29 - ancho * 2, S.czAceraNorte + 2,
+			v.cxCentro + 29 + ancho * 2, S.czAceraNorte + 4,
+		},
+		-- Los escalones de tu casa, al lado del porche. No la puerta: esa
+		-- esta descubierta y protegida, y ahi no vuelve a caer un copo.
+		escalones = {
+			m.cxCentro + 3, m.cz1 + 1,
+			m.cxCentro + 25 + ancho * 2, m.cz1 + 3,
+		},
+		-- Y los del ayuntamiento, en la acera de enfrente de la plaza.
+		ayuntamiento = {
+			S.cxPlaza - 28 - ancho * 2, S.czAceraNorte,
+			S.cxPlaza + 28 + ancho * 2, S.czAceraNorte + 1,
+		},
+	}
+	for clave, z in pairs(sitios) do
+		sitios[clave] = dentroDeLaParcela(z)
+	end
+	return sitios
+end
+
+-- El desvio se calcula alrededor del arbol, no esta en la lista fija.
+function Tormenta.zonaDesvio(parcela, cxArbol, ancho)
+	local S = A.sitio
+	local MARGEN = 2
+	return {
+		math.max(MARGEN, cxArbol - 6 - (ancho or 0)),
+		S.czArcenNorte,
+		math.min(parcela.ancho - 1 - MARGEN, cxArbol + 6 + (ancho or 0)),
+		S.czArcenNorte + 2,
+	}
+end
+
+-- Cuando se da por despejado cada tipo. La sopladora deja siempre una
+-- capa, asi que pedir cero es pedir pala: eso es lo que hace que las
+-- puertas sigan siendo trabajo de pala aunque tengas las tres maquinas.
+-- Cuanta nieve de tormenta puede quedar y que el sitio cuente por
+-- despejado. En la calzada se admite una capa: un camion pasa por encima
+-- de dos dedos de nieve sin enterarse, y ademas eso permite que quien no
+-- lleve el quitanieves pueda echar una mano en la calle con la sopladora
+-- en vez de mirar. En las puertas y los escalones, cero: ahi se pisa.
+local LIMPIO = { calzada = 1, acera = 1, puerta = 0 }
+Tormenta.LIMPIO = LIMPIO
+
+
+-------------------------------------------------------------------
+--  ELEGIR LOS BLOQUEOS
+--
+--  Siempre sale al menos uno de cada tipo: sin eso, una tormenta podria
+--  resolverse entera con el quitanieves, y entonces las otras dos
+--  herramientas sobrarian.
+-------------------------------------------------------------------
+
+local function barajar(lista, azar)
+	for i = #lista, 2, -1 do
+		local j = azar(i)
+		lista[i], lista[j] = lista[j], lista[i]
+	end
+	return lista
+end
+
+-- LO QUE CUESTA UN BLOQUEO, EN SEGUNDOS. No es un adorno: es lo unico
+-- que hace que una tormenta dure lo que tiene que durar. Los bloqueos no
+-- valen todos lo mismo ni de lejos: la acera del ayuntamiento son dos
+-- minutos de pala, y un tramo de calle el triple de grande se lo lleva el
+-- quitanieves en cuarenta segundos. Elegir "cinco bloqueos" a ciegas daba
+-- tormentas de siete minutos y tormentas de trece con las mismas reglas.
+-- Asi que no se eligen cinco: se eligen los que quepan en el rato que
+-- queremos que dure.
+function Tormenta.coste(def, zona)
+	if not zona then
+		return 0
+	end
+	local celdas = (zona[3] - zona[1] + 1) * (zona[4] - zona[2] + 1)
+	local hondo = def.tipo == "calzada" and A.tormenta.capasEnCalzada or A.tormenta.capasMaximas
+	local capas = celdas * hondo
+	local h = A.herramientas[def.herramienta]
+	local porSegundo = h.potencia / h.golpe
+	-- Y lo que no es cavar: andar de una casilla a otra, los viajes al
+	-- monton con la carretilla llena, dar la vuelta con la maquina. Cavar
+	-- es la mitad del trabajo, no todo.
+	return capas / porSegundo * (A.tormenta.entorpecimiento[def.tipo] or 2)
+end
+
+function Tormenta.elegir(zonas, cuantosJugadores, azar, gastado)
+	azar = azar or function(n)
+		return math.random(1, n)
+	end
+	local T = A.tormenta
+	local presupuesto = (cuantosJugadores or 1) > 1 and T.trabajoAcompanado or T.trabajoSolo
+	local total = gastado or 0
+
+	local porTipo = { calzada = {}, acera = {}, puerta = {} }
+	for _, def in ipairs(A.bloqueos) do
+		table.insert(porTipo[def.tipo], def)
+	end
+
+	local elegidos = {}
+	local puestos = {}
+	local calzadas = 0
+	local function meter(def)
+		elegidos[#elegidos + 1] = def
+		puestos[def.clave] = true
+		total = total + Tormenta.coste(def, zonas[def.clave])
+		if def.tipo == "calzada" then
+			calzadas = calzadas + 1
+		end
+	end
+
+	-- Uno de cada tipo, siempre, cueste lo que cueste: sin esto una
+	-- tormenta podria resolverse entera con el quitanieves y sobrarian
+	-- las otras dos herramientas.
+	for _, tipo in ipairs({ "calzada", "acera", "puerta" }) do
+		local lista = barajar(table.clone(porTipo[tipo]), azar)
+		if lista[1] then
+			meter(lista[1])
+		end
+	end
+
+	-- Y despues, mientras quede rato. Con un tope de bloqueos de CALZADA:
+	-- quitanieves hay UNO, asi que todo lo que sea calle lo hace la misma
+	-- persona una detras de otra, y una tormenta de cuatro calles y una
+	-- acera es una tormenta en la que el segundo jugador mira.
+	local resto = {}
+	for _, def in ipairs(A.bloqueos) do
+		if not puestos[def.clave] then
+			resto[#resto + 1] = def
+		end
+	end
+	barajar(resto, azar)
+	for _, def in ipairs(resto) do
+		local coste = Tormenta.coste(def, zonas[def.clave])
+		local cabe = total + coste / 2 <= presupuesto
+		if cabe and (def.tipo ~= "calzada" or calzadas < T.maximoDeCalzada) then
+			meter(def)
+		end
+	end
+	return elegidos, total
+end
+
+
+-------------------------------------------------------------------
+--  MONTAR UNA TORMENTA
+-------------------------------------------------------------------
+
+function Tormenta.nueva(parcela, cuantosJugadores, azar)
+	local T = A.tormenta
+	azar = azar or function(n)
+		return math.random(1, n)
+	end
+
+	-- Con mas gente NO cae mas nieve: se pide un bloqueo mas y las zonas
+	-- son un poco mas anchas. Jugar acompanado no puede salir mas caro
+	-- que jugar solo.
+	local cuenta = math.min(cuantosJugadores or 1, T.maximoJugadoresQueCuentan)
+	local ancho = (cuenta - 1) * T.anchoExtraPorJugador
+
+	local zonas = Tormenta.zonas(parcela, ancho)
+
+	-- EL ARBOL SE DECIDE ANTES QUE NADA, porque el desvio que obliga a
+	-- abrir es trabajo como el de cualquier otro bloqueo y tiene que
+	-- contar en el rato: si se sumara aparte, una tormenta con arbol
+	-- duraria la mitad mas que una sin el y el evento no tendria una
+	-- duracion, tendria una loteria.
+	local quiereArbol = azar(100) <= T.probabilidadArbol * 100
+	local cxArbol, zonaArbol, costeArbol = nil, nil, 0
+	if quiereArbol then
+		cxArbol = 35 + azar(20) - 1
+		zonaArbol = Tormenta.zonaDesvio(parcela, cxArbol, ancho)
+		costeArbol = Tormenta.coste(A.desvio, zonaArbol)
+	end
+
+	local elegidos, rato = Tormenta.elegir(zonas, cuenta, azar, costeArbol)
+
+	local t = {
+		parcela = parcela.id,
+		fase = "calma",
+		desde = 0,
+		ola = 0,
+		ancho = ancho,
+		jugadores = cuenta,
+		bloqueos = {},
+		-- Lo que se calcula que va a costar, en segundos. No manda nada
+		-- en la partida: sirve para poder comparar lo que se pensaba con
+		-- lo que luego tarda de verdad, que es la unica forma de afinar
+		-- la duracion sin ir a ciegas.
+		rato = rato,
+		arbol = nil,
+		camion = nil,
+		abierta = false,
+	}
+
+	for _, def in ipairs(elegidos) do
+		local z = zonas[def.clave]
+		t.bloqueos[#t.bloqueos + 1] = {
+			clave = def.clave,
+			tipo = def.tipo,
+			herramienta = def.herramienta,
+			nombre = def.nombre,
+			zona = z,
+			limpio = false,
+		}
+	end
+
+	-- Y ahora si, donde cae el arbol. NUNCA DENTRO DE UN BLOQUEO DE
+	-- CALZADA: un tramo que hay que despejar con la maquina y que ademas
+	-- tiene un arbol atravesado en medio es un tramo que no se puede
+	-- despejar. El quitanieves llega al tronco, se planta, y la mitad de
+	-- mas alla se queda con nieve para siempre. Ademas de imposible seria
+	-- incomprensible: "despeja esto" y "por aqui no se pasa" a la vez, en
+	-- el mismo sitio.
+	if quiereArbol then
+		local sitios = {}
+		for cx = 35, 54 do
+			local vale = true
+			for _, b in ipairs(t.bloqueos) do
+				if b.tipo == "calzada" and cx >= b.zona[1] - 2 and cx <= b.zona[3] + 2 then
+					vale = false
+					break
+				end
+			end
+			if vale then
+				sitios[#sitios + 1] = cx
+			end
+		end
+		if #sitios > 0 then
+			-- Se prefiere el hueco mas cerca del que ya se habia pensado,
+			-- para que el desvio caiga donde se conto que caeria.
+			local elegido = sitios[1]
+			for _, cx in ipairs(sitios) do
+				if math.abs(cx - cxArbol) < math.abs(elegido - cxArbol) then
+					elegido = cx
+				end
+			end
+			local d = A.desvio
+			t.arbol = { cx = elegido }
+			t.bloqueos[#t.bloqueos + 1] = {
+				clave = d.clave,
+				tipo = d.tipo,
+				herramienta = d.herramienta,
+				nombre = d.nombre,
+				zona = Tormenta.zonaDesvio(parcela, elegido, ancho),
+				limpio = false,
+			}
+		end
+	end
+
+	return t
+end
+
+
+-------------------------------------------------------------------
+--  QUE NIEVE, Y DONDE
+--
+--  La nieve cae por OLAS, y cada ola por lotes de casillas. Nada de
+--  cubrir el mapa de golpe: se tiene que ver llegar.
+--
+--  Cae sobre las zonas de los bloqueos y, mas flojo, por toda la calle,
+--  para que se note que esta nevando en todas partes y no solo en las
+--  casillas del ejercicio.
+-------------------------------------------------------------------
+
+function Tormenta.casillasDeLaOla(parcela, t)
+	local S = A.sitio
+	local lista = {}
+	local vistas = {}
+
+	local function meter(cx, cz, tope, ventisquero)
+		local clave = cx * 1000 + cz
+		if vistas[clave] then
+			return
+		end
+		local c = parcela:casilla(cx, cz)
+		if not c or c.muro or c.protegida then
+			return
+		end
+		vistas[clave] = true
+		lista[#lista + 1] = { cx = cx, cz = cz, tope = tope, ventisquero = ventisquero }
+	end
+
+	-- Primero lo que hay que despejar: ahi cuaja del todo. Menos en la
+	-- calzada, donde el tope es mas bajo para que el quitanieves quepa
+	-- por debajo de su propio ventisquero.
+	for _, b in ipairs(t.bloqueos) do
+		local z = b.zona
+		for cx = z[1], z[3] do
+			for cz = z[2], z[4] do
+				local tope = A.tormenta.capasMaximas
+				if parcela:esCalle(cx, cz) then
+					tope = A.tormenta.capasEnCalzada
+				end
+				meter(cx, cz, tope, true)
+			end
+		end
+	end
+
+	-- Y despues, mas flojo, la calle entera y las aceras: es lo que hace
+	-- que parezca una tormenta y no un ejercicio con zonas marcadas.
+	local flojo = math.max(1, A.tormenta.capasCalle)
+	for cx = 0, parcela.ancho - 1 do
+		for cz = S.czAceraSur, S.czAceraNorte + 1 do
+			local c = parcela:casilla(cx, cz)
+			if c and (c.calle or cz <= S.czAceraSur + 1 or cz >= S.czAceraNorte) then
+				meter(cx, cz, flojo)
+			end
+		end
+	end
+
+	return lista
+end
+
+
+-------------------------------------------------------------------
+--  SI ESTA DESPEJADO O NO
+-------------------------------------------------------------------
+
+function Tormenta.revisarBloqueos(parcela, t)
+	local cambio = nil
+	for _, b in ipairs(t.bloqueos) do
+		if not b.limpio then
+			local z = b.zona
+			local queda = parcela:capasTormentaEncima(z[1], z[2], z[3], z[4])
+			if queda <= LIMPIO[b.tipo] then
+				b.limpio = true
+				cambio = b
+			end
+		end
+	end
+	return cambio
+end
+
+function Tormenta.quedan(t)
+	local n = 0
+	for _, b in ipairs(t.bloqueos) do
+		if not b.limpio then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+
+-------------------------------------------------------------------
+--  LA RUTA DEL CAMION
+--
+--  Recta por el centro de la calzada. Si hay arbol, se aparta al arcen
+--  del norte para pasarlo y vuelve. Es la unica forma de que se vea que
+--  el desvio servia para algo.
+-------------------------------------------------------------------
+
+function Tormenta.ruta(parcela, t)
+	local S = A.sitio
+	local zCalle = parcela.origen.Z + (S.czCarretera + 0.5) * CELDA
+	local zArcen = parcela.origen.Z + (S.czArcenNorte + 1.5) * CELDA
+	local xFin = parcela.origen.X + (S.cxPlaza + 0.5) * CELDA
+
+	local puntos = { Vector3.new(parcela.origen.X - 110, 0, zCalle) }
+	if t.arbol then
+		local xA = parcela.origen.X + (t.arbol.cx + 0.5) * CELDA
+		puntos[#puntos + 1] = Vector3.new(xA - 46, 0, zCalle)
+		puntos[#puntos + 1] = Vector3.new(xA - 26, 0, zArcen)
+		puntos[#puntos + 1] = Vector3.new(xA + 26, 0, zArcen)
+		puntos[#puntos + 1] = Vector3.new(xA + 46, 0, zCalle)
+	end
+	puntos[#puntos + 1] = Vector3.new(xFin, 0, zCalle)
+	return puntos
+end
+
+return Tormenta
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+    <Item class="Script" referent="RBX9">
       <Properties>
         <string name="Name">Juego</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  servidor
+	LA GRAN TORMENTA  —  servidor
 
 	Tercera vertical. Las dos anteriores demostraron que desenterrar
 	engancha; esta hace que no se pierda y que se pueda jugar acompanado.
@@ -2134,6 +3355,7 @@ local A = require(RS:WaitForChild("Ajustes"))
 local Parcela = require(RS:WaitForChild("Parcela"))
 local Mundo = require(script.Parent.Mundo)
 local Guardado = require(script.Parent.Guardado)
+local Tormenta = require(script.Parent.Tormenta)
 
 local Terreno = workspace.Terrain
 local CELDA = A.nieve.celda
@@ -2149,7 +3371,7 @@ local sonidoDe = Mundo.sonidoDe
 -------------------------------------------------------------------
 
 local remotos = Instance.new("Folder")
-remotos.Name = "RemotosBarrio"
+remotos.Name = "RemotosTormenta"
 remotos.Parent = RS
 
 local function remoto(nombre)
@@ -2177,10 +3399,16 @@ local estados = {}
 local mundo = { carpeta = nil }
 
 local revisarHallazgos
+local quizaEmpezarTormenta
+local protegerLoDescubierto
+local zonasProtegidas
 local montarParcela
 local reiniciarPiezas
 local darHerramienta
 local soltarQuitanieves
+local guardarJugador
+local ponerBaliza
+local abrirAyuntamiento
 
 local function parcelaEn(x, z)
 	for _, p in ipairs(parcelas) do
@@ -2248,8 +3476,11 @@ local function construirParcela(parcela)
 	parcela.casa = m
 	parcela.vecino = Mundo.vecino(parcela, grupo, v)
 	parcela.calle = Mundo.calle(parcela, grupo, m)
+	parcela.ayuntamiento = Mundo.ayuntamiento(parcela, grupo)
+	parcela.arbol = Mundo.arbol(parcela, grupo)
+	parcela.camion = Mundo.camion(parcela, grupo)
 	Mundo.pueblo(parcela, grupo)
-	parcela.perfil = Mundo.perfil(parcela, m, parcela.vecino)
+	parcela.perfil = Mundo.perfil(parcela, m, parcela.vecino, parcela.ayuntamiento)
 
 	-- Como estaba todo antes de tocarlo: al soltar la parcela para el
 	-- siguiente jugador hay que devolverla exactamente aqui.
@@ -2258,6 +3489,7 @@ local function construirParcela(parcela)
 		garajeSize = m.puertaGaraje.Size,
 		garajePos = m.puertaGaraje.Position,
 		vecinoPuerta = parcela.vecino.puerta.CFrame,
+		aytoPuerta = parcela.ayuntamiento.puerta.CFrame,
 		persona = {},
 	}
 	-- Donde estaba cada trozo del vecino antes de salir por la puerta.
@@ -2272,6 +3504,16 @@ local function construirParcela(parcela)
 	-- mitad de la partida era ir y volver.
 	montonEn(parcela, grupo, parcela.origen.X - 20, m.z)
 	montonEn(parcela, grupo, parcela.origen.X - 20, parcela.vecino.z)
+	-- Y UNO TERCERO AL OTRO EXTREMO, pasada la plaza. Los dos de arriba
+	-- estan a la altura de tu casa, que es donde ocurre la primera
+	-- historia; en cuanto el pueblo se abre hacia levante (la parada, el
+	-- ayuntamiento, y sobre todo las tormentas) palear alli con solo esos
+	-- dos era cruzar el pueblo entero con la carretilla llena a cada
+	-- viaje. Un monton no es un adorno: es lo que decide si un rincon
+	-- del mapa se puede trabajar o no.
+	montonEn(parcela, grupo,
+		parcela.origen.X + parcela.ancho * CELDA + 20,
+		parcela.origen.Z + A.sitio.czAyuntamiento * CELDA)
 
 	-- Se aparece FUERA de la parcela, en suelo firme, en linea recta con
 	-- el buzon: lo primero que se ve es su marca naranja asomando, y
@@ -2324,13 +3566,13 @@ local function construirMundo()
 		Terreno:Clear()
 	end)
 	for _, obj in ipairs(workspace:GetChildren()) do
-		if obj.Name == "Baseplate" or obj.Name == "Barrio" or obj:IsA("SpawnLocation") then
+		if obj.Name == "Baseplate" or obj.Name == "Pueblo" or obj:IsA("SpawnLocation") then
 			obj:Destroy()
 		end
 	end
 
 	local carpeta = Instance.new("Folder")
-	carpeta.Name = "Barrio"
+	carpeta.Name = "Pueblo"
 	carpeta.Parent = workspace
 	mundo.carpeta = carpeta
 
@@ -2584,6 +3826,52 @@ local function rescatarVecino(parcela, seco)
 end
 
 
+-- LAS DOS RECOMPENSAS de superar una tormenta. Ni tienda ni renacimiento:
+-- una luz que se ve desde lejos y una puerta que se abre.
+
+-- El quitanieves pasa a ser vehiculo de emergencia. Es un premio que se
+-- VE, que es la unica clase de premio que sirve aqui.
+function ponerBaliza(parcela)
+	parcela.conBaliza = true
+	local q = parcela.maquina
+	if not q or q.baliza then
+		return
+	end
+	local sitio = q.chasis.CFrame
+	local barra = parte({
+		Name = "Baliza",
+		Size = Vector3.new(5.4, 0.9, 1.4),
+		Position = sitio.Position,
+		Color = Color3.fromRGB(255, 96, 40),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = true,
+	}, q.grupo)
+	q.extras[#q.extras + 1] = { pieza = barra, sitio = CFrame.new(0, 8.2, 2.4) }
+	q.baliza = luzDe(barra, Color3.fromRGB(255, 120, 50), 3.2, 34)
+	q.colocar(CFrame.new(q.sitio) * CFrame.Angles(0, q.giro, 0))
+end
+
+-- Y se abre el ayuntamiento. Dentro no hay tienda: hay un mapa con tres
+-- sitios del pueblo todavia enterrados. El gancho, y nada mas.
+function abrirAyuntamiento(parcela, seco)
+	local a = parcela.ayuntamiento
+	if not a or a.abierto then
+		return
+	end
+	a.abierto = true
+	local bisagra = CFrame.new(parcela.cerrado.aytoPuerta.Position - Vector3.new(5, 0, 0))
+	mover(a.puerta, bisagra * CFrame.Angles(0, math.rad(96), 0) * CFrame.new(5, 0, 0),
+		seco and 0 or 2)
+	a.recibidor.Material = Enum.Material.Neon
+	a.recibidor.Color = CALIDA
+	encender(a.luz, 3, seco and 0 or 2)
+	encender(a.luzReloj, 2, seco and 0 or 2)
+	a.reloj.Material = Enum.Material.Neon
+end
+
+
 -------------------------------------------------------------------
 --  LAS HERRAMIENTAS COMO OBJETOS DEL MUNDO
 --
@@ -2799,14 +4087,19 @@ local function piezasQuitanieves(parcela)
 	grupo.PrimaryPart = chasis
 	grupo.Parent = parcela.carpeta
 
+	local extras = {}
 	local function colocar(cf)
 		for _, p in ipairs(piezas) do
+			p.pieza.CFrame = cf * p.sitio
+		end
+		for _, p in ipairs(extras) do
 			p.pieza.CFrame = cf * p.sitio
 		end
 	end
 
 	return {
 		grupo = grupo,
+		extras = extras,
 		chasis = chasis,
 		asiento = asiento,
 		colocar = colocar,
@@ -2838,6 +4131,9 @@ function soltarQuitanieves(parcela, seco)
 	q.colocar(CFrame.new(q.sitio) * CFrame.Angles(0, q.giro, 0))
 	rotulo(q.chasis, "QUITANIEVES", Color3.fromRGB(255, 190, 90), 7)
 	parcela.maquina = q
+	if parcela.conBaliza then
+		ponerBaliza(parcela)
+	end
 	if not seco then
 		pcall(function()
 			q.motor.Volume = 0.12
@@ -2891,6 +4187,11 @@ local REACCION = {
 			end
 		end)
 	end,
+	parada = function(parcela)
+		local p = parcela.calle.parada
+		p.pieza.Material = Enum.Material.Neon
+		encender(p.luz, 2.2, 1.5)
+	end,
 	carretera = abrirCarretera,
 	vecino = function(parcela)
 		rescatarVecino(parcela)
@@ -2900,6 +4201,9 @@ local REACCION = {
 	end,
 	plaza = function(parcela)
 		encender(parcela.calle.luzCartel, 2.4, 2)
+		-- Y aqui empieza lo siguiente: unos segundos de calma, y despues
+		-- se enciende la radio y se pone a nevar otra vez.
+		quizaEmpezarTormenta()
 	end,
 }
 
@@ -2931,6 +4235,33 @@ local function estadoDelMundo(parcela)
 		vecinoFuera = parcela.vecino.abierta == true,
 		quitanieves = parcela.maquina ~= nil,
 	}
+end
+
+-- Que trozos de parcela quedan intocables para las tormentas en cuanto se
+-- descubren. Las calles y la plaza NO estan aqui a proposito: son
+-- justamente lo que la tormenta vuelve a tapar. Lo que si esta es todo lo
+-- que costo encontrar.
+function zonasProtegidas(parcela)
+	local m = parcela.casa
+	local v = parcela.vecino
+	local c = parcela.calle
+	return {
+		buzon = { c.buzonCx - 1, c.buzonCz - 1, c.buzonCx + 1, c.buzonCz + 1 },
+		puerta = { m.cxCentro - 2, m.cz1 + 1, m.cxCentro + 2, m.cz1 + 4 },
+		garaje = { m.garajeCx - 3, m.cz1 + 1, m.garajeCx + 3, m.cz1 + 3 },
+		coche = { c.cocheCx - 2, c.cocheCz - 2, c.cocheCx + 2, c.cocheCz + 2 },
+		vecino = { v.cxCentro - 4, v.cz0 - 7, v.cxCentro + 4, v.cz0 - 1 },
+	}
+end
+
+function protegerLoDescubierto(parcela)
+	local zonas = zonasProtegidas(parcela)
+	for clave, si in pairs(parcela.hallazgos) do
+		local z = si and zonas[clave]
+		if z then
+			parcela:proteger(z[1], z[2], z[3], z[4])
+		end
+	end
 end
 
 local function avanzarCapitulo(parcela)
@@ -2978,6 +4309,17 @@ function revisarHallazgos(parcela)
 	local coche = parcela:alturaMaximaEn(c.cocheCx - 1, c.cocheCz - 1, c.cocheCx + 1, c.cocheCz + 1)
 	local garaje = parcela:alturaMaximaEn(m.garajeCx - 2, m.cz1 + 1, m.garajeCx + 2, m.cz1 + 3)
 	local entrada = parcela:alturaMaximaEn(m.garajeCx - 4, m.cz1 + 1, m.garajeCx + 4, S.czCarretera + 1)
+	-- La parada del autobus asoma cuando la maquina limpia la calzada
+	-- delante: es lo que pasa a mitad de camino a la plaza, para que
+	-- abrir la calle no sean seis minutos sin nada.
+	local buzonVecino = parcela:alturaMaximaEn(
+		c.buzonVecinoCx - 1, c.buzonVecinoCz,
+		c.buzonVecinoCx + 1, c.buzonVecinoCz + 1
+	)
+	local parada = parcela:alturaMaximaEn(
+		A.sitio.cxParada - 2, A.sitio.czCarretera - 1,
+		A.sitio.cxParada + 2, A.sitio.czCarretera + 1
+	)
 	local puertaVecino = parcela:alturaMaximaEn(v.cxCentro - 4, v.cz0 - 7, v.cxCentro + 4, v.cz0 - 1)
 
 	-- La calle no se "ve": se ABRE. No basta con hacer un boquete encima
@@ -3012,12 +4354,25 @@ function revisarHallazgos(parcela)
 		coche = coche < c.alturaCoche,
 		carretera = hastaElAsfalto,
 		vecino = puertaVecino < 2.2,
+		buzonVecino = buzonVecino < c.alturaBuzonVecino,
+		parada = parada < 0.5,
 		plaza = plazaAbierta,
 	}
 
+	-- LO QUE SE DESCUBRE QUEDA PROTEGIDO PARA SIEMPRE. Encima de estas
+	-- casillas no vuelve a caer nieve de tormenta, pase lo que pase. Es
+	-- la garantia que hace que un evento nunca deshaga lo conseguido:
+	-- puede volver a nevar en la calle, pero no sobre tu puerta.
+	--
+	-- Las calles y la plaza NO se protegen, y es a proposito: son
+	-- justamente lo que la tormenta vuelve a tapar.
 	for _, def in ipairs(A.hallazgos) do
 		if visible[def.clave] and not parcela.hallazgos[def.clave] then
 			parcela.hallazgos[def.clave] = true
+			local zona = zonasProtegidas(parcela)[def.clave]
+			if zona then
+				parcela:proteger(zona[1], zona[2], zona[3], zona[4])
+			end
 			aTodos(parcela, { tipo = "hallazgo", clave = def.clave, nombre = def.nombre })
 			local reaccion = REACCION[def.clave]
 			if reaccion then
@@ -3121,6 +4476,24 @@ function reiniciarPiezas(parcela)
 		pieza.Transparency = 1
 	end
 
+	-- Todo lo de la tormenta se va con la parcela: es del servidor, no del
+	-- jugador, y no puede quedarse pegado al siguiente que entre.
+	parcela.tormenta = nil
+	parcela.conBaliza = false
+	parcela.arbol.ver(false)
+	parcela.camion.ver(false)
+	parcela:derretirTormenta()
+	local a = parcela.ayuntamiento
+	a.abierto = false
+	a.puerta.CFrame = parcela.cerrado.aytoPuerta
+	a.recibidor.Material = Enum.Material.SmoothPlastic
+	a.recibidor.Color = Color3.fromRGB(20, 20, 22)
+	a.luz.Enabled = false
+	a.luz.Brightness = 0
+	a.luzReloj.Enabled = false
+	a.luzReloj.Brightness = 0
+	a.reloj.Material = Enum.Material.SmoothPlastic
+
 	if parcela.sopladoraSuelta then
 		parcela.sopladoraSuelta:Destroy()
 	end
@@ -3156,7 +4529,7 @@ local function rehacerNieve(parcela, texto)
 	if texto then
 		cargada = parcela:descomprimir(texto)
 		if not cargada then
-			warn("[barrio] la nieve guardada no encaja con este mundo: se rehace la nevada")
+			warn("[tormenta] la nieve guardada no encaja con este mundo: se rehace la nevada")
 		end
 	end
 	parcela:nevar()
@@ -3181,9 +4554,21 @@ function montarParcela(parcela, jugador, datos)
 	end
 	local _, indice = A.capitulo(datos.capitulo)
 	parcela.capitulo = indice
+	-- Lo que ya estaba descubierto vuelve a quedar protegido: si no, la
+	-- primera tormenta despues de cargar partida podria nevar encima.
+	protegerLoDescubierto(parcela)
 	parcela.sopladoraCogida = datos.herramientas.sopladora == true
 	parcela.quitanievesCogido = datos.herramientas.quitanieves == true
 	aplicarEnSeco(parcela, datos.mundo)
+	-- Las recompensas de tormentas anteriores tambien vuelven: la baliza
+	-- del quitanieves y el ayuntamiento abierto.
+	if datos.recompensas.baliza then
+		parcela.conBaliza = true
+		ponerBaliza(parcela)
+	end
+	if datos.recompensas.ayuntamiento then
+		abrirAyuntamiento(parcela, true)
+	end
 	-- La sopladora que ya se cogio no vuelve a estar tirada en el garaje.
 	if parcela.sopladoraCogida and parcela.sopladoraSuelta then
 		parcela.sopladoraSuelta:Destroy()
@@ -3464,9 +4849,9 @@ local function excavarPala(parcela, pos, def, tope)
 			local dx, dz = x - pos.X, z - pos.Z
 			if dx * dx + dz * dz <= radio2 then
 				local c = parcela:casilla(cx, cz)
-				if c and not c.muro and c.restante > 0 then
+				if c and not c.muro and c.restante + c.tormenta > 0 then
 					habiaNieve = true
-					candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante }
+					candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante + c.tormenta }
 				end
 			end
 		end
@@ -3480,7 +4865,7 @@ local function excavarPala(parcela, pos, def, tope)
 		if hechas >= tope then
 			break
 		end
-		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas) then
+		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas, def.dejaTormenta) then
 			hechas = hechas + 1
 		end
 	end
@@ -3508,10 +4893,13 @@ local function excavarSopladora(parcela, pos, mirada, derecha, def, tope)
 			local lado = dx * derecha.X + dz * derecha.Z
 			if delante >= -CELDA and delante <= def.fondo and math.abs(lado) <= def.ancho / 2 then
 				local c = parcela:casilla(cx, cz)
-				if c and not c.muro and c.restante > 0 then
+				if c and not c.muro and c.restante + c.tormenta > 0 then
 					habiaNieve = true
-					if c.restante > def.dejaCapas then
-						candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante }
+					-- La maquina deja colchon en las dos nieves: en la
+					-- historica y en la de tormenta. Por eso el ultimo
+					-- dedo de nieve de una puerta sigue siendo de pala.
+					if c.tormenta > def.dejaTormenta or (c.tormenta == 0 and c.restante > def.dejaCapas) then
+						candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante + c.tormenta }
 					else
 						-- Queda nieve, pero es el colchon que la maquina no
 						-- raspa. Eso es trabajo de pala, y hay que decirlo.
@@ -3530,7 +4918,7 @@ local function excavarSopladora(parcela, pos, mirada, derecha, def, tope)
 		if hechas >= tope then
 			break
 		end
-		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas) then
+		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas, def.dejaTormenta) then
 			hechas = hechas + 1
 		end
 	end
@@ -3670,6 +5058,12 @@ local function puedePasar(punto, dir, def)
 			return false
 		end
 		local cx, cz = parcela:aCasilla(p.X, p.Z)
+		-- Solo calle. No es solo que no pueda LIMPIAR el jardin: es que no
+		-- puede meterse en el. Un quitanieves municipal no cruza el cesped
+		-- de nadie, y asi tampoco puede acabar encajado donde no debe.
+		if not parcela:esCalle(cx, cz) then
+			return false
+		end
 		if not parcela:pisable(cx, cz, def.capasMaximas) then
 			return false
 		end
@@ -3693,9 +5087,11 @@ local function limpiarConLaCuchilla(parcela, punto, dir, def)
 			if delante >= -CELDA and delante <= def.fondo and math.abs(lado) <= def.ancho / 2 then
 				local c = parcela:casilla(cx, cz)
 				-- Solo calle, y solo donde la cuchilla llega. En el jardin
-				-- no pinta nada y contra el muro de la entrada tampoco.
-				if c and c.calle and not c.muro and c.restante > 0 and c.restante <= def.capasMaximas then
-					candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = c.restante }
+				-- no pinta nada, contra el muro de la entrada tampoco, y
+				-- en las aceras menos: por eso hace falta la sopladora.
+				local hay = c and (c.restante + c.tormenta) or 0
+				if c and c.calle and not c.muro and hay > 0 and hay <= def.capasMaximas then
+					candidatas[#candidatas + 1] = { cx = cx, cz = cz, alto = hay }
 				end
 			end
 		end
@@ -3709,7 +5105,7 @@ local function limpiarConLaCuchilla(parcela, punto, dir, def)
 		if hechas >= def.potencia then
 			break
 		end
-		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas) then
+		if parcela:excavar(casilla.cx, casilla.cz, def.dejaCapas, def.dejaTormenta) then
 			hechas = hechas + 1
 		end
 	end
@@ -3878,8 +5274,405 @@ end
 
 
 -------------------------------------------------------------------
+--  LA TORMENTA
+--
+--  Un evento del SERVIDOR, no del jugador: empieza cuando el primero
+--  llega a la plaza y vive mientras dure. Lo que cae es nieve de
+--  tormenta, en otra capa, que no se guarda y se derrite al final.
+--
+--  Por eso una tormenta puede volver a dar trabajo sin deshacer nada:
+--  ni cierra puertas, ni quita herramientas, ni reinicia el guion.
+-------------------------------------------------------------------
+
+local cielo = {}
+
+local function guardarCielo()
+	if cielo.guardado then
+		return
+	end
+	cielo.guardado = {
+		ClockTime = Luz.ClockTime,
+		Brightness = Luz.Brightness,
+		FogEnd = Luz.FogEnd,
+		FogStart = Luz.FogStart,
+		OutdoorAmbient = Luz.OutdoorAmbient,
+	}
+	local aire = Luz:FindFirstChildOfClass("Atmosphere")
+	if aire then
+		cielo.densidad = aire.Density
+		cielo.bruma = aire.Haze
+	end
+end
+
+-- Que se vea venir. Nada de pantalla negra: cambia el cielo, se cierra la
+-- niebla y baja la luz, pero se sigue viendo el otro lado de la calle.
+local function cieloDeTormenta()
+	guardarCielo()
+	pcall(function()
+		Tweens:Create(Luz, TweenInfo.new(A.tormenta.aviso), {
+			ClockTime = 17.2,
+			Brightness = 1.1,
+			FogEnd = 420,
+			FogStart = 60,
+			OutdoorAmbient = Color3.fromRGB(120, 130, 148),
+		}):Play()
+	end)
+	local aire = Luz:FindFirstChildOfClass("Atmosphere")
+	if aire then
+		pcall(function()
+			Tweens:Create(aire, TweenInfo.new(A.tormenta.aviso), { Density = 0.62, Haze = 5 }):Play()
+		end)
+	end
+end
+
+-- Y que se note cuando pasa: el cielo vuelve, y vuelve despacio.
+local function cieloNormal()
+	if not cielo.guardado then
+		return
+	end
+	pcall(function()
+		Tweens:Create(Luz, TweenInfo.new(8), cielo.guardado):Play()
+	end)
+	local aire = Luz:FindFirstChildOfClass("Atmosphere")
+	if aire and cielo.densidad then
+		pcall(function()
+			Tweens:Create(aire, TweenInfo.new(8), { Density = cielo.densidad, Haze = cielo.bruma }):Play()
+		end)
+	end
+end
+
+local function parpadearFarolas(parcela)
+	local c = parcela.calle
+	if not c or not c.encendida then
+		return
+	end
+	task.spawn(function()
+		for _ = 1, 4 do
+			for _, f in ipairs(c.farolas) do
+				f.luz.Enabled = false
+			end
+			task.wait(0.12)
+			for _, f in ipairs(c.farolas) do
+				f.luz.Enabled = true
+			end
+			task.wait(0.5)
+		end
+	end)
+end
+
+-- Cuanta gente esta trabajando esta parcela ahora mismo. Con mas gente NO
+-- cae mas nieve: sale un bloqueo mas y las zonas son algo mas anchas.
+local function jugadoresDe(parcela)
+	local cuantos = 0
+	for _, estado in pairs(estados) do
+		if estado.mia == parcela.id or estado.parcela == parcela.id then
+			cuantos = cuantos + 1
+		end
+	end
+	return math.max(1, cuantos)
+end
+
+local function participan()
+	local lista = {}
+	for _, parcela in ipairs(parcelas) do
+		if parcela.dueno and parcela.hallazgos.plaza then
+			lista[#lista + 1] = parcela
+		end
+	end
+	return lista
+end
+
+local function avisoDeTormenta(parcela, datos)
+	aTodos(parcela, datos)
+end
+
+local function montarTormentaEn(parcela)
+	local t = Tormenta.nueva(parcela, jugadoresDe(parcela))
+	t.casillas = Tormenta.casillasDeLaOla(parcela, t)
+	parcela.tormenta = t
+
+	-- El arbol cae ahora, y no se puede quitar con nada: obliga a abrir el
+	-- arcen y rodear. Es el bloqueo que no se resuelve cavando.
+	if t.arbol then
+		local x, z = parcela:centro(t.arbol.cx, A.sitio.czCarretera)
+		parcela.arbol.colocar(CFrame.new(x, 1, z) * CFrame.Angles(0, math.rad(12), 0))
+		parcela.arbol.ver(true)
+		avisoDeTormenta(parcela, { tipo = "arbol" })
+	end
+	parpadearFarolas(parcela)
+	avisoDeTormenta(parcela, { tipo = "tormentaViene" })
+end
+
+-- La nieve cae por olas, y cada ola por lotes. Nada de cubrir el mapa de
+-- golpe: se tiene que ver llegar, y con varios jugadores no puede pegar
+-- un tiron al servidor.
+local function olaDeNieve(parcela, numeroDeOla)
+	local t = parcela.tormenta
+	if not t or not t.casillas then
+		return
+	end
+	local puestas = 0
+	for i, casilla in ipairs(t.casillas) do
+		-- Media parcela por ola, alternando: asi cuaja a manchas, como la
+		-- nieve de verdad, y no como una capa de pintura. En los
+		-- ventisqueros (las zonas de los bloqueos) cae en todas las olas:
+		-- son justo los sitios donde el viento amontona, y por eso son un
+		-- bloqueo y no un charco de nieve mas.
+		if casilla.ventisquero or (casilla.cx + casilla.cz + numeroDeOla) % 2 == 0 then
+			parcela:nevarTormentaEn(casilla.cx, casilla.cz, 1, casilla.tope)
+		end
+		puestas = puestas + 1
+		if puestas % A.tormenta.porLote == 0 then
+			task.wait()
+		end
+		if i % 900 == 0 and not parcela.tormenta then
+			return
+		end
+	end
+end
+
+local function premiarPorLaTormenta(parcela)
+	local dueno = parcela.dueno
+	local estado = dueno and estados[dueno]
+	if not estado then
+		return
+	end
+	estado.tormentas = estado.tormentas + 1
+	estado.reputacion = estado.reputacion + 1
+
+	-- La baliza: el quitanieves pasa a ser vehiculo de emergencia. Se ve
+	-- desde lejos, y eso es toda la recompensa que hace falta.
+	if not estado.premios.baliza then
+		estado.premios.baliza = true
+		RemotoAviso:FireClient(dueno, { tipo = "baliza" })
+	end
+	ponerBaliza(parcela)
+
+	-- Y se abre el ayuntamiento, con el mapa de lo que queda por
+	-- desenterrar. Es el gancho de la fase siguiente, y nada mas.
+	if not estado.premios.ayuntamiento then
+		estado.premios.ayuntamiento = true
+		RemotoAviso:FireClient(dueno, { tipo = "ayuntamiento" })
+	end
+	abrirAyuntamiento(parcela)
+	pcall(guardarJugador, dueno, "tormenta superada")
+end
+
+local function terminarTormentaEn(parcela)
+	local t = parcela.tormenta
+	if not t then
+		return
+	end
+	parcela.tormenta = nil
+	parcela.arbol.ver(false)
+	parcela.camion.ver(false)
+	avisoDeTormenta(parcela, { tipo = "tormentaFin" })
+	-- Se derrite por lotes, no de golpe: la mejora del tiempo tambien se
+	-- tiene que ver.
+	task.spawn(function()
+		while parcela:derretirTormenta(A.tormenta.derretirPorLote) > 0 do
+			task.wait()
+		end
+	end)
+end
+
+-- El camion no aparece por arte de magia: entra por la calle, recorre lo
+-- que has abierto y para en la plaza. Si hay arbol, va por el arcen.
+local function ticCamion(parcela, dt)
+	local t = parcela.tormenta
+	if not t or not t.camion then
+		return
+	end
+	local c = t.camion
+	local destino = c.ruta[c.punto]
+	if not destino then
+		return
+	end
+	local haciaAlli = Vector3.new(destino.X - c.donde.X, 0, destino.Z - c.donde.Z)
+	local cuanto = haciaAlli.Magnitude
+	if cuanto < 3 then
+		c.punto = c.punto + 1
+		if c.punto > #c.ruta then
+			-- HA LLEGADO. Esta es la celebracion del evento.
+			-- Se suelta el camion ANTES de repartir premios: repartirlos
+			-- guarda partida, y guardar cede el hilo. Con el camion aun
+			-- puesto, el siguiente tic entraria a moverlo sin ruta.
+			t.camion = nil
+			avisoDeTormenta(parcela, { tipo = "camionLlega" })
+			for _, f in ipairs(parcela.calle.farolas) do
+				f.luz.Enabled = true
+				f.luz.Brightness = 3
+			end
+			premiarPorLaTormenta(parcela)
+			task.delay(6, function()
+				pcall(terminarTormentaEn, parcela)
+			end)
+			return
+		end
+		destino = c.ruta[c.punto]
+		haciaAlli = Vector3.new(destino.X - c.donde.X, 0, destino.Z - c.donde.Z)
+		cuanto = haciaAlli.Magnitude
+	end
+	local paso = math.min(cuanto, 20 * dt)
+	local dir = Vector3.new(haciaAlli.X / cuanto, 0, haciaAlli.Z / cuanto)
+	c.donde = c.donde + dir * paso
+
+	local suelo = 0
+	local suya = parcelaEn(c.donde.X, c.donde.Z)
+	if suya then
+		local cx, cz = suya:aCasilla(c.donde.X, c.donde.Z)
+		suelo = suya:alturaEn(cx, cz)
+	end
+	parcela.camion.colocar(
+		CFrame.lookAt(
+			Vector3.new(c.donde.X, math.max(suelo, 0) + 5.4, c.donde.Z),
+			Vector3.new(c.donde.X + dir.X, math.max(suelo, 0) + 5.4, c.donde.Z + dir.Z)
+		)
+	)
+end
+
+local function ticTormentaEn(parcela, dt)
+	local t = parcela.tormenta
+	if not t then
+		return
+	end
+	if t.camion then
+		ticCamion(parcela, dt)
+		return
+	end
+	if t.abierta then
+		return
+	end
+	-- Mientras esta cuajando no se mira si hay bloqueos: si se mirara,
+	-- al primer tic estaria todo "despejado" y saldria el camion antes de
+	-- que cayera un copo.
+	if mundo.tormenta and mundo.tormenta.fase ~= "abierta" then
+		return
+	end
+
+	local cerrado = Tormenta.revisarBloqueos(parcela, t)
+	if cerrado then
+		t.ultimo = os.clock()
+		avisoDeTormenta(parcela, {
+			tipo = "bloqueoLimpio",
+			nombre = cerrado.nombre,
+			quedan = Tormenta.quedan(t),
+		})
+	end
+	if Tormenta.quedan(t) > 0 then
+		return
+	end
+
+	-- Ruta libre: sale el camion.
+	t.abierta = true
+	local ruta = Tormenta.ruta(parcela, t)
+	t.camion = { ruta = ruta, punto = 2, donde = ruta[1] }
+	parcela.camion.colocar(CFrame.new(ruta[1] + Vector3.new(0, 5.4, 0)))
+	parcela.camion.ver(true)
+	pcall(function()
+		parcela.camion.motor.Volume = 0.3
+		parcela.camion.motor:Play()
+	end)
+	avisoDeTormenta(parcela, { tipo = "camionEnCamino" })
+end
+
+local function ticTormenta(dt)
+	local T = A.tormenta
+	local m = mundo.tormenta
+	if not m then
+		-- Nadie ha llegado todavia a la plaza: no hay tormenta que llevar.
+		for _, parcela in ipairs(parcelas) do
+			if parcela.tormenta then
+				ticTormentaEn(parcela, dt)
+			end
+		end
+		return
+	end
+
+	local ahora = os.clock()
+	if m.fase == "calma" then
+		if ahora - m.desde >= T.calma then
+			m.fase = "aviso"
+			m.desde = ahora
+			cieloDeTormenta()
+			for _, parcela in ipairs(participan()) do
+				montarTormentaEn(parcela)
+			end
+		end
+	elseif m.fase == "aviso" then
+		if ahora - m.desde >= T.aviso then
+			m.fase = "cayendo"
+			m.desde = ahora
+			m.ola = 0
+		end
+	elseif m.fase == "cayendo" then
+		if ahora - m.desde >= T.entreOlas then
+			m.desde = ahora
+			m.ola = m.ola + 1
+			for _, parcela in ipairs(parcelas) do
+				if parcela.tormenta then
+					task.spawn(olaDeNieve, parcela, m.ola)
+				end
+			end
+			if m.ola >= T.olas then
+				m.fase = "abierta"
+			end
+		end
+	end
+
+	local quedaAlguna = false
+	for _, parcela in ipairs(parcelas) do
+		if parcela.tormenta then
+			quedaAlguna = true
+			ticTormentaEn(parcela, dt)
+		end
+	end
+	if not quedaAlguna and m.fase == "abierta" then
+		mundo.tormenta = nil
+		cieloNormal()
+	end
+end
+
+-- Se llama al descubrir la plaza. La tormenta es una sola para todo el
+-- servidor: la arranca el primero que llega.
+function quizaEmpezarTormenta()
+	if mundo.tormenta then
+		return
+	end
+	mundo.tormenta = { fase = "calma", desde = os.clock(), ola = 0, numero = (mundo.tormentas or 0) + 1 }
+	mundo.tormentas = mundo.tormenta.numero
+end
+
+
+-------------------------------------------------------------------
 --  LO QUE VE EL CLIENTE
 -------------------------------------------------------------------
+
+-- HERRAMIENTA PRESTADA. Lo que has desbloqueado tu es tuyo y va contigo;
+-- pero cuando estas en la parcela de OTRO puedes usar lo que esa parcela
+-- tenga desbloqueado. Sin esto, el que viene a echar una mano en plena
+-- tormenta llega con una pala y nada mas, y el evento pide las tres
+-- herramientas: ayudar seria imposible justo cuando mas falta hace. Al
+-- salirte de esa parcela se te cae de la mano sola (lo hace ticJuego).
+local function puedeUsar(estado, clave)
+	if clave == "pala" then
+		return true
+	end
+	if estado.tiene[clave] then
+		return true
+	end
+	local aqui = parcelas[estado.parcela]
+	if not aqui or aqui.id == estado.mia then
+		return false
+	end
+	if clave == "sopladora" then
+		return aqui.sopladoraCogida == true
+	end
+	if clave == "quitanieves" then
+		return aqui.quitanievesCogido == true
+	end
+	return false
+end
 
 local function paqueteDe(jugador, estado)
 	-- Se ensena el guion de la parcela que estas PISANDO: si estas
@@ -3897,6 +5690,31 @@ local function paqueteDe(jugador, estado)
 	if aqui and mia and aqui ~= mia then
 		ajena = aqui.duenoNombre or "?"
 	end
+	-- Lo de la tormenta, si la hay: en que va y que queda por despejar.
+	-- El HUD nunca ensena mas de lo que hace falta.
+	local tormenta = nil
+	local t = aqui and aqui.tormenta
+	if t then
+		local lista = {}
+		for _, b in ipairs(t.bloqueos) do
+			lista[#lista + 1] = {
+				clave = b.clave,
+				nombre = b.nombre,
+				herramienta = b.herramienta,
+				limpio = b.limpio == true,
+			}
+		end
+		tormenta = {
+			fase = mundo.tormenta and mundo.tormenta.fase or "abierta",
+			quedan = Tormenta.quedan(t),
+			bloqueos = lista,
+			camion = t.camion ~= nil,
+			arbol = t.arbol ~= nil,
+		}
+	elseif mundo.tormenta and mundo.tormenta.fase == "calma" then
+		tormenta = { fase = "calma", quedan = 0, bloqueos = {} }
+	end
+
 	return {
 		dinero = math.floor(estado.dinero),
 		carga = estado.carga,
@@ -3907,8 +5725,8 @@ local function paqueteDe(jugador, estado)
 		herramienta = estado.herramienta,
 		tiene = {
 			pala = true,
-			sopladora = estado.tiene.sopladora == true,
-			quitanieves = estado.tiene.quitanieves == true,
+			sopladora = puedeUsar(estado, "sopladora"),
+			quitanieves = puedeUsar(estado, "quitanieves"),
 		},
 		bloqueado = estado.bloqueado == true,
 		soloPala = estado.soloPala == true,
@@ -3918,6 +5736,9 @@ local function paqueteDe(jugador, estado)
 		mia = estado.mia,
 		nube = Guardado.disponible ~= false,
 		hallazgos = hallazgos,
+		tormenta = tormenta,
+		tormentas = estado.tormentas,
+		reputacion = estado.reputacion,
 	}
 end
 
@@ -3939,13 +5760,16 @@ local function datosDe(jugador, estado)
 		hallazgos = parcela.hallazgos,
 		herramientas = estado.tiene,
 		mundo = estadoDelMundo(parcela),
+		recompensas = estado.premios,
+		tormentas = estado.tormentas,
+		reputacion = estado.reputacion,
 		-- La nieve entera, por tramos. Ni particulas, ni montones de
 		-- adorno, ni luces: todo eso se vuelve a construir solo.
 		nieve = parcela:comprimir(),
 	}
 end
 
-local function guardarJugador(jugador, porque)
+function guardarJugador(jugador, porque)
 	local estado = estados[jugador]
 	if not estado or not estado.mia then
 		return false
@@ -3957,7 +5781,7 @@ local function guardarJugador(jugador, porque)
 	local ok, donde = Guardado.guardar(jugador, datos)
 	if ok then
 		estado.guardadoEn = donde
-		print(("[barrio] guardado (%s) de %s en %s"):format(tostring(porque), jugador.Name, donde))
+		print(("[tormenta] guardado (%s) de %s en %s"):format(tostring(porque), jugador.Name, donde))
 	end
 	return ok
 end
@@ -3971,6 +5795,9 @@ local function alEntrar(jugador)
 	local nieve = Instance.new("IntValue")
 	nieve.Name = "Snow"
 	nieve.Parent = carpeta
+	local tormentas = Instance.new("IntValue")
+	tormentas.Name = "Storms"
+	tormentas.Parent = carpeta
 	carpeta.Parent = jugador
 
 	local estado = {
@@ -3982,6 +5809,10 @@ local function alEntrar(jugador)
 		herramienta = "pala",
 		-- Ninguna se compra: se encuentran dentro del mundo.
 		tiene = { pala = true, sopladora = false, quitanieves = false },
+		-- Lo unico que se lleva uno de una tormenta, y es permanente.
+		tormentas = 0,
+		reputacion = 0,
+		premios = {},
 		mia = nil,
 		parcela = nil,
 	}
@@ -3995,6 +5826,11 @@ local function alEntrar(jugador)
 	estado.nieveTotal = datos.nieveTotal
 	estado.tiene.sopladora = datos.herramientas.sopladora == true
 	estado.tiene.quitanieves = datos.herramientas.quitanieves == true
+	estado.tormentas = datos.tormentas or 0
+	estado.reputacion = datos.reputacion or 0
+	for clave, si in pairs(datos.recompensas or {}) do
+		estado.premios[clave] = si == true
+	end
 	if estado.tiene.sopladora then
 		estado.herramienta = "sopladora"
 	end
@@ -4007,7 +5843,7 @@ local function alEntrar(jugador)
 	else
 		-- No queda parcela libre. No se echa a nadie: se entra de
 		-- ayudante, que quitar nieve al vecino tambien es jugar.
-		warn("[barrio] no quedan parcelas libres: " .. jugador.Name .. " entra de ayudante")
+		warn("[tormenta] no quedan parcelas libres: " .. jugador.Name .. " entra de ayudante")
 	end
 
 	local function alAparecer(pers)
@@ -4073,7 +5909,7 @@ RemotoHerramienta.OnServerEvent:Connect(function(jugador, clave)
 		return
 	end
 	-- El quitanieves no se lleva en la mano: se conduce.
-	if clave == "quitanieves" or not A.herramientas[clave] or not estado.tiene[clave] then
+	if clave == "quitanieves" or not A.herramientas[clave] or not puedeUsar(estado, clave) then
 		return
 	end
 	if estado.herramienta == clave then
@@ -4117,7 +5953,7 @@ local function bucle(nombre, cada, fn)
 			task.wait(cada)
 			local ok, err = pcall(fn)
 			if not ok then
-				warn("[barrio] fallo en " .. nombre .. ": " .. tostring(err))
+				warn("[tormenta] fallo en " .. nombre .. ": " .. tostring(err))
 			end
 		end
 	end)
@@ -4135,6 +5971,14 @@ local function ticJuego()
 			-- la de cualquiera al que este echando una mano.
 			local aqui = parcelaEn(pos.X, pos.Z)
 			estado.parcela = aqui and aqui.id or estado.mia
+
+			-- Lo prestado se devuelve al salir. Si te vas de la parcela
+			-- donde te dejaron la sopladora, vuelves a tu pala.
+			if estado.herramienta ~= "pala" and not puedeUsar(estado, estado.herramienta) then
+				estado.herramienta = "pala"
+				def = A.herramientas.pala
+				pcall(darHerramienta, jugador, pers, estado)
+			end
 
 			-- Los avisos no se quedan pegados: caducan al soltar, al
 			-- moverse de sitio, o al salirse de la parcela.
@@ -4184,6 +6028,10 @@ local function ticEstado()
 		local monedas = marcador and marcador:FindFirstChild("Coins")
 		if monedas then
 			monedas.Value = math.clamp(math.floor(estado.dinero), 0, 2147483647)
+		end
+		local tormentas = marcador and marcador:FindFirstChild("Storms")
+		if tormentas then
+			tormentas.Value = math.clamp(math.floor(estado.tormentas), 0, 2147483647)
 		end
 	end
 end
@@ -4240,32 +6088,35 @@ end)
 bucle("excavar", A.jugador.tic, ticJuego)
 bucle("estado", 0.3, ticEstado)
 bucle("maquinas", PASO_MAQUINA, ticMaquinas)
+bucle("tormenta", 0.25, function()
+	ticTormenta(0.25)
+end)
 -- Guardado periodico: si al servidor le da algo, se pierde minuto y
 -- medio, no la partida.
 bucle("guardado", 90, function()
 	guardarATodos("cada minuto y medio")
 end)
 
-print(("[barrio] %d parcelas listas, %d casillas cada una, %d capas la primera"):format(
+print(("[tormenta] %d parcelas listas, %d casillas cada una, %d capas la primera"):format(
 	#parcelas, parcelas[1].ancho * parcelas[1].largo, parcelas[1].capasTotales))
 ]]></ProtectedString>
         <bool name="Disabled">false</bool>
       </Properties>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="RBX9">
+  <Item class="StarterPlayer" referent="RBX10">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="RBX10">
+    <Item class="StarterPlayerScripts" referent="RBX11">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-    <Item class="LocalScript" referent="RBX11">
+    <Item class="LocalScript" referent="RBX12">
       <Properties>
         <string name="Name">Cliente</string>
         <ProtectedString name="Source"><![CDATA[--[[
-	EL BARRIO DESPIERTA  —  cliente
+	LA GRAN TORMENTA  —  cliente
 
 	Lo unico que de verdad importa aqui: que en todo momento el jugador
 	sepa QUE esta buscando, y que cuando aparezca algo se entere de que ha
@@ -4286,7 +6137,7 @@ local Entrada = game:GetService("UserInputService")
 local jugador = Jugadores.LocalPlayer
 local A = require(RS:WaitForChild("Ajustes"))
 
-local remotos = RS:WaitForChild("RemotosBarrio")
+local remotos = RS:WaitForChild("RemotosTormenta")
 local RemotoEstado = remotos:WaitForChild("Estado")
 local RemotoAviso = remotos:WaitForChild("Aviso")
 local RemotoCavar = remotos:WaitForChild("Cavar")
@@ -4352,7 +6203,7 @@ task.spawn(function()
 end)
 
 local pantalla = nuevo("ScreenGui", {
-	Name = "HUDBarrio",
+	Name = "HUDTormenta",
 	ResetOnSpawn = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, jugador:WaitForChild("PlayerGui"))
@@ -4652,6 +6503,155 @@ botonMaquina("recuperar", T("recuperar"), 0, Color3.fromRGB(255, 190, 90))
 botonMaquina("bajar", T("bajar"), 168, Color3.fromRGB(180, 200, 220))
 
 
+-- La tormenta ---------------------------------------------------------
+--
+-- Mientras nieva, esto es lo que manda en el HUD: que queda por despejar
+-- y con que. Cada bloqueo dice su herramienta, porque el quitanieves no
+-- puede con todo y hay que saberlo de un vistazo.
+
+local marcoTormenta = panel({
+	Name = "Tormenta",
+	Size = UDim2.new(0, 300, 0, 210),
+	Position = UDim2.new(1, -20, 0.5, 0),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundColor3 = Color3.fromRGB(20, 26, 44),
+	BackgroundTransparency = 0.1,
+	Visible = false,
+}, pantalla)
+nuevo("UIStroke", { Color = Color3.fromRGB(140, 180, 255), Thickness = 2, Transparency = 0.3 }, marcoTormenta)
+
+local tituloTormenta = etiqueta({
+	Name = "Titulo",
+	Size = UDim2.new(1, -20, 0, 26),
+	Position = UDim2.new(0, 10, 0, 10),
+	Text = T("rutaTitulo"),
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	TextColor3 = Color3.fromRGB(160, 200, 255),
+	TextWrapped = true,
+}, marcoTormenta)
+
+local pieTormenta = etiqueta({
+	Name = "Pie",
+	Size = UDim2.new(1, -20, 0, 18),
+	Position = UDim2.new(0, 10, 0, 40),
+	Text = T("rutaPie"),
+	TextSize = 13,
+	Font = Enum.Font.Gotham,
+	TextColor3 = Color3.fromRGB(190, 206, 226),
+}, marcoTormenta)
+
+local filasBloqueo = {}
+for i = 1, 5 do
+	filasBloqueo[i] = etiqueta({
+		Name = "Bloqueo" .. i,
+		Size = UDim2.new(1, -20, 0, 26),
+		Position = UDim2.new(0, 12, 0, 62 + (i - 1) * 28),
+		Text = "",
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Font = Enum.Font.GothamBold,
+		Visible = false,
+	}, marcoTormenta)
+end
+
+-- Nieve cayendo, viento y sonido de fuera. Intensa pero se ve el otro
+-- lado de la calle: si no se ve, no se juega.
+local nevando = nil
+local viento = nuevo("Sound", {
+	Name = "Viento",
+	SoundId = "rbxasset://sounds/action_falling.mp3",
+	Volume = 0,
+	PlaybackSpeed = 0.45,
+	Looped = true,
+}, Sonidos)
+
+local function ponerNevada(si)
+	local camara = workspace.CurrentCamera
+	if si and not nevando then
+		local ancla = Instance.new("Part")
+		ancla.Name = "NevadaTormenta"
+		ancla.Size = Vector3.new(1, 1, 1)
+		ancla.Transparency = 1
+		ancla.Anchored = true
+		ancla.CanCollide = false
+		ancla.CanQuery = false
+		ancla.CanTouch = false
+		ancla.Parent = camara
+		local punto = Instance.new("Attachment")
+		punto.Parent = ancla
+		local copos = Instance.new("ParticleEmitter")
+		copos.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		copos.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+		copos.Size = NumberSequence.new(0.9)
+		copos.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.25),
+			NumberSequenceKeypoint.new(1, 0.6),
+		})
+		copos.Lifetime = NumberRange.new(2.4, 3.6)
+		copos.Rate = 260
+		copos.Speed = NumberRange.new(16, 30)
+		copos.SpreadAngle = Vector2.new(50, 50)
+		copos.Acceleration = Vector3.new(-14, -26, 0)
+		copos.EmissionDirection = Enum.NormalId.Bottom
+		copos.Parent = punto
+		nevando = { ancla = ancla, copos = copos }
+		pcall(function()
+			viento:Play()
+			Tween:Create(viento, TweenInfo.new(4), { Volume = 0.35 }):Play()
+		end)
+		-- Rafagas: el viento no sopla igual todo el rato.
+		task.spawn(function()
+			while nevando do
+				local fuerte = 200 + math.random(0, 320)
+				copos.Rate = fuerte
+				copos.Acceleration = Vector3.new(-8 - math.random(0, 22), -26, math.random(-8, 8))
+				pcall(function()
+					viento.Volume = 0.2 + fuerte / 1600
+				end)
+				task.wait(2 + math.random() * 3)
+			end
+		end)
+	elseif not si and nevando then
+		nevando.copos.Enabled = false
+		local irse = nevando.ancla
+		nevando = nil
+		pcall(function()
+			Tween:Create(viento, TweenInfo.new(5), { Volume = 0 }):Play()
+		end)
+		task.delay(5, function()
+			irse:Destroy()
+			pcall(function()
+				viento:Stop()
+			end)
+		end)
+	end
+end
+
+-- Cerca de una casa el ruido de fuera baja: da sensacion de refugio.
+task.spawn(function()
+	while true do
+		task.wait(0.6)
+		if nevando then
+			local pers = jugador.Character
+			local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
+			local cerca = false
+			if raiz then
+				for _, casa in ipairs(workspace:GetDescendants()) do
+					if casa.Name == "Recibidor" and (casa.Position - raiz.Position).Magnitude < 26 then
+						cerca = true
+						break
+					end
+				end
+			end
+			pcall(function()
+				viento.Volume = cerca and 0.08 or math.max(viento.Volume, 0.28)
+			end)
+		end
+	end
+end)
+
+
 local cavando = false
 local porRaton, porTecla, porBoton = false, false, false
 local colorBoton = ACENTO
@@ -4859,6 +6859,39 @@ local function refrescar(datos)
 	end
 	textoNube.Text = datos.nube and "" or T("sinGuardado")
 
+	-- LA TORMENTA. Mientras cae, el HUD de la tormenta manda sobre el del
+	-- guion: lo que importa ahora es que queda por despejar.
+	local t = datos.tormenta
+	ponerNevada(t ~= nil and t.fase ~= "calma")
+	marcoTormenta.Visible = t ~= nil and t.fase ~= "calma"
+	if t and t.fase ~= "calma" then
+		if t.camion then
+			tituloTormenta.Text = T("camionEnCamino")
+			pieTormenta.Text = ""
+		else
+			tituloTormenta.Text = T("rutaTitulo")
+			pieTormenta.Text = t.quedan == 1 and T("bloqueoUltimo")
+				or string.format(T("bloqueosQuedan"), t.quedan)
+		end
+		for i, fila in ipairs(filasBloqueo) do
+			local b = t.bloqueos[i]
+			fila.Visible = b ~= nil
+			if b then
+				local util = A.herramientas[b.herramienta]
+				local comoSeLlama = util and A.nombre(util.nombre, idioma) or ""
+				if b.limpio then
+					fila.Text = "OK   " .. A.nombre(b.nombre, idioma)
+					fila.TextColor3 = Color3.fromRGB(150, 240, 170)
+				else
+					fila.Text = "-    " .. A.nombre(b.nombre, idioma) .. "  (" .. comoSeLlama .. ")"
+					fila.TextColor3 = util and util.clave == "quitanieves" and Color3.fromRGB(255, 190, 90)
+						or util and util.clave == "sopladora" and NARANJA
+						or ACENTO
+				end
+			end
+		end
+	end
+
 	local capacidad = math.max(1, datos.capacidad or 1)
 	local carga = datos.carga or 0
 	local lleno = carga >= capacidad
@@ -4881,6 +6914,10 @@ local function refrescar(datos)
 	local cap = A.capitulo(datos.capitulo or "puerta")
 	textoObjetivo.Text = A.nombre(cap.titulo, idioma)
 	pieObjetivo.Text = A.nombre(cap.pie, idioma)
+	if (datos.tormentas or 0) > 0 then
+		pieObjetivo.Text = pieObjetivo.Text
+			.. "    ·    " .. T("tormentasSuperadas") .. " " .. tostring(datos.tormentas)
+	end
 	-- Solo se celebra el capitulo de TU parcela: si no, ayudar a alguien
 	-- te llenaria la pantalla de titulos que no son tuyos.
 	if capituloAnterior and capituloAnterior ~= cap.clave and not datos.ajena then
@@ -4925,7 +6962,7 @@ RemotoEstado.OnClientEvent:Connect(function(datos)
 	end
 	local ok, err = pcall(refrescar, datos)
 	if not ok then
-		warn("[barrio] fallo al pintar: " .. tostring(err))
+		warn("[tormenta] fallo al pintar: " .. tostring(err))
 	end
 end)
 
@@ -4945,6 +6982,32 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 	elseif datos.tipo == "quitanieves" then
 		aviso(T("llaves"), ORO)
 		sonar("capitulo")
+	elseif datos.tipo == "tormentaViene" then
+		celebrar(T("tormentaViene"), Color3.fromRGB(160, 200, 255), true)
+		aviso(T("tormentaVienePie"), Color3.fromRGB(190, 216, 255))
+		sonar("capitulo")
+	elseif datos.tipo == "arbol" then
+		celebrar(T("arbolCaido"), Color3.fromRGB(255, 170, 120), false)
+		aviso(T("arbolPie"), Color3.fromRGB(255, 200, 160))
+		sonar("hallazgo")
+	elseif datos.tipo == "bloqueoLimpio" then
+		aviso(T("despejado1") .. "  " .. A.nombre(datos.nombre, idioma), Color3.fromRGB(150, 240, 170))
+		sonar("hallazgo")
+	elseif datos.tipo == "camionEnCamino" then
+		celebrar(T("camionEnCamino"), ORO, true)
+		sonar("capitulo")
+	elseif datos.tipo == "camionLlega" then
+		celebrar(T("camionLlega"), ORO, false)
+		sonar("hallazgo")
+	elseif datos.tipo == "tormentaFin" then
+		celebrar(T("tormentaFin"), Color3.fromRGB(180, 230, 255), true)
+		sonar("capitulo")
+	elseif datos.tipo == "baliza" then
+		aviso(T("balizaNueva"), Color3.fromRGB(255, 150, 80))
+		sonar("capitulo")
+	elseif datos.tipo == "ayuntamiento" then
+		celebrar(T("ayuntamiento"), ORO, false)
+		sonar("hallazgo")
 	end
 end)
 ]]></ProtectedString>

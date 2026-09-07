@@ -26,8 +26,12 @@ Tardas unos 20 minutos en hacerla entera.
         Enable Studio Access to API Services:
         ENCENDIDO.
         Sin esto no hay guardado en la nube. El
-        juego funciona igual, pero el paso 26
+        juego funciona igual, pero el paso 31
         no se puede comprobar.
+        Tranquilo: desde Studio se guarda en
+        BarrioDespierta_v1_DEV, aparte del de
+        verdad. Jugar aqui no puede pisar la
+        partida de nadie.
 
 [ ]  3. Dale a PLAY (F5). El Output no debe
         sacar ningun error rojo.

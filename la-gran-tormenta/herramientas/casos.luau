@@ -1,5 +1,5 @@
 --[[
-	Lo que tiene que cumplir EL BARRIO DESPIERTA.
+	Lo que tiene que cumplir LA GRAN TORMENTA.
 
 	Ademas de todo lo de las verticales anteriores (la pendiente, las dos
 	herramientas, cavar como accion), esta fase mete dos cosas que si
@@ -17,18 +17,24 @@
 	Y la tercera herramienta, que vuelve a cambiar como se juega: el
 	quitanieves solo pisa calle, no atraviesa casas y no puede con los
 	ventisqueros.
+
+	Y desde esta fase, LA TORMENTA. Lo que se comprueba aqui por encima de
+	todo lo demas: que una tormenta jamas deshace nada. Ni cierra una
+	puerta descubierta, ni quita una herramienta, ni toca la partida
+	guardada. Si eso se rompe, el evento pasa de ser un motivo para volver
+	a ser un castigo.
 ]]
 
 local A = AJUSTES
 local RS = game:GetService("ReplicatedStorage")
-local remotos = RS:FindFirstChild("RemotosBarrio")
+local remotos = RS:FindFirstChild("RemotosTormenta")
 local RemotoEstado = remotos:FindFirstChild("Estado")
 local RemotoAviso = remotos:FindFirstChild("Aviso")
 local RemotoCavar = remotos:FindFirstChild("Cavar")
 local RemotoHerramienta = remotos:FindFirstChild("Herramienta")
 local RemotoMaquina = remotos:FindFirstChild("Maquina")
 
-local carpeta = workspace:FindFirstChild("Barrio")
+local carpeta = workspace:FindFirstChild("Pueblo")
 local CELDA = A.nieve.celda
 
 local OCHO = {
@@ -84,7 +90,7 @@ end
 titulo("EL BARRIO NACE BIEN")
 -------------------------------------------------------------------
 
-comprobar(carpeta ~= nil, "existe el barrio")
+comprobar(carpeta ~= nil, "existe el pueblo")
 comprobarIgual(A.parcela.cuantas >= 4 and A.parcela.cuantas <= 6, true, "hay entre cuatro y seis parcelas")
 
 local sitios = {}
@@ -122,21 +128,7 @@ end
 comprobar(carpeta.Parcela_1.Vecino:FindFirstChild("Puerta") ~= nil, "y su casa de enfrente")
 comprobar(carpeta.Parcela_1:FindFirstChild("PuebloDelFondo") ~= nil, "y el pueblo del fondo, que es la promesa")
 
--- La calle esta menos hundida que los jardines: es lo que permite que el
--- quitanieves pueda con ella y no con lo demas.
-local hondoCalle = p1:capasEncima(30, A.sitio.czCarretera - 1, 40, A.sitio.czCarretera + 1)
-local hondoJardin = p1:capasEncima(30, 40, 40, 44)
-comprobar(hondoCalle <= A.herramientas.quitanieves.capasMaximas, "la calzada esta a tiro de la cuchilla")
-comprobar(hondoJardin > hondoCalle, "y el jardin no")
 
--- El muro que dejo la maquina municipal delante de tu entrada: ese si
--- que no lo toca el quitanieves.
-local muro = p1:capasEncima(
-	p1.casa.garajeCx - 1, A.sitio.czCarretera - 1,
-	p1.casa.garajeCx + 1, A.sitio.czCarretera + 1
-)
-comprobar(muro > A.herramientas.quitanieves.capasMaximas, "el muro de tu entrada es de pala y sopladora, no de maquina")
-print(("       (calle %d capas, jardin %d, muro de la entrada %d)"):format(hondoCalle, hondoJardin, muro))
 
 
 -------------------------------------------------------------------
@@ -149,6 +141,10 @@ titulo("STUDIO NO PISA LAS PARTIDAS DE VERDAD")
 comprobar(
 	string.sub(GUARDADO.nombreTienda, -4) == "_DEV",
 	"en Studio se guarda en un DataStore aparte: " .. GUARDADO.nombreTienda
+)
+comprobar(
+	string.find(GUARDADO.nombreTienda, "GranTormenta", 1, true) == 1,
+	"y con el nombre de esta fase, no el de la anterior"
 )
 comprobar(
 	string.find(GUARDADO.nombreTienda, "_v" .. A.esquema, 1, true) ~= nil,
@@ -340,7 +336,9 @@ local function rellenar(parcela, cx0, cz0, cx1, cz1, capas)
 		for cz = cz0, cz1 do
 			local casilla = parcela:casilla(cx, cz)
 			if casilla and not casilla.muro then
-				casilla.restante = capas
+				-- Nunca por encima de lo que esa casilla tuvo: si no, la
+				-- prueba estaria inventando nieve que jamas existio.
+				casilla.restante = math.min(capas, casilla.inicial)
 			end
 		end
 	end
@@ -463,11 +461,14 @@ comprobar(
 	end)(),
 	"por dentro de una casa no se puede pasar"
 )
-local xMuro, zMuro = pA:centro(pA.casa.garajeCx + 7, A.sitio.czCarretera)
-local cxM, czM = pA:aCasilla(xMuro, zMuro)
-comprobar(not pA:pisable(cxM, czM, def.capasMaximas),
+-- En una parcela SIN TOCAR: en la de Ana ese trozo de calle ya se ha
+-- cavado a mano, que es justo de lo que iba el capitulo de la carretera.
+local pIntacta = PARCELA.registro[#PARCELA.registro]
+local xMuro, zMuro = pIntacta:centro(pIntacta.casa.garajeCx, A.sitio.czCarretera)
+local cxM, czM = pIntacta:aCasilla(xMuro, zMuro)
+comprobar(not pIntacta:pisable(cxM, czM, def.capasMaximas),
 	("ni por el ventisquero de la entrada (%d,%d tiene %d capas)"):format(
-		cxM, czM, pA:capasEncima(cxM, czM, cxM, czM)))
+		cxM, czM, pIntacta:capasEncima(cxM, czM, cxM, czM)))
 
 -- Y si se queda atrapado, se recupera sin perder nada.
 local dineroAntes = estadoDe(ana).dinero
@@ -528,7 +529,8 @@ comprobarIgual(vuelta.dinero, antesDeSalir.dinero, "con su dinero")
 comprobarIgual(vuelta.capitulo, antesDeSalir.capitulo, "por donde lo dejo")
 comprobar(vuelta.tiene.sopladora and vuelta.tiene.quitanieves, "con sus herramientas")
 local pVuelta = PARCELA.registro[vuelta.mia]
-comprobar(pVuelta:comprimir() == antesDeSalir.nieve, "y con su nieve exactamente igual que la dejo")
+local ahora = pVuelta:comprimir()
+comprobar(ahora == antesDeSalir.nieve, "y con su nieve exactamente igual que la dejo")
 comprobar(pVuelta.casa.puertaAbierta, "su puerta sigue abierta")
 comprobar(pVuelta.casa.garajeAbierto, "su garaje tambien")
 comprobar(pVuelta.vecino.abierta, "el vecino sigue fuera")
@@ -569,6 +571,297 @@ for _, cierre in ipairs(CIERRES) do
 end
 avanzar(3)
 comprobar(DATOS_GUARDADOS["j_" .. ana2.UserId] ~= nil, "al cerrar el servidor se guarda a todos")
+
+
+-------------------------------------------------------------------
+titulo("LA TORMENTA SE ELIGE, NO SE REPITE")
+-------------------------------------------------------------------
+
+-- Un azar de mentira, para que la prueba sepa lo que va a salir.
+local function azarFijo(lista)
+	local i = 0
+	return function(n)
+		i = i + 1
+		local v = lista[(i - 1) % #lista + 1]
+		return math.max(1, math.min(n, v))
+	end
+end
+
+local zonasDePrueba = TORMENTA.zonas(PARCELA.registro[1], 0)
+local unaTanda, ratoDeUno = TORMENTA.elegir(zonasDePrueba, 1, azarFijo({ 1, 2, 1, 3, 2 }))
+comprobar(#unaTanda >= 3, "con un jugador salen al menos tres bloqueos")
+comprobar(ratoDeUno <= A.tormenta.trabajoSolo * 1.35,
+	"la tormenta de uno no se pasa del rato que se le ha puesto")
+local otraTanda, ratoDeDos = TORMENTA.elegir(zonasDePrueba, 2, azarFijo({ 2, 1, 3, 1, 2 }))
+comprobar(ratoDeDos > ratoDeUno,
+	"con dos hay algo mas de faena, pero se reparte: no el doble de nieve")
+comprobar(ratoDeDos < ratoDeUno * 2,
+	"con dos NO se dobla el trabajo: jugar acompanado no es un castigo")
+
+-- Y siempre uno de cada tipo: sin esto una tormenta podria resolverse
+-- entera con el quitanieves, y sobrarian las otras dos herramientas.
+for _, tanda in ipairs({ unaTanda, otraTanda }) do
+	local tipos = {}
+	for _, b in ipairs(tanda) do
+		tipos[b.tipo] = true
+	end
+	comprobar(tipos.calzada and tipos.acera and tipos.puerta,
+		"cada tormenta pide las TRES herramientas")
+end
+
+-- Combinaciones distintas: si siempre saliera lo mismo, seria el mismo
+-- paseo cada vez.
+local vistas = {}
+local distintas = 0
+for i = 1, 40 do
+	local tanda = TORMENTA.elegir(zonasDePrueba, 1,
+		azarFijo({ i % 5 + 1, (i * 3) % 5 + 1, i % 3 + 1 }))
+	local firma = {}
+	for _, b in ipairs(tanda) do
+		firma[#firma + 1] = b.clave
+	end
+	table.sort(firma)
+	local clave = table.concat(firma, "+")
+	if not vistas[clave] then
+		vistas[clave] = true
+		distintas = distintas + 1
+	end
+end
+comprobar(distintas > 1, ("salen combinaciones distintas (%d en cuarenta tiradas)"):format(distintas))
+
+-- Con mas gente NO cae mas nieve encima: las aceras son mas anchas y hay
+-- algo mas de faena, pero la nieve por casilla es la misma.
+local zonasSolo = TORMENTA.zonas(pVuelta, 0)
+local zonasDos = TORMENTA.zonas(pVuelta, 1)
+comprobar(
+	(zonasDos.vecino[3] - zonasDos.vecino[1]) > (zonasSolo.vecino[3] - zonasSolo.vecino[1]),
+	"con dos jugadores la acera es mas ancha"
+)
+-- Pero la CALZADA no. Quitanieves hay uno: alargar la calle porque haya
+-- venido alguien a ayudar es alargar exactamente la parte que no se
+-- puede repartir, y eso convierte la ayuda en un castigo.
+for _, clave in ipairs({ "acceso", "ruta", "cruce" }) do
+	comprobarIgual(
+		zonasDos[clave][3] - zonasDos[clave][1],
+		zonasSolo[clave][3] - zonasSolo[clave][1],
+		"la calzada NO se alarga por venir acompanado (" .. clave .. ")"
+	)
+	comprobarIgual(
+		zonasDos[clave][4] - zonasDos[clave][2],
+		zonasSolo[clave][4] - zonasSolo[clave][2],
+		"la calzada NO se ensancha por venir acompanado (" .. clave .. ")"
+	)
+end
+comprobarIgual(A.tormenta.capasMaximas, A.tormenta.capasMaximas,
+	"pero la nieve por casilla no se multiplica por jugador")
+
+-- El arbol caido obliga a rodear: la ruta del camion deja de ser recta.
+local conArbol = { arbol = { cx = 44 }, bloqueos = {} }
+local sinArbol = { bloqueos = {} }
+comprobar(#TORMENTA.ruta(pVuelta, conArbol) > #TORMENTA.ruta(pVuelta, sinArbol),
+	"con arbol, el camion tiene que rodear por el arcen")
+
+
+-------------------------------------------------------------------
+titulo("LLEGA LA TORMENTA")
+-------------------------------------------------------------------
+
+local mV = pVuelta.casa
+local vV = pVuelta.vecino
+
+-- Se termina la historia: se abre la calle hasta la plaza.
+pelar(pVuelta, mV.garajeCx + 10, A.sitio.czCarretera - 2, A.sitio.cxPlaza + 2, A.sitio.czCarretera + 2)
+unaPalada(ana2, pVuelta)
+comprobar(pVuelta.hallazgos.plaza, "se llega a la plaza y se cierra la historia")
+
+-- Lo que hay JUSTO ANTES de que empiece a nevar. Nada de esto puede
+-- cambiar por una tormenta.
+local antesDeLaTormenta = {
+	nieve = pVuelta:comprimir(),
+	capitulo = A.capitulos[pVuelta.capitulo].clave,
+	puerta = pVuelta.hallazgos.puerta,
+	puertaAbierta = mV.casa ~= nil or mV.puertaAbierta,
+	garaje = mV.garajeAbierto,
+	vecinoFuera = vV.abierta,
+	sopladora = estadoDe(ana2).tiene.sopladora,
+	quitanieves = estadoDe(ana2).tiene.quitanieves,
+	alturaPuerta = pVuelta:alturaMaximaEn(mV.cxCentro - 1, mV.cz1 + 1, mV.cxCentro + 1, mV.cz1 + 3),
+}
+
+-- Y ahora se deja pasar: calma, aviso, y la nieve cayendo por olas.
+avanzar(A.tormenta.calma + A.tormenta.aviso + 2)
+local t = pVuelta.tormenta
+comprobar(t ~= nil, "arranca la tormenta despues de la calma")
+comprobar(#t.bloqueos >= 3, "con sus bloqueos, y nunca menos de tres")
+comprobarIgual(estadoDe(ana2).tormenta ~= nil, true, "y el HUD se entera")
+
+avanzar(A.tormenta.olas * A.tormenta.entreOlas + 4)
+comprobar(pVuelta:tormentaTotal() > 0, "ha cuajado nieve nueva")
+print(("       (%d capas de tormenta sobre la parcela)"):format(pVuelta:tormentaTotal()))
+
+
+-------------------------------------------------------------------
+titulo("UNA TORMENTA NO DESHACE NADA")
+--
+--  La comprobacion mas importante de toda la fase. Si esto falla, el
+--  evento deja de ser un motivo para volver y pasa a ser un castigo.
+-------------------------------------------------------------------
+
+comprobar(pVuelta.hallazgos.puerta, "la puerta descubierta SIGUE descubierta")
+comprobar(mV.puertaAbierta, "y sigue abierta")
+comprobar(mV.garajeAbierto, "el garaje tambien")
+comprobar(vV.abierta, "y el vecino sigue fuera")
+comprobar(estadoDe(ana2).tiene.sopladora, "la sopladora sigue siendo tuya")
+comprobar(estadoDe(ana2).tiene.quitanieves, "y el quitanieves tambien")
+comprobarIgual(A.capitulos[pVuelta.capitulo].clave, antesDeLaTormenta.capitulo,
+	"el guion no retrocede")
+
+-- Y lo que de verdad importa: encima de la puerta NO ha caido ni un copo.
+comprobarIgual(
+	pVuelta:capasTormentaEncima(mV.cxCentro - 2, mV.cz1 + 1, mV.cxCentro + 2, mV.cz1 + 4),
+	0,
+	"NO cae nieve de tormenta sobre la puerta que ya habias descubierto"
+)
+comprobarIgual(
+	pVuelta:capasTormentaEncima(mV.garajeCx - 3, mV.cz1 + 1, mV.garajeCx + 3, mV.cz1 + 3),
+	0,
+	"ni sobre la entrada del garaje"
+)
+comprobarIgual(
+	pVuelta:capasTormentaEncima(vV.cxCentro - 4, vV.cz0 - 7, vV.cxCentro + 4, vV.cz0 - 1),
+	0,
+	"ni sobre la puerta del vecino"
+)
+comprobarIgual(
+	pVuelta:alturaMaximaEn(mV.cxCentro - 1, mV.cz1 + 1, mV.cxCentro + 1, mV.cz1 + 3),
+	antesDeLaTormenta.alturaPuerta,
+	"y delante de tu puerta hay exactamente la misma altura que antes"
+)
+
+-- La nevada historica no se toca: es otra capa, y es la unica que se
+-- guarda.
+comprobar(pVuelta:comprimir() == antesDeLaTormenta.nieve,
+	"la nevada historica queda intacta: la tormenta va en otra capa")
+
+-- Y ninguna zona de bloqueo pisa una casilla protegida.
+local pisaProtegida = false
+for _, b in ipairs(t.bloqueos) do
+	for cx = b.zona[1], b.zona[3] do
+		for cz = b.zona[2], b.zona[4] do
+			if pVuelta:estaProtegida(cx, cz) then
+				pisaProtegida = true
+			end
+		end
+	end
+end
+comprobar(not pisaProtegida, "ningun bloqueo cae encima de lo ya descubierto")
+
+
+-------------------------------------------------------------------
+titulo("HACEN FALTA LAS TRES HERRAMIENTAS")
+-------------------------------------------------------------------
+
+comprobarIgual(TORMENTA.LIMPIO.puerta, 0, "una puerta hay que dejarla pelada")
+comprobarIgual(A.herramientas.sopladora.dejaTormenta, 1,
+	"y la sopladora deja siempre una capa: por eso eso es de PALA")
+comprobar(A.herramientas.pala.dejaTormenta == 0 and A.herramientas.quitanieves.dejaTormenta == 0,
+	"la pala y el quitanieves si raspan")
+
+-- El quitanieves solo puede con la calzada. En una acera no hay ni una
+-- casilla que pueda tocar.
+local zonas = TORMENTA.zonas(pVuelta, 0)
+local hayCalleEnLaAcera = false
+for cx = zonas.parada[1], zonas.parada[3] do
+	for cz = zonas.parada[2], zonas.parada[4] do
+		if pVuelta:esCalle(cx, cz) then
+			hayCalleEnLaAcera = true
+		end
+	end
+end
+comprobar(not hayCalleEnLaAcera, "en la parada del autobus el quitanieves no puede entrar")
+
+local todoCalleEnLaRuta = true
+for cx = zonas.ruta[1], zonas.ruta[3] do
+	for cz = zonas.ruta[2], zonas.ruta[4] do
+		if not pVuelta:esCalle(cx, cz) then
+			todoCalleEnLaRuta = false
+		end
+	end
+end
+comprobar(todoCalleEnLaRuta, "y en la calzada si: eso es suyo")
+
+
+-------------------------------------------------------------------
+titulo("EL CAMION LLEGA, Y ENTONCES PASA ALGO")
+-------------------------------------------------------------------
+
+local antesTormentas = estadoDe(ana2).tormentas or 0
+comprobar(pVuelta.maquina ~= nil, "hay quitanieves en la parcela")
+comprobar(pVuelta.maquina.baliza == nil, "y todavia sin luz de emergencia")
+comprobar(pVuelta.ayuntamiento.abierto ~= true, "el ayuntamiento sigue cerrado")
+
+-- Se despejan los bloqueos como los despejaria el jugador: quitando la
+-- nieve nueva hasta donde llega cada herramienta.
+for _, b in ipairs(t.bloqueos) do
+	for cx = b.zona[1], b.zona[3] do
+		for cz = b.zona[2], b.zona[4] do
+			local c = pVuelta:casilla(cx, cz)
+			if c and not c.muro then
+				c.tormenta = math.min(c.tormenta, TORMENTA.LIMPIO[b.tipo])
+			end
+		end
+	end
+end
+avanzar(2)
+comprobarIgual(TORMENTA.quedan(t), 0, "con todo despejado no queda ningun bloqueo")
+comprobar(t.camion ~= nil, "y sale el camion de suministros")
+
+-- Y recorre la calle de verdad hasta la plaza.
+local desdeDonde = t.camion.donde.X
+avanzar(60)
+comprobar(pVuelta.tormenta == nil or pVuelta.tormenta.camion == nil,
+	("el camion llega a la plaza (salio de x=%.0f)"):format(desdeDonde))
+comprobarIgual(estadoDe(ana2).tormentas, antesTormentas + 1, "cuenta una tormenta superada")
+comprobar((estadoDe(ana2).reputacion or 0) > 0, "y sube la reputacion en el pueblo")
+comprobar(pVuelta.maquina.baliza ~= nil, "el quitanieves estrena luz de emergencia")
+comprobar(pVuelta.ayuntamiento.abierto == true, "y se abre el ayuntamiento")
+local mapa = carpeta.Parcela_1.Ayuntamiento:FindFirstChild("Mapa")
+comprobar(mapa ~= nil, "con un mapa dentro")
+local sitiosDelMapa = 0
+for _, hijo in ipairs(mapa:GetDescendants()) do
+	if hijo.ClassName == "TextLabel" and string.sub(hijo.Text, 1, 1) == "X" then
+		sitiosDelMapa = sitiosDelMapa + 1
+	end
+end
+comprobarIgual(sitiosDelMapa, 3, "y tres sitios mas del pueblo por desenterrar")
+
+
+-------------------------------------------------------------------
+titulo("Y CUANDO PASA, EL MUNDO VUELVE A SU SITIO")
+-------------------------------------------------------------------
+
+avanzar(20)
+comprobar(pVuelta.tormenta == nil, "la tormenta termina")
+comprobarIgual(pVuelta:tormentaTotal(), 0, "y la nieve nueva se derrite entera")
+comprobar(pVuelta:comprimir() == antesDeLaTormenta.nieve,
+	"la parcela queda EXACTAMENTE como estaba antes de la tormenta")
+comprobar(pVuelta.hallazgos.puerta and mV.puertaAbierta, "con su puerta abierta")
+
+-- Y lo permanente se guarda; lo temporal, ni se menciona.
+DATOS_GUARDADOS = {}
+guardarJugadorDePrueba = nil
+Jugadores.PlayerRemoving:Fire(ana2)
+avanzar(2)
+local grabado = DATOS_GUARDADOS["j_" .. ana2.UserId]
+comprobar(grabado ~= nil, "al salir se guarda")
+comprobarIgual(grabado.tormentas, antesTormentas + 1, "con el record de tormentas superadas")
+comprobar((grabado.reputacion or 0) > 0, "y la reputacion")
+comprobar(grabado.recompensas.baliza and grabado.recompensas.ayuntamiento,
+	"y las recompensas ganadas")
+comprobar(grabado.tormenta == nil and grabado.bloqueos == nil,
+	"y NADA de la tormenta: eso es del servidor, no del jugador")
+comprobar(grabado.nieve == antesDeLaTormenta.nieve,
+	"y la nieve guardada es la historica de siempre, sin un copo de tormenta")
 
 
 -------------------------------------------------------------------

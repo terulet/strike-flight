@@ -1,0 +1,276 @@
+===========================================
+  LA GRAN TORMENTA
+  (cuarta vertical)
+===========================================
+
+La pregunta que contesta esta fase es una sola:
+
+  ¿apetece seguir limpiando el pueblo despues
+  de haber terminado la primera historia?
+
+La respuesta que propone: que el pueblo vuelva a
+necesitarte SIN quitarte nada de lo que ya
+hiciste. Una tormenta nueva, temporal, encima de
+la nevada de siempre.
+
+Lo que la tormenta NO hace, nunca:
+
+  - no vuelve a enterrar tu casa
+  - no cierra una puerta ya descubierta
+  - no te quita ninguna herramienta
+  - no reinicia la historia
+  - no se guarda en tu partida
+
+Las versiones anteriores siguen enteras:
+    nieve\                 quitar nieve
+    desenterrar\           encontrar tu puerta
+    abre-la-calle\         sopladora y vecino
+    el-barrio-despierta\   guardado, parcelas,
+                           quitanieves y plaza
+
+
+-------------------------------------------
+  PROBARLO
+-------------------------------------------
+
+  1. Descarga LA-GRAN-TORMENTA.rbxlx
+  2. Doble clic (o File > Open from File)
+  3. Game Settings > Security > Enable Studio
+     Access to API Services: ENCENDIDO
+  4. PLAY
+
+Desde Studio se guarda SIEMPRE en un almacen
+aparte, GranTormenta_v2_DEV. Encender el acceso a
+la API para probar no puede pisar la partida de
+nadie que este jugando de verdad. El juego lo
+avisa por el Output al arrancar.
+
+CAVAR ES MANTENER PULSADO: raton, tecla E, o el
+boton grande de la derecha. El espacio NO cava.
+Q cambia de herramienta. Al quitanieves te subes.
+
+Y despues, con calma, PARTIDA-A-MANO.txt.
+
+
+-------------------------------------------
+  DOS NIEVES, NO UNA
+-------------------------------------------
+
+Esto es lo unico importante del diseno, y esta
+en el modelo, no en el aviso de pantalla:
+
+  NIEVE HISTORICA   la nevada gorda del
+                    principio. Es la que se
+                    guarda. Es la que obedece la
+                    regla de la pendiente. Es
+                    tuya.
+
+  NIEVE DE TORMENTA  la nueva. Mas fina, encima,
+                    temporal. No se guarda. No
+                    obedece la pendiente (es
+                    nieve fresca: se aparta en
+                    cualquier orden). Se derrite
+                    cuando pasa la tormenta.
+
+Cada casilla lleva las dos por separado. Cuando
+cavas, primero se va la de tormenta. Cuando la
+tormenta termina, se derrite lo que quede de
+tormenta y la historica se queda exactamente como
+estaba.
+
+Y encima de eso, las CASILLAS PROTEGIDAS: en
+cuanto descubres algo (tu buzon, tu puerta, tu
+garaje, tu coche, la puerta del vecino) esas
+casillas quedan marcadas y la tormenta se niega a
+nevar sobre ellas. No es que se limpien despues:
+es que ahi no cae. Lo comprueba una prueba
+automatica, y es la que mas me importa de todas.
+
+
+-------------------------------------------
+  COMO EMPIEZA
+-------------------------------------------
+
+Cuando llegas por primera vez a la plaza (final
+de la fase anterior) hay unos segundos de calma.
+Y despues:
+
+  - suena el aviso por la radio
+  - el cielo se cierra, sube el viento
+  - empieza a caer nieve, a la vista, por
+    tandas: nada de pantalla negra ni de manto
+    instantaneo
+  - las farolas parpadean
+  - el objetivo pasa a ser
+    MANTEN ABIERTA LA RUTA DE EMERGENCIA
+
+Fuera de la plaza hay un camion de suministros
+parado. No puede entrar. Cuando la ruta esta
+abierta, entra de verdad: se le ve venir y
+aparcar en la plaza.
+
+
+-------------------------------------------
+  LOS BLOQUEOS, Y LAS TRES HERRAMIENTAS
+-------------------------------------------
+
+Cada tormenta corta la ruta por varios sitios de
+una lista preparada. No salen todos, y no salen
+los mismos:
+
+  EL ACCESO AL PUEBLO           quitanieves
+  LA RUTA PRINCIPAL             quitanieves
+  EL CRUCE DE LA PLAZA          quitanieves
+  LA PARADA DEL AUTOBUS         sopladora
+  EL CAMINO DEL VECINO          sopladora
+  LOS ESCALONES DE TU CASA      pala
+  LA ENTRADA DEL AYUNTAMIENTO   pala
+
+Y a veces, ademas, UN ARBOL CAIDO que no se
+quita con nada y obliga a abrir el arcen y
+rodear.
+
+Siempre sale al menos uno de cada tipo, asi que
+una tormenta nunca se resuelve entera con una
+sola herramienta. La calzada es de maquina; las
+aceras, de sopladora (deja siempre una capa, y
+por eso no vale para un escalon); los escalones,
+de pala.
+
+Los dos bloqueos de pala son ESCALONES, no
+puertas. Una puerta ya descubierta esta protegida
+y ahi no puede volver a nevar: poner un bloqueo
+encima seria exactamente lo que esta fase no
+puede hacer.
+
+
+-------------------------------------------
+  CUANTO DURA
+-------------------------------------------
+
+No se eligen "cinco bloqueos": se elige un RATO.
+Cada bloqueo tiene un coste calculado (casillas x
+capas / lo que traga la herramienta, mas lo que
+cuesta andar, los viajes al monton y las
+maniobras), y entran los que quepan en el rato
+que se busca.
+
+Hacia falta: un tramo de calle se lo lleva el
+quitanieves en cuarenta segundos y la acera del
+ayuntamiento son dos minutos de pala. Contando
+bloqueos salian tormentas de siete minutos y
+tormentas de trece con las mismas reglas.
+
+Medido con el simulador (probar.mjs medir):
+
+  un jugador    10:51  11:01  11:54    (busco 10-12)
+  dos jugadores  6:13 -- 10:18         (busco 7-9)
+
+Con uno esta donde tiene que estar. Con dos la
+media cae en la ventana (unos 8:15) pero una
+tormenta suelta se va a 6:15 o a 10:20 segun que
+bloqueos toquen y como se repartan. Es variacion
+del reparto entre dos, no de la tormenta: no la
+he sabido cerrar mas sin quitarle variedad. Lo
+digo tal cual en vez de ensenar solo la media.
+
+Con mas gente NO cae mas nieve por cabeza. Sale
+algo mas de faena y las ACERAS son mas anchas.
+La calzada no se alarga nunca: quitanieves hay
+uno, y alargar la calle por venir acompanado es
+alargar justo la parte que no se puede repartir.
+
+Aparte: la HISTORIA (la de antes de la tormenta)
+va ahora tres marcas por delante de lo que se
+buscaba, todas por lo mismo y todas por debajo:
+
+  pisar la carretera    8:39  (buscaba 10-12)
+  el quitanieves       14:08  (buscaba 15-18)
+  la plaza             18:02  (buscaba 20-22)
+
+Es de la fase anterior, y viene de haber quitado
+el ventisquero de encima de la calzada de
+poniente: sin ese cambio el camion de suministros
+no podia entrar nunca al pueblo, porque esa calle
+quedaba enterrada para siempre bajo nieve
+historica. La historia salio dos minutos mas
+corta. No lo he tocado para no mover el aviso de
+un hallazgo a un momento en que la cosa todavia
+no se ve: prefiero llegar dos minutos antes a
+anunciar algo que aun no esta.
+
+
+-------------------------------------------
+  LO QUE SE GANA
+-------------------------------------------
+
+Ni tienda ni renacimiento. Al superar la primera
+tormenta:
+
+  - sube la reputacion y se cuenta la tormenta
+  - tu quitanieves estrena luz de emergencia
+    naranja: se ve desde la otra punta
+  - ABRE EL AYUNTAMIENTO
+
+Dentro del ayuntamiento hay un mapa del termino
+municipal con tres sitios marcados y enterrados:
+
+    LA ESCUELA
+    LA GASOLINERA
+    EL PARQUE DE BOMBEROS
+
+Son un anzuelo, no una fase. No estan hechos.
+
+
+-------------------------------------------
+  SI TE SALES A MITAD DE TORMENTA
+-------------------------------------------
+
+No pierdes nada. La tormenta es del servidor, no
+tuya: en tu partida se guardan la historia, las
+herramientas, tu parcela, la nieve historica, la
+reputacion, las tormentas superadas y las
+recompensas. De la tormenta no se guarda ni un
+copo.
+
+
+-------------------------------------------
+  LAS PRUEBAS
+-------------------------------------------
+
+  node herramientas/probar.mjs        194 pruebas
+  node herramientas/probar.mjs medir  ritmo, 1 jugador
+  node herramientas/probar.mjs medir 2  ritmo, 2 jugadores
+  node herramientas/empaquetar.mjs    rehace el RBXLX
+
+Hace falta el interprete "luau" en el PATH.
+
+Entre las 194 hay estas, que son las que pediste:
+
+  - una tormenta JAMAS vuelve a bloquear una
+    puerta ya descubierta (y ademas: ni un copo
+    de tormenta cae sobre nada protegido)
+  - en Studio el DataStore lleva sufijo _DEV
+  - una tormenta con un jugador y con dos
+  - la nieve historica queda intacta despues de
+    una tormenta entera (se compara la cadena
+    comprimida antes y despues)
+  - de la tormenta no se guarda nada
+
+
+-------------------------------------------
+  LO QUE NO PUEDO COMPROBAR YO
+-------------------------------------------
+
+Las pruebas corren el codigo del servidor de
+verdad, pero contra un Roblox de mentira: no
+dibujan nada, no oyen nada y no juegan con las
+manos. Todo lo que sea "se ve bien", "se entiende
+solo" o "apetece seguir" hay que mirarlo jugando.
+
+Para eso esta PARTIDA-A-MANO.txt. Los dos
+requisitos que pediste ANTES de dar la fase por
+buena (que no falle nada de la lista, y que
+puerta, garaje, vecino, quitanieves y guardado
+funcionen en una partida a mano) solo los puedes
+ejecutar tu: yo no tengo Roblox Studio aqui.

@@ -1,5 +1,5 @@
 --[[
-	EL BARRIO DESPIERTA  —  el guardado
+	LA GRAN TORMENTA  —  el guardado
 
 	Una partida son diez o veinte minutos. Perderla al salir empieza a
 	doler, asi que a partir de aqui se guarda de verdad.
@@ -12,6 +12,13 @@
 	    herramientas    lo que ya ha encontrado
 	    mundo           puerta abierta, garaje abierto, farolas, vecino
 	    nieve           su parcela entera, por tramos
+	    tormentas       cuantas ha superado
+	    reputacion      lo que vale en el pueblo
+	    recompensas     lo que se ha ganado (la baliza, el ayuntamiento)
+
+	Y una cosa que NO se guarda a proposito: la tormenta que este cayendo.
+	Es del servidor, no del jugador. Si alguien sale a mitad de tormenta
+	no pierde nada de lo suyo; simplemente sale, y ya esta.
 
 	Lo que NO se guarda, porque se vuelve a construir solo: la casa, las
 	particulas, los montones de adorno, las luces, el modelo del
@@ -38,9 +45,18 @@ local Guardado = {}
 -- pisaria las partidas de la gente que este jugando. El sufijo _DEV es la
 -- unica linea que separa una cosa de la otra, y por eso va aqui arriba y
 -- no escondida en medio.
-Guardado.nombreTienda = "BarrioDespierta_v" .. A.esquema
+Guardado.nombreTienda = "GranTormenta_v" .. A.esquema
 if Correr:IsStudio() then
 	Guardado.nombreTienda = Guardado.nombreTienda .. "_DEV"
+end
+
+-- Y se dice EN VOZ ALTA al arrancar, siempre, no solo cuando algo falla.
+-- Es lo unico que separa una prueba en Studio de pisarle la partida a
+-- quien este jugando: tiene que poder comprobarse de un vistazo en el
+-- Output, sin fiarse de que este bien escrito mas arriba.
+if Correr:IsStudio() then
+	warn("[tormenta] ESTAS EN STUDIO: se guarda en " .. Guardado.nombreTienda
+		.. ", nunca en el de produccion.")
 end
 
 -- nil = todavia no se sabe. true/false una vez se ha probado de verdad.
@@ -72,10 +88,9 @@ local function avisarUnaVez(porque)
 		return
 	end
 	Guardado.avisado = true
-	warn("[barrio] SIN GUARDADO EN LA NUBE: " .. tostring(porque))
-	warn("[barrio] se juega igual, pero la partida solo dura lo que dure este servidor.")
-	warn("[barrio] en Studio: Game Settings > Security > Enable Studio Access to API Services.")
-	warn("[barrio] (en Studio se guarda en " .. Guardado.nombreTienda .. ", nunca en el de produccion.)")
+	warn("[tormenta] SIN GUARDADO EN LA NUBE: " .. tostring(porque))
+	warn("[tormenta] se juega igual, pero la partida solo dura lo que dure este servidor.")
+	warn("[tormenta] en Studio: Game Settings > Security > Enable Studio Access to API Services.")
 end
 
 -- Cuatro intentos, esperando cada vez el doble. Los fallos del DataStore
@@ -95,7 +110,7 @@ local function conReintentos(que, fn)
 			espera = espera * 2
 		end
 	end
-	warn(("[barrio] %s ha fallado %d veces: %s"):format(que, INTENTOS, tostring(ultimo)))
+	warn(("[tormenta] %s ha fallado %d veces: %s"):format(que, INTENTOS, tostring(ultimo)))
 	return false, ultimo
 end
 
@@ -132,6 +147,7 @@ end
 table.sort(CLAVES_HERRAMIENTA)
 
 local CLAVES_MUNDO = { "puerta", "garaje", "farolas", "vecinoFuera", "quitanieves" }
+local CLAVES_PREMIO = { "baliza", "ayuntamiento" }
 
 function Guardado.nuevo()
 	return {
@@ -142,6 +158,9 @@ function Guardado.nuevo()
 		hallazgos = {},
 		herramientas = { pala = true },
 		mundo = {},
+		recompensas = {},
+		tormentas = 0,
+		reputacion = 0,
 		nieve = nil,
 		cuando = 0,
 	}
@@ -167,6 +186,11 @@ function Guardado.sanear(datos)
 		hallazgos = copiaDeBanderas(datos.hallazgos, CLAVES_HALLAZGO),
 		herramientas = copiaDeBanderas(datos.herramientas, CLAVES_HERRAMIENTA),
 		mundo = copiaDeBanderas(datos.mundo, CLAVES_MUNDO),
+		recompensas = copiaDeBanderas(datos.recompensas, CLAVES_PREMIO),
+		-- El record de tormentas superadas y lo que vale en el pueblo.
+		-- Esto si es permanente: es lo unico que te llevas de un evento.
+		tormentas = math.clamp(math.floor(tonumber(datos.tormentas) or 0), 0, 1e9),
+		reputacion = math.clamp(math.floor(tonumber(datos.reputacion) or 0), 0, 1e9),
 		-- La nieve entera, por tramos. Si es enorme, algo va mal: mas vale
 		-- rehacer la nevada que subir un churro de medio mega.
 		nieve = (type(datos.nieve) == "string" and #datos.nieve < 100000) and datos.nieve or nil,
@@ -219,7 +243,7 @@ end
 function Guardado.guardar(jugador, datos)
 	local limpio = Guardado.sanear(datos)
 	if not limpio then
-		warn("[barrio] no guardo: los datos no encajan con el esquema " .. tostring(A.esquema))
+		warn("[tormenta] no guardo: los datos no encajan con el esquema " .. tostring(A.esquema))
 		return false, "descartado"
 	end
 	limpio.cuando = os.time()

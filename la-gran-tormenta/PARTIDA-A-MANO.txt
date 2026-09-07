@@ -1,0 +1,305 @@
+===========================================
+  LA GRAN TORMENTA
+  LISTA PARA JUGAR UNA PARTIDA ENTERA
+  EN ROBLOX STUDIO
+===========================================
+
+El simulador mide tiempos y las pruebas miden
+reglas. Ninguno de los dos ve nada, ni oye nada,
+ni juega con las manos. Esto es lo que hay que
+mirar con los ojos, una vez, de principio a fin.
+
+Marca lo que falle y dimelo tal cual: "el paso 22
+no pasa".
+
+Tardas unos 35 minutos: 20 la historia y 12 la
+tormenta. Ten un cronometro a mano para el
+paso 33.
+
+DOS COSAS QUE PEDISTE Y QUE SOLO PUEDES HACER TU:
+
+  - corregir lo que falle en esta lista antes de
+    dar la fase por buena
+  - no avanzar si fallan la puerta, el garaje,
+    el vecino, el quitanieves o el guardado
+    (pasos 12, 15, 19, 22 y 27)
+
+
+-------------------------------------------
+  ANTES DE EMPEZAR
+-------------------------------------------
+
+[ ]  1. Abre LA-GRAN-TORMENTA.rbxlx (doble clic,
+        o File > Open from File).
+
+[ ]  2. Home > Game Settings > Security >
+        Enable Studio Access to API Services:
+        ENCENDIDO.
+        Sin esto no hay guardado en la nube. El
+        juego funciona igual y te lo dice.
+
+[ ]  3. Dale a PLAY (F5). El Output no debe
+        sacar ningun error rojo.
+
+[ ]  4. En el Output tiene que salir:
+        "[tormenta] 5 parcelas listas, ..."
+
+[ ]  5. Y ESTE, en amarillo, que es el que
+        importa:
+        "[tormenta] ESTAS EN STUDIO: se guarda en
+        GranTormenta_v2_DEV, nunca en el de
+        produccion."
+        Si no sale, o si pone otro nombre, PARA:
+        probar desde Studio estaria pisando
+        partidas de verdad.
+
+
+-------------------------------------------
+  LOS PRIMEROS DOS MINUTOS
+-------------------------------------------
+
+[ ]  6. Apareces fuera de la nieve, en hierba,
+        mirando a tu parcela.
+
+[ ]  7. Delante asoma un palo con la punta
+        naranja, y al fondo una chimenea.
+        ¿Se ven las dos sin girar la camara?
+
+[ ]  8. Arriba a la izquierda: "ESTA ES TU
+        PARCELA". En el centro: "ENCUENTRA LA
+        PUERTA DE TU CASA".
+
+[ ]  9. Manten pulsado el raton encima de la
+        nieve. La pala se mueve y salta nieve.
+
+[ ] 10. Sueltas y para. El espacio SALTA, no
+        cava.
+
+[ ] 11. Cava en un sitio hondo sin ensanchar.
+        Tiene que salir "ENSANCHA EL HOYO" y ese
+        aviso tiene que DESAPARECER solo al
+        moverte de sitio o al soltar.
+
+
+-------------------------------------------
+  LA CASA  (no sigas si algo falla)
+-------------------------------------------
+
+[ ] 12. Aparece "¡LA PUERTA DE TU CASA!" y la
+        puerta se abre de verdad, con luz dentro.
+
+[ ] 13. La puerta se queda abierta. No se vuelve
+        a cerrar en toda la partida.
+
+[ ] 14. Sigue apareciendo cosas por el camino:
+        el tejado, el porche, una ventana, el
+        buzon. Cada una con su cartel.
+
+[ ] 15. Aparece "¡EL GARAJE!", se abre, y dentro
+        hay una sopladora. Te acercas y la coges.
+
+[ ] 16. Con Q cambias entre pala y sopladora. La
+        sopladora empuja la nieve a un lado y
+        hace un monton; con ella no hay viajes
+        con la carretilla.
+
+[ ] 17. Prueba a raspar un escalon con la
+        sopladora: NO lo deja pelado. Siempre
+        deja una capa. Para eso esta la pala.
+
+[ ] 18. Aparece "¡TU COCHE!" y el coche saluda
+        con los faros.
+
+
+-------------------------------------------
+  LA CALLE Y EL VECINO
+-------------------------------------------
+
+[ ] 19. Aparece "¡LA CARRETERA!". Pisas asfalto.
+
+[ ] 20. Enfrente hay una casa con la luz floja,
+        humo en la chimenea y una silueta que
+        golpea el cristal. ¿Se oye el golpe?
+
+[ ] 21. Desentierras su puerta y aparece
+        "¡LA PUERTA DEL VECINO!". Sale, con las
+        llaves en la mano.
+
+[ ] 22. Aparece un quitanieves aparcado en la
+        calle. Te subes al asiento.
+
+[ ] 23. Se conduce con W/A/S/D. Aparta nieve en
+        ancho y la deja en montones a los lados.
+
+[ ] 24. Intenta meterlo en el jardin o contra la
+        casa: NO puede. Solo pisa calle.
+
+[ ] 25. Intenta romper con el el ventisquero de
+        tu entrada: tampoco. Ese es de pala.
+
+[ ] 26. Abre la calle hacia levante hasta que
+        salga "¡LA PLAZA DEL PUEBLO!", con el
+        cartel del pueblo medio enterrado y los
+        tejados al fondo.
+
+
+-------------------------------------------
+  QUE NO SE PIERDA  (no sigas si falla)
+-------------------------------------------
+
+[ ] 27. STOP y PLAY otra vez. Tiene que volver
+        todo: tu parcela, la nieve como la
+        dejaste, la puerta abierta, el garaje
+        abierto, la sopladora y el quitanieves.
+
+[ ] 28. En el Output sale
+        "[tormenta] guardado (...) de <tu nombre>
+        en nube". Si pone "en local", el paso 2
+        no esta hecho.
+
+
+-------------------------------------------
+  LA TORMENTA
+-------------------------------------------
+
+[ ] 29. Unos segundos despues de llegar a la
+        plaza salta "AVISO METEOROLOGICO /
+        vuelve a nevar. Y fuerte".
+
+[ ] 30. Mira el cielo: se cierra, sube el viento,
+        empieza a caer nieve. Se tiene que VER
+        llegar. Nada de pantalla negra ni de
+        manto de golpe.
+
+[ ] 31. Las farolas parpadean.
+
+[ ] 32. La nieve nueva se ve, pero se ve A
+        TRAVES: no te tapa el pueblo.
+
+[ ] 33. ARRANCA EL CRONOMETRO AQUI.
+        El objetivo pasa a "MANTEN ABIERTA LA
+        RUTA DE EMERGENCIA" y en la lista salen
+        los bloqueos, cada uno con la
+        herramienta que pide.
+
+[ ] 34. MIRA TU PUERTA. Y tu garaje, y tu buzon,
+        y tu coche, y la puerta del vecino.
+        NO puede haber caido nieve encima de
+        ninguno. Ni un copo.
+        Este paso es el que decide si la fase
+        vale para algo.
+
+[ ] 35. Los bloqueos piden las tres cosas: la
+        calzada no se puede con la sopladora,
+        los escalones no se pueden con la
+        sopladora, y las aceras no se pueden con
+        el quitanieves (ni entra).
+
+[ ] 36. Si sale UN ARBOL CAIDO: no hay forma de
+        quitarlo con nada. Hay que abrir el
+        arcen y rodear.
+
+[ ] 37. Cada vez que despejas uno sale un aviso.
+        Nunca pasan mas de dos minutos sin que
+        pase algo.
+
+[ ] 38. Con la ruta abierta sale "EL CAMION YA
+        VIENE" y el camion ENTRA CONDUCIENDO
+        hasta la plaza. No aparece de la nada.
+
+[ ] 39. PARA EL CRONOMETRO al llegar el camion.
+        Apunta el tiempo. Deberia caer entre 10
+        y 12 minutos jugando solo.
+        Si te has ido muy por encima o muy por
+        debajo, dime el numero y que bloqueos te
+        salieron.
+
+[ ] 40. "LA TORMENTA HA PASADO": el cielo se
+        abre, baja el viento, y la nieve nueva se
+        derrite POR TROZOS, no de golpe.
+
+[ ] 41. Cuando se ha derretido, el pueblo esta
+        como estaba antes de la tormenta. La
+        calle que abriste sigue abierta.
+
+
+-------------------------------------------
+  LO QUE SE GANA
+-------------------------------------------
+
+[ ] 42. Sale "TU QUITANIEVES LLEVA AHORA LUZ DE
+        EMERGENCIA". Vete a verlo: gira una luz
+        naranja.
+
+[ ] 43. Sale "EL AYUNTAMIENTO HA ABIERTO". Su
+        puerta esta abierta.
+
+[ ] 44. Entra. En la pared hay un mapa con tres
+        sitios marcados: LA ESCUELA, LA
+        GASOLINERA y EL PARQUE DE BOMBEROS.
+        Estan enterrados y no se puede ir: es un
+        anzuelo, no una fase.
+
+[ ] 45. STOP y PLAY. Vuelven la reputacion, la
+        tormenta contada, la baliza y el
+        ayuntamiento abierto. Y NO vuelve la
+        nieve de tormenta.
+
+
+-------------------------------------------
+  ACOMPANADO  (esto hace falta hacerlo)
+-------------------------------------------
+
+Test > Clients and Servers > 2 players > Start.
+
+[ ] 46. Cada uno aparece en SU parcela, delante
+        de SU nieve.
+
+[ ] 47. Vete a la parcela del otro y cava. La
+        nieve baja de la de EL. El dinero te lo
+        llevas tu. No le rompes nada.
+
+[ ] 48. Que uno de los dos llegue a desenterrar
+        su sopladora. El OTRO, estando en esa
+        parcela, pulsa Q: se la presta, aunque el
+        no la haya desenterrado. Al volver a su
+        parcela se le cae de la mano y vuelve a
+        la pala.
+        (Sin esto, el que viene a ayudar en plena
+        tormenta llega con una pala y nada mas, y
+        la tormenta pide las tres herramientas.)
+
+[ ] 49. Cavad los dos a la vez en casillas
+        pegadas. No se duplica nieve ni dinero, y
+        no se queda ningun pozo.
+
+[ ] 50. Los descubrimientos y los desbloqueos son
+        del DUENO de la parcela, no del que cava.
+
+[ ] 51. Con dos, la tormenta trae algo mas de
+        faena y las ACERAS son mas anchas, pero
+        la calle NO es mas larga.
+
+[ ] 52. Cronometra tambien esta: entre dos
+        deberia salir mas corta que jugando solo.
+        En el simulador sale de media sobre 8:15,
+        pero baila entre 6 y 10 segun los
+        bloqueos. Apunta el numero.
+
+[ ] 53. Sal de la partida a mitad de tormenta con
+        uno de los dos y vuelve a entrar: tiene
+        que conservar historia, herramientas,
+        parcela y reputacion.
+
+
+-------------------------------------------
+  Y LO ULTIMO
+-------------------------------------------
+
+[ ] 54. Al terminar la tormenta, ¿te has quedado
+        con ganas de que venga otra?
+
+        Esa es la pregunta de toda la fase. Si la
+        respuesta es "no", dime en que momento
+        se te cayo: eso vale mas que cualquier
+        numero de los de arriba.
