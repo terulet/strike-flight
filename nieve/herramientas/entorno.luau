@@ -605,8 +605,16 @@ function Almacen:GetDataStore(nombre)
 		return true
 	end
 	function tienda:UpdateAsync(clave, fn)
-		DATOS_GUARDADOS[clave] = fn(DATOS_GUARDADOS[clave])
-		return DATOS_GUARDADOS[clave]
+		if FALLA_EL_DATASTORE then
+			error("DataStore de mentira: fallo a proposito", 0)
+		end
+		-- Como el de verdad: se le pasa lo que hay y si devuelve nil no
+		-- se escribe nada.
+		local nuevo = fn(DATOS_GUARDADOS[clave])
+		if nuevo ~= nil then
+			DATOS_GUARDADOS[clave] = nuevo
+		end
+		return nuevo
 	end
 	return tienda
 end

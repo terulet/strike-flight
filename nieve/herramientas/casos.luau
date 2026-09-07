@@ -533,6 +533,131 @@ comprobarIgual(ultimoAviso(novato).clave, "renacerFalta", "y te dice por que")
 
 
 -------------------------------------------------------------------
+titulo("EL MISMO JUGADOR EN DOS SERVIDORES A LA VEZ")
+-------------------------------------------------------------------
+
+local function todasLasZonas()
+	local lista = {}
+	for i, def in ipairs(A.zonas) do
+		lista[i] = def.clave
+	end
+	return lista
+end
+
+local doble = nuevoJugador("Doble")
+local claveDoble = "j_" .. tostring(doble.UserId)
+DATOS_GUARDADOS[claveDoble] = {
+	v = 1,
+	dinero = 100,
+	nieveTotal = 1000,
+	renaceres = 1,
+	ventas = 20,
+	racha = 2,
+	ultimoDia = 0,
+	ultimoPremio = 0,
+	pala = 3,
+	carretilla = 2,
+	botas = 1,
+	zonas = { A.zonas[1].clave, A.zonas[2].clave },
+	codigos = { "NIEVE" },
+}
+entra(doble)
+avanzar(0.6)
+
+-- Mientras este juega, el otro servidor guarda una partida mas avanzada.
+DATOS_GUARDADOS[claveDoble] = {
+	v = 1,
+	dinero = 999999,
+	nieveTotal = 5000,
+	renaceres = 1,
+	ventas = 90,
+	racha = 4,
+	ultimoDia = 0,
+	ultimoPremio = 0,
+	pala = 9,
+	carretilla = 9,
+	botas = 5,
+	zonas = todasLasZonas(),
+	codigos = { "GRACIAS" },
+}
+
+sale(doble)
+avanzar(0.8)
+
+local fusionado = DATOS_GUARDADOS[claveDoble]
+comprobar(fusionado.nieveTotal >= 5000, "la nieve acumulada del otro servidor no se pierde")
+comprobar(fusionado.ventas >= 90, "ni las ventas")
+comprobar(fusionado.racha >= 4, "ni la racha")
+comprobarIgual(#fusionado.zonas, #A.zonas, "las zonas que abrio el otro siguen abiertas")
+
+local tieneAmbos = false
+do
+	local vistos = {}
+	for _, clave in ipairs(fusionado.codigos) do
+		vistos[clave] = true
+	end
+	tieneAmbos = vistos.NIEVE == true and vistos.GRACIAS == true
+end
+comprobar(tieneAmbos, "y los codigos canjeados en los dos sitios se juntan")
+
+
+-------------------------------------------------------------------
+titulo("PERO RENACER SI CIERRA LAS ZONAS")
+-------------------------------------------------------------------
+
+local renacido = nuevoJugador("Renacido")
+local claveRenacido = "j_" .. tostring(renacido.UserId)
+DATOS_GUARDADOS[claveRenacido] = {
+	v = 1,
+	dinero = A.renacer.precio + 5000,
+	nieveTotal = 100000,
+	renaceres = 0,
+	ventas = 300,
+	racha = 1,
+	ultimoDia = 0,
+	ultimoPremio = 0,
+	pala = 12,
+	carretilla = 12,
+	botas = 8,
+	zonas = todasLasZonas(),
+	codigos = {},
+}
+entra(renacido)
+avanzar(0.6)
+renacido:LoadCharacter()
+avanzar(0.4)
+
+RemotoComprar.OnServerEvent:Fire(renacido, "renacer")
+avanzar(0.6)
+comprobarIgual(estadoDe(renacido).renaceres, 1, "renace")
+
+-- Y ahora aparece el registro viejo, de antes de renacer, con las cinco
+-- zonas abiertas. La fusion NO puede resucitarlas.
+DATOS_GUARDADOS[claveRenacido] = {
+	v = 1,
+	dinero = 50,
+	nieveTotal = 100000,
+	renaceres = 0,
+	ventas = 300,
+	racha = 1,
+	ultimoDia = 0,
+	ultimoPremio = 0,
+	pala = 12,
+	carretilla = 12,
+	botas = 8,
+	zonas = todasLasZonas(),
+	codigos = {},
+}
+sale(renacido)
+avanzar(0.8)
+
+local trasRenacer = DATOS_GUARDADOS[claveRenacido]
+comprobarIgual(#trasRenacer.zonas, 1, "tras renacer solo queda la primera zona, la fusion no la deshace")
+comprobarIgual(trasRenacer.renaceres, 1, "y el renacer cuenta")
+comprobar(trasRenacer.nieveTotal >= 100000, "pero la nieve de toda la vida sigue ahi")
+
+
+-------------------------------------------------------------------
 titulo("EL PREMIO DIARIO Y SU RACHA")
 -------------------------------------------------------------------
 

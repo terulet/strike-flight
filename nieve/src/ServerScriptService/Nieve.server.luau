@@ -1283,6 +1283,60 @@ local function aplicarDatos(estado, datos)
 	estado.zonas[A.zonas[1].clave] = true
 end
 
+-- Si el mismo jugador esta en dos servidores a la vez (dos aparatos, o
+-- ha vuelto a entrar antes de que el primero guardase), el ultimo en
+-- guardar se lo cargaria todo. Con esto, lo acumulado no se pierde nunca:
+-- de cada cosa que solo puede subir, se queda lo mas alto de las dos.
+--
+-- El dinero y los niveles NO se fusionan: para eso manda la sesion que
+-- esta guardando, que es la que ha jugado. Fusionarlos daria monedas
+-- gratis a quien abriese el juego en dos sitios.
+local function fusionar(anterior, nuevo)
+	if type(anterior) ~= "table" then
+		return nuevo
+	end
+
+	local function loMasAlto(campo)
+		nuevo[campo] = math.max(nuevo[campo] or 0, tonumber(anterior[campo]) or 0)
+	end
+	loMasAlto("nieveTotal")
+	loMasAlto("renaceres")
+	loMasAlto("ventas")
+	loMasAlto("racha")
+	loMasAlto("ultimoDia")
+	loMasAlto("ultimoPremio")
+
+	-- Un codigo canjeado no se descanjea nunca.
+	local vistos = {}
+	for _, clave in ipairs(nuevo.codigos) do
+		vistos[clave] = true
+	end
+	if type(anterior.codigos) == "table" then
+		for _, clave in ipairs(anterior.codigos) do
+			if not vistos[clave] then
+				nuevo.codigos[#nuevo.codigos + 1] = clave
+			end
+		end
+	end
+
+	-- Las zonas tampoco se cierran solas... salvo al renacer, que es
+	-- justo lo que hace renacer. Si ha renacido, mandan las suyas.
+	local mismosRenaceres = (tonumber(anterior.renaceres) or 0) == nuevo.renaceres
+	if mismosRenaceres and type(anterior.zonas) == "table" then
+		local abiertas = {}
+		for _, clave in ipairs(nuevo.zonas) do
+			abiertas[clave] = true
+		end
+		for _, clave in ipairs(anterior.zonas) do
+			if not abiertas[clave] then
+				nuevo.zonas[#nuevo.zonas + 1] = clave
+			end
+		end
+	end
+
+	return nuevo
+end
+
 local function guardar(jugador)
 	local estado = estados[jugador]
 	if not estado or not estado.cargado or not estado.puedeGuardar or not almacen then
@@ -1290,7 +1344,11 @@ local function guardar(jugador)
 	end
 	local datos = serializar(estado)
 	reintentar(function()
-		almacen:SetAsync(claveDe(jugador), datos)
+		-- UpdateAsync y no SetAsync: aqui se ve lo que hay guardado antes
+		-- de escribir, que es lo unico que evita machacar a otro servidor.
+		almacen:UpdateAsync(claveDe(jugador), function(anterior)
+			return fusionar(anterior, datos)
+		end)
 		return true
 	end)
 end
