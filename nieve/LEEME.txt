@@ -108,8 +108,10 @@ Andas por encima de la nieve y desaparece sola.
 Cuando la carretilla se llena, vas al camion y se
 vende sola tambien. Con el dinero:
 
-  - PALA        barre mas ancho y mas rapido
-  - CARRETILLA  cabe mas, menos viajes
+  - PALA        barre mas ancho y mas rapido,
+                y se hace mas grande en la mano
+  - CARRETILLA  cabe mas, menos viajes, y la de
+                delante crece y se llena a la vista
   - BOTAS       andas mas rapido
 
 Y las puertas de las zonas siguientes, que tienen

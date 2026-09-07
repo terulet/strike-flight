@@ -194,6 +194,19 @@ comprobar(
 	"soldada al brazo, que si no flota al lado del muneco"
 )
 
+local carretilla = ana.Character and ana.Character:FindFirstChild("Carretilla")
+comprobar(carretilla ~= nil, "y una carretilla, que tambien se ve")
+local montones = 0
+if carretilla then
+	for _, pieza in ipairs(carretilla:GetChildren()) do
+		if string.sub(pieza.Name, 1, 6) == "Monton" then
+			montones = montones + 1
+		end
+	end
+end
+comprobarIgual(montones, 6, "la carretilla tiene sus seis escalones de nieve")
+comprobar(carretilla and carretilla.Monton1.Transparency == 1, "y vacia no se ve ninguno")
+
 local humano = ana.Character:FindFirstChild("Humanoid")
 comprobarIgual(humano.WalkSpeed, A.jugador.velocidadBase, "anda a la velocidad de partida")
 
@@ -230,6 +243,12 @@ for _, bloque in ipairs(nieve1:GetChildren()) do
 	end
 end
 comprobar(invisibles > 0, "los bloques recogidos se quitan de la vista")
+
+-- Con carga encima, el monton de la carretilla tiene que verse.
+comprobar(
+	ana.Character.Carretilla.Monton1.Transparency == 0,
+	"con la carretilla llena, el monton se ve de verdad"
+)
 
 comprobar(e.limpio > 0, "la barra de limpieza sube")
 
@@ -298,20 +317,30 @@ if tardo then
 end
 
 local dineroAntes = estadoDe(ana).dinero
+local largoPalaAntes = ana.Character.Pala.Mango.Size.Y
 RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
 avanzar(0.4)
 e = estadoDe(ana)
 comprobarIgual(e.niveles.pala, nivelPala + 1, "ahora si sube la pala")
+comprobar(
+	ana.Character.Pala.Mango.Size.Y > largoPalaAntes,
+	"y la pala se rehace mas grande: comprarla se tiene que VER"
+)
 comprobarIgual(e.dinero, dineroAntes - precioPala, "y cobra el precio exacto")
 comprobar(e.precios.pala > precioPala, "la siguiente pala cuesta mas")
 
 -- La carretilla tiene que notarse en la capacidad.
 local capacidadAntes = e.capacidad
+local anchoCarretillaAntes = ana.Character.Carretilla.Cubeta.Size.X
 trabajar(ana, 1, e.precios.carretilla, 60)
 RemotoComprar.OnServerEvent:Fire(ana, "mejora", "carretilla")
 avanzar(0.4)
 e = estadoDe(ana)
 comprobarIgual(e.capacidad, capacidadAntes + A.jugador.capacidadPorNivel, "la carretilla sube la capacidad")
+comprobar(
+	ana.Character.Carretilla.Cubeta.Size.X > anchoCarretillaAntes,
+	"y la carretilla se rehace mas grande"
+)
 
 -- Las botas tienen que notarse al andar.
 trabajar(ana, 1, e.precios.botas, 120)

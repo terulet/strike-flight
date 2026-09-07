@@ -125,8 +125,8 @@ mucho antes de llegar ahí.
 
 | Mejora | Niveles | Precio | Sube | Qué hace |
 |---|---|---|---|---|
-| PALA | 15 | 40 | ×2 | +0,75 studs de radio y +1 bloque por tic |
-| CARRETILLA | 15 | 30 | ×2 | +20 de capacidad |
+| PALA | 15 | 40 | ×2 | +0,75 studs de radio, +1 bloque por tic, y más larga |
+| CARRETILLA | 15 | 30 | ×2 | +20 de capacidad, y más grande |
 | BOTAS | 10 | 100 | ×2,3 | +1,3 de velocidad |
 
 De salida: radio 5,5 · 10 bloques por segundo · caben 30 · velocidad 16.
@@ -158,6 +158,25 @@ se note bien, no mal.
 
 Es la alternativa barata a darle a cada jugador su propia parcela, que es
 lo que hacen los grandes y multiplica por veinte las piezas del mapa.
+
+## El equipo se ve, y crece
+
+Comprar una mejora y que no cambie nada en pantalla es tirar la mitad de
+la recompensa. Así que las dos mejoras que se pueden ver, se ven:
+
+- **La pala** va en la mano y **crece con cada nivel**: del nivel 1 al 15
+  se hace más del doble de larga y la hoja más ancha.
+- **La carretilla** existe de verdad, delante del jugador, con su rueda,
+  sus patas y sus varales. También crece con su nivel. Y **se llena**: el
+  montón de nieve de dentro tiene seis escalones que se van encendiendo
+  según cargas, así que ves lo llena que va sin mirar el HUD.
+
+El montón no cambia de tamaño, se encienden y apagan capas ya puestas: una
+soldadura fija la posición relativa, así que cambiar tamaños desplazaría
+la nieve fuera de la cubeta. Seis piezas quietas y un cambio de
+transparencia sale más barato y no se puede torcer.
+
+La nieve que salta al barrer sale de la hoja de la pala, no del cuerpo.
 
 ## La guía: los primeros diez segundos
 
@@ -251,7 +270,7 @@ los paquetes de verdad, así que se puede comprobar lo que acaba escrito en
 pantalla.
 
 ```bash
-node nieve/herramientas/probar.mjs           # 96 comprobaciones del servidor
+node nieve/herramientas/probar.mjs           # 102 comprobaciones del servidor
 node nieve/herramientas/probar.mjs cliente   # 53 del HUD, ejecutado
 node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
@@ -283,7 +302,7 @@ Studio.
 ## Qué está probado y qué no
 
 **Probado, ejecutando el código:** toda la lógica de arriba y el HUD
-entero — 149 comprobaciones en verde entre servidor y cliente — más el
+entero — 155 comprobaciones en verde entre servidor y cliente — más el
 análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede

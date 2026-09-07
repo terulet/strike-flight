@@ -189,11 +189,24 @@ local marcoZona = panel({
 
 local textoZona = etiqueta({
 	Name = "Nombre",
-	Size = UDim2.new(1, -20, 0, 26),
-	Position = UDim2.new(0, 10, 0, 6),
+	Size = UDim2.new(1, -110, 0, 26),
+	Position = UDim2.new(0, 12, 0, 6),
 	Text = "",
 	TextSize = 19,
+	TextXAlignment = Enum.TextXAlignment.Left,
 	Font = Enum.Font.GothamBlack,
+}, marcoZona)
+
+-- El porcentaje fuera de la barra: encima del relleno azul no se leia.
+local textoProgreso = etiqueta({
+	Name = "Porcentaje",
+	Size = UDim2.new(0, 96, 0, 26),
+	Position = UDim2.new(1, -12, 0, 6),
+	AnchorPoint = Vector2.new(1, 0),
+	Text = "",
+	TextSize = 15,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	TextColor3 = ACENTO,
 }, marcoZona)
 
 local canalProgreso = nuevo("Frame", {
@@ -212,14 +225,6 @@ local barraProgreso = nuevo("Frame", {
 	BorderSizePixel = 0,
 }, canalProgreso)
 redondear(barraProgreso, 6)
-
-local textoProgreso = etiqueta({
-	Name = "Porcentaje",
-	Size = UDim2.new(1, 0, 1, 0),
-	Text = "",
-	TextSize = 11,
-	TextColor3 = Color3.fromRGB(200, 214, 234),
-}, canalProgreso)
 
 
 -------------------------------------------------------------------

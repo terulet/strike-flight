@@ -126,7 +126,7 @@ local textoDinero = pantalla.Dinero.Texto
 comprobar(textoDinero.Text ~= "", "el dinero se pinta")
 comprobarIgual(textoDinero.Text, A.formatear(estadoDelJugador().dinero), "y solo el numero: sin emojis que la fuente no tiene")
 comprobar(pantalla.Zona.Nombre.Text == A.nombre(A.zonas[1].nombre, "es"), "sale el nombre de la zona en espanol")
-comprobar(string.find(pantalla.Zona.Canal.Porcentaje.Text, "limpio") ~= nil, "sale el porcentaje de limpieza")
+comprobar(string.find(pantalla.Zona.Porcentaje.Text, "limpio") ~= nil, "sale el porcentaje de limpieza, fuera de la barra")
 
 barrer(1, 6)
 local canal = pantalla.Carga.Canal

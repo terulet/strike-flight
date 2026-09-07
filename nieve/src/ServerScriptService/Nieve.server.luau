@@ -1048,6 +1048,9 @@ end
 
 local estados = {}
 
+-- Se define mas abajo, pero comprarMejora ya la necesita.
+local equipar
+
 local mejoraPorClave = {}
 for _, def in ipairs(A.mejoras) do
 	mejoraPorClave[def.clave] = def
@@ -1075,6 +1078,8 @@ local function nuevoEstado()
 		puedeGuardar = false,
 		recogiendo = false,
 		emisor = nil,
+		montones = nil,
+		escalonMonton = -1,
 		ultimaPeticion = 0,
 	}
 end
@@ -1321,6 +1326,9 @@ local function comprarMejora(jugador, estado, clave)
 	estado.niveles[clave] = nivel + 1
 	if clave == "botas" then
 		aplicarVelocidad(jugador, estado)
+	else
+		-- La pala y la carretilla se ven: hay que rehacerlas mas grandes.
+		equipar(jugador)
 	end
 	refrescarMarcador(jugador, estado)
 	RemotoAviso:FireClient(jugador, { tipo = "mejora", clave = clave, nivel = nivel + 1 })
@@ -1459,8 +1467,8 @@ local function construirTabla()
 	local primera = mundo.zonas[1]
 	local poste = parte({
 		Name = "Tabla",
-		Size = Vector3.new(1.6, 15, 1.6),
-		Position = Vector3.new(primera.centroX - 30, 7.5, primera.z1 + 24),
+		Size = Vector3.new(1.4, 13, 1.4),
+		Position = Vector3.new(primera.x0 - 18, 6.5, primera.z1 + 20),
 		Color = Color3.fromRGB(56, 66, 86),
 		CanCollide = true,
 		CanQuery = true,
@@ -1469,9 +1477,9 @@ local function construirTabla()
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Records"
 	gui.Adornee = poste
-	gui.Size = UDim2.new(17, 0, 13, 0)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
-	gui.MaxDistance = 280
+	gui.Size = UDim2.new(12, 0, 9, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 10.5, 0)
+	gui.MaxDistance = 200
 	gui.LightInfluence = 0
 
 	local fondo = Instance.new("Frame")
@@ -1630,99 +1638,228 @@ end
 --  LA PALA Y EL POLVO DE NIEVE
 -------------------------------------------------------------------
 
-local function darPala(jugador, pers)
-	local vieja = pers:FindFirstChild("Pala")
-	if vieja then
-		vieja:Destroy()
-	end
+-- Cuantos escalones tiene el monton de la carretilla. Se encienden y se
+-- apagan; nada de cambiar tamanos, que con una soldadura no se puede.
+local ESCALONES_MONTON = 6
 
-	-- Sin Tool: se suelda al brazo. Con Tool.Grip hay que adivinar como
-	-- esta orientada la mano y la pala acaba flotando al lado del muneco.
-	--
-	-- El personaje llega por piezas, asi que el brazo puede no estar
-	-- todavia: se espera al que toque segun sea R6 o R15.
-	local brazo = pers:FindFirstChild("RightHand") or pers:FindFirstChild("Right Arm")
-	if not brazo then
-		local humano = pers:FindFirstChildOfClass("Humanoid")
-		local esR15 = humano ~= nil and humano.RigType == Enum.HumanoidRigType.R15
-		brazo = pers:WaitForChild(esR15 and "RightHand" or "Right Arm", 8)
-	end
-	if not brazo then
-		warn("[nieve] no encuentro el brazo: este jugador se queda sin pala")
-		return
-	end
-	local esR15 = pers:FindFirstChild("RightHand") ~= nil
-
+local function montarPala(pers, brazo, escala)
 	local grupo = Instance.new("Model")
 	grupo.Name = "Pala"
 
+	local largo = 3.4 * escala
 	local mango = Instance.new("Part")
 	mango.Name = "Mango"
-	mango.Size = Vector3.new(0.16, 2.4, 0.16)
-	mango.Color = Color3.fromRGB(126, 88, 54)
+	mango.Size = Vector3.new(0.32 * escala, largo, 0.32 * escala)
+	mango.Color = Color3.fromRGB(132, 92, 56)
 	mango.Material = Enum.Material.Wood
 	mango.CanCollide = false
 	mango.CanQuery = false
 	mango.CanTouch = false
 	mango.Massless = true
-	mango.CFrame = brazo.CFrame
-		* CFrame.new(0, esR15 and -0.45 or -0.95, -0.2)
-		* CFrame.Angles(math.rad(18), 0, 0)
+	mango.CFrame = brazo.CFrame * CFrame.new(0, -0.5, -0.4) * CFrame.Angles(math.rad(28), 0, 0)
 	mango.Parent = grupo
 
 	local hoja = Instance.new("Part")
 	hoja.Name = "Hoja"
-	hoja.Size = Vector3.new(1, 0.14, 0.85)
-	hoja.Color = Color3.fromRGB(198, 214, 234)
+	hoja.Size = Vector3.new(2.1 * escala, 0.22 * escala, 1.9 * escala)
+	hoja.Color = Color3.fromRGB(206, 220, 238)
 	hoja.Material = Enum.Material.Metal
+	hoja.Reflectance = 0.15
 	hoja.CanCollide = false
 	hoja.CanQuery = false
 	hoja.CanTouch = false
 	hoja.Massless = true
-	hoja.CFrame = mango.CFrame * CFrame.new(0, -1.25, -0.3)
+	hoja.CFrame = mango.CFrame * CFrame.new(0, -largo / 2 - 0.2 * escala, -0.5 * escala)
 	hoja.Parent = grupo
+
+	local borde = Instance.new("Part")
+	borde.Name = "Borde"
+	borde.Size = Vector3.new(2.1 * escala, 0.5 * escala, 0.25 * escala)
+	borde.Color = Color3.fromRGB(168, 186, 210)
+	borde.Material = Enum.Material.Metal
+	borde.CanCollide = false
+	borde.CanQuery = false
+	borde.CanTouch = false
+	borde.Massless = true
+	borde.CFrame = hoja.CFrame * CFrame.new(0, 0.3 * escala, 0.9 * escala)
+	borde.Parent = grupo
+
+	for _, pieza2 in ipairs({ hoja, borde }) do
+		local union = Instance.new("WeldConstraint")
+		union.Part0 = mango
+		union.Part1 = pieza2
+		union.Parent = pieza2
+	end
 
 	local alBrazo = Instance.new("WeldConstraint")
 	alBrazo.Part0 = brazo
 	alBrazo.Part1 = mango
 	alBrazo.Parent = mango
 
-	local alMango = Instance.new("WeldConstraint")
-	alMango.Part0 = mango
-	alMango.Part1 = hoja
-	alMango.Parent = hoja
-
 	grupo.Parent = pers
+	return hoja
 end
 
-local function prepararPolvo(pers, estado)
-	local raiz = pers:FindFirstChild("HumanoidRootPart")
-	if not raiz then
+local function montarCarretilla(pers, raiz, escala)
+	local grupo = Instance.new("Model")
+	grupo.Name = "Carretilla"
+
+	local ancho = 4.4 * escala
+	local alto = 2.4 * escala
+	local fondo = 5.4 * escala
+	-- Delante del jugador: en Roblox el frente de una pieza es su -Z.
+	local base = raiz.CFrame * CFrame.new(0, -1.5, -3.6)
+
+	local function trozo(nombre, tam, cf, color, material)
+		local pieza2 = Instance.new("Part")
+		pieza2.Name = nombre
+		pieza2.Size = tam
+		pieza2.CFrame = cf
+		pieza2.Color = color
+		pieza2.Material = material or Enum.Material.SmoothPlastic
+		pieza2.CanCollide = false
+		pieza2.CanQuery = false
+		pieza2.CanTouch = false
+		pieza2.Massless = true
+		pieza2.Parent = grupo
+		return pieza2
+	end
+
+	local naranja = Color3.fromRGB(216, 118, 48)
+	local hierro = Color3.fromRGB(78, 84, 96)
+
+	local suelo = trozo("Cubeta", Vector3.new(ancho, 0.35 * escala, fondo), base, naranja, Enum.Material.Metal)
+	trozo("ParedIzq", Vector3.new(0.3 * escala, alto, fondo), base * CFrame.new(-ancho / 2, alto / 2, 0), naranja, Enum.Material.Metal)
+	trozo("ParedDcha", Vector3.new(0.3 * escala, alto, fondo), base * CFrame.new(ancho / 2, alto / 2, 0), naranja, Enum.Material.Metal)
+	trozo("ParedFrente", Vector3.new(ancho, alto, 0.3 * escala), base * CFrame.new(0, alto / 2, -fondo / 2), naranja, Enum.Material.Metal)
+	trozo("ParedAtras", Vector3.new(ancho, alto * 0.7, 0.3 * escala), base * CFrame.new(0, alto * 0.35, fondo / 2), naranja, Enum.Material.Metal)
+
+	trozo("Rueda", Vector3.new(0.5 * escala, 2.2 * escala, 2.2 * escala),
+		base * CFrame.new(0, -1 * escala, -fondo / 2 - 0.6), Color3.fromRGB(30, 30, 34), Enum.Material.Metal)
+	for _, dx in ipairs({ -1, 1 }) do
+		trozo("Pata", Vector3.new(0.35 * escala, 1.6 * escala, 0.35 * escala),
+			base * CFrame.new(dx * ancho * 0.35, -0.9 * escala, fondo / 2 - 0.5), hierro, Enum.Material.Metal)
+		trozo("Varal", Vector3.new(0.35 * escala, 0.35 * escala, 3 * escala),
+			base * CFrame.new(dx * ancho * 0.4, 0.5 * escala, fondo / 2 + 1.2), hierro, Enum.Material.Metal)
+	end
+
+	-- El monton: escalones apagados que se van encendiendo al llenarse.
+	local montones = {}
+	for i = 1, ESCALONES_MONTON do
+		local altura = (alto * 1.15 / ESCALONES_MONTON)
+		local encogido = 1 - (i - 1) * 0.09
+		local capa = trozo(
+			"Monton" .. i,
+			Vector3.new((ancho - 0.7 * escala) * encogido, altura, (fondo - 0.7 * escala) * encogido),
+			base * CFrame.new(0, 0.2 * escala + (i - 0.5) * altura, 0),
+			Color3.fromRGB(246, 250, 255),
+			Enum.Material.Snow
+		)
+		capa.Transparency = 1
+		montones[i] = capa
+	end
+
+	for _, pieza2 in ipairs(grupo:GetChildren()) do
+		if pieza2 ~= suelo and pieza2:IsA("BasePart") then
+			local union = Instance.new("WeldConstraint")
+			union.Part0 = suelo
+			union.Part1 = pieza2
+			union.Parent = pieza2
+		end
+	end
+	local alCuerpo = Instance.new("WeldConstraint")
+	alCuerpo.Part0 = raiz
+	alCuerpo.Part1 = suelo
+	alCuerpo.Parent = suelo
+
+	grupo.Parent = pers
+	return montones
+end
+
+local function prepararPolvo(hoja, estado)
+	if not hoja then
 		return
 	end
 	local punto = Instance.new("Attachment")
 	punto.Name = "PolvoNieve"
-	punto.Position = Vector3.new(0, -2.2, -1.6)
-	punto.Parent = raiz
+	punto.Position = Vector3.new(0, -0.3, 0)
+	punto.Parent = hoja
 
 	local emisor = Instance.new("ParticleEmitter")
 	emisor.Texture = "rbxasset://textures/particles/smoke_main.dds"
 	emisor.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
-	emisor.Size = NumberSequence.new(1.5)
+	emisor.Size = NumberSequence.new(1.8)
 	emisor.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(0, 0.1),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	emisor.Lifetime = NumberRange.new(0.35, 0.75)
-	emisor.Rate = 42
-	emisor.Speed = NumberRange.new(3, 8)
-	emisor.SpreadAngle = Vector2.new(40, 40)
-	emisor.Acceleration = Vector3.new(0, -14, 0)
+	emisor.Lifetime = NumberRange.new(0.3, 0.7)
+	emisor.Rate = 55
+	emisor.Speed = NumberRange.new(4, 9)
+	emisor.SpreadAngle = Vector2.new(45, 45)
+	emisor.Acceleration = Vector3.new(0, -16, 0)
 	emisor.LightEmission = 0.4
 	emisor.Enabled = false
 	emisor.Parent = punto
 
 	estado.emisor = emisor
+end
+
+-- Monta (o vuelve a montar) pala y carretilla al tamano que toque.
+equipar = function(jugador)
+	local estado = estados[jugador]
+	local pers = jugador.Character
+	if not estado or not pers then
+		return
+	end
+
+	for _, nombre in ipairs({ "Pala", "Carretilla" }) do
+		local viejo = pers:FindFirstChild(nombre)
+		if viejo then
+			viejo:Destroy()
+		end
+	end
+	estado.montones = nil
+	estado.escalonMonton = -1
+	estado.emisor = nil
+
+	-- El personaje llega por piezas: hay que esperar al brazo.
+	local brazo = pers:FindFirstChild("RightHand") or pers:FindFirstChild("Right Arm")
+	if not brazo then
+		local humano = pers:FindFirstChildOfClass("Humanoid")
+		local esR15 = humano ~= nil and humano.RigType == Enum.HumanoidRigType.R15
+		brazo = pers:WaitForChild(esR15 and "RightHand" or "Right Arm", 8)
+	end
+	local raiz = pers:FindFirstChild("HumanoidRootPart")
+	if not brazo or not raiz then
+		warn("[nieve] sin brazo: este jugador se queda sin equipo")
+		return
+	end
+
+	local hoja = montarPala(pers, brazo, 1 + (estado.niveles.pala - 1) * 0.09)
+	estado.montones = montarCarretilla(pers, raiz, 1 + (estado.niveles.carretilla - 1) * 0.07)
+	prepararPolvo(hoja, estado)
+end
+
+-- Enciende tantos escalones del monton como carga lleve encima.
+local function pintarMonton(estado)
+	local montones = estado.montones
+	if not montones then
+		return
+	end
+	local capacidad = capacidadDe(estado)
+	if capacidad < 1 then
+		capacidad = 1
+	end
+	local lleno = math.clamp(estado.carga / capacidad, 0, 1)
+	local escalon = math.floor(lleno * ESCALONES_MONTON + 0.0001)
+	if escalon == estado.escalonMonton then
+		return
+	end
+	estado.escalonMonton = escalon
+	for i, capa in ipairs(montones) do
+		capa.Transparency = (i <= escalon) and 0 or 1
+	end
 end
 
 
@@ -1899,8 +2036,7 @@ local function alAparecer(jugador, pers)
 	estado.emisor = nil
 	estado.recogiendo = false
 	humano.WalkSpeed = velocidadDe(estado)
-	darPala(jugador, pers)
-	prepararPolvo(pers, estado)
+	equipar(jugador)
 end
 
 local function alEntrar(jugador)
@@ -1980,6 +2116,7 @@ local function ticJuego()
 				if estado.emisor and estado.recogiendo ~= antes then
 					estado.emisor.Enabled = estado.recogiendo
 				end
+				pintarMonton(estado)
 			end
 		end
 	end
