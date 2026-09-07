@@ -21,9 +21,12 @@ const leer = (p) => readFileSync(join(raiz, p), "utf8");
 const ajustes = leer("src/ReplicatedStorage/AjustesNieve.luau");
 let servidor = leer("src/ServerScriptService/Nieve.server.luau");
 const entorno = leer("herramientas/entorno.luau");
-// `node probar.mjs ritmo` corre el simulador de progresion en vez de las pruebas.
-const modo = process.argv[2] === "ritmo" ? "ritmo" : "casos";
-const casos = leer(`herramientas/${modo}.luau`);
+//   node probar.mjs          las pruebas del servidor
+//   node probar.mjs ritmo    el simulador de progresion
+//   node probar.mjs cliente  el HUD, ejecutado de verdad
+const pedido = process.argv[2];
+const modo = pedido === "ritmo" ? "ritmo" : pedido === "cliente" ? "cliente" : "casos";
+const casos = leer(modo === "cliente" ? "herramientas/casos-cliente.luau" : `herramientas/${modo}.luau`);
 
 // El require de Roblox no existe fuera de Roblox: se cambia por la tabla ya cargada.
 const antes = servidor;
@@ -36,7 +39,9 @@ if (servidor === antes) {
   process.exit(1);
 }
 
-const junto = [
+// En modo cliente hace falta un jugador local dentro de la partida antes
+// de cargar el LocalScript, igual que en Roblox.
+const trozos = [
   "-- generado por probar.mjs, no se edita a mano",
   entorno,
   "AJUSTES = (function()",
@@ -45,10 +50,25 @@ const junto = [
   "do",
   servidor,
   "end",
-  "do",
-  casos,
-  "end",
-].join("\n");
+];
+
+if (modo === "cliente") {
+  let cliente = leer("src/StarterPlayer/StarterPlayerScripts/NieveCliente.client.luau");
+  const antesCliente = cliente;
+  cliente = cliente.replace(
+    /local A = require\(RS:WaitForChild\("AjustesNieve"\)\)/,
+    "local A = AJUSTES",
+  );
+  if (cliente === antesCliente) {
+    console.error("no he encontrado el require de AjustesNieve en el cliente");
+    process.exit(1);
+  }
+  trozos.push("do", leer("herramientas/prepara-cliente.luau"), "end");
+  trozos.push("do", cliente, "end");
+}
+
+trozos.push("do", casos, "end");
+const junto = trozos.join("\n");
 
 const carpeta = mkdtempSync(join(tmpdir(), "nieve-"));
 const archivo = join(carpeta, "prueba.luau");

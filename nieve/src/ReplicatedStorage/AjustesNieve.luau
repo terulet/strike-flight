@@ -197,6 +197,49 @@ Ajustes.pases = {
 
 
 -------------------------------------------------------------------
+--  PREMIO DIARIO
+--
+--  El premio se mide en BLOQUES DE TU MEJOR ZONA, no en monedas
+--  fijas. Asi es un regalo el primer dia y sigue siendo un regalo
+--  veinte horas de juego despues.
+-------------------------------------------------------------------
+
+Ajustes.diario = {
+	bloques = 250,
+	rachaMaxima = 7,
+	horasParaPerderla = 48,  -- si tardas mas en volver, la racha se cae a 1
+}
+
+
+-------------------------------------------------------------------
+--  CODIGOS
+--
+--  Para soltarlos en TikTok o en la descripcion del juego. Se canjean
+--  una vez por jugador. Anadir uno es anadir una linea aqui.
+-------------------------------------------------------------------
+
+Ajustes.codigos = {
+	{ clave = "NIEVE", bloques = 300 },
+	{ clave = "GRACIAS", bloques = 400 },
+	{ clave = "PRIMERANEVADA", bloques = 800 },
+}
+
+
+-------------------------------------------------------------------
+--  TABLA DE RECORDS
+--
+--  Se ordena por nieve recogida en total, que es lo unico que no se
+--  borra al renacer.
+-------------------------------------------------------------------
+
+Ajustes.records = {
+	almacen = "RecordNieveV1",
+	cuantos = 10,
+	refresco = 90,     -- cada cuantos segundos se relee la tabla
+}
+
+
+-------------------------------------------------------------------
 --  GUARDADO
 -------------------------------------------------------------------
 
@@ -233,6 +276,15 @@ Ajustes.textos = {
 		pistaZona = "Nieve mas cara al otro lado de la puerta",
 		bienvenida = "Bienvenido de vuelta",
 		sinGuardado = "no he podido leer tu partida: hoy no se guarda",
+		diario = "PREMIO DIARIO",
+		diarioRacha = "dia %d seguido",
+		codigos = "CODIGOS",
+		codigoCaja = "escribe un codigo",
+		canjear = "CANJEAR",
+		codigoMal = "ese codigo no existe",
+		codigoUsado = "ese ya lo has usado",
+		records = "MAS NIEVE RECOGIDA",
+		tablaVacia = "todavia no hay nadie",
 	},
 	en = {
 		monedas = "COINS",
@@ -255,6 +307,15 @@ Ajustes.textos = {
 		pistaZona = "Pricier snow past the gate",
 		bienvenida = "Welcome back",
 		sinGuardado = "could not read your save: progress will not be stored",
+		diario = "DAILY REWARD",
+		diarioRacha = "day %d in a row",
+		codigos = "CODES",
+		codigoCaja = "type a code",
+		canjear = "REDEEM",
+		codigoMal = "that code does not exist",
+		codigoUsado = "you already used that one",
+		records = "MOST SNOW SHOVELED",
+		tablaVacia = "nobody here yet",
 	},
 }
 
@@ -262,6 +323,35 @@ Ajustes.textos = {
 function Ajustes.texto(idioma, clave)
 	local tabla = Ajustes.textos[idioma] or Ajustes.textos.en
 	return tabla[clave] or Ajustes.textos.en[clave] or clave
+end
+
+local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx" }
+
+-- 1234567 -> "1.23M". Lo usan el HUD y los carteles del mundo.
+function Ajustes.formatear(numero)
+	local n = math.floor(tonumber(numero) or 0)
+	if n < 1000 then
+		return tostring(n)
+	end
+	local valor = n
+	local i = 1
+	while valor >= 1000 and i < #SUFIJOS do
+		valor = valor / 1000
+		i = i + 1
+	end
+	local texto
+	if valor < 10 then
+		texto = string.format("%.2f", valor)
+	elseif valor < 100 then
+		texto = string.format("%.1f", valor)
+	else
+		texto = string.format("%.0f", valor)
+	end
+	if string.find(texto, "%.") then
+		texto = string.gsub(texto, "0+$", "")
+		texto = string.gsub(texto, "%.$", "")
+	end
+	return texto .. SUFIJOS[i]
 end
 
 -- Los nombres de zonas y mejoras viven en su propia tabla ({es=..., en=...}).

@@ -178,7 +178,8 @@ comprobarIgual(humano.WalkSpeed, A.jugador.velocidadBase, "anda a la velocidad d
 
 local e = estadoDe(ana)
 comprobar(e ~= nil, "el cliente recibe el estado")
-comprobarIgual(e and e.dinero, 0, "empieza sin dinero")
+local PREMIO_PRIMER_DIA = A.diario.bloques * A.zonas[1].valor
+comprobarIgual(e and e.dinero, PREMIO_PRIMER_DIA, "entra con el premio del primer dia")
 comprobarIgual(e and e.capacidad, A.jugador.capacidadBase, "empieza con la carretilla de partida")
 
 
@@ -186,6 +187,7 @@ comprobarIgual(e and e.capacidad, A.jugador.capacidadBase, "empieza con la carre
 titulo("RECOGER NIEVE")
 -------------------------------------------------------------------
 
+local dineroAlEntrar = e.dinero
 ana:Mover(S1.centroX, 3, S1.centroZ)
 avanzar(0.6)
 e = estadoDe(ana)
@@ -194,7 +196,7 @@ comprobar(e.carga > 0, "al pisar la nieve, se recoge")
 barrer(ana, 1, 40)
 e = estadoDe(ana)
 comprobarIgual(e.carga, e.capacidad, "barriendo un rato la carretilla se llena hasta el tope")
-comprobarIgual(e.dinero, 0, "recoger no da dinero: hay que venderla")
+comprobarIgual(e.dinero, dineroAlEntrar, "recoger no da dinero: hay que venderla")
 comprobar(e.valor > 0, "la carga vale algo")
 
 -- La nieve pisada desaparece de verdad.
@@ -219,7 +221,7 @@ local cargaAntes = e.carga
 ana:Mover(S1.centroX, 3, S1.ventaZ)
 avanzar(0.5)
 e = estadoDe(ana)
-comprobarIgual(e.dinero, cargaAntes * A.zonas[1].valor, "el camion paga la carga entera")
+comprobarIgual(e.dinero, dineroAlEntrar + cargaAntes * A.zonas[1].valor, "el camion paga la carga entera")
 comprobarIgual(e.carga, 0, "la carretilla se vacia")
 
 local aviso = ultimoAviso(ana)
@@ -232,11 +234,24 @@ comprobarIgual(marcador:FindFirstChild("Coins").Value, e.dinero, "el marcador de
 titulo("NO SE PUEDE COMPRAR SIN DINERO")
 -------------------------------------------------------------------
 
+-- Se gasta todo lo que tiene en palas, hasta que no llegue para la siguiente.
+for _ = 1, 20 do
+	local est = estadoDe(ana)
+	if est.precios.pala < 0 or est.dinero < est.precios.pala then
+		break
+	end
+	RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
+	avanzar(0.2)
+end
+
+e = estadoDe(ana)
+comprobar(e.dinero < e.precios.pala, "se queda sin dinero para la siguiente pala")
+
 local nivelAntes = e.niveles.pala
 RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
 avanzar(0.4)
 e = estadoDe(ana)
-comprobarIgual(e.niveles.pala, nivelAntes, "con una carga vendida no llega para la primera pala")
+comprobarIgual(e.niveles.pala, nivelAntes, "y no se la venden")
 comprobar(ultimoAviso(ana).clave == "sinDinero", "y te avisa de que falta dinero")
 
 RemotoComprar.OnServerEvent:Fire(ana, "mejora", "cohete_de_mentira")
@@ -252,20 +267,22 @@ comprobar(true, "una peticion con basura dentro tampoco")
 titulo("EL BUCLE COMPLETO: TRABAJAR, COBRAR, MEJORAR")
 -------------------------------------------------------------------
 
-local tardo = trabajar(ana, 1, 50, 20)
-comprobar(tardo ~= nil, "junta las 50 monedas de la primera pala")
+local precioPala = estadoDe(ana).precios.pala
+local nivelPala = estadoDe(ana).niveles.pala
+local tardo = trabajar(ana, 1, precioPala, 40)
+comprobar(tardo ~= nil, "trabajando junta el precio de la siguiente pala")
 if tardo then
 	print(("       (le ha costado %.0f segundos de juego)"):format(tardo))
-	comprobar(tardo < 90, "y las junta en menos de minuto y medio, no en diez")
+	comprobar(tardo < 120, "y no le lleva media tarde")
 end
 
 local dineroAntes = estadoDe(ana).dinero
 RemotoComprar.OnServerEvent:Fire(ana, "mejora", "pala")
 avanzar(0.4)
 e = estadoDe(ana)
-comprobarIgual(e.niveles.pala, 2, "ahora si sube la pala")
-comprobarIgual(e.dinero, dineroAntes - A.mejoras[1].precio, "y cobra el precio exacto")
-comprobar(e.precios.pala > A.mejoras[1].precio, "la siguiente pala cuesta mas")
+comprobarIgual(e.niveles.pala, nivelPala + 1, "ahora si sube la pala")
+comprobarIgual(e.dinero, dineroAntes - precioPala, "y cobra el precio exacto")
+comprobar(e.precios.pala > precioPala, "la siguiente pala cuesta mas")
 
 -- La carretilla tiene que notarse en la capacidad.
 local capacidadAntes = e.capacidad
@@ -394,7 +411,8 @@ pepe:LoadCharacter()
 avanzar(0.5)
 
 local suEstado = estadoDe(pepe)
-comprobarIgual(suEstado.dinero, 0, "si no se puede leer, empieza de cero esta sesion")
+comprobarIgual(suEstado.dinero, PREMIO_PRIMER_DIA, "si no se puede leer, empieza de cero esta sesion")
+comprobar(suEstado.dinero ~= dineroFinal, "y desde luego no hereda la partida del otro")
 
 FALLA_EL_DATASTORE = false
 sale(pepe)
@@ -456,6 +474,110 @@ RemotoComprar.OnServerEvent:Fire(novato, "renacer")
 avanzar(0.4)
 comprobarIgual(estadoDe(novato).renaceres, 0, "sin las zonas abiertas no se renace")
 comprobarIgual(ultimoAviso(novato).clave, "renacerFalta", "y te dice por que")
+
+
+-------------------------------------------------------------------
+titulo("EL PREMIO DIARIO Y SU RACHA")
+-------------------------------------------------------------------
+
+local hoy = nuevoJugador("Diaria")
+entra(hoy)
+avanzar(0.6)
+comprobarIgual(estadoDe(hoy).dinero, PREMIO_PRIMER_DIA, "el primer dia paga premio")
+comprobarIgual(ultimoAviso(hoy).racha, 1, "y dice que vas por el dia 1")
+local dineroDia1 = estadoDe(hoy).dinero
+sale(hoy)
+avanzar(0.6)
+
+-- Volver a entrar el mismo dia no puede pagar otra vez.
+local otraVez = nuevoJugador("Diaria")
+otraVez.UserId = hoy.UserId
+entra(otraVez)
+avanzar(0.6)
+comprobarIgual(estadoDe(otraVez).dinero, dineroDia1, "entrar dos veces el mismo dia no paga dos veces")
+sale(otraVez)
+avanzar(0.6)
+
+-- Manana.
+TIEMPO_BASE = TIEMPO_BASE + 86400
+local manana = nuevoJugador("Diaria")
+manana.UserId = hoy.UserId
+entra(manana)
+avanzar(0.6)
+comprobar(estadoDe(manana).dinero > dineroDia1, "al dia siguiente vuelve a pagar")
+comprobarIgual(ultimoAviso(manana).racha, 2, "y la racha va por dos")
+comprobarIgual(estadoDe(manana).dinero - dineroDia1, PREMIO_PRIMER_DIA * 2, "el dia 2 paga el doble")
+sale(manana)
+avanzar(0.6)
+
+-- Y a los cuatro dias sin aparecer, la racha se cae.
+TIEMPO_BASE = TIEMPO_BASE + 86400 * 4
+local tarde = nuevoJugador("Diaria")
+tarde.UserId = hoy.UserId
+entra(tarde)
+avanzar(0.6)
+comprobarIgual(ultimoAviso(tarde).racha, 1, "si tardas mucho en volver, la racha empieza de cero")
+sale(tarde)
+avanzar(0.6)
+
+
+-------------------------------------------------------------------
+titulo("LOS CODIGOS")
+-------------------------------------------------------------------
+
+local canjeador = nuevoJugador("Canjeador")
+entra(canjeador)
+avanzar(0.6)
+local antesCodigo = estadoDe(canjeador).dinero
+
+RemotoComprar.OnServerEvent:Fire(canjeador, "codigo", "  nieve  ")
+avanzar(0.4)
+local premioCodigo = A.codigos[1].bloques * A.zonas[1].valor
+comprobarIgual(estadoDe(canjeador).dinero, antesCodigo + premioCodigo, "el codigo paga, con espacios y en minusculas")
+
+RemotoComprar.OnServerEvent:Fire(canjeador, "codigo", "NIEVE")
+avanzar(0.4)
+comprobarIgual(estadoDe(canjeador).dinero, antesCodigo + premioCodigo, "y no se puede repetir")
+comprobarIgual(ultimoAviso(canjeador).clave, "codigoUsado", "te dice que ya lo usaste")
+
+RemotoComprar.OnServerEvent:Fire(canjeador, "codigo", "REGALAME_TODO")
+avanzar(0.4)
+comprobarIgual(estadoDe(canjeador).dinero, antesCodigo + premioCodigo, "un codigo inventado no da nada")
+comprobarIgual(ultimoAviso(canjeador).clave, "codigoMal", "y te lo dice")
+
+RemotoComprar.OnServerEvent:Fire(canjeador, "codigo", string.rep("X", 500))
+avanzar(0.4)
+comprobar(true, "un codigo de 500 letras no revienta el servidor")
+
+-- Un codigo canjeado se guarda: al volver no vale otra vez.
+sale(canjeador)
+avanzar(0.6)
+local vuelve = nuevoJugador("Canjeador")
+vuelve.UserId = canjeador.UserId
+entra(vuelve)
+avanzar(0.6)
+local antesRepetir = estadoDe(vuelve).dinero
+RemotoComprar.OnServerEvent:Fire(vuelve, "codigo", "NIEVE")
+avanzar(0.4)
+comprobarIgual(estadoDe(vuelve).dinero, antesRepetir, "y sigue sin valer al dia siguiente")
+sale(vuelve)
+avanzar(0.6)
+
+
+-------------------------------------------------------------------
+titulo("LA TABLA DE RECORDS")
+-------------------------------------------------------------------
+
+comprobar(RECORDS[tostring(ana.UserId)] ~= nil, "al salir, la nieve total sube a la tabla")
+
+local poste = workspace.Nieve:FindFirstChild("Tabla")
+comprobar(poste ~= nil, "hay poste de records en el mapa")
+local listaRecords = poste and poste:FindFirstChild("Lista", true)
+comprobar(listaRecords ~= nil, "con su lista")
+
+avanzar(A.records.refresco + 5)
+comprobar(listaRecords.Text ~= "", "y pasado el refresco, dice algo")
+comprobar(string.find(listaRecords.Text, "1") ~= nil, "empezando por el puesto 1")
 
 
 -------------------------------------------------------------------

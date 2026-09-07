@@ -95,11 +95,17 @@ function avanzar(segundos, paso)
 	end
 end
 
+-- 1 de enero de 2026. Las pruebas pueden sumarle dias para simular
+-- que el jugador vuelve manana.
+TIEMPO_BASE = 1767225600
+
 os = {
 	clock = function()
 		return reloj
 	end,
-	time = osReal.time,
+	time = function()
+		return math.floor(TIEMPO_BASE + reloj)
+	end,
 	date = osReal.date,
 }
 
@@ -276,6 +282,9 @@ local BASE_PARTE = {
 
 local metaInstancia = {
 	__index = function(t, clave)
+		if clave == "Parent" then
+			return rawget(t, "_padre")
+		end
 		-- En Roblox, obj.Hijo busca un hijo con ese nombre. Aqui igual.
 		local hijos = rawget(t, "_hijos")
 		if hijos then
@@ -296,7 +305,7 @@ local metaInstancia = {
 			)
 		end
 		if clave == "Parent" then
-			local anterior = rawget(t, "Parent")
+			local anterior = rawget(t, "_padre")
 			if anterior and rawget(anterior, "_hijos") then
 				local hijos = rawget(anterior, "_hijos")
 				for i, hijo in ipairs(hijos) do
@@ -306,7 +315,7 @@ local metaInstancia = {
 					end
 				end
 			end
-			rawset(t, "Parent", valor)
+			rawset(t, "_padre", valor)
 			if valor and rawget(valor, "_hijos") then
 				local hijos = rawget(valor, "_hijos")
 				hijos[#hijos + 1] = t
@@ -325,7 +334,7 @@ local function crearInstancia(clase)
 	local obj = {
 		ClassName = clase,
 		Name = clase,
-		Parent = nil,
+		_padre = nil,
 		_hijos = {},
 		_atributos = {},
 		_destruida = false,
@@ -342,6 +351,11 @@ local function crearInstancia(clase)
 		obj._alCliente = {}
 		function obj:FireClient(jugador, ...)
 			self._alCliente[#self._alCliente + 1] = { jugador = jugador, datos = ... }
+			-- Si hay un cliente cargado y el envio es para el, se le entrega
+			-- de verdad, para poder comprobar lo que acaba en pantalla.
+			if JUGADOR_LOCAL ~= nil and jugador == JUGADOR_LOCAL then
+				self.OnClientEvent:Fire(...)
+			end
 		end
 		function obj:FireAllClients(...) end
 		function obj:FireServer(...)
@@ -353,6 +367,10 @@ local function crearInstancia(clase)
 	elseif clase == "TextButton" or clase == "ImageButton" then
 		obj.Activated = nuevaSenal()
 		obj.MouseButton1Click = nuevaSenal()
+	elseif clase == "TextBox" then
+		obj.FocusLost = nuevaSenal()
+		obj.Focused = nuevaSenal()
+		obj.Text = ""
 	elseif clase == "Tool" then
 		obj.Activated = nuevaSenal()
 		obj.Equipped = nuevaSenal()
@@ -450,12 +468,12 @@ local function crearInstancia(clase)
 	end
 
 	function obj:IsDescendantOf(otro)
-		local nodo = rawget(self, "Parent")
+		local nodo = rawget(self, "_padre")
 		while nodo do
 			if nodo == otro then
 				return true
 			end
-			nodo = rawget(nodo, "Parent")
+			nodo = rawget(nodo, "_padre")
 		end
 		return false
 	end
@@ -523,6 +541,9 @@ end
 workspace = crearInstancia("Workspace")
 workspace.Name = "Workspace"
 workspace.CurrentCamera = crearInstancia("Camera")
+-- En Roblox la camara SIEMPRE tiene CFrame; sin esto el codigo que la
+-- sigue peta aqui y no alli, que es justo lo contrario de lo que quiero.
+workspace.CurrentCamera.CFrame = CFrame.new(0, 20, 0)
 
 local servicios = {}
 
@@ -572,6 +593,52 @@ function Almacen:GetDataStore(nombre)
 	return tienda
 end
 
+RECORDS = {}
+function Almacen:GetOrderedDataStore(nombre)
+	local tienda = { _nombre = nombre }
+	function tienda:SetAsync(clave, valor)
+		if FALLA_EL_DATASTORE then
+			error("DataStore de mentira: fallo a proposito", 0)
+		end
+		RECORDS[clave] = valor
+		return true
+	end
+	function tienda:GetSortedAsync(ascendente, cuantos)
+		if FALLA_EL_DATASTORE then
+			error("DataStore de mentira: fallo a proposito", 0)
+		end
+		local lista = {}
+		for clave, valor in pairs(RECORDS) do
+			lista[#lista + 1] = { key = clave, value = valor }
+		end
+		table.sort(lista, function(a, b)
+			if ascendente then
+				return a.value < b.value
+			end
+			return a.value > b.value
+		end)
+		while #lista > (cuantos or 10) do
+			table.remove(lista)
+		end
+		return {
+			GetCurrentPage = function()
+				return lista
+			end,
+			IsFinished = true,
+		}
+	end
+	return tienda
+end
+
+function Jugadores:GetNameFromUserIdAsync(id)
+	for _, jugador in ipairs(self:GetPlayers()) do
+		if jugador.UserId == id then
+			return jugador.Name
+		end
+	end
+	return "Jugador" .. tostring(id)
+end
+
 Mercado = servicio("MarketplaceService")
 function Mercado:UserOwnsGamePassAsync()
 	return false
@@ -582,7 +649,7 @@ servicio("ReplicatedStorage")
 servicio("SoundService")
 servicio("TweenService")
 servicio("RunService")
-servicio("LocalizationService")
+servicio("LocalizationService").RobloxLocaleId = "es-es"
 servicio("StarterGui")
 servicio("Teams")
 
@@ -652,6 +719,10 @@ function nuevoJugador(nombre)
 	local mochila = crearInstancia("Backpack")
 	mochila.Name = "Backpack"
 	mochila.Parent = jugador
+
+	local interfaz = crearInstancia("PlayerGui")
+	interfaz.Name = "PlayerGui"
+	interfaz.Parent = jugador
 
 	function jugador:LoadCharacter()
 		local pers = crearInstancia("Model")

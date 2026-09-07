@@ -566,6 +566,10 @@ local function nuevoEstado()
 		valor = 0,
 		niveles = { pala = 1, carretilla = 1, botas = 1 },
 		zonas = { [A.zonas[1].clave] = true },
+		codigos = {},
+		racha = 0,
+		ultimoDia = 0,
+		ultimoPremio = 0,
 		pases = {},
 		zonaVista = A.zonas[1].clave,
 		cargado = false,
@@ -714,11 +718,21 @@ local function serializar(estado)
 			zonas[#zonas + 1] = clave
 		end
 	end
+	local codigos = {}
+	for clave, usado in pairs(estado.codigos) do
+		if usado then
+			codigos[#codigos + 1] = clave
+		end
+	end
 	return {
 		v = 1,
 		dinero = math.floor(estado.dinero),
 		nieveTotal = math.floor(estado.nieveTotal),
 		renaceres = estado.renaceres,
+		racha = estado.racha,
+		ultimoDia = estado.ultimoDia,
+		ultimoPremio = estado.ultimoPremio,
+		codigos = codigos,
 		pala = estado.niveles.pala,
 		carretilla = estado.niveles.carretilla,
 		botas = estado.niveles.botas,
@@ -733,6 +747,18 @@ local function aplicarDatos(estado, datos)
 	estado.dinero = math.max(0, tonumber(datos.dinero) or 0)
 	estado.nieveTotal = math.max(0, tonumber(datos.nieveTotal) or 0)
 	estado.renaceres = math.max(0, math.floor(tonumber(datos.renaceres) or 0))
+	estado.racha = math.clamp(math.floor(tonumber(datos.racha) or 0), 0, A.diario.rachaMaxima)
+	estado.ultimoDia = math.max(0, math.floor(tonumber(datos.ultimoDia) or 0))
+	estado.ultimoPremio = math.max(0, math.floor(tonumber(datos.ultimoPremio) or 0))
+
+	if type(datos.codigos) == "table" then
+		estado.codigos = {}
+		for _, clave in ipairs(datos.codigos) do
+			if type(clave) == "string" then
+				estado.codigos[clave] = true
+			end
+		end
+	end
 
 	for _, def in ipairs(A.mejoras) do
 		local nivel = math.floor(tonumber(datos[def.clave]) or 1)
@@ -830,6 +856,211 @@ local function hacerRenacer(jugador, estado)
 	guardar(jugador)
 end
 
+
+-------------------------------------------------------------------
+--  PREMIO DIARIO Y CODIGOS
+-------------------------------------------------------------------
+
+local function valorMaximoDe(estado)
+	local mejor = A.zonas[1].valor
+	for _, def in ipairs(A.zonas) do
+		if estado.zonas[def.clave] and def.valor > mejor then
+			mejor = def.valor
+		end
+	end
+	return mejor
+end
+
+local function comprobarPremio(jugador, estado)
+	local ahora = os.time()
+	local dia = math.floor(ahora / 86400)
+	if estado.ultimoDia == dia then
+		return
+	end
+
+	-- Volver al dia siguiente suma racha; tardar dos dias la reinicia.
+	local desde = estado.ultimoPremio or 0
+	if desde > 0 and (ahora - desde) <= A.diario.horasParaPerderla * 3600 then
+		estado.racha = math.min(A.diario.rachaMaxima, (estado.racha or 0) + 1)
+	else
+		estado.racha = 1
+	end
+	estado.ultimoDia = dia
+	estado.ultimoPremio = ahora
+
+	local premio = math.floor(valorMaximoDe(estado) * A.diario.bloques * estado.racha)
+	estado.dinero = estado.dinero + premio
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "diario", cantidad = premio, racha = estado.racha })
+end
+
+local codigosPorClave = {}
+for _, def in ipairs(A.codigos) do
+	codigosPorClave[string.upper(def.clave)] = def
+end
+
+local function canjearCodigo(jugador, estado, texto)
+	if type(texto) ~= "string" or #texto > 32 then
+		return
+	end
+	local clave = string.upper((string.gsub(texto, "%s", "")))
+	local def = codigosPorClave[clave]
+	if not def then
+		avisar(jugador, "codigoMal")
+		return
+	end
+	if estado.codigos[clave] then
+		avisar(jugador, "codigoUsado")
+		return
+	end
+
+	estado.codigos[clave] = true
+	local premio = math.floor(valorMaximoDe(estado) * def.bloques)
+	estado.dinero = estado.dinero + premio
+	refrescarMarcador(jugador, estado)
+	RemotoAviso:FireClient(jugador, { tipo = "codigo", cantidad = premio, clave = clave })
+	guardar(jugador)
+end
+
+
+-------------------------------------------------------------------
+--  TABLA DE RECORDS
+--
+--  Se ordena por nieve recogida en total, que es lo unico que no se
+--  borra al renacer. Vive en un poste al lado de la salida.
+-------------------------------------------------------------------
+
+local ordenado = nil
+do
+	local ok, resultado = pcall(function()
+		return Almacenes:GetOrderedDataStore(A.records.almacen)
+	end)
+	if ok then
+		ordenado = resultado
+	else
+		warn("[nieve] sin tabla de records")
+	end
+end
+
+local nombresPorId = {}
+local etiquetaTabla = nil
+
+local function subirRecord(jugador, estado)
+	if not ordenado or not estado or not estado.puedeGuardar then
+		return
+	end
+	pcall(function()
+		ordenado:SetAsync(tostring(jugador.UserId), math.floor(estado.nieveTotal))
+	end)
+end
+
+local function construirTabla()
+	local primera = mundo.zonas[1]
+	local poste = parte({
+		Name = "Tabla",
+		Size = Vector3.new(1.6, 15, 1.6),
+		Position = Vector3.new(primera.centroX - 30, 7.5, primera.z1 + 24),
+		Color = Color3.fromRGB(56, 66, 86),
+		CanCollide = true,
+		CanQuery = true,
+	}, mundo.carpeta)
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Records"
+	gui.Adornee = poste
+	gui.Size = UDim2.new(17, 0, 13, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
+	gui.MaxDistance = 280
+	gui.LightInfluence = 0
+
+	local fondo = Instance.new("Frame")
+	fondo.Size = UDim2.fromScale(1, 1)
+	fondo.BackgroundColor3 = Color3.fromRGB(12, 18, 30)
+	fondo.BackgroundTransparency = 0.15
+	fondo.BorderSizePixel = 0
+	fondo.Parent = gui
+
+	local esquina = Instance.new("UICorner")
+	esquina.CornerRadius = UDim.new(0, 14)
+	esquina.Parent = fondo
+
+	local borde = Instance.new("UIStroke")
+	borde.Color = Color3.fromRGB(120, 205, 255)
+	borde.Thickness = 2
+	borde.Transparency = 0.3
+	borde.Parent = fondo
+
+	local titulo = Instance.new("TextLabel")
+	titulo.Name = "Titulo"
+	titulo.Size = UDim2.fromScale(0.92, 0.15)
+	titulo.Position = UDim2.fromScale(0.04, 0.04)
+	titulo.BackgroundTransparency = 1
+	titulo.Font = Enum.Font.GothamBlack
+	titulo.TextColor3 = Color3.fromRGB(120, 205, 255)
+	titulo.TextScaled = true
+	titulo.Text = "MOST SNOW SHOVELED"
+	titulo.Parent = fondo
+
+	local lista = Instance.new("TextLabel")
+	lista.Name = "Lista"
+	lista.Size = UDim2.fromScale(0.92, 0.74)
+	lista.Position = UDim2.fromScale(0.04, 0.21)
+	lista.BackgroundTransparency = 1
+	-- Fuente de ancho fijo: si no, las columnas bailan.
+	lista.Font = Enum.Font.Code
+	lista.TextColor3 = Color3.fromRGB(236, 244, 255)
+	lista.TextScaled = true
+	lista.TextXAlignment = Enum.TextXAlignment.Left
+	lista.TextYAlignment = Enum.TextYAlignment.Top
+	lista.Text = ""
+	lista.Parent = fondo
+
+	gui:SetAttribute("tipo", "records")
+	gui.Parent = poste
+	etiquetaTabla = lista
+end
+
+local function refrescarTabla()
+	if not etiquetaTabla then
+		return
+	end
+	if not ordenado then
+		etiquetaTabla.Text = A.texto("en", "tablaVacia")
+		return
+	end
+
+	local ok, paginas = pcall(function()
+		return ordenado:GetSortedAsync(false, A.records.cuantos)
+	end)
+	if not ok then
+		return
+	end
+
+	local lineas = {}
+	for puesto, fila in ipairs(paginas:GetCurrentPage()) do
+		local nombre = nombresPorId[fila.key]
+		if not nombre then
+			local id = tonumber(fila.key)
+			local hecho, resultado = pcall(function()
+				return Jugadores:GetNameFromUserIdAsync(id)
+			end)
+			nombre = (hecho and resultado) or "?"
+			nombresPorId[fila.key] = nombre
+		end
+		if #nombre > 14 then
+			nombre = string.sub(nombre, 1, 13) .. "."
+		end
+		lineas[#lineas + 1] = string.format("%2d  %-14s %8s", puesto, nombre, A.formatear(fila.value))
+	end
+
+	if #lineas == 0 then
+		etiquetaTabla.Text = A.texto("en", "tablaVacia")
+	else
+		etiquetaTabla.Text = table.concat(lineas, "\n")
+	end
+end
+
+
 RemotoComprar.OnServerEvent:Connect(function(jugador, tipo, clave)
 	local estado = estados[jugador]
 	if not estado or not estado.cargado then
@@ -852,6 +1083,8 @@ RemotoComprar.OnServerEvent:Connect(function(jugador, tipo, clave)
 		comprarMejora(jugador, estado, clave)
 	elseif tipo == "renacer" then
 		hacerRenacer(jugador, estado)
+	elseif tipo == "codigo" then
+		canjearCodigo(jugador, estado, clave)
 	end
 end)
 
@@ -1169,6 +1402,7 @@ local function alEntrar(jugador)
 	end
 
 	estado.cargado = true
+	comprobarPremio(jugador, estado)
 	refrescarMarcador(jugador, estado)
 	task.spawn(comprobarPases, jugador, estado)
 
@@ -1181,6 +1415,7 @@ local function alEntrar(jugador)
 end
 
 local function alSalir(jugador)
+	subirRecord(jugador, estados[jugador])
 	guardar(jugador)
 	estados[jugador] = nil
 end
@@ -1256,6 +1491,7 @@ local function ticGuardado()
 	for _, jugador in ipairs(lista) do
 		if estados[jugador] then
 			guardar(jugador)
+			subirRecord(jugador, estados[jugador])
 			task.wait(0.2)
 		end
 	end
@@ -1272,6 +1508,8 @@ Jugadores.PlayerRemoving:Connect(alSalir)
 
 construirMundo()
 conectarPuertas()
+construirTabla()
+task.spawn(refrescarTabla)
 
 Jugadores.CharacterAutoLoads = true
 for _, jugador in ipairs(Jugadores:GetPlayers()) do
@@ -1291,6 +1529,7 @@ bucle("recogida", A.jugador.tic, ticJuego)
 bucle("nieve", 1, ticNieve)
 bucle("estado", 0.3, ticEstado)
 bucle("guardado", A.guardado.cada, ticGuardado)
+bucle("records", A.records.refresco, refrescarTabla)
 
 game:BindToClose(function()
 	for _, jugador in ipairs(Jugadores:GetPlayers()) do

@@ -77,20 +77,22 @@ No a ojo: hay un simulador que juega una partida entera solo
 con los números de ahora:
 
 ```
-   3 min 20 s   se abre LA ACERA                  (302 monedas/min)
-  11 min 46 s   se abre EL PARQUE              (2.176 monedas/min)
-  22 min 55 s   se abre EL APARCAMIENTO       (12.930 monedas/min)
-  30 min 45 s   botas al máximo               (57.740 monedas/min)
-  37 min 07 s   se abre LA MONTAÑA            (68.463 monedas/min)
-  40 min 18 s   carretilla al máximo         (341.444 monedas/min)
-  41 min 43 s   pala al máximo               (327.657 monedas/min)
-  50 min 07 s   primer RENACER               (327.077 monedas/min)
+   2 min 25 s   se abre LA ACERA                  (260 monedas/min)
+  10 min 40 s   se abre EL PARQUE              (2.159 monedas/min)
+  21 min 54 s   se abre EL APARCAMIENTO       (14.017 monedas/min)
+  28 min 38 s   botas al máximo               (53.888 monedas/min)
+  35 min 56 s   se abre LA MONTAÑA            (63.758 monedas/min)
+  39 min 07 s   carretilla al máximo         (290.003 monedas/min)
+  40 min 33 s   pala al máximo               (163.062 monedas/min)
+  48 min 54 s   primer RENACER               (327.297 monedas/min)
 
   el parón más largo sin nada nuevo: 11 min
 ```
 
-La primera mejora cae a los **8 segundos**. Eso es lo más importante de
-toda la tabla: quien no compra algo en el primer minuto, se va.
+La primera mejora se compra **en el primer minuto**: el premio de
+bienvenida da para ella de sobra, y la siguiente se gana enseguida. Eso es
+lo más importante de toda la tabla — quien no compra nada en el primer
+minuto, se va.
 
 La primera versión de estos números era mucho peor y el simulador lo
 cazó: **media hora sin nada nuevo** antes de la última zona, y las tres
@@ -135,6 +137,29 @@ se note bien, no mal.
 Es la alternativa barata a darle a cada jugador su propia parcela, que es
 lo que hacen los grandes y multiplica por veinte las piezas del mapa.
 
+## Volver mañana
+
+Un juego de estos no se pierde por el primer minuto: se pierde por el
+segundo día. Tres cosas, y las tres pesan más que cualquier mejora nueva.
+
+**Premio diario.** Al entrar, si es un día nuevo, cobras. Y el premio no
+son monedas fijas: son **250 bloques de tu mejor zona**, así que vale algo
+el primer día y sigue valiendo algo veinte horas de juego después. La
+racha sube con cada día seguido y multiplica el premio hasta ×7; si tardas
+más de 48 horas en volver, vuelve a empezar.
+
+**Códigos.** Se canjean desde el panel de mejoras. Da igual mayúsculas,
+minúsculas o espacios de más. Cada uno vale una vez por jugador y queda
+guardado, así que no se puede repetir al día siguiente. Añadir uno es
+añadir una línea a `Ajustes.codigos` — para soltarlos en TikTok y que la
+gente los busque.
+
+**Tabla de récords.** Un poste al lado de la salida con los diez que más
+nieve han recogido en total. Ordenada por lo único que **no** se borra al
+renacer, para que renacer no te cueste el puesto. Se relee cada 90
+segundos y los nombres se cachean, que `GetNameFromUserIdAsync` está
+limitado.
+
 ## Cómo está montado
 
 Tres archivos, y cada uno tiene un trabajo:
@@ -178,22 +203,36 @@ No hay Roblox Studio donde escribí esto, así que hay un Roblox de mentira
 señales, atributos, DataStore — más un planificador de corrutinas que
 imita `task.wait()` y deja adelantar el reloj a voluntad.
 
-Con eso, el código del servidor corre **tal cual, sin tocarle una línea**:
+Con eso, el código corre **tal cual, sin tocarle una línea** — y no solo
+el servidor: el LocalScript también se carga, construye su HUD y recibe
+los paquetes de verdad, así que se puede comprobar lo que acaba escrito en
+pantalla.
 
 ```bash
-node nieve/herramientas/probar.mjs         # 69 comprobaciones
-node nieve/herramientas/probar.mjs ritmo   # la partida entera, cronometrada
+node nieve/herramientas/probar.mjs           # 90 comprobaciones del servidor
+node nieve/herramientas/probar.mjs cliente   # 42 del HUD, ejecutado
+node nieve/herramientas/probar.mjs ritmo     # la partida entera, cronometrada
 ```
 
 Hace falta el intérprete `luau` en el PATH
 ([releases](https://github.com/luau-lang/luau/releases)).
 
-Qué comprueba: que el mundo se construya entero; que al pisar la nieve se
-recoja y al llegar al camión se cobre; que no se compre sin dinero; que
-colarse en una zona cerrada no dé nada; que la nieve vuelva; que la
-partida se guarde y se recupere; que un fallo de DataStore no pise la
-partida buena; que renacer haga lo que dice y no se pueda hacer antes de
-tiempo; y que al apagar el servidor no se pierda a nadie.
+Qué comprueba el servidor: que el mundo se construya entero; que al pisar
+la nieve se recoja y al llegar al camión se cobre; que no se compre sin
+dinero; que colarse en una zona cerrada no dé nada; que la nieve vuelva;
+que la partida se guarde y se recupere; que un fallo de DataStore no pise
+la partida buena; que renacer haga lo que dice y no se pueda hacer antes
+de tiempo; que el premio diario pague una vez al día y la racha suba y se
+caiga cuando toca; que un código no se pueda canjear dos veces ni
+sobrevivir a un cierre de sesión; y que al apagar el servidor no se pierda
+a nadie.
+
+Qué comprueba el cliente: que el HUD se construya entero; que el dinero,
+la carga, la zona y el porcentaje limpio se pinten con lo que manda el
+servidor; que la barra diga "llena" cuando toca; que el panel abra y
+cierre; que los avisos aparezcan, no se pisen entre ellos y se borren
+solos; que los carteles del mundo salgan en el idioma del jugador; y que
+canjear un código desde la caja llegue al servidor y vuelva.
 
 El entorno de mentira además exige que toda propiedad de Roblox empiece
 por mayúscula, que es como cazó un error de verdad antes de llegar a
@@ -201,15 +240,17 @@ Studio.
 
 ## Qué está probado y qué no
 
-**Probado, ejecutando el código:** toda la lógica de arriba, 69
-comprobaciones en verde, más el análisis estático de Luau
-(`luau-analyze`) sobre los tres archivos.
+**Probado, ejecutando el código:** toda la lógica de arriba y el HUD
+entero — 132 comprobaciones en verde entre servidor y cliente — más el
+análisis estático de Luau (`luau-analyze`) sobre los tres archivos.
 
 **Sin probar, porque hace falta Studio:** cómo se ve. Que la pala quede
 bien cogida en la mano, que los carteles floten a la altura correcta, que
-el HUD no se solape con los botones del móvil, que la nieve cayendo no
-cueste FPS en un teléfono viejo. Nada de eso rompe el juego, pero seguro
-que hay dos o tres cosas que retocar en la primera partida de verdad.
+el panel no se salga en una pantalla de móvil estrecha, que la nieve
+cayendo no cueste FPS en un teléfono viejo. El HUD se construye y se
+actualiza bien — eso está comprobado — pero que *se vea* bien es otra
+cosa, y seguro que hay dos o tres cosas que retocar en la primera partida
+de verdad.
 
 Ahí es donde entra tu playtest.
 
@@ -218,14 +259,9 @@ Ahí es donde entra tu playtest.
 El juego está entero y se puede publicar tal cual. Lo que separa "está
 publicado" de "tiene jugadores":
 
-- **Pases.** El hueco ya está hecho (`Ajustes.pases`): creas el pase en
-  la web, pegas su id y ya funciona. Los dos de siempre: dinero x2 y
-  carretilla x2.
-- **Premio diario.** Volver mañana tiene que dar algo. Es lo más barato
-  que existe para que la gente vuelva.
-- **Codigos.** Para poder soltarlos en TikTok y que se busquen.
-- **Tabla de récords.** Ya se manda al marcador de Roblox (monedas, nieve
-  y renaceres); falta la global, con DataStore ordenado.
+- **Pases.** Lo único que necesita algo tuyo: el hueco ya está hecho
+  (`Ajustes.pases`), creas el pase en la web, pegas su id y funciona. Los
+  dos de siempre: dinero ×2 y carretilla ×2.
 - **La miniatura y el nombre.** En Roblox esto pesa tanto como el juego.
   Una imagen que se entienda a tamaño de sello y un nombre que la gente
   escriba en el buscador.

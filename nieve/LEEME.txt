@@ -102,12 +102,37 @@ suelto en los otros dos archivos.
                     velocidad
   Ajustes.mundo     cada cuanto vuelve a nevar
   Ajustes.renacer   el reinicio con premio
+  Ajustes.diario    el premio de cada dia
+  Ajustes.codigos   los codigos que se pueden canjear
 
 Cambias un numero, le das a PLAY y ya se ve. No
 hay que compilar nada.
 
 Para hacerlo mas facil: sube valor en Ajustes.zonas.
 Para hacerlo mas largo: sube precio.
+
+
+-------------------------------------------
+  LOS CODIGOS
+-------------------------------------------
+
+Se canjean desde el panel de MEJORAS, abajo del
+todo. Vienen tres puestos de ejemplo:
+
+  NIEVE  ·  GRACIAS  ·  PRIMERANEVADA
+
+Para cambiarlos o anadir mas, en AjustesNieve:
+
+  Ajustes.codigos = {
+      { clave = "LOQUESEA", bloques = 500 },
+  }
+
+"bloques" no son monedas: son bloques de nieve de
+tu mejor zona. Asi el mismo codigo sirve para uno
+que empieza y para uno que lleva veinte horas.
+
+Cada codigo vale una vez por jugador y queda
+guardado.
 
 
 -------------------------------------------
@@ -138,12 +163,14 @@ Hay un banco de pruebas que ejecuta el servidor
 de verdad fuera de Roblox:
 
     node nieve/herramientas/probar.mjs
+    node nieve/herramientas/probar.mjs cliente
     node nieve/herramientas/probar.mjs ritmo
 
-El primero comprueba que todo funciona (69
-comprobaciones). El segundo juega una partida
-entera solo y dice cuanto tarda en llegar a cada
-zona, que es lo que de verdad hay que vigilar.
+El primero comprueba el servidor (90 comprobaciones)
+y el segundo el HUD (42), cargando el LocalScript de
+verdad. El tercero juega una partida entera solo y
+dice cuanto tarda en llegar a cada zona, que es lo
+que de verdad hay que vigilar.
 
 Hace falta el interprete luau en el PATH:
 https://github.com/luau-lang/luau/releases

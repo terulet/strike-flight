@@ -56,33 +56,8 @@ for _, def in ipairs(A.mejoras) do
 	descMejora[def.clave] = A.nombre(def.desc, idioma)
 end
 
-local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx" }
-
-local function formatear(numero)
-	local n = math.floor(tonumber(numero) or 0)
-	if n < 1000 then
-		return tostring(n)
-	end
-	local valor = n
-	local i = 1
-	while valor >= 1000 and i < #SUFIJOS do
-		valor = valor / 1000
-		i = i + 1
-	end
-	local texto
-	if valor < 10 then
-		texto = string.format("%.2f", valor)
-	elseif valor < 100 then
-		texto = string.format("%.1f", valor)
-	else
-		texto = string.format("%.0f", valor)
-	end
-	if string.find(texto, "%.") then
-		texto = string.gsub(texto, "0+$", "")
-		texto = string.gsub(texto, "%.$", "")
-	end
-	return texto .. SUFIJOS[i]
-end
+-- El formateo de numeros vive en los ajustes: lo comparten HUD y carteles.
+local formatear = A.formatear
 
 
 -------------------------------------------------------------------
@@ -327,13 +302,18 @@ redondear(botonRenacer, 16)
 
 local panelMejoras = panel({
 	Name = "PanelMejoras",
-	Size = UDim2.new(0, 380, 0, 372),
+	Size = UDim2.new(0, 380, 0.82, 0),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundColor3 = FONDO,
 	BackgroundTransparency = 0.05,
 	Visible = false,
 }, pantalla)
+
+nuevo("UISizeConstraint", {
+	MaxSize = Vector2.new(380, 520),
+	MinSize = Vector2.new(300, 260),
+}, panelMejoras)
 
 etiqueta({
 	Name = "Titulo",
@@ -359,12 +339,20 @@ local botonCerrar = nuevo("TextButton", {
 }, panelMejoras)
 redondear(botonCerrar, 12)
 
-local lista = nuevo("Frame", {
+local lista = nuevo("ScrollingFrame", {
 	Name = "Lista",
 	Size = UDim2.new(1, -28, 1, -70),
 	Position = UDim2.new(0, 14, 0, 58),
 	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ScrollBarThickness = 6,
+	ScrollBarImageColor3 = ACENTO,
 }, panelMejoras)
+
+nuevo("UIPadding", { PaddingRight = UDim.new(0, 10) }, lista)
 
 nuevo("UIListLayout", {
 	Padding = UDim.new(0, 10),
@@ -486,6 +474,78 @@ local botonRenacerPanel = nuevo("TextButton", {
 }, filaRenacer)
 redondear(botonRenacerPanel, 12)
 
+
+-------------------------------------------------------------------
+--  CODIGOS
+-------------------------------------------------------------------
+
+local filaCodigo = panel({
+	Name = "codigo",
+	Size = UDim2.new(1, 0, 0, 88),
+	BackgroundColor3 = Color3.fromRGB(18, 34, 28),
+	BackgroundTransparency = 0.1,
+	LayoutOrder = 100,
+	__radio = 12,
+}, lista)
+
+etiqueta({
+	Name = "Nombre",
+	Size = UDim2.new(1, -28, 0, 22),
+	Position = UDim2.new(0, 14, 0, 8),
+	Text = T("codigos"),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextColor3 = VERDE,
+	TextSize = 17,
+	Font = Enum.Font.GothamBlack,
+}, filaCodigo)
+
+local cajaCodigo = nuevo("TextBox", {
+	Name = "Caja",
+	Size = UDim2.new(1, -150, 0, 44),
+	Position = UDim2.new(0, 14, 0, 34),
+	BackgroundColor3 = Color3.fromRGB(10, 16, 26),
+	BorderSizePixel = 0,
+	Text = "",
+	PlaceholderText = T("codigoCaja"),
+	PlaceholderColor3 = Color3.fromRGB(122, 138, 160),
+	ClearTextOnFocus = false,
+	TextColor3 = BLANCO,
+	Font = Enum.Font.GothamBold,
+	TextSize = 16,
+}, filaCodigo)
+redondear(cajaCodigo, 10)
+
+local botonCodigo = nuevo("TextButton", {
+	Name = "Canjear",
+	Size = UDim2.new(0, 124, 0, 44),
+	Position = UDim2.new(1, -12, 0, 34),
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = VERDE,
+	BorderSizePixel = 0,
+	Text = T("canjear"),
+	TextColor3 = Color3.fromRGB(8, 24, 14),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 16,
+	AutoButtonColor = true,
+}, filaCodigo)
+redondear(botonCodigo, 12)
+
+local function enviarCodigo()
+	local texto = cajaCodigo.Text
+	if texto and texto ~= "" then
+		RemotoComprar:FireServer("codigo", texto)
+		cajaCodigo.Text = ""
+	end
+end
+
+botonCodigo.Activated:Connect(enviarCodigo)
+cajaCodigo.FocusLost:Connect(function(intro)
+	if intro then
+		enviarCodigo()
+	end
+end)
+
+
 local function alternarPanel(abierto)
 	panelMejoras.Visible = abierto
 end
@@ -518,10 +578,21 @@ local function aviso(texto, color)
 	if texto == nil or texto == "" then
 		return
 	end
+
+	-- Si ya hay avisos en el aire, este sale un poco mas arriba: dos
+	-- mensajes a la vez no pueden caer en el mismo sitio.
+	local vivos = 0
+	for _, hijo in ipairs(pantalla:GetChildren()) do
+		if hijo.Name == "Aviso" then
+			vivos = vivos + 1
+		end
+	end
+	local desvio = math.min(vivos, 3) * 46
+
 	local nota = etiqueta({
 		Name = "Aviso",
 		Size = UDim2.new(0, 320, 0, 44),
-		Position = UDim2.new(0.5, 0, 0.62, 0),
+		Position = UDim2.new(0.5, 0, 0.62, -desvio),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Text = texto,
 		TextColor3 = color or BLANCO,
@@ -531,7 +602,7 @@ local function aviso(texto, color)
 	nuevo("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 3, Transparency = 0.4 }, nota)
 
 	Tween:Create(nota, TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, -desvio),
 		TextTransparency = 1,
 	}):Play()
 	task.delay(1.3, function()
@@ -561,12 +632,16 @@ local function etiquetarCartel(gui)
 		return
 	end
 	local tipo = gui:GetAttribute("tipo")
-	local texto = gui:FindFirstChild("Texto", true)
-	if not texto then
-		return
-	end
 	if tipo == "vender" then
-		texto.Text = T("vender")
+		local texto = gui:FindFirstChild("Texto", true)
+		if texto then
+			texto.Text = T("vender")
+		end
+	elseif tipo == "records" then
+		local titulo = gui:FindFirstChild("Titulo", true)
+		if titulo then
+			titulo.Text = T("records")
+		end
 	end
 end
 
@@ -714,6 +789,19 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 			(nombreMejora[datos.clave] or "") .. " " .. string.format(T("nivel"), datos.nivel or 1),
 			ACENTO
 		)
+	elseif datos.tipo == "diario" then
+		aviso(T("diario") .. "  +" .. formatear(datos.cantidad or 0), ORO)
+		pcall(function()
+			sonidoVenta:Play()
+		end)
+		task.delay(1.4, function()
+			aviso(string.format(T("diarioRacha"), datos.racha or 1), VERDE)
+		end)
+	elseif datos.tipo == "codigo" then
+		aviso("+" .. formatear(datos.cantidad or 0), VERDE)
+		pcall(function()
+			sonidoVenta:Play()
+		end)
 	elseif datos.tipo == "renacer" then
 		aviso(T("renacer") .. " x" .. tostring((datos.nivel or 0) + 1), ORO)
 	end
