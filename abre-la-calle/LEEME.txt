@@ -1,0 +1,171 @@
+===========================================
+  ABRE LA CALLE
+  (segunda vertical)
+===========================================
+
+Cayo la mayor nevada de la historia y solo asoma
+una chimenea. La primera vertical terminaba al
+encontrar tu puerta. Esta empieza ahi y acaba
+descubriendo que hay alguien mas ahi abajo.
+
+Sigue sin ser el juego entero: es una sesion de
+diez minutos, de principio a fin, sin tienda, sin
+renacimiento y sin guardado. Si esta sesion
+engancha, hay juego.
+
+Las versiones anteriores siguen enteras:
+    nieve\          quitar nieve de una parcela
+    desenterrar\    encontrar tu puerta
+
+
+-------------------------------------------
+  PROBARLO
+-------------------------------------------
+
+  1. Descarga ABRE-LA-CALLE.rbxlx
+  2. Doble clic (o File > Open from File)
+  3. PLAY
+
+Apareces en suelo firme. Delante tienes un palo
+naranja clavado en un monton: es la marca del
+buzon. Empieza por ahi.
+
+CAVAR ES MANTENER PULSADO: raton, tecla E, o el
+boton grande de la derecha. Quieto no pasa nada.
+(El espacio NO cava: el espacio salta.)
+
+Q cambia de herramienta, cuando tengas dos.
+
+
+-------------------------------------------
+  EL GUION
+-------------------------------------------
+
+  1  ENCUENTRA LA PUERTA DE TU CASA
+     Se abre sola, sale luz calida y arranca el
+     humo de la chimenea.
+
+  2  DESENTIERRA EL GARAJE
+     La persiana se enrolla y dentro hay algo.
+
+  3  COGE LA SOPLADORA
+     No se compra: esta tirada en el garaje y hay
+     que ir a por ella.
+
+  4  ABRE LA ENTRADA HASTA LA CARRETERA
+     Al pisar el asfalto se encienden las farolas
+     y, al otro lado, empieza a salir humo de una
+     casa enterrada.
+
+  5  ALGUIEN VIVE AHI ENFRENTE
+     Desentierras su entrada. Y hasta aqui llega
+     esta version.
+
+Nunca hay un menu: siempre hay una frase que dice
+que estas buscando y un numero que dice cuanta
+nieve le queda encima.
+
+
+-------------------------------------------
+  LAS DOS HERRAMIENTAS
+-------------------------------------------
+
+No es la misma con otro nombre:
+
+  PALA       cuchara redonda, poca superficie,
+             pero LLEGA AL SUELO. Es la unica que
+             descubre algo.
+
+  SOPLADORA  franja ancha por delante, se come
+             las capas de arriba a toda velocidad
+             y escupe la nieve a un lado dejando
+             montones. Pero no raspa el suelo:
+             siempre deja un colchon.
+
+O sea: la sopladora abre la calle, la pala
+descubre lo que hay debajo. Hacen falta las dos,
+y por eso la sopladora no deja obsoleta la pala.
+
+
+-------------------------------------------
+  LO QUE HAY QUE MIRAR
+-------------------------------------------
+
+  - Se entiende que hacer sin leer nada?
+  - Cuando se abre la puerta, se nota?
+  - La sopladora se siente distinta de la pala?
+  - La calle parece enterrada de verdad?
+  - Al llegar al asfalto, apetece seguir?
+  - Se hace largo en algun momento?
+
+Ritmo medido con el simulador:
+
+  0:05   TU BUZON
+  0:22   EL TEJADO
+  0:29   EL PORCHE
+  1:45   UNA VENTANA
+  4:02   ¡LA PUERTA DE TU CASA!
+  6:18   ¡EL GARAJE!
+  6:20   COGE LA SOPLADORA
+  8:18   ¡LA CARRETERA!
+ 10:00   ¡LA CASA DEL VECINO!
+
+moviendo 7.249 capas de nieve de las 18.724 que
+hay: no hay que limpiarlo todo, hay que abrirse
+paso.
+
+
+-------------------------------------------
+  LA REGLA QUE LO SOSTIENE TODO
+-------------------------------------------
+
+Al bajar una casilla no se puede abrir un escalon
+de mas de dos capas con ninguna de sus ocho
+vecinas. O sea: para bajar hay que ensanchar.
+
+Eso hace imposible cavarse un pozo del que no se
+sale, y hace que las rampas se formen solas.
+
+Efecto de lado que conviene saber: solo se cava
+en lo mas alto. Por eso el manto nace plano y
+alto, y por eso el buzon esta debajo de un
+monton: si estuviera en lo bajo, seria lo ultimo
+que aparece en vez de lo primero.
+
+
+-------------------------------------------
+  TOCAR LOS NUMEROS
+-------------------------------------------
+
+Todo en Ajustes:
+
+  nieve.capasMaximas        lo hondo que esta todo
+  nieve.capasContraLaCasa   el ventisquero de casa
+  sitio.capasCarretera      lo enterrada que esta
+                            la calle
+  sitio.czCasa / czCarretera / czVecino
+                            donde esta cada cosa
+  herramientas.pala         cuchara, alcance, ritmo
+  herramientas.sopladora    franja, y el colchon
+                            que nunca raspa
+  capitulos                 el guion, en orden
+
+
+-------------------------------------------
+  PRUEBAS
+-------------------------------------------
+
+    node abre-la-calle/herramientas/probar.mjs
+    node abre-la-calle/herramientas/probar.mjs medir
+
+La primera comprueba 115 cosas. Las que mandan:
+
+  - pase lo que pase, dos casillas vecinas no
+    acaban con mas de dos capas de diferencia
+  - la pala llega al suelo y la sopladora no
+  - quieto y sin pulsar no se cava, con ninguna
+    de las dos
+  - los ocho hallazgos saltan, y en orden
+
+La segunda juega una partida entera y dice si el
+ritmo cae donde tenia que caer.
