@@ -404,6 +404,17 @@ local function decorarZona(zona, padre)
 	end
 end
 
+-- Las casas, los arboles y el camion si proyectan sombra: es lo que hace
+-- que el sitio no parezca de carton. Los bloques de nieve no, que son casi
+-- tres mil y eso si se nota en un movil.
+local function sombrasEnDecorado(grupo)
+	for _, obj in ipairs(grupo:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name ~= "Parcela" and obj.Name ~= "PuntoVenta" then
+			obj.CastShadow = true
+		end
+	end
+end
+
 local function construirPuertas()
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "Puertas"
@@ -481,6 +492,7 @@ local function ambientar()
 	Luz.FogEnd = 1100
 	Luz.FogStart = 220
 	Luz.GeographicLatitude = 60
+	Luz.GlobalShadows = true
 
 	if not Luz:FindFirstChildOfClass("Atmosphere") then
 		local aire = Instance.new("Atmosphere")
@@ -521,6 +533,7 @@ local function construirMundo()
 		construirNieve(zona, grupo)
 		construirCamion(zona, grupo)
 		decorarZona(zona, grupo)
+		sombrasEnDecorado(grupo)
 	end
 
 	construirPuertas()

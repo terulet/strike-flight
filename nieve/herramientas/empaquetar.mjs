@@ -53,6 +53,11 @@ const sitio = `<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi
   <Item class="Lighting" referent="${ref()}">
     <Properties>
       <string name="Name">Lighting</string>
+      <!-- 3 = ShadowMap. Sin esto Roblox coge la iluminacion vieja
+           ("Compatibilidad"), que esta obsoleta, y Studio saca un dialogo
+           de migracion la primera vez que se abre el sitio. -->
+      <token name="Technology">3</token>
+      <bool name="GlobalShadows">true</bool>
     </Properties>
   </Item>
   <Item class="ReplicatedStorage" referent="${ref()}">
