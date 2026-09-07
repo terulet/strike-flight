@@ -1,0 +1,281 @@
+===========================================
+  EL BARRIO DESPIERTA
+  LISTA PARA JUGAR UNA PARTIDA ENTERA
+  EN ROBLOX STUDIO
+===========================================
+
+El simulador mide tiempos y las pruebas miden
+reglas. Ninguno de los dos ve nada. Esto es lo
+que hay que mirar con los ojos, una vez, de
+principio a fin.
+
+Marca lo que falle y dimelo tal cual: "el paso 14
+no pasa".
+
+Tardas unos 20 minutos en hacerla entera.
+
+
+-------------------------------------------
+  ANTES DE EMPEZAR
+-------------------------------------------
+
+[ ]  1. Abre EL-BARRIO-DESPIERTA.rbxlx (doble
+        clic, o File > Open from File).
+
+[ ]  2. Home > Game Settings > Security >
+        Enable Studio Access to API Services:
+        ENCENDIDO.
+        Sin esto no hay guardado en la nube. El
+        juego funciona igual, pero el paso 26
+        no se puede comprobar.
+
+[ ]  3. Dale a PLAY (F5). El Output no debe
+        sacar ningun error rojo.
+
+[ ]  4. En el Output tiene que salir:
+        "[barrio] 5 parcelas listas, ..."
+
+
+-------------------------------------------
+  LOS PRIMEROS DOS MINUTOS
+-------------------------------------------
+
+[ ]  5. Apareces fuera de la nieve, en hierba,
+        mirando a tu parcela.
+
+[ ]  6. Delante, a unos treinta pasos, asoma un
+        palo con la punta naranja. Y detras, muy
+        al fondo, una chimenea de ladrillo.
+        ¿Se ven las dos cosas sin girar la
+        camara?
+
+[ ]  7. Arriba a la izquierda pone
+        "ESTA ES TU PARCELA".
+
+[ ]  8. Arriba en el centro:
+        "ENCUENTRA LA PUERTA DE TU CASA".
+
+[ ]  9. Anda hasta el palo naranja y MANTEN
+        PULSADO el raton (o E, o el boton azul
+        de la derecha).
+        - La pala baja y salta nieve.
+        - Suelta: se para en seco.
+        - Corre por encima sin pulsar: no
+          recoges nada.
+
+[ ] 10. A los pocos segundos sale
+        "HAS DESCUBIERTO TU BUZON".
+        ¿Se ve el buzon rojo debajo?
+
+
+-------------------------------------------
+  TU CASA  (minuto 4)
+-------------------------------------------
+
+[ ] 11. Cava hacia la chimenea. Van saliendo, en
+        este orden: EL TEJADO, EL PORCHE, UNA
+        VENTANA. Cada uno cuando esa pieza asoma
+        de verdad, no antes.
+
+[ ] 12. Cuando la carretilla se llene, el HUD se
+        pone rojo. Vete al monton azul del
+        lateral: se vacia y pagan.
+
+[ ] 13. Si te empenas en cavar en el mismo hoyo,
+        sale "AQUI YA NO BAJAS: ensancha el
+        hoyo". Suelta o camina: el aviso se va.
+
+[ ] 14. Al descubrir LA PUERTA DE TU CASA:
+        - la puerta GIRA sobre su bisagra
+        - sale luz calida por el hueco
+        - empieza a salir humo de la chimenea
+        - se oye la casa por dentro
+        ¿Emociona, aunque sea un poco?
+
+
+-------------------------------------------
+  LA SOPLADORA  (minuto 5-6)
+-------------------------------------------
+
+[ ] 15. Nuevo objetivo: DESENTIERRA EL GARAJE.
+        Esta al lado, con un muro de nieve mas
+        alto delante.
+
+[ ] 16. Al descubrirlo, la persiana se enrolla
+        hacia arriba y se enciende la bombilla.
+
+[ ] 17. Dentro hay una sopladora naranja con su
+        cartel. Acercate: se te pone en las
+        manos sola. Ni tienda ni compra.
+
+[ ] 18. Pulsa Q. Cambia de pala a sopladora.
+        - la sopladora barre una franja ANCHA
+          por delante, no un circulo
+        - escupe nieve por el tubo, a un lado
+        - va dejando montones a los lados
+        - no llena la carretilla
+        - cuando solo queda el colchon del
+          fondo, avisa: "lo que queda es para la
+          PALA (Q)"
+
+
+-------------------------------------------
+  LA CALLE  (minuto 7-12)
+-------------------------------------------
+
+[ ] 19. Objetivo: ABRE LA ENTRADA HASTA LA
+        CARRETERA. Delante de tu casa hay un
+        MURO de nieve prensada, mucho mas alto
+        que el resto. ¿Se ve que es un muro y no
+        mas nieve?
+
+[ ] 20. A mitad de camino aparece TU COCHE
+        enterrado en la entrada. Los faros dan
+        un destello y pita una vez.
+
+[ ] 21. Al llegar al asfalto:
+        - se enciende la fila entera de farolas
+        - empieza a salir humo de una casa al
+          otro lado de la calle
+        - se enciende una luz floja en sus
+          ventanas
+        - una SILUETA aparece en un cristal y lo
+          GOLPEA cada pocos segundos
+        ¿Se entiende sin leer nada que hay que ir
+        hacia alli?
+
+
+-------------------------------------------
+  EL VECINO  (minuto 14-17)
+-------------------------------------------
+
+[ ] 22. Objetivo: ABRE UN CAMINO HASTA EL
+        VECINO. Cruza la calle y desentierra sus
+        escalones y su puerta.
+
+[ ] 23. Al descubrirla:
+        - su puerta se abre
+        - deja de golpear el cristal
+        - SALE, y se queda en el escalon
+        - lleva algo dorado en la mano
+        ¿Dura pocos segundos? ¿Te ha quitado el
+        control en algun momento? (no deberia)
+
+[ ] 24. Poco despues aparece un QUITANIEVES
+        naranja aparcado en la calle, un poco
+        mas alla de tu entrada.
+
+
+-------------------------------------------
+  EL QUITANIEVES  (minuto 17-22)
+-------------------------------------------
+
+[ ] 25. Andale encima o toca el asiento. Al
+        sentarte:
+        - desaparece la herramienta de la mano
+        - abajo sale "W/S para andar, A/D para
+          girar"
+        - y dos botones: RECUPERAR y BAJAR
+
+[ ] 26. Conduce calle abajo con W.
+        - limpia una franja ANCHA, de lado a
+          lado de la calzada
+        - empuja la nieve a los dos lados y deja
+          montones grandes
+        - sale chorro de nieve por delante
+
+[ ] 27. Intenta meterte por el jardin o contra
+        una casa: NO PASA. Se para.
+
+[ ] 28. Intenta romper el muro de tu entrada con
+        la maquina: tampoco. Ese muro es de pala
+        y sopladora.
+
+[ ] 29. Pulsa RECUPERAR: vuelve a la calzada sin
+        perder nada.
+
+[ ] 30. Sigue limpiando hasta la PLAZA. Al
+        llegar:
+        - se ilumina el cartel del pueblo, medio
+          enterrado
+        - desde ahi se ven tejados y chimeneas
+          hasta el fondo, algunas humeando
+        ¿Apetece seguir? Esa es toda la pregunta.
+
+
+-------------------------------------------
+  QUE NO SE PIERDA  (importante)
+-------------------------------------------
+
+[ ] 31. Con la partida a medias, para el juego
+        (Stop) y vuelve a darle a PLAY.
+        Tiene que volver TODO:
+        - el dinero
+        - el objetivo por donde ibas
+        - la nieve exactamente como la dejaste
+        - la puerta abierta si la abriste
+        - el garaje abierto
+        - el vecino fuera
+        - el quitanieves aparcado
+        - la sopladora en las manos
+
+[ ] 32. En el Output tiene que salir
+        "[barrio] guardado (al salir) de ... en
+        nube".
+
+[ ] 33. Ahora APAGA Enable Studio Access to API
+        Services y vuelve a jugar.
+        - el juego arranca igual
+        - arriba a la izquierda avisa: "SIN
+          GUARDADO (Studio)"
+        - el Output explica como encenderlo
+        - NO se rompe nada
+
+
+-------------------------------------------
+  DOS JUGADORES  (importante)
+-------------------------------------------
+
+[ ] 34. Test > Clients and Servers > 2 players >
+        Start.
+
+[ ] 35. Cada uno aparece en SU parcela, lejos
+        del otro. En el cartel de cada salida
+        pone el nombre de su dueno.
+
+[ ] 36. Que uno se vaya a la parcela del otro.
+        Arriba a la izquierda le tiene que poner
+        "ayudando a <nombre>".
+
+[ ] 37. Que cave alli:
+        - la nieve baja de la parcela del otro
+        - el dinero se lo lleva EL QUE CAVA
+        - el objetivo que ve es el del dueno
+
+[ ] 38. Que los dos caven en el MISMO sitio a la
+        vez, un buen rato. Despues mira:
+        - no aparecen escalones imposibles
+        - no hay nieve que salga de la nada
+        - ninguno cobra dos veces
+
+[ ] 39. Que el ayudante intente coger la
+        sopladora del dueno: no puede.
+
+[ ] 40. Que el ayudante se vaya. Su parcela
+        vuelve a quedar entera y con nieve para
+        el siguiente.
+
+
+-------------------------------------------
+  Y LO ULTIMO
+-------------------------------------------
+
+[ ] 41. ¿Se hace largo en algun momento?
+        ¿Donde exactamente?
+
+[ ] 42. ¿Hay algun tramo de mas de cuatro o
+        cinco minutos en el que no pase nada
+        visible?
+
+[ ] 43. Si tuvieras que ensenarselo a alguien,
+        ¿que parte le ensenarias?

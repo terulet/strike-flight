@@ -1,0 +1,24 @@
+{
+  "name": "el-barrio-despierta",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Ajustes": { "$path": "src/ReplicatedStorage/Ajustes.luau" },
+      "Parcela": { "$path": "src/ReplicatedStorage/Parcela.luau" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Mundo": { "$path": "src/ServerScriptService/Mundo.luau" },
+      "Guardado": { "$path": "src/ServerScriptService/Guardado.luau" },
+      "Juego": { "$path": "src/ServerScriptService/Juego.server.luau" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Cliente": { "$path": "src/StarterPlayer/StarterPlayerScripts/Cliente.client.luau" }
+      }
+    }
+  }
+}

@@ -1,0 +1,251 @@
+===========================================
+  EL BARRIO DESPIERTA
+  (tercera vertical)
+===========================================
+
+Las dos anteriores demostraron que desenterrar
+engancha. Esta hace dos cosas que faltaban antes
+de anadir mas contenido:
+
+  - que la partida NO SE PIERDA al salir
+  - que se pueda jugar acompanado
+
+Y encima de eso, la continuacion: rescatas al
+vecino, te da las llaves de un quitanieves
+municipal, y abres la calle hasta la plaza del
+pueblo.
+
+Las versiones anteriores siguen enteras:
+    nieve\             quitar nieve de una parcela
+    desenterrar\       encontrar tu puerta
+    abre-la-calle\     la sopladora y el vecino
+
+
+-------------------------------------------
+  PROBARLO
+-------------------------------------------
+
+  1. Descarga EL-BARRIO-DESPIERTA.rbxlx
+  2. Doble clic (o File > Open from File)
+  3. Game Settings > Security > Enable Studio
+     Access to API Services: ENCENDIDO
+     (sin esto se juega igual, pero no se
+     guarda: el juego te lo dice)
+  4. PLAY
+
+Y despues, con calma, PARTIDA-A-MANO.txt: es una
+lista de 43 cosas para mirar jugando una partida
+entera. El simulador mide tiempos, pero no ve
+nada; eso hay que mirarlo con los ojos.
+
+CAVAR ES MANTENER PULSADO: raton, tecla E, o el
+boton grande de la derecha. El espacio NO cava:
+el espacio salta.
+Q cambia de herramienta. Al quitanieves te subes.
+
+
+-------------------------------------------
+  CINCO PARCELAS, UNA POR JUGADOR
+-------------------------------------------
+
+Hay cinco parcelas en fila, separadas. Al entrar
+coges una libre y esa es la tuya: tu casa, tu
+garaje, tus herramientas y tu guion. Apareces
+siempre delante de TU nevada.
+
+Cualquiera puede entrar en la parcela de otro a
+quitarle nieve. Ayudar no es fastidiar:
+
+  - la nieve que quitas baja de la parcela de él
+  - el dinero se lo lleva quien cava
+  - los hallazgos y las herramientas son del
+    dueno: el que ayuda no se lleva su sopladora
+
+Y dos cavando en el mismo sitio no pueden romper
+nada: comprobar y bajar una casilla van seguidos,
+sin ceder el hilo, asi que no hay forma de bajar
+la misma casilla dos veces ni de cobrarla dos
+veces. Hay una prueba automatica que cuenta las
+capas movidas y lo que se llevan entre los dos:
+tiene que cuadrar exactamente.
+
+
+-------------------------------------------
+  QUE SE GUARDA
+-------------------------------------------
+
+  - el dinero
+  - por donde iba el guion
+  - los hallazgos completados
+  - las herramientas desbloqueadas
+  - puerta, garaje, farolas, vecino, quitanieves
+  - la nieve entera de tu parcela
+
+Lo que NO se guarda, porque se vuelve a construir
+solo: la casa, las luces, el humo, las
+particulas, los montones de adorno.
+
+La nieve son 5.520 casillas. No van ni una a una
+ni en una lista enorme: van por TRAMOS ("seis
+capas, cuarenta veces"). Una parcela recien
+nevada cabe en trece caracteres; una muy cavada,
+en unos pocos miles.
+
+Todo con esquema versionado y UpdateAsync, con
+cuatro reintentos esperando 1, 2, 4 y 8 segundos,
+y guardando al salir, al cerrar el servidor y
+cada minuto y medio. Si otro servidor ha escrito
+despues que tu, gana el suyo.
+
+Y si el DataStore no esta (Studio sin API
+Services), NO se rompe la partida: se guarda en
+memoria mientras dure el servidor, se avisa una
+vez en el Output y otra en el HUD, y a jugar.
+
+
+-------------------------------------------
+  LAS TRES HERRAMIENTAS
+-------------------------------------------
+
+Ninguna se compra. Las tres se encuentran dentro
+del mundo, y cada una cambia COMO se juega:
+
+  PALA         cuchara redonda, poca superficie,
+               pero LLEGA AL SUELO. Es la unica
+               que descubre algo.
+               (la tienes desde el principio)
+
+  SOPLADORA    franja ancha por delante, se come
+               las capas de arriba a toda
+               velocidad y escupe la nieve a un
+               lado. Pero deja un colchon: nunca
+               raspa el suelo.
+               (tirada en tu garaje)
+
+  QUITANIEVES  se conduce. Limpia la calzada de
+               lado a lado y empuja la nieve a
+               los dos lados en montones enormes.
+               Pero solo pisa calle: contra una
+               casa o contra un ventisquero, se
+               para.
+               (te lo deja el vecino al que
+                acabas de desenterrar)
+
+El quitanieves va anclado y lo mueve el servidor
+casilla a casilla. Por eso no puede volcar, ni
+colarse dentro de una casa, ni salir disparado
+por un bache: lo que decide por donde pasa no es
+la fisica, es el modelo. Y si aun asi se queda
+atrapado, el boton RECUPERAR lo devuelve a la
+calzada sin perder nada.
+
+Nada de combustible, ni averias, ni pagos.
+
+
+-------------------------------------------
+  EL GUION
+-------------------------------------------
+
+  buzon > tejado > porche > ventana > PUERTA
+                                        |
+                                     GARAJE  ->  sopladora
+                                        |
+                                    tu COCHE
+                                        |
+                                   LA CARRETERA
+                                        |
+                      farolas, humo enfrente, y
+                      alguien golpeando un cristal
+                                        |
+                                    EL VECINO  ->  las llaves
+                                        |
+                                     LA PLAZA
+                                        |
+                      el cartel del pueblo medio
+                      enterrado, y tejados y
+                      chimeneas hasta el fondo
+
+Nunca hay un menu. Siempre hay una frase que dice
+que estas buscando y un numero que dice cuanta
+nieve le queda encima.
+
+
+-------------------------------------------
+  EL RITMO
+-------------------------------------------
+
+Medido con el simulador, jugando una partida
+entera:
+
+  0:06   TU BUZON
+  0:37   EL TEJADO
+  0:37   EL PORCHE
+  1:23   UNA VENTANA
+  3:47   ¡LA PUERTA DE TU CASA!
+  4:47   ¡EL GARAJE!
+  4:49   COGE LA SOPLADORA
+  7:03   ¡TU COCHE!
+ 11:36   ¡LA CARRETERA!
+ 15:33   ¡LA PUERTA DEL VECINO!
+ 15:38   SE SUBE AL QUITANIEVES
+ 19:31   ¡LA PLAZA DEL PUEBLO!
+
+moviendo 11.000 capas de las 38.000 que hay: no
+hay que limpiarlo todo, hay que abrirse paso.
+
+Lo mas largo sin que pase nada visible: 4:33.
+
+OJO CON ESTOS NUMEROS: el simulador es un
+excavador perfecto. Nunca duda, siempre sabe cual
+es la mejor casilla y no da un paso de mas. Una
+persona tarda mas. Los tiempos de arriba son el
+suelo, no la media.
+
+
+-------------------------------------------
+  TOCAR LOS NUMEROS
+-------------------------------------------
+
+Todo en Ajustes:
+
+  parcela.cuantas           cuantas parcelas hay
+  nieve.capasContraLaCasa   el ventisquero de casa
+  nieve.capasContraElGaraje el muro del garaje
+  sitio.capasCarretera      el muro de tu entrada
+  sitio.capasCalzada        la calle, que es lo
+                            unico que puede pisar
+                            el quitanieves
+  sitio.cxPlaza             lo larga que es la calle
+  herramientas.*.potencia   lo que rinde cada una
+  capitulos                 el guion, en orden
+  esquema                   subelo si cambias la
+                            forma del mundo: lo
+                            guardado deja de
+                            encajar y se rehace la
+                            nevada (el dinero y
+                            los hallazgos se
+                            conservan)
+
+
+-------------------------------------------
+  PRUEBAS
+-------------------------------------------
+
+    node el-barrio-despierta/herramientas/probar.mjs
+    node el-barrio-despierta/herramientas/probar.mjs medir
+
+La primera comprueba 133 cosas. Las que mandan:
+
+  - la pendiente aguanta pase lo que pase, tambien
+    con dos jugadores cavando a la vez
+  - lo que se llevan entre los dos cuadra
+    exactamente con lo que se ha quitado
+  - la sopladora es del dueno, no del que ayuda
+  - la nieve se guarda y se recupera casilla por
+    casilla, y lo de otra version se descarta
+  - sin DataStore se juega igual
+  - el quitanieves solo pisa calle, no atraviesa
+    casas ni ventisqueros, y se recupera
+
+La segunda juega una partida entera y dice si el
+ritmo cae donde tenia que caer.
