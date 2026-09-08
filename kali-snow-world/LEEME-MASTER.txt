@@ -1,0 +1,251 @@
+===========================================
+  KALI SNOW WORLD
+  MASTER 1.0
+===========================================
+
+Una sola version. Un solo archivo. Se abre, se
+le da a Play y se juega entera de principio a
+fin sin cambiar de mapa ni abrir nada mas.
+
+    KALI-SNOW-WORLD-MASTER.rbxlx
+
+Al arrancar, lo primero que sale por el Output:
+
+    =====================================
+      KALI SNOW WORLD MASTER 1.0
+      esquema de guardado 1 · almacen KaliSnowWorld_v1_DEV
+    =====================================
+
+Si eso no sale, lo que se esta ejecutando no es
+esto.
+
+
+-------------------------------------------
+  PONERLO EN MARCHA
+-------------------------------------------
+
+  1. Doble clic en el .rbxlx (o Studio >
+     File > Open from File)
+  2. Home > Game Settings > Security >
+     Enable Studio Access to API Services:
+     ENCENDIDO
+  3. View > Output, para ver los mensajes
+  4. PLAY (F5)
+
+Desde Studio se guarda SIEMPRE en un almacen
+aparte con sufijo _DEV. Encender el acceso a la
+API para probar no puede pisar la partida de
+nadie que este jugando de verdad.
+
+CAVAR ES MANTENER PULSADO: raton, tecla E, o el
+boton grande de la derecha. El espacio NO cava:
+el espacio salta.
+Q cambia de herramienta. Al quitanieves te subes.
+
+Y si lo que quieres es meter el codigo en un
+sitio de Roblox que ya tengas, en vez del .rbxlx
+usa KALI-SNOW-WORLD-MASTER.rbxmx: clic derecho en
+Workspace > Insert from File, y arrastra lo de
+dentro de cada carpeta al servicio que dice su
+nombre.
+
+
+-------------------------------------------
+  LO QUE HAY, EN ORDEN
+-------------------------------------------
+
+   1. Desenterrar tu casa hasta la puerta
+   2. Abrir el garaje
+   3. Coger la sopladora que hay dentro
+   4. Abrir la carretera (el ventisquero que
+      la maquina municipal te dejo en la
+      entrada)
+   5. Rescatar al vecino
+   6. Coger el quitanieves que te da
+   7. Abrir la calle hasta la plaza
+   8. LA GRAN TORMENTA
+   9. El ayuntamiento y el mapa de los tres
+      distritos que aun estan enterrados
+
+Los ocho primeros son una sola cadena de
+objetivos: cada uno se abre al cumplir el
+anterior, no hay ninguno suelto ni ninguno que
+dependa de nada de fuera.
+
+
+-------------------------------------------
+  LO NUEVO DE ESTA VERSION
+-------------------------------------------
+
+Cuatro cosas que no cambian ninguna regla y
+cambian entera la sensacion de la pala:
+
+CAVAR ES APUNTAR
+  La pala muerde DELANTE, a diez studs, no
+  alrededor de tus pies. Y el cliente te pinta un
+  circulo azul en el sitio exacto donde va a
+  morder antes de que des el golpe: apuntas, ves
+  donde, y cavas ahi. Lo que tienes detras se
+  queda donde esta aunque lo tengas pegado.
+
+  Antes la pala quitaba la nieve mas alta de un
+  circulo alrededor tuyo. Funcionaba, pero no se
+  sentia como cavar: se sentia como que la nieve
+  desaparecia sola por estar cerca.
+
+LA CARRETILLA SE VE
+  Va detras de ti, y se le ve el monton subir con
+  lo que llevas. Cuando asoma por encima del
+  borde, es que esta llena y toca ir a vaciar: se
+  sabe sin leer ningun numero. Con la sopladora
+  no hay carretilla, porque la sopladora no carga
+  nada, escupe la nieve a un lado.
+
+HUELLAS
+  Se te marcan las pisadas en la nieve, y las del
+  que venga a echarte una mano. Solo en la nieve:
+  en el asfalto y en la hierba no queda huella, y
+  eso hace medio trabajo solo, porque se ve de un
+  vistazo por donde queda nieve y por donde ya
+  has pasado.
+
+  Se pintan en tu maquina, no en el servidor: no
+  cuestan red y nunca hay mas de 56 en el mundo.
+
+EL MONTON YA NO TAPA LA DESCARGA
+  Este era un fallo de verdad, de los que matan
+  una partida por dentro sin que se note hasta la
+  hora de juego: el monton donde vacias la
+  carretilla crecia CENTRADO en el punto de
+  descarga, y al cabo de una partida entera se lo
+  comia. A partir de ahi ya no se podia vaciar, y
+  con la carretilla llena la pala no quita nieve.
+  Un juego de mover nieve que acaba sin poder
+  mover nieve.
+
+  Ahora el monton crece hacia AFUERA. La cara de
+  dentro se queda clavada a 17 studs del centro,
+  crezca lo que crezca, y se vacia a 14: no puede
+  taparlo ni queriendo. Y los montones que hace
+  la sopladora tampoco se forman encima de un
+  punto de descarga.
+
+Y lo de siempre, que sigue siendo verdad:
+ANDAR NO QUITA NIEVE. Hay una prueba automatica
+que cruza una parcela nevada andando y comprueba
+que no ha bajado ni una capa.
+
+
+-------------------------------------------
+  UNA SOLA VERSION DE CADA COSA
+-------------------------------------------
+
+Siete scripts, y ni uno mas:
+
+  ReplicatedStorage
+      Ajustes      todos los numeros del juego
+      Parcela      el modelo de la nieve
+  ServerScriptService
+      Mundo        levanta el pueblo
+      Guardado     DataStore
+      Tormenta     el evento
+      Juego        el servidor
+  StarterPlayer/StarterPlayerScripts
+      Cliente      HUD, mandos y adornos
+
+Un solo sistema de nieve, un solo sistema de
+parcelas, un solo HUD, un solo guardado, un solo
+controlador de herramientas, cinco remotos con
+nombres distintos, una sola cadena de objetivos.
+
+Esto no es un pegote de prototipos: los
+prototipos de las carpetas nieve\, desenterrar\,
+abre-la-calle\, el-barrio-despierta\ y
+la-gran-tormenta\ se quedan como copia de
+seguridad y NO forman parte de este archivo.
+
+
+-------------------------------------------
+  LA AUDITORIA
+-------------------------------------------
+
+  node herramientas/auditar.mjs
+
+Comprueba sola, y falla si no cuadra:
+
+  - que hay siete scripts y ninguno repetido
+  - que no hay dos remotos con el mismo nombre,
+    ni el cliente espera ninguno que nadie cree
+  - que cada herramienta se concede en un solo
+    sitio
+  - que el almacen es propio y no queda ni el
+    nombre de ningun prototipo
+  - que en Studio va con _DEV
+  - que no se busca nada que no vaya dentro del
+    RBXLX, y que no se depende de ningun asset
+    subido a una cuenta
+  - que cada capitulo tiene una condicion que se
+    puede cumplir (un objetivo imposible dejaria
+    la partida clavada para siempre)
+  - que el monton no puede tapar la descarga
+  - que la version sale por el Output
+
+Ahora mismo sale limpia.
+
+Lo que la auditoria NO puede demostrar es que la
+historia se TERMINE. Eso lo demuestran las otras
+dos:
+
+  node herramientas/probar.mjs      210 pruebas
+  node herramientas/probar.mjs medir    ritmo, 1
+  node herramientas/probar.mjs medir 2  ritmo, 2
+
+El simulador juega la partida entera, de la
+primera palada al camion de la tormenta, con el
+codigo del servidor de verdad. Si algo dejara la
+historia bloqueada, no llegaria al final.
+
+Hace falta el interprete "luau" en el PATH.
+
+
+-------------------------------------------
+  EL RITMO MEDIDO
+-------------------------------------------
+
+  lo primero que aparece     0:05
+  la puerta de tu casa       4:55
+  la sopladora en la mano    5:19
+  pisar la carretera        11:00
+  el vecino rescatado       16:08
+  el quitanieves            16:14
+  la plaza del pueblo       20:07
+  y nunca se pasan cinco minutos sin que pase
+  algo visible (lo peor: 4:45)
+
+  la tormenta, un jugador   10:53 - 12:04
+  la tormenta, dos           6:50 -  9:02
+
+Los ocho hitos de la historia caen dentro de lo
+que se buscaba, los ocho. La tormenta con un
+jugador se mueve entre 10:53 y 12:04: dentro,
+rozando el techo en la peor tirada. Con dos, la
+media cae en la ventana (sobre 8:10) pero una
+tormenta suelta baila entre 6:50 y 9:02 segun que
+bloqueos toquen y como se repartan: es variacion
+del reparto entre dos, no del evento, y lo digo
+tal cual en vez de ensenar solo la media.
+
+
+-------------------------------------------
+  LO QUE NO PUEDO COMPROBAR YO
+-------------------------------------------
+
+Las pruebas corren el codigo del servidor de
+verdad, pero contra un Roblox de mentira: no
+dibujan nada, no oyen nada y no juegan con las
+manos. La carretilla, las huellas y el circulo de
+la pala tienen prueba de que EXISTEN y de que
+cambian cuando deben; que se vean bien hay que
+mirarlo.
+
+Para eso esta PARTIDA-A-MANO-MASTER.txt.

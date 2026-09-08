@@ -1,0 +1,297 @@
+===========================================
+  KALI SNOW WORLD MASTER 1.0
+  LISTA PARA JUGAR UNA PARTIDA ENTERA
+  EN ROBLOX STUDIO
+===========================================
+
+La auditoria mira el codigo, las pruebas miran
+las reglas y el simulador mira el reloj. Ninguno
+de los tres ve nada, ni oye nada, ni juega con
+las manos. Esto es lo que hay que mirar con los
+ojos, una vez, de principio a fin.
+
+Marca lo que falle y dimelo tal cual: "el paso 23
+no pasa".
+
+Tardas unos 35 minutos: 20 la historia y 11 la
+tormenta. Ten un cronometro para el paso 42.
+
+
+-------------------------------------------
+  ANTES DE EMPEZAR
+-------------------------------------------
+
+[ ]  1. Abre KALI-SNOW-WORLD-MASTER.rbxlx (doble
+        clic, o File > Open from File).
+
+[ ]  2. Home > Game Settings > Security >
+        Enable Studio Access to API Services:
+        ENCENDIDO.
+
+[ ]  3. View > Output.
+
+[ ]  4. PLAY (F5). Ningun error rojo.
+
+[ ]  5. Lo primero que sale por el Output:
+
+          =============================
+            KALI SNOW WORLD MASTER 1.0
+            esquema de guardado 1 ·
+            almacen KaliSnowWorld_v1_DEV
+          =============================
+
+        Si no sale, o si el almacen no acaba en
+        _DEV, PARA: probar desde Studio estaria
+        pisando partidas de verdad.
+
+[ ]  6. Y despues:
+        "[kali] 5 parcelas listas, ..."
+
+
+-------------------------------------------
+  LA PALA (lo nuevo)
+-------------------------------------------
+
+[ ]  7. Apareces fuera de la nieve, en hierba,
+        mirando a tu parcela. Delante asoma un
+        palo naranja y al fondo una chimenea:
+        ¿se ven los dos sin girar la camara?
+
+[ ]  8. Llevas una CARRETILLA detras. Se ve.
+
+[ ]  9. Delante de ti, pegado al suelo, hay un
+        CIRCULO AZUL: es donde va a morder la
+        pala.
+
+[ ] 10. Gira sobre ti mismo. El circulo se mueve
+        contigo y siempre queda DELANTE, nunca
+        debajo de tus pies.
+
+[ ] 11. Ponte mirando a la nieve y manten pulsado
+        el raton. Se cava DENTRO del circulo, no
+        a tu alrededor.
+
+[ ] 12. Ponte de espaldas a un monton de nieve,
+        con el circulo en suelo pelado, y cava.
+        La nieve que tienes DETRAS no baja.
+
+[ ] 13. Sueltas y para de cavar. El espacio
+        SALTA, no cava.
+
+[ ] 14. ANDA por encima de la nieve sin pulsar
+        nada, cruzando de lado a lado. No
+        desaparece ni un poco de nieve.
+
+[ ] 15. Mira atras: se te han quedado HUELLAS en
+        la nieve.
+
+[ ] 16. Sal a la hierba o al asfalto y anda: ahi
+        NO se marca ninguna huella.
+
+[ ] 17. Espera medio minuto y mira las primeras
+        huellas: se han ido borrando solas.
+
+[ ] 18. Cava un rato seguido y mira la
+        carretilla: el monton de dentro CRECE.
+
+[ ] 19. Sigue hasta llenarla. La barra de carga
+        se pone al tope y la pala deja de quitar
+        nieve.
+
+[ ] 20. Vete al punto azul de descarga (hay dos
+        al lado de tu casa y uno al otro extremo
+        del pueblo). Se vacia, suena, y la
+        carretilla vuelve a verse VACIA.
+
+[ ] 21. Mira el monton de nieve del punto de
+        descarga: esta AL LADO, no encima. Se
+        puede entrar y salir del circulo azul sin
+        chocar con el.
+
+[ ] 22. Cava en un hoyo sin ensanchar. Sale
+        "ENSANCHA EL HOYO", y ese aviso
+        DESAPARECE solo al moverte o al soltar.
+
+
+-------------------------------------------
+  LA HISTORIA  (no sigas si algo falla)
+-------------------------------------------
+
+[ ] 23. Aparece "¡LA PUERTA DE TU CASA!" y la
+        puerta se abre de verdad, con luz dentro.
+
+[ ] 24. Se queda abierta. No se vuelve a cerrar
+        en toda la partida.
+
+[ ] 25. Por el camino van saliendo el tejado, el
+        porche, una ventana, el buzon, tu coche.
+
+[ ] 26. Aparece "¡EL GARAJE!", se abre, y dentro
+        hay una sopladora. Te acercas y la coges.
+
+[ ] 27. Q cambia entre pala y sopladora. Con la
+        sopladora NO llevas carretilla (no carga
+        nada: escupe la nieve a un lado y hace
+        montones).
+
+[ ] 28. Raspa un escalon con la sopladora: NO lo
+        deja pelado, siempre deja una capa. Eso
+        es de pala. Las tres herramientas hacen
+        cosas distintas.
+
+[ ] 29. Aparece "¡LA CARRETERA!". Pisas asfalto.
+
+[ ] 30. Enfrente hay una casa con luz floja, humo
+        y una silueta golpeando el cristal.
+        ¿Se oye el golpe?
+
+[ ] 31. Desentierras su puerta: "¡LA PUERTA DEL
+        VECINO!". Sale con las llaves.
+
+[ ] 32. Aparece un quitanieves. Te subes.
+
+[ ] 33. Se conduce con W/A/S/D, aparta nieve en
+        ancho y la deja en montones a los lados.
+
+[ ] 34. Intenta meterlo en el jardin o contra la
+        casa: NO puede. Solo pisa calle.
+
+[ ] 35. Intenta romper con el el ventisquero de
+        tu entrada: tampoco. Ese es de pala.
+
+[ ] 36. Abre la calle hasta "¡LA PLAZA DEL
+        PUEBLO!", con el cartel medio enterrado.
+
+
+-------------------------------------------
+  QUE NO SE PIERDA
+-------------------------------------------
+
+[ ] 37. STOP y PLAY. Vuelve todo: tu parcela, la
+        nieve como la dejaste, la puerta abierta,
+        el garaje, la sopladora y el quitanieves.
+
+[ ] 38. En el Output sale "[kali] guardado (...)
+        de <tu nombre> en nube". Si pone "en
+        local", el paso 2 no esta hecho.
+
+
+-------------------------------------------
+  LA TORMENTA
+-------------------------------------------
+
+[ ] 39. Al poco de llegar a la plaza salta
+        "AVISO METEOROLOGICO / vuelve a nevar. Y
+        fuerte".
+
+[ ] 40. El cielo se cierra, sube el viento y
+        empieza a caer nieve. Se tiene que VER
+        llegar: nada de pantalla negra ni manto
+        de golpe. Y se ve a traves: no te tapa el
+        pueblo.
+
+[ ] 41. Las farolas parpadean.
+
+[ ] 42. ARRANCA EL CRONOMETRO. El objetivo pasa a
+        "MANTEN ABIERTA LA RUTA DE EMERGENCIA" y
+        salen los bloqueos, cada uno con la
+        herramienta que pide.
+
+[ ] 43. MIRA TU PUERTA. Y el garaje, el buzon, el
+        coche y la puerta del vecino.
+        NO puede haber caido nieve encima de
+        ninguno. Ni un copo.
+        Este paso es el que decide si la tormenta
+        vale para algo.
+
+[ ] 44. Los bloqueos piden las tres: la calzada
+        no se puede con la sopladora, los
+        escalones no se pueden con la sopladora,
+        y a las aceras el quitanieves ni entra.
+
+[ ] 45. Si sale UN ARBOL CAIDO: no hay forma de
+        quitarlo. Hay que abrir el arcen y
+        rodear.
+
+[ ] 46. Nunca pasan mas de dos minutos sin que
+        pase algo.
+
+[ ] 47. Con la ruta abierta sale "EL CAMION YA
+        VIENE" y el camion ENTRA CONDUCIENDO
+        hasta la plaza.
+
+[ ] 48. PARA EL CRONOMETRO. Deberian ser entre 10
+        y 12 minutos jugando solo. Apunta el
+        numero y dime que bloqueos te salieron.
+
+[ ] 49. "LA TORMENTA HA PASADO": el cielo se
+        abre y la nieve nueva se derrite POR
+        TROZOS, no de golpe.
+
+[ ] 50. Cuando acaba, el pueblo esta como estaba.
+        La calle que abriste sigue abierta.
+
+[ ] 51. Sale "TU QUITANIEVES LLEVA AHORA LUZ DE
+        EMERGENCIA". Vete a verlo: gira una luz
+        naranja.
+
+[ ] 52. Sale "EL AYUNTAMIENTO HA ABIERTO". Entra:
+        en la pared hay un mapa con LA ESCUELA,
+        LA GASOLINERA y EL PARQUE DE BOMBEROS.
+        Estan enterrados y no se puede ir: es un
+        anzuelo, no una fase.
+
+[ ] 53. STOP y PLAY. Vuelven la reputacion, la
+        tormenta contada, la baliza y el
+        ayuntamiento. Y NO vuelve la nieve de
+        tormenta.
+
+
+-------------------------------------------
+  ACOMPANADO
+-------------------------------------------
+
+Test > Clients and Servers > 2 players > Start.
+
+[ ] 54. Cada uno aparece en SU parcela, delante
+        de SU nieve.
+
+[ ] 55. Vete a la parcela del otro y cava: la
+        nieve baja de la de EL, el dinero te lo
+        llevas tu, y no le rompes nada.
+
+[ ] 56. Ves las HUELLAS del otro, no solo las
+        tuyas.
+
+[ ] 57. Estando en su parcela, si el ya ha
+        desenterrado su sopladora, pulsa Q: te la
+        presta. Al volver a la tuya se te cae de
+        la mano y vuelves a la pala.
+
+[ ] 58. Cavad los dos a la vez en casillas
+        pegadas: no se duplica nieve ni dinero, y
+        no queda ningun pozo.
+
+[ ] 59. Los descubrimientos y los desbloqueos son
+        del DUENO de la parcela, no del que cava.
+
+[ ] 60. Cronometra la tormenta entre dos: deberia
+        salir mas corta que jugando solo (7 a 9
+        minutos). Apunta el numero.
+
+[ ] 61. Sal a mitad de tormenta con uno de los
+        dos y vuelve a entrar: conserva historia,
+        herramientas, parcela y reputacion.
+
+
+-------------------------------------------
+  Y LO ULTIMO
+-------------------------------------------
+
+[ ] 62. Cavar con la pala, ahora que se apunta y
+        que se ve la carretilla llenarse,
+        ¿se siente como cavar?
+
+        Si la respuesta es "no", dime en que
+        momento se te cayo. Eso vale mas que
+        cualquier numero de los de arriba.
