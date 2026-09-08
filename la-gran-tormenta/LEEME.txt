@@ -53,6 +53,50 @@ Y despues, con calma, PARTIDA-A-MANO.txt.
 
 
 -------------------------------------------
+  METERLO EN UN SITIO QUE YA TENGAS
+-------------------------------------------
+
+El .rbxlx de arriba ES el sitio entero: se abre
+y se juega. Si en vez de eso quieres injertar el
+codigo en un sitio tuyo, usa el otro archivo:
+
+    LA-GRAN-TORMENTA.rbxmx
+
+Van los siete scripts dentro, y solo eso: el
+pueblo entero (casas, calle, farolas, nieve) lo
+levanta el codigo al arrancar, asi que no hay
+nada que copiar a mano en el Workspace.
+
+  1. En Studio, clic derecho en Workspace >
+     Insert from File > eliges el .rbxmx
+  2. Se te pone una carpeta con tres carpetas
+     dentro, y el nombre de cada una dice a
+     donde va su contenido:
+
+       1 - a ReplicatedStorage
+       2 - a ServerScriptService
+       3 - a StarterPlayer > StarterPlayerScripts
+
+  3. Arrastra lo de DENTRO de cada una a su
+     sitio (no la carpeta: lo de dentro).
+  4. Borra la carpeta vacia que queda.
+  5. Y en Lighting, pon Technology = ShadowMap.
+     Si no, el pueblo se ve plano y Studio saca
+     un aviso de iluminacion vieja.
+
+Donde va cada cosa importa y no es manía:
+Ajustes y Parcela se buscan con
+ReplicatedStorage:WaitForChild(...), que no mira
+dentro de carpetas, y Juego busca a Mundo,
+Guardado y Tormenta como hermanos suyos. Si algo
+cae en el sitio equivocado el juego se queda
+esperando callado, sin dar error.
+
+Se rehace con:
+    node herramientas/empaquetar-modelo.mjs
+
+
+-------------------------------------------
   DOS NIEVES, NO UNA
 -------------------------------------------
 
