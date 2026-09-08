@@ -1323,102 +1323,22 @@ local function polvoEn(padre, ancho)
 	return e
 end
 
--- LA CARRETILLA, QUE SE VE. La carga era un numero en una esquina del
--- HUD: llegabas al tope sin enterarte y de pronto la pala dejaba de
--- quitar nieve sin decir por que. Ahora la llevas detras, se le ve el
--- monton crecer, y cuando asoma por encima del borde ya sabes que toca
--- ir a vaciar sin haber leido nada.
---
--- Va SOLDADA al torso, no la mueve el servidor: soldada no cuesta red,
--- no se queda atras al correr y no puede empujar a nadie.
-local function verLaCarga(estado)
-	local caja = estado.carretillaNieve
-	if not caja or not caja.Parent then
+-- LO QUE LLEVAS EN LA CARRETILLA, DICHO EN UN ATRIBUTO. La carretilla la
+-- dibuja el cliente (ver Cliente.client.luau): asi va suelta detras de
+-- ti con su retraso, la rueda gira y se inclina al vaciar, sin que nada
+-- de eso cueste red ni pueda atascarse con la fisica. El servidor solo
+-- publica cuanto llevas, de cero a uno, y eso se replica solo a todo el
+-- mundo: por eso se ve tambien la carretilla del que viene a ayudarte.
+local function verLaCarga(jugador, estado)
+	local pers = jugador and jugador.Character
+	if not pers then
 		return
 	end
-	local C = A.carretilla
 	local parte = math.clamp((estado.carga or 0) / A.jugador.capacidad, 0, 1)
-	local alto = C.montonMinimo + (C.montonMaximo - C.montonMinimo) * parte
-	caja.Size = Vector3.new(C.cajaAncho - 0.35, alto, C.cajaLargo - 0.4)
-	local u = caja:FindFirstChildOfClass("Weld")
-	if u then
-		u.C1 = CFrame.new(0, -(C.cajaAlto / 2) + alto / 2 - 0.1, 0)
-	end
-end
-
-local function darCarretilla(pers, estado)
-	local vieja = pers:FindFirstChild("Carretilla")
-	if vieja then
-		vieja:Destroy()
-	end
-	estado.carretillaNieve = nil
-	-- Solo con la pala. La sopladora escupe la nieve a un lado y el
-	-- quitanieves la empuja: ninguna de las dos llena nada, y arrastrar
-	-- una carretilla vacia con ellas seria mentir sobre lo que hacen.
-	if estado.herramienta ~= "pala" or estado.conduciendo then
-		return
-	end
-	local raiz = pers:FindFirstChild("HumanoidRootPart")
-	if not raiz then
-		return
-	end
-	local C = A.carretilla
-
-	local grupo = Instance.new("Model")
-	grupo.Name = "Carretilla"
-	local function trozo(nombre, tam, color, material, forma)
-		local p = Instance.new("Part")
-		p.Name = nombre
-		p.Size = tam
-		p.Color = color
-		p.Material = material or Enum.Material.Metal
-		if forma then
-			p.Shape = forma
-		end
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.Massless = true
-		p.Parent = grupo
-		return p
-	end
-
-	local base = CFrame.new(C.lado, -C.alto, C.atras)
-	local caja = trozo("Caja", Vector3.new(C.cajaAncho, C.cajaAlto, C.cajaLargo),
-		Color3.fromRGB(196, 90, 54))
-	caja.CFrame = raiz.CFrame * base
-	local rueda = trozo("Rueda", Vector3.new(0.4, 1.5, 1.5),
-		Color3.fromRGB(38, 38, 42), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-	rueda.CFrame = caja.CFrame * CFrame.new(0, -1.1, -C.cajaLargo / 2 + 0.3)
-	local pata = trozo("Pata", Vector3.new(0.22, 1.1, 0.22),
-		Color3.fromRGB(150, 152, 158))
-	pata.CFrame = caja.CFrame * CFrame.new(0, -1.1, C.cajaLargo / 2 - 0.3)
-	local nieve = trozo("Nieve", Vector3.new(C.cajaAncho - 0.35, C.montonMinimo, C.cajaLargo - 0.4),
-		Color3.fromRGB(246, 250, 255), Enum.Material.Snow)
-	nieve.CFrame = caja.CFrame
-
-	for _, p in ipairs({ rueda, pata }) do
-		local u = Instance.new("WeldConstraint")
-		u.Part0 = caja
-		u.Part1 = p
-		u.Parent = p
-	end
-	-- La nieve va con Weld (no WeldConstraint) porque hay que MOVERLA
-	-- dentro de la caja segun crece: WeldConstraint no tiene C1.
-	local sujecion = Instance.new("Weld")
-	sujecion.Part0 = caja
-	sujecion.Part1 = nieve
-	sujecion.C1 = CFrame.new(0, -(C.cajaAlto / 2) + C.montonMinimo / 2 - 0.1, 0)
-	sujecion.Parent = nieve
-
-	local alTorso = Instance.new("WeldConstraint")
-	alTorso.Part0 = raiz
-	alTorso.Part1 = caja
-	alTorso.Parent = caja
-
-	grupo.Parent = pers
-	estado.carretillaNieve = nieve
-	verLaCarga(estado)
+	pcall(function()
+		pers:SetAttribute("Carga", parte)
+		pers:SetAttribute("LlevaPala", estado.herramienta == "pala" and not estado.conduciendo)
+	end)
 end
 
 function darHerramienta(jugador, pers, estado)
@@ -1432,7 +1352,10 @@ function darHerramienta(jugador, pers, estado)
 	estado.emisor = nil
 	estado.chorro = nil
 	estado.ruido = nil
-	darCarretilla(pers, estado)
+	estado.golpeSonido = nil
+	estado.destello = nil
+	estado.luzGolpe = nil
+	verLaCarga(jugador, estado)
 	-- Al volante no se lleva nada en la mano.
 	if estado.conduciendo then
 		return
@@ -1532,29 +1455,106 @@ function darHerramienta(jugador, pers, estado)
 
 	estado.motor = motor
 	estado.emisor = polvoEn(hoja, 50)
+
+	-- EL GOLPE SE OYE Y SE VE, y no siempre igual: el volumen y el tono
+	-- suben con lo que se ha conseguido, y la cucharada completa ademas
+	-- destella en dorado. Es la unica forma de que se aprenda donde poner
+	-- la siguiente palada sin llenar la pantalla de numeros.
+	estado.golpeSonido = sonidoDe(hoja, "Golpe", "rbxasset://sounds/action_jump_land.mp3", 0.3, 1, false)
+	local puntoOro = Instance.new("Attachment")
+	puntoOro.Name = "Cucharada"
+	puntoOro.Parent = hoja
+	local oro = Instance.new("ParticleEmitter")
+	oro.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	oro.Color = ColorSequence.new(Color3.fromRGB(255, 214, 122))
+	oro.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	oro.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	oro.Lifetime = NumberRange.new(0.3, 0.55)
+	oro.Speed = NumberRange.new(10, 20)
+	oro.SpreadAngle = Vector2.new(40, 40)
+	oro.Acceleration = Vector3.new(0, -30, 0)
+	oro.Rate = 0
+	oro.Enabled = false
+	oro.Parent = puntoOro
+	estado.destello = oro
+
+	local luz = Instance.new("PointLight")
+	luz.Name = "Cucharada"
+	luz.Color = Color3.fromRGB(255, 206, 110)
+	luz.Brightness = 2.4
+	luz.Range = 12
+	luz.Enabled = false
+	luz.Parent = hoja
+	estado.luzGolpe = luz
+
 	grupo.Parent = pers
 end
 
 -- La pala baja de verdad y salta la nieve. Solo se llama cuando la
 -- palada HA QUITADO algo: animar contra el suelo pelado es mentir.
-local function animarPala(estado)
+--
+-- Y cada palada dice CUANTO ha conseguido, sin numeros en pantalla: una
+-- palada floja hace poco ruido y poca nieve, una buena pega mas fuerte,
+-- y una completa revienta en nieve con un destello dorado. Asi se
+-- aprende mirando donde conviene poner la siguiente.
+--
+-- La bajada es casi instantanea a proposito (cuarenta milisegundos). La
+-- nieve se quita en el momento del golpe, no despues: si la hoja tardara
+-- en llegar, la nieve desapareceria antes de que la tocara.
+local function animarPala(estado, hechas, tope)
 	if not estado.motor then
 		return
 	end
+	local parte = math.clamp((hechas or 1) / math.max(1, tope or 1), 0, 1)
+	local llena = (hechas or 0) >= (tope or 1)
 	pcall(function()
-		Tweens:Create(estado.motor, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Tweens:Create(estado.motor, TweenInfo.new(0.04, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			C0 = PALA_GOLPE,
 		}):Play()
 	end)
-	task.delay(0.14, function()
+	task.delay(0.05, function()
 		if estado.emisor then
 			pcall(function()
-				estado.emisor:Emit(16)
+				estado.emisor:Emit(6 + math.floor(parte * 26))
 			end)
+		end
+		if estado.golpeSonido then
+			pcall(function()
+				estado.golpeSonido.Volume = 0.16 + parte * 0.42
+				estado.golpeSonido.PlaybackSpeed = 0.82 + parte * 0.5
+				estado.golpeSonido.TimePosition = 0
+				estado.golpeSonido:Play()
+			end)
+		end
+		-- La cucharada llena: destello dorado y un puñado mas de nieve.
+		if llena then
+			if estado.destello then
+				pcall(function()
+					estado.destello:Emit(14)
+				end)
+			end
+			if estado.luzGolpe then
+				pcall(function()
+					estado.luzGolpe.Enabled = true
+				end)
+				task.delay(0.16, function()
+					if estado.luzGolpe then
+						pcall(function()
+							estado.luzGolpe.Enabled = false
+						end)
+					end
+				end)
+			end
 		end
 		if estado.motor then
 			pcall(function()
-				Tweens:Create(estado.motor, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Tweens:Create(estado.motor, TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					C0 = PALA_REPOSO,
 				}):Play()
 			end)
@@ -1624,34 +1624,39 @@ local function amontonar(parcela, sitio, tamano, tope)
 	}, parcela.carpeta)
 end
 
--- DONDE MUERDE LA PALA. Delante, a la distancia de un brazo con la pala
--- estirada, no alrededor de los pies. Lo calculan igual el servidor (para
--- cavar) y el cliente (para pintar la cuchara antes del golpe): si cada
--- uno lo hiciera a su manera, verias la marca en un sitio y se cavaria en
--- otro, que es peor que no pintar nada.
-local function bocaDeLaPala(pos, mirada, def)
-	return Vector3.new(
-		pos.X + mirada.X * def.alcance,
-		pos.Y,
-		pos.Z + mirada.Z * def.alcance
-	)
+-- DONDE MUERDE LA PALA: UN ABANICO POR DELANTE. Ni un circulo alrededor
+-- de los pies (la nieve desaparecia sola por estar cerca) ni un disco de
+-- dieciocho studs (una pala no muerde una piscina). Lo que barre una
+-- pala: de "cerca" a "lejos", abriendo "angulo" a cada lado de donde
+-- miras. El cliente pinta este mismo abanico con estas mismas tres
+-- medidas: si la marca y el mordisco no coinciden, la marca miente.
+local function enElAbanico(dx, dz, mirada, def)
+	local dist2 = dx * dx + dz * dz
+	if dist2 > def.lejos * def.lejos or dist2 < def.cerca * def.cerca then
+		return false
+	end
+	local dist = math.sqrt(dist2)
+	if dist < 0.001 then
+		return false
+	end
+	-- Coseno del angulo entre "hacia donde miro" y "hacia donde esta la
+	-- casilla". Con esto, lo que queda detras no entra JAMAS, ni pegado.
+	local haciaDelante = (dx * mirada.X + dz * mirada.Z) / dist
+	return haciaDelante >= math.cos(math.rad(def.angulo))
 end
 
 local function excavarPala(parcela, pos, def, tope, mirada)
-	local boca = bocaDeLaPala(pos, mirada, def)
-	local radio2 = def.radio * def.radio
-	local cxMin, czMin = parcela:aCasilla(boca.X - def.radio, boca.Z - def.radio)
-	local cxMax, czMax = parcela:aCasilla(boca.X + def.radio, boca.Z + def.radio)
+	local cxMin, czMin = parcela:aCasilla(pos.X - def.lejos, pos.Z - def.lejos)
+	local cxMax, czMax = parcela:aCasilla(pos.X + def.lejos, pos.Z + def.lejos)
 
-	-- Se recogen las casillas de la cuchara y se atacan DE MAS ALTA A MAS
+	-- Se recogen las casillas del abanico y se atacan DE MAS ALTA A MAS
 	-- BAJA: una cuchara mueve una cucharada, no tres casillas sueltas.
 	local candidatas = {}
 	local habiaNieve = false
 	for cx = cxMin, cxMax do
 		for cz = czMin, czMax do
 			local x, z = parcela:centro(cx, cz)
-			local dx, dz = x - boca.X, z - boca.Z
-			if dx * dx + dz * dz <= radio2 then
+			if enElAbanico(x - pos.X, z - pos.Z, mirada, def) then
 				local c = parcela:casilla(cx, cz)
 				if c and not c.muro and c.restante + c.tormenta > 0 then
 					habiaNieve = true
@@ -1792,7 +1797,7 @@ local function excavarPara(jugador, estado, pos, raiz)
 			estado.nieveTotal = estado.nieveTotal + hechas
 		else
 			estado.carga = estado.carga + hechas
-			verLaCarga(estado)
+			verLaCarga(jugador, estado)
 		end
 		revisarHallazgos(parcela)
 	end
@@ -1824,7 +1829,7 @@ local function descargarPara(jugador, estado, pos)
 	estado.nieveTotal = estado.nieveTotal + estado.carga
 	elegido.echado = elegido.echado + estado.carga
 	estado.carga = 0
-	verLaCarga(estado)
+	verLaCarga(jugador, estado)
 
 	-- El monton crece con lo que se le echa: es el marcador de verdad.
 	-- Pero crece HACIA AFUERA. La cara de dentro se queda clavada a
@@ -1845,7 +1850,12 @@ local function descargarPara(jugador, estado, pos)
 		elegido.bola.Position = Vector3.new(centro.X, crecido * 0.18, centro.Z)
 	end
 
-	RemotoAviso:FireClient(jugador, { tipo = "descarga", cantidad = ganado })
+	RemotoAviso:FireClient(jugador, {
+		tipo = "descarga",
+		cantidad = ganado,
+		donde = elegido.sitio,
+		monton = elegido.bola and elegido.bola.Position or elegido.sitio,
+	})
 end
 
 
@@ -2551,6 +2561,9 @@ local function paqueteDe(jugador, estado)
 		},
 		bloqueado = estado.bloqueado == true,
 		soloPala = estado.soloPala == true,
+		-- Para pintar el abanico del color que toca: dorado si la ultima
+		-- palada fue completa, naranja si hay que ensanchar, azul si no.
+		paladaLlena = estado.paladaLlena == true,
 		conduciendo = estado.conduciendo == true,
 		atascado = (estado.conduciendo and aqui and aqui.maquina and aqui.maquina.atascado) == true,
 		ajena = ajena,
@@ -2806,6 +2819,8 @@ local function ticJuego()
 			if not estado.cavando then
 				estado.bloqueado = false
 				estado.soloPala = false
+				estado.paladaLlena = false
+				estado.palada = 0
 			elseif estado.bloqueado and estado.bloqueadoEn then
 				if (Vector3.new(pos.X, 0, pos.Z) - estado.bloqueadoEn).Magnitude > 5 then
 					estado.bloqueado = false
@@ -2823,11 +2838,13 @@ local function ticJuego()
 				-- La herramienta solo se mueve y solo salta nieve si la
 				-- pasada ha QUITADO algo.
 				local hechas = excavarPara(jugador, estado, pos, raiz)
+				estado.palada = hechas
+				estado.paladaLlena = hechas >= def.potencia
 				if hechas > 0 then
 					if estado.herramienta == "sopladora" then
 						animarSopladora(estado)
 					else
-						animarPala(estado)
+						animarPala(estado, hechas, def.potencia)
 					end
 				end
 			end

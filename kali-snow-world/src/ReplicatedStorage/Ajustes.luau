@@ -31,7 +31,7 @@
 
 local Ajustes = {}
 
-Ajustes.version = "KALI SNOW WORLD MASTER 1.0"
+Ajustes.version = "KALI SNOW WORLD MASTER 1.1"
 Ajustes.idiomaFijo = nil
 
 -- Version del GUARDADO, aparte de la del juego. Si cambia la forma del
@@ -169,15 +169,20 @@ Ajustes.herramientas = {
 		orden = 1,
 		nombre = { es = "PALA", en = "SHOVEL" },
 		golpe = 0.42,
-		potencia = 3,
-		-- EXCAVACION DIRIGIDA. La cuchara no cae alrededor de tus pies:
-		-- cae DELANTE, a esta distancia y con este radio. Antes se cavaba
-		-- en un circulo centrado en el jugador y atacando lo mas alto:
-		-- funcionaba, pero no se sentia como cavar, se sentia como que la
-		-- nieve desaparecia sola por estar cerca. Ahora apuntas y cavas
-		-- ahi, y el cliente te pinta la cuchara antes de dar el golpe.
-		alcance = 10,
-		radio = 9,
+		-- Lo que se lleva una palada COMPLETA. Como el abanico es mucho
+		-- mas pequeno que el circulo de antes, cada palada tiene que
+		-- valer mas: si no, apuntar saldria mas lento que cavar a bulto y
+		-- la mejora se sentiria como un castigo.
+		potencia = 6,
+		-- EL ABANICO. No es un circulo alrededor de los pies ni un disco
+		-- de dieciocho studs: es lo que barre una pala por delante de ti,
+		-- de "cerca" a "lejos" y abriendo "angulo" grados a cada lado.
+		-- El cliente dibuja EXACTAMENTE esto, con las mismas tres
+		-- medidas, porque una marca que no coincide con lo que se quita
+		-- es peor que no poner marca.
+		cerca = 3,
+		lejos = 12,
+		angulo = 55,
 		dejaCapas = 0,
 		dejaTormenta = 0,   -- la pala llega hasta el suelo, tambien en tormenta
 	},
@@ -360,28 +365,44 @@ Ajustes.jugador = {
 -------------------------------------------------------------------
 
 Ajustes.carretilla = {
-	-- Va soldada detras del jugador, no la mueve el servidor cada
-	-- fotograma: soldada no cuesta red y no se queda atras al correr.
-	atras = 3.4,
-	lado = 1.6,
-	alto = 1.1,
-	cajaAncho = 3.2,
-	cajaLargo = 4.2,
-	cajaAlto = 1.5,
-	-- Lo que se ve dentro crece con lo que llevas. Al llenarse asoma por
-	-- encima del borde: eso es el aviso de que toca ir a vaciar, y se ve
-	-- sin mirar ningun numero.
-	montonMinimo = 0.25,
-	montonMaximo = 1.9,
+	-- La dibuja el CLIENTE, no el servidor: asi va suelta detras de ti
+	-- con su retraso, la rueda gira, se inclina al vaciar y nada de eso
+	-- cuesta red ni puede atascarse con la fisica. El servidor solo dice
+	-- cuanto llevas (un atributo en el personaje).
+	atras = 4.2,
+	lado = 0,
+	alto = 1.6,
+	-- Que tan rapido alcanza a su sitio. Cuanto mas bajo, mas cuelga
+	-- detras al arrancar y frenar: eso es lo que la hace parecer que
+	-- pesa.
+	seguimiento = 9,
+	giroMaximo = 26,       -- grados que se tuerce al girar tu
+	cajaAncho = 2.6,
+	cajaLargo = 3.4,
+	cajaAlto = 1.25,
+	ruedaRadio = 0.62,
+	montonMinimo = 0.2,
+	montonMaximo = 1.5,
+	-- A partir de aqui se le cae nieve por los bordes: es el aviso de
+	-- que ya no cabe mas, y se ve sin mirar ningun numero.
+	rebosaDesde = 0.85,
+	-- El vaciado: inclinar, soltar, esperar y volver.
+	vuelca = 0.35,
+	posa = 0.3,
+	vuelve = 0.45,
+	inclinacion = 62,      -- grados
 }
 
 Ajustes.huellas = {
 	-- Se pintan en el cliente, no en el servidor: no cuestan red, no se
 	-- replican y no hay mil partes fisicas dando vueltas por el mundo.
-	cuantas = 56,        -- se reciclan: nunca hay mas de estas
-	cada = 2.6,          -- studs andados entre huella y huella
-	vida = 26,           -- segundos hasta que se borra del todo
-	tamano = 1.15,
+	porJugador = 18,     -- se reciclan: nunca hay mas de estas POR CABEZA
+	cada = 2.4,          -- studs andados entre pisada y pisada
+	vida = 24,           -- segundos hasta que se borra del todo
+	largo = 1.5,
+	ancho = 0.75,
+	separacion = 0.85,   -- lo que se aparta cada pie del eje al andar
+	hundida = 0.18,      -- lo que se mete por debajo de la superficie
 }
 
 Ajustes.descarga = {
@@ -541,6 +562,9 @@ Ajustes.textos = {
 		soloPala = "lo que queda es para la PALA (Q)",
 		manten = "MANTEN PULSADO PARA CAVAR",
 		mantenPie = "raton, E, o el boton de la derecha",
+		mantenPC = "MANTEN CLIC O E PARA CAVAR",
+		mantenMando = "MANTEN EL GATILLO DERECHO",
+		gatillo = "RT",
 		ensancha = "AQUI YA NO BAJAS: ensancha el hoyo",
 		tuParcela = "ESTA ES TU PARCELA",
 		ajena = "ayudando a %s",
@@ -588,6 +612,9 @@ Ajustes.textos = {
 		soloPala = "the last of it is SHOVEL work (Q)",
 		manten = "HOLD TO DIG",
 		mantenPie = "mouse, E, or the button on the right",
+		mantenPC = "HOLD CLICK OR E TO DIG",
+		mantenMando = "HOLD THE RIGHT TRIGGER",
+		gatillo = "RT",
 		ensancha = "CANNOT GO DEEPER HERE: widen the pit",
 		tuParcela = "THIS IS YOUR PLOT",
 		ajena = "helping %s",

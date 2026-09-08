@@ -274,7 +274,7 @@ local antesDineroB = estadoDe(beto).dinero
 
 -- Se planta un paso ANTES y mira a la casilla: la pala muerde delante,
 -- no alrededor de los pies.
-beto:Mover(xA - A.herramientas.pala.alcance, 3, zA)
+beto:Mover(xA - (A.herramientas.pala.cerca + A.herramientas.pala.lejos) / 2, 3, zA)
 beto:Mirar(1, 0)
 avanzar(1.2)
 comprobarIgual(estadoDe(beto).ajena, "Ana", "el HUD de Beto dice a quien esta ayudando")
@@ -371,16 +371,22 @@ titulo("LA PALA SE APUNTA, Y SE VE LO QUE LLEVAS")
 -- esta aunque este pegado a ti.
 do
 	local def = A.herramientas.pala
+	local medio = (def.cerca + def.lejos) / 2
 	local cxA, czA = 30, 44
-	rellenar(pA, cxA - 6, czA - 6, cxA + 6, czA + 6, A.nieve.capasMaximas)
+	rellenar(pA, cxA - 8, czA - 8, cxA + 8, czA + 8, A.nieve.capasMaximas)
 	local xA2, zA2 = pA:centro(cxA, czA)
-	-- Ana se planta mirando a +X, con la casilla objetivo justo delante y
-	-- otra igual de cerca justo detras.
-	ana:Mover(xA2 - def.alcance, 3, zA2)
+	-- Ana se planta mirando a +X, con la casilla objetivo justo delante,
+	-- otra igual de lejos justo DETRAS, y otra igual de lejos AL LADO:
+	-- el abanico solo puede llevarse la de delante.
+	local xPie = xA2 - medio
+	ana:Mover(xPie, 3, zA2)
 	ana:Mirar(1, 0)
-	local cxDetras = pA:aCasilla(xA2 - def.alcance * 2, zA2)
+	local cxDetras = pA:aCasilla(xPie - medio, zA2)
+	local _, czLado = pA:aCasilla(xPie, zA2 + medio)
+	local cxLado = pA:aCasilla(xPie, zA2)
 	local delanteAntes = pA:capasEncima(cxA, czA, cxA, czA)
 	local detrasAntes = pA:capasEncima(cxDetras, czA, cxDetras, czA)
+	local ladoAntes = pA:capasEncima(cxLado, czLado, cxLado, czLado)
 
 	RemotoCavar.OnServerEvent:Fire(ana, true)
 	avanzar(3)
@@ -390,7 +396,15 @@ do
 	comprobar(pA:capasEncima(cxA, czA, cxA, czA) < delanteAntes,
 		"lo que tienes delante se cava")
 	comprobarIgual(pA:capasEncima(cxDetras, czA, cxDetras, czA), detrasAntes,
-		"y lo que tienes detras NO se toca")
+		"y lo que tienes detras NO se toca (paso 12 de la lista a mano)")
+	comprobarIgual(pA:capasEncima(cxLado, czLado, cxLado, czLado), ladoAntes,
+		"ni lo que tienes justo al lado, fuera del abanico")
+
+	-- Y la marca que pinta el cliente usa las MISMAS tres medidas: si la
+	-- marca y el mordisco no coincidieran, la marca mentiria.
+	comprobar(def.cerca > 0 and def.lejos > def.cerca and def.angulo > 0 and def.angulo < 90,
+		("el abanico es un abanico: de %d a %d studs, %d grados a cada lado"):format(
+			def.cerca, def.lejos, def.angulo))
 end
 
 -- ANDAR NO QUITA NIEVE. Es la queja mas vieja de todas: si se recoge
@@ -414,10 +428,14 @@ end
 -- quitar nieve sin decir por que. Ahora la llevas detras y se le ve el
 -- monton subir, asi que se sabe sin leer nada.
 do
-	local carro = ana.Character:FindFirstChild("Carretilla")
-	comprobar(carro ~= nil, "con la pala en la mano llevas carretilla")
-	local nieve = carro and carro:FindFirstChild("Nieve")
-	comprobar(nieve ~= nil, "y se le ve la nieve dentro")
+	-- La carretilla la DIBUJA el cliente (por eso va suelta detras, gira
+	-- la rueda y se vuelca al vaciar sin fisica que pueda atascarla).
+	-- Lo que se puede comprobar desde aqui es lo que el servidor le
+	-- cuenta: cuanto llevas y si llevas pala. Si eso se rompiera, la
+	-- carretilla se quedaria mintiendo.
+	local pers = ana.Character
+	comprobar(pers:GetAttribute("LlevaPala") == true,
+		"con la pala en la mano, el personaje lo dice")
 
 	-- Primero se vacia, que de las pruebas de antes viene con algo
 	-- dentro: comparar contra "lo que hubiera" no demuestra nada.
@@ -425,14 +443,14 @@ do
 	ana:Mover(donde.X, 3, donde.Z)
 	avanzar(1.5)
 	comprobarIgual(estadoDe(ana).carga, 0, "en el monton se vacia")
-	local vacia = nieve.Size.Y
-	comprobarIgual(vacia, A.carretilla.montonMinimo, "y vacia se ve vacia")
+	comprobarIgual(pers:GetAttribute("Carga"), 0, "y la carretilla se queda a cero")
 
 	local cxC, czC = 44, 44
-	rellenar(pA, cxC - 5, czC - 5, cxC + 5, czC + 5, A.nieve.capasMaximas)
+	rellenar(pA, cxC - 6, czC - 6, cxC + 6, czC + 6, A.nieve.capasMaximas)
 	comprobar(pA:capasEncima(cxC, czC, cxC, czC) > 0, "(hay nieve donde se va a cavar)")
 	local xC, zC = pA:centro(cxC, czC)
-	ana:Mover(xC - A.herramientas.pala.alcance, 3, zC)
+	local medio = (A.herramientas.pala.cerca + A.herramientas.pala.lejos) / 2
+	ana:Mover(xC - medio, 3, zC)
 	ana:Mirar(1, 0)
 	RemotoCavar.OnServerEvent:Fire(ana, true)
 	avanzar(4)
@@ -440,20 +458,24 @@ do
 	avanzar(0.5)
 
 	comprobar((estadoDe(ana).carga or 0) > 0, "cavando se llena")
-	comprobar(nieve.Size.Y > vacia, "y el monton de la carretilla crece con ella")
+	comprobar((pers:GetAttribute("Carga") or 0) > 0,
+		"y la carretilla se entera de lo que lleva")
 
 	-- Y se vacia otra vez yendo al monton, que es lo que hace el viaje.
 	ana:Mover(donde.X, 3, donde.Z)
 	avanzar(1.5)
 	comprobarIgual(estadoDe(ana).carga, 0, "volviendo al monton se vacia")
-	comprobarIgual(nieve.Size.Y, vacia, "y la carretilla vuelve a verse vacia")
+	comprobarIgual(pers:GetAttribute("Carga"), 0, "y vuelve a quedarse a cero")
+	local ultimo = avisosDe(ana, "descarga")[1]
+	comprobar(ultimo ~= nil and ultimo.monton ~= nil,
+		"y se dice DONDE esta el monton, para volcarla ahi")
 
 	-- Con la sopladora no hay carretilla: la sopladora escupe la nieve a
 	-- un lado, no la carga nadie.
 	if estadoDe(ana).tiene and estadoDe(ana).tiene.sopladora then
 		RemotoHerramienta.OnServerEvent:Fire(ana, "sopladora")
 		avanzar(0.6)
-		comprobarIgual(ana.Character:FindFirstChild("Carretilla"), nil,
+		comprobarIgual(pers:GetAttribute("LlevaPala"), false,
 			"con la sopladora no se arrastra carretilla")
 		RemotoHerramienta.OnServerEvent:Fire(ana, "pala")
 		avanzar(0.6)
@@ -472,7 +494,7 @@ do
 	-- Se fuerza el crecimiento por la via normal: una descarga de verdad.
 	rellenar(pA, 30, 60, 34, 64, A.nieve.capasMaximas)
 	local xD, zD = pA:centro(32, 62)
-	ana:Mover(xD - A.herramientas.pala.alcance, 3, zD)
+	ana:Mover(xD - (A.herramientas.pala.cerca + A.herramientas.pala.lejos) / 2, 3, zD)
 	ana:Mirar(1, 0)
 	RemotoCavar.OnServerEvent:Fire(ana, true)
 	avanzar(3)
@@ -726,7 +748,11 @@ local unaTanda, ratoDeUno = TORMENTA.elegir(zonasDePrueba, 1, azarFijo({ 1, 2, 1
 comprobar(#unaTanda >= 3, "con un jugador salen al menos tres bloqueos")
 comprobar(ratoDeUno <= A.tormenta.trabajoSolo * 1.35,
 	"la tormenta de uno no se pasa del rato que se le ha puesto")
-local otraTanda, ratoDeDos = TORMENTA.elegir(zonasDePrueba, 2, azarFijo({ 2, 1, 3, 1, 2 }))
+-- La MISMA tirada de dados para los dos, que si no se compara una
+-- tormenta con otra distinta y no se demuestra nada: lo unico que
+-- cambia aqui es el presupuesto y lo ancha que va la acera.
+local zonasDeDos = TORMENTA.zonas(PARCELA.registro[1], 1)
+local otraTanda, ratoDeDos = TORMENTA.elegir(zonasDeDos, 2, azarFijo({ 1, 2, 1, 3, 2 }))
 comprobar(ratoDeDos > ratoDeUno,
 	"con dos hay algo mas de faena, pero se reparte: no el doble de nieve")
 comprobar(ratoDeDos < ratoDeUno * 2,

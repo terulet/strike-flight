@@ -338,6 +338,25 @@ local pistaCavarPie = etiqueta({
 	TextColor3 = Color3.fromRGB(206, 224, 246),
 }, pantalla)
 
+-- EL GATILLO, para mando. Un boton redondo de ciento cincuenta pixeles
+-- en una tele con un mando en la mano no lo pulsa nadie: lo que hace
+-- falta ahi es saber QUE gatillo.
+local pistaGatillo = etiqueta({
+	Name = "Gatillo",
+	Size = UDim2.new(0, 66, 0, 66),
+	Position = UDim2.new(1, -40, 1, -140),
+	AnchorPoint = Vector2.new(1, 1),
+	Text = T("gatillo"),
+	TextSize = 28,
+	Font = Enum.Font.GothamBlack,
+	TextColor3 = Color3.fromRGB(8, 16, 28),
+	BackgroundColor3 = Color3.fromRGB(206, 224, 246),
+	BackgroundTransparency = 0.05,
+}, pantalla)
+nuevo("UICorner", { CornerRadius = UDim.new(0, 16) }, pistaGatillo)
+nuevo("UIStroke", { Color = BLANCO, Thickness = 2, Transparency = 0.35 }, pistaGatillo)
+pistaGatillo.Visible = false
+
 
 -- El volante ---------------------------------------------------------
 --
@@ -542,14 +561,16 @@ local colorBoton = ACENTO
 local tengoSopladora = false
 local herramientaActual = "pala"
 local conduciendo = false
+local bloqueadoAhora = false
+local paladaLlenaAhora = false
 
 -------------------------------------------------------------------
---  LA CUCHARA Y LAS HUELLAS
+--  EL ABANICO, LAS HUELLAS Y LA CARRETILLA
 --
---  Las dos son de mentira: no quitan nieve, no la ponen y no le dicen
---  nada al servidor. Estan aqui, en el cliente, porque son mirar y no
---  jugar: no cuestan red, no se replican, y si se cayeran no cambiaria
---  ni una regla de la partida.
+--  Los tres son de mentira: no quitan nieve, no la ponen y no le dicen
+--  nada al servidor. Estan aqui, en el cliente, porque son MIRAR y no
+--  jugar: no cuestan red, no se replican, no pueden atascarse con la
+--  fisica, y si se cayeran no cambiaria ni una regla de la partida.
 -------------------------------------------------------------------
 
 local rayoAlSuelo = RaycastParams.new()
@@ -574,49 +595,150 @@ local function excluir()
 end
 
 local function sueloBajo(x, z)
-	local golpe = workspace:Raycast(Vector3.new(x, 260, z), Vector3.new(0, -520, 0), rayoAlSuelo)
-	return golpe
+	return workspace:Raycast(Vector3.new(x, 260, z), Vector3.new(0, -520, 0), rayoAlSuelo)
 end
 
--- LA CUCHARA: donde va a morder la pala en el proximo golpe. Se calcula
--- igual que en el servidor (delante, a A.herramientas.pala.alcance) para
--- que la marca y el agujero salgan en el mismo sitio.
-local cuchara = Instance.new("Part")
-cuchara.Name = "Cuchara"
-cuchara.Shape = Enum.PartType.Cylinder
-cuchara.Size = Vector3.new(0.2, A.herramientas.pala.radio * 2, A.herramientas.pala.radio * 2)
-cuchara.Color = Color3.fromRGB(120, 205, 255)
-cuchara.Material = Enum.Material.Neon
-cuchara.Transparency = 0.78
-cuchara.Anchored = true
-cuchara.CanCollide = false
-cuchara.CanQuery = false
-cuchara.CanTouch = false
-cuchara.CastShadow = false
-cuchara.Parent = adornos
-cuchara.Transparency = 1
-
--- LAS HUELLAS: una tanda fija que se reutiliza. Nunca hay mas de
--- A.huellas.cuantas en el mundo, pase lo que pase y ande quien ande.
-local huellas = {}
-local siguienteHuella = 1
-for i = 1, A.huellas.cuantas do
-	local h = Instance.new("Part")
-	h.Name = "Huella"
-	h.Size = Vector3.new(A.huellas.tamano, 0.12, A.huellas.tamano * 1.5)
-	h.Color = Color3.fromRGB(196, 214, 232)
-	h.Material = Enum.Material.SmoothPlastic
-	h.Transparency = 1
-	h.Anchored = true
-	h.CanCollide = false
-	h.CanQuery = false
-	h.CanTouch = false
-	h.CastShadow = false
-	h.Parent = adornos
-	huellas[i] = { parte = h, puesta = -1000 }
+local function trocito(nombre, tam, color, material)
+	local p = Instance.new("Part")
+	p.Name = nombre
+	p.Size = tam
+	p.Color = color
+	p.Material = material or Enum.Material.Neon
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Transparency = 1
+	p.Parent = adornos
+	return p
 end
 
-local ultimoSitio = {}
+
+-------------------------------------------------------------------
+--  EL ABANICO DE LA PALA
+--
+--  Solo el contorno, casi transparente, pegado a la nieve, y con la
+--  forma EXACTA que muerde el servidor: mismas tres medidas (cerca,
+--  lejos, angulo). Una marca que no coincide con lo que se quita es
+--  peor que no poner marca.
+-------------------------------------------------------------------
+
+local PALA = A.herramientas.pala
+local AZUL = Color3.fromRGB(140, 200, 255)
+local ORO_MARCA = Color3.fromRGB(255, 206, 110)
+local NARANJA_MARCA = Color3.fromRGB(255, 150, 70)
+
+local TRAMOS = 9
+local abanico = {}
+for i = 1, TRAMOS * 2 + 2 do
+	abanico[i] = trocito("Abanico", Vector3.new(0.18, 0.06, 1), AZUL)
+end
+
+local function puntoDelAbanico(origen, mirada, radio, grados)
+	local rad = math.rad(grados)
+	local cos, sen = math.cos(rad), math.sin(rad)
+	-- Girar "mirada" grados sobre el eje Y.
+	local dx = mirada.X * cos - mirada.Z * sen
+	local dz = mirada.X * sen + mirada.Z * cos
+	local x, z = origen.X + dx * radio, origen.Z + dz * radio
+	local golpe = sueloBajo(x, z)
+	return golpe and Vector3.new(x, golpe.Position.Y + 0.07, z) or nil, golpe
+end
+
+local function tenderTrozo(parte, a, b, color)
+	if not a or not b then
+		parte.Transparency = 1
+		return
+	end
+	local largo = (b - a).Magnitude
+	if largo < 0.05 then
+		parte.Transparency = 1
+		return
+	end
+	parte.Size = Vector3.new(0.18, 0.06, largo)
+	parte.CFrame = CFrame.lookAt((a + b) / 2, b)
+	parte.Color = color
+	-- Casi transparente: es una marca, no una plataforma.
+	parte.Transparency = 0.55
+end
+
+local function esconderAbanico()
+	for _, p in ipairs(abanico) do
+		p.Transparency = 1
+	end
+end
+
+local function pintarAbanico(raiz, color)
+	local frente = raiz.CFrame.LookVector
+	local mirada = Vector3.new(frente.X, 0, frente.Z)
+	if mirada.Magnitude < 0.05 then
+		esconderAbanico()
+		return false
+	end
+	mirada = mirada.Unit
+	local origen = raiz.Position
+
+	-- El arco de fuera, tramo a tramo, cada punto a la altura de la
+	-- nieve que tiene debajo: asi el contorno se pega al bulto en vez de
+	-- flotar por encima.
+	local fuera, dentro = {}, {}
+	local hayNieve = false
+	for i = 0, TRAMOS do
+		local g = -PALA.angulo + (2 * PALA.angulo) * (i / TRAMOS)
+		local pf, golpeF = puntoDelAbanico(origen, mirada, PALA.lejos, g)
+		local pd = puntoDelAbanico(origen, mirada, PALA.cerca, g)
+		fuera[i], dentro[i] = pf, pd
+		if golpeF and golpeF.Material == Enum.Material.Snow then
+			hayNieve = true
+		end
+	end
+	if not hayNieve then
+		esconderAbanico()
+		return false
+	end
+
+	local n = 0
+	for i = 1, TRAMOS do
+		n = n + 1
+		tenderTrozo(abanico[n], fuera[i - 1], fuera[i], color)
+	end
+	for i = 1, TRAMOS do
+		n = n + 1
+		tenderTrozo(abanico[n], dentro[i - 1], dentro[i], color)
+	end
+	n = n + 1
+	tenderTrozo(abanico[n], dentro[0], fuera[0], color)
+	n = n + 1
+	tenderTrozo(abanico[n], dentro[TRAMOS], fuera[TRAMOS], color)
+	return true
+end
+
+
+-------------------------------------------------------------------
+--  LAS HUELLAS
+--
+--  Alternando pie, giradas hacia donde andas, un poco hundidas y de un
+--  gris azulado: una sombra en la nieve, no una tabla encima. Cada uno
+--  tiene su tanda y se recicla, asi que hay un tope por cabeza y no se
+--  llena el mundo por mucho que se ande.
+-------------------------------------------------------------------
+
+local pisadas = {}
+
+local function tandaDe(pers)
+	if pisadas[pers] then
+		return pisadas[pers]
+	end
+	local t = { partes = {}, siguiente = 1, pie = 1, ultimo = nil }
+	for i = 1, A.huellas.porJugador do
+		local h = trocito("Huella", Vector3.new(A.huellas.ancho, 0.28, A.huellas.largo),
+			Color3.fromRGB(150, 168, 190), Enum.Material.SmoothPlastic)
+		t.partes[i] = { parte = h, puesta = -1000 }
+	end
+	pisadas[pers] = t
+	return t
+end
 
 local function pisar(pers)
 	local raiz = pers:FindFirstChild("HumanoidRootPart")
@@ -627,45 +749,310 @@ local function pisar(pers)
 	if not humano or humano.MoveDirection.Magnitude < 0.1 or humano.Sit then
 		return
 	end
-	local antes = ultimoSitio[pers]
+	local t = tandaDe(pers)
 	local aqui = Vector3.new(raiz.Position.X, 0, raiz.Position.Z)
-	if antes and (aqui - antes).Magnitude < A.huellas.cada then
+	if t.ultimo and (aqui - t.ultimo).Magnitude < A.huellas.cada then
 		return
 	end
-	ultimoSitio[pers] = aqui
+	t.ultimo = aqui
 
-	local golpe = sueloBajo(raiz.Position.X, raiz.Position.Z)
-	-- Solo se marca la NIEVE. En el asfalto y en la hierba no se queda
+	-- Hacia donde ANDA, no hacia donde mira: se anda de lado y de
+	-- espaldas, y una huella girada al reves canta muchisimo.
+	local anda = humano.MoveDirection
+	local dir = Vector3.new(anda.X, 0, anda.Z)
+	if dir.Magnitude < 0.05 then
+		dir = raiz.CFrame.LookVector
+		dir = Vector3.new(dir.X, 0, dir.Z)
+	end
+	if dir.Magnitude < 0.05 then
+		return
+	end
+	dir = dir.Unit
+	local lado = Vector3.new(-dir.Z, 0, dir.X)
+	t.pie = -t.pie
+	local centro = raiz.Position + lado * (A.huellas.separacion * t.pie)
+
+	local golpe = sueloBajo(centro.X, centro.Z)
+	-- Solo se marca la NIEVE. En el asfalto y en la hierba no queda
 	-- huella, y eso hace la mitad del trabajo: se ve de un vistazo por
 	-- donde hay nieve todavia y por donde ya has pasado.
 	if not golpe or golpe.Material ~= Enum.Material.Snow then
 		return
 	end
 
-	local h = huellas[siguienteHuella]
-	siguienteHuella = siguienteHuella % #huellas + 1
+	local h = t.partes[t.siguiente]
+	t.siguiente = t.siguiente % #t.partes + 1
 	h.puesta = os.clock()
-	h.parte.CFrame = CFrame.new(golpe.Position + Vector3.new(0, 0.06, 0))
-		* CFrame.Angles(0, math.atan2(raiz.CFrame.LookVector.X, raiz.CFrame.LookVector.Z), 0)
-	h.parte.Transparency = 0.25
+	-- Hundida: el cuerpo de la huella se mete por debajo de la superficie
+	-- y solo asoma el borde. Por eso no parece una tabla puesta encima.
+	h.parte.CFrame = CFrame.lookAt(
+		Vector3.new(centro.X, golpe.Position.Y - A.huellas.hundida, centro.Z),
+		Vector3.new(centro.X, golpe.Position.Y - A.huellas.hundida, centro.Z) + dir
+	)
+	h.parte.Transparency = 0.35
 end
+
+
+-------------------------------------------------------------------
+--  LA CARRETILLA
+--
+--  Con forma de carretilla y no de caja: caja abierta, dos asas, rueda
+--  delante y dos patas detras. Va SUELTA a tu espalda, alcanzandote con
+--  un poco de retraso, y la rueda gira con lo que andas. Nada de esto
+--  es fisica: es una posicion que se calcula, asi que no hay forma de
+--  que se atasque, ni de que empuje a nadie, ni de que vuelque sola.
+-------------------------------------------------------------------
+
+local C = A.carretilla
+local carretillas = {}
+
+local function nuevaCarretilla(pers)
+	local grupo = Instance.new("Model")
+	grupo.Name = "Carretilla"
+	local piezas = {}
+	local function pieza(nombre, tam, color, material, forma)
+		local p = Instance.new("Part")
+		p.Name = nombre
+		p.Size = tam
+		p.Color = color
+		p.Material = material or Enum.Material.Metal
+		if forma then
+			p.Shape = forma
+		end
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Parent = grupo
+		piezas[#piezas + 1] = p
+		return p
+	end
+
+	local rojo = Color3.fromRGB(196, 88, 52)
+	local metal = Color3.fromRGB(150, 152, 158)
+	local c = {}
+	-- La caja: suelo y tres paredes, abierta por delante. Una caja
+	-- cerrada es un cajon; una carretilla se reconoce por el hueco.
+	c.suelo = pieza("Suelo", Vector3.new(C.cajaAncho, 0.18, C.cajaLargo), rojo)
+	c.izq = pieza("Izquierda", Vector3.new(0.16, C.cajaAlto, C.cajaLargo), rojo)
+	c.der = pieza("Derecha", Vector3.new(0.16, C.cajaAlto, C.cajaLargo), rojo)
+	c.tras = pieza("Trasera", Vector3.new(C.cajaAncho, C.cajaAlto, 0.16), rojo)
+	c.rueda = pieza("Rueda", Vector3.new(0.34, C.ruedaRadio * 2, C.ruedaRadio * 2),
+		Color3.fromRGB(38, 38, 42), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	c.horquilla = pieza("Horquilla", Vector3.new(0.16, 0.16, 1.5), metal)
+	c.asaIzq = pieza("AsaIzquierda", Vector3.new(0.14, 0.14, 2.6), metal)
+	c.asaDer = pieza("AsaDerecha", Vector3.new(0.14, 0.14, 2.6), metal)
+	c.punoIzq = pieza("PunoIzquierda", Vector3.new(0.2, 0.2, 0.6), Color3.fromRGB(120, 84, 52), Enum.Material.Wood)
+	c.punoDer = pieza("PunoDerecha", Vector3.new(0.2, 0.2, 0.6), Color3.fromRGB(120, 84, 52), Enum.Material.Wood)
+	c.pataIzq = pieza("PataIzquierda", Vector3.new(0.14, 0.9, 0.14), metal)
+	c.pataDer = pieza("PataDerecha", Vector3.new(0.14, 0.9, 0.14), metal)
+
+	-- La nieve de dentro: varias bolas de tamanos distintos, que un
+	-- bloque liso no parece nieve echada a paladas.
+	c.nieve = {}
+	local sitios = {
+		{ -0.55, -0.7, 1.0 }, { 0.5, -0.3, 0.95 }, { 0, 0.55, 1.15 },
+		{ -0.35, 0.5, 0.85 }, { 0.45, 0.75, 0.8 },
+	}
+	for i, d in ipairs(sitios) do
+		local b = pieza("Nieve" .. i, Vector3.new(1, 1, 1),
+			Color3.fromRGB(247, 251, 255), Enum.Material.Snow, Enum.PartType.Ball)
+		c.nieve[i] = { parte = b, dx = d[1], dz = d[2], escala = d[3] }
+	end
+	-- Y lo que rebosa por los bordes cuando ya no cabe mas.
+	c.rebose = {}
+	for i = 1, 3 do
+		local b = pieza("Rebose" .. i, Vector3.new(0.7, 0.7, 0.7),
+			Color3.fromRGB(247, 251, 255), Enum.Material.Snow, Enum.PartType.Ball)
+		b.Transparency = 1
+		c.rebose[i] = b
+	end
+
+	c.grupo = grupo
+	c.piezas = piezas
+	c.marco = nil
+	c.giroRueda = 0
+	c.vuelco = 0
+	c.vuelcoObjetivo = 0
+	grupo.Parent = adornos
+	return c
+end
+
+local function colocarCarretilla(c, marco, carga)
+	-- El armazon, colgado del marco que se mueve.
+	local caja = marco * CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-c.vuelco), 0, 0)
+	c.suelo.CFrame = caja * CFrame.new(0, -C.cajaAlto / 2, 0)
+	c.izq.CFrame = caja * CFrame.new(-C.cajaAncho / 2, 0, 0)
+	c.der.CFrame = caja * CFrame.new(C.cajaAncho / 2, 0, 0)
+	c.tras.CFrame = caja * CFrame.new(0, 0, C.cajaLargo / 2)
+	c.horquilla.CFrame = caja * CFrame.new(0, -C.cajaAlto / 2 - 0.25, -C.cajaLargo / 2 + 0.2)
+	c.rueda.CFrame = caja
+		* CFrame.new(0, -C.cajaAlto / 2 - 0.55, -C.cajaLargo / 2 - 0.35)
+		* CFrame.Angles(0, 0, c.giroRueda)
+	c.asaIzq.CFrame = caja * CFrame.new(-C.cajaAncho / 2 + 0.2, 0.1, C.cajaLargo / 2 + 1.1)
+	c.asaDer.CFrame = caja * CFrame.new(C.cajaAncho / 2 - 0.2, 0.1, C.cajaLargo / 2 + 1.1)
+	c.punoIzq.CFrame = caja * CFrame.new(-C.cajaAncho / 2 + 0.2, 0.1, C.cajaLargo / 2 + 2.2)
+	c.punoDer.CFrame = caja * CFrame.new(C.cajaAncho / 2 - 0.2, 0.1, C.cajaLargo / 2 + 2.2)
+	c.pataIzq.CFrame = caja * CFrame.new(-C.cajaAncho / 2 + 0.3, -C.cajaAlto / 2 - 0.5, C.cajaLargo / 2 - 0.2)
+	c.pataDer.CFrame = caja * CFrame.new(C.cajaAncho / 2 - 0.3, -C.cajaAlto / 2 - 0.5, C.cajaLargo / 2 - 0.2)
+
+	local alto = C.montonMinimo + (C.montonMaximo - C.montonMinimo) * carga
+	for _, b in ipairs(c.nieve) do
+		local tam = alto * b.escala
+		b.parte.Size = Vector3.new(tam, tam, tam)
+		b.parte.CFrame = caja * CFrame.new(b.dx, -C.cajaAlto / 2 + tam * 0.35, b.dz)
+		b.parte.Transparency = carga > 0.02 and 0 or 1
+	end
+	-- Casi llena: se le cae por los bordes.
+	local rebosa = carga >= C.rebosaDesde
+	for i, b in ipairs(c.rebose) do
+		b.Transparency = rebosa and 0.1 or 1
+		if rebosa then
+			local lado = (i == 1 and -1) or (i == 2 and 1) or 0
+			b.CFrame = caja * CFrame.new(
+				lado * (C.cajaAncho / 2 + 0.1),
+				C.cajaAlto / 2 - 0.35,
+				(i == 3) and -C.cajaLargo / 2 + 0.3 or (i - 1.5) * 0.8
+			)
+		end
+	end
+end
+
+local function esconderCarretilla(c)
+	for _, p in ipairs(c.piezas) do
+		p.Transparency = 1
+	end
+end
+
+local function mostrarCarretilla(c)
+	for _, p in ipairs(c.piezas) do
+		if not string.find(p.Name, "Nieve") and not string.find(p.Name, "Rebose") then
+			p.Transparency = 0
+		end
+	end
+end
+
+local function repasarCarretilla(pers, dt)
+	local raiz = pers:FindFirstChild("HumanoidRootPart")
+	if not raiz then
+		return
+	end
+	local c = carretillas[pers]
+	if not c then
+		c = nuevaCarretilla(pers)
+		carretillas[pers] = c
+	end
+	if pers:GetAttribute("LlevaPala") == false then
+		esconderCarretilla(c)
+		c.marco = nil
+		return
+	end
+	mostrarCarretilla(c)
+
+	local destino = raiz.CFrame * CFrame.new(C.lado, -C.alto, C.atras)
+	if not c.marco then
+		c.marco = destino
+	else
+		-- Alcanza su sitio con retraso, no va pegada: por eso al arrancar
+		-- se queda un poco atras y al girar se tuerce. Es lo que la hace
+		-- parecer que pesa y que va detras de ti, no encima de ti.
+		local paso = math.clamp(dt * C.seguimiento, 0, 1)
+		c.marco = c.marco:Lerp(destino, paso)
+		-- La rueda gira con lo que se ha andado de verdad.
+		local avance = (c.marco.Position - (c.ultimoSitio or c.marco.Position)).Magnitude
+		c.giroRueda = c.giroRueda + avance / C.ruedaRadio
+	end
+	c.ultimoSitio = c.marco.Position
+
+	-- El vuelco, cuando se vacia.
+	if c.vuelco ~= c.vuelcoObjetivo then
+		local paso = math.clamp(dt / (c.vuelcoObjetivo > c.vuelco and C.vuelca or C.vuelve), 0, 1)
+		c.vuelco = c.vuelco + (c.vuelcoObjetivo - c.vuelco) * math.min(1, paso * 3)
+		if math.abs(c.vuelcoObjetivo - c.vuelco) < 0.4 then
+			c.vuelco = c.vuelcoObjetivo
+		end
+	end
+
+	colocarCarretilla(c, c.marco, pers:GetAttribute("Carga") or 0)
+end
+
+-- VACIAR: se inclina, suelta la nieve en varias masas, aguanta un
+-- momento y se endereza. El momento de aguante es lo que hace que
+-- vaciar se sienta como haber terminado algo.
+local function volcarCarretilla(pers, monton)
+	local c = carretillas[pers]
+	if not c then
+		return
+	end
+	c.vuelcoObjetivo = C.inclinacion
+	local desde = c.marco and c.marco.Position or nil
+	task.delay(C.vuelca, function()
+		if desde and monton then
+			for i = 1, 4 do
+				local bola = trocito("NieveQueCae", Vector3.new(1.4, 1.4, 1.4),
+					Color3.fromRGB(247, 251, 255), Enum.Material.Snow)
+				bola.Shape = Enum.PartType.Ball
+				bola.Transparency = 0
+				local salida = desde + Vector3.new((i - 2.5) * 0.7, 0.4, 0)
+				local caida = Vector3.new(monton.X, monton.Y + 1.5, monton.Z)
+					+ Vector3.new((i - 2.5) * 1.1, 0, (i % 2) * 1.2)
+				local t0 = os.clock()
+				local hilo
+				hilo = Correr.Heartbeat:Connect(function()
+					local p = math.clamp((os.clock() - t0) / 0.42, 0, 1)
+					bola.CFrame = CFrame.new(salida:Lerp(caida, p) + Vector3.new(0, 3 * p * (1 - p), 0))
+					bola.Transparency = p > 0.75 and (p - 0.75) * 4 or 0
+					if p >= 1 then
+						hilo:Disconnect()
+						bola:Destroy()
+					end
+				end)
+			end
+		end
+		task.wait(C.posa)
+		c.vuelcoObjetivo = 0
+	end)
+end
+
 
 local siguienteRepaso = 0
 
--- Un solo bucle para las dos cosas, y a ritmo corto, no cada fotograma:
--- pintar una marca y dejar una pisada no necesita sesenta veces por
--- segundo, y a este ritmo no se nota en un movil.
-Correr.Heartbeat:Connect(function()
+-- Un solo bucle para todo lo de mirar. La carretilla y el vuelco van a
+-- cada fotograma (si no, no serian suaves); el abanico y las pisadas van
+-- a ritmo corto, que pintar una marca no necesita sesenta veces por
+-- segundo y en un movil se nota.
+Correr.RenderStepped:Connect(function(dt)
 	local ahora = os.clock()
 
+	for pers, c in pairs(carretillas) do
+		if not pers.Parent then
+			c.grupo:Destroy()
+			carretillas[pers] = nil
+		end
+	end
+	for _, otro in ipairs(Jugadores:GetPlayers()) do
+		if otro.Character then
+			repasarCarretilla(otro.Character, dt)
+		end
+	end
+
 	-- Las huellas se borran solas, tengan lo que tengan encima.
-	for _, h in ipairs(huellas) do
-		if h.parte.Transparency < 1 then
-			local edad = ahora - h.puesta
-			if edad >= A.huellas.vida then
-				h.parte.Transparency = 1
-			else
-				h.parte.Transparency = 0.25 + 0.75 * (edad / A.huellas.vida)
+	for pers, t in pairs(pisadas) do
+		if not pers.Parent then
+			for _, h in ipairs(t.partes) do
+				h.parte:Destroy()
+			end
+			pisadas[pers] = nil
+		else
+			for _, h in ipairs(t.partes) do
+				if h.parte.Transparency < 1 then
+					local edad = ahora - h.puesta
+					if edad >= A.huellas.vida then
+						h.parte.Transparency = 1
+					else
+						h.parte.Transparency = 0.35 + 0.65 * (edad / A.huellas.vida)
+					end
+				end
 			end
 		end
 	end
@@ -673,33 +1060,26 @@ Correr.Heartbeat:Connect(function()
 	if ahora < siguienteRepaso then
 		return
 	end
-	siguienteRepaso = ahora + 0.12
+	siguienteRepaso = ahora + 0.1
 	excluir()
 
-	-- La cuchara solo con la pala en la mano: con la sopladora se empuja
-	-- por delante y con el quitanieves no se cava.
+	-- EL ABANICO. Solo con la pala en la mano, solo si hay nieve delante
+	-- y solo mientras apuntas o cavas: el resto del tiempo estorba.
 	local pers = jugador.Character
 	local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
 	if raiz and herramientaActual == "pala" and not conduciendo then
-		local def = A.herramientas.pala
-		local frente = raiz.CFrame.LookVector
-		local mirada = Vector3.new(frente.X, 0, frente.Z)
-		if mirada.Magnitude < 0.05 then
-			mirada = Vector3.new(0, 0, 1)
+		local color = AZUL
+		if bloqueadoAhora then
+			-- Naranja: hay nieve, pero por la regla de la pendiente hay
+			-- que ensanchar antes de seguir bajando.
+			color = NARANJA_MARCA
+		elseif paladaLlenaAhora then
+			-- Dorado: la ultima palada se llevo una cucharada completa.
+			color = ORO_MARCA
 		end
-		mirada = mirada.Unit
-		local bx = raiz.Position.X + mirada.X * def.alcance
-		local bz = raiz.Position.Z + mirada.Z * def.alcance
-		local golpe = sueloBajo(bx, bz)
-		if golpe then
-			cuchara.CFrame = CFrame.new(bx, golpe.Position.Y + 0.12, bz)
-				* CFrame.Angles(0, 0, math.rad(90))
-			cuchara.Transparency = cavando and 0.62 or 0.82
-		else
-			cuchara.Transparency = 1
-		end
+		pintarAbanico(raiz, color)
 	else
-		cuchara.Transparency = 1
+		esconderAbanico()
 	end
 
 	-- Y las pisadas de todo el que ande cerca, no solo las tuyas: ver por
@@ -714,6 +1094,48 @@ Correr.Heartbeat:Connect(function()
 		end
 	end
 end)
+
+
+-------------------------------------------------------------------
+--  CON QUE SE ESTA JUGANDO
+--
+--  El boton redondo gigante es de movil. En un PC estorba y encima
+--  esconde el pueblo; con un mando en la mano no lo pulsa nadie. Asi
+--  que se mira con QUE se acaba de jugar y se ensena lo que
+--  corresponde, y se cambia en cuanto el jugador cambia de trasto.
+-------------------------------------------------------------------
+
+local mando = "teclado"
+local pistaHasta = 0
+
+local function queEstoyUsando()
+	local ultimo = Entrada:GetLastInputType()
+	if ultimo == Enum.UserInputType.Touch then
+		return "tactil"
+	end
+	if string.sub(ultimo.Name, 1, 7) == "Gamepad" then
+		return "mando"
+	end
+	return "teclado"
+end
+
+local function ponerPistas()
+	local antes = mando
+	mando = queEstoyUsando()
+	if mando ~= antes then
+		-- Al cambiar de trasto, la pista vuelve a salir unos segundos:
+		-- los mandos no son los mismos y lo que valia antes ya no vale.
+		pistaHasta = os.clock() + 6
+	end
+
+	botonCavar.Visible = mando == "tactil" and not conduciendo
+	pistaGatillo.Visible = mando == "mando" and not conduciendo
+	pistaCavar.Text = mando == "mando" and T("mantenMando") or T("mantenPC")
+	-- Con mando no se ensenan teclas: no tiene ninguna.
+	pistaCavarPie.Visible = false
+end
+
+Entrada.LastInputTypeChanged:Connect(ponerPistas)
 
 local function repasarCavado()
 	local quiere = (porRaton or porTecla or porBoton) and not conduciendo
@@ -739,8 +1161,10 @@ Entrada.InputBegan:Connect(function(entrada, escrito)
 	end
 	if entrada.UserInputType == Enum.UserInputType.MouseButton1 then
 		porRaton = true
-	elseif entrada.KeyCode == Enum.KeyCode.E then
+	elseif entrada.KeyCode == Enum.KeyCode.E
+		or entrada.KeyCode == Enum.KeyCode.ButtonR2 then
 		-- Nada de espacio: el espacio salta, y cavar saltando es ridiculo.
+		-- El gatillo derecho del mando hace lo mismo que la E.
 		porTecla = true
 	elseif entrada.KeyCode == Enum.KeyCode.Q then
 		cambiarUtil()
@@ -752,7 +1176,8 @@ end)
 Entrada.InputEnded:Connect(function(entrada)
 	if entrada.UserInputType == Enum.UserInputType.MouseButton1 then
 		porRaton = false
-	elseif entrada.KeyCode == Enum.KeyCode.E then
+	elseif entrada.KeyCode == Enum.KeyCode.E
+		or entrada.KeyCode == Enum.KeyCode.ButtonR2 then
 		porTecla = false
 	end
 	repasarCavado()
@@ -876,7 +1301,12 @@ local function pintarUtiles(datos)
 
 	marcoUtiles.Visible = tengoSopladora and not conduciendo
 	marcoVolante.Visible = conduciendo
-	botonCavar.Visible = not conduciendo
+	-- Quien decide si se ve el boton es ponerPistas(), segun con que se
+	-- este jugando: aqui solo se apaga al subirse a la maquina.
+	if conduciendo then
+		botonCavar.Visible = false
+		pistaGatillo.Visible = false
+	end
 
 	for clave, b in pairs(botonesUtil) do
 		local puesta = clave == herramientaActual
@@ -905,6 +1335,9 @@ end
 local function refrescar(datos)
 	textoDinero.Text = tostring(datos.dinero or 0)
 	pintarUtiles(datos)
+	-- De que color se pinta el abanico de la pala.
+	bloqueadoAhora = datos.bloqueado == true
+	paladaLlenaAhora = datos.paladaLlena == true
 
 	if datos.ajena then
 		textoParcela.Text = string.format(T("ajena"), tostring(datos.ajena))
@@ -963,9 +1396,17 @@ local function refrescar(datos)
 	end
 	cargaAnterior = carga
 
+	-- La pista dura unos segundos y se va. Y no vuelve una vez has
+	-- cavado: si ya has cavado, ya lo sabes.
 	local yaSabe = (datos.nieveTotal or 0) > 0 or carga > 0
-	pistaCavar.Visible = not yaSabe and not conduciendo
-	pistaCavarPie.Visible = pistaCavar.Visible
+	if pistaHasta == 0 then
+		pistaHasta = os.clock() + 8
+	end
+	ponerPistas()
+	pistaCavar.Visible = mando ~= "tactil"
+		and not yaSabe
+		and not conduciendo
+		and os.clock() < pistaHasta
 
 	local cap = A.capitulo(datos.capitulo or "puerta")
 	textoObjetivo.Text = A.nombre(cap.titulo, idioma)
@@ -1032,6 +1473,14 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 	elseif datos.tipo == "descarga" then
 		aviso("+" .. tostring(datos.cantidad or 0), ORO)
 		sonar("descarga")
+		-- Y la carretilla se vuelca de verdad: se inclina, suelta la
+		-- nieve en varias masas sobre el monton, aguanta un momento y se
+		-- endereza. Ese momento de aguante es lo que hace que vaciar se
+		-- sienta como haber terminado algo y no como que un numero se
+		-- ponga a cero.
+		if jugador.Character then
+			volcarCarretilla(jugador.Character, datos.monton)
+		end
 	elseif datos.tipo == "cogida" then
 		aviso(T("cogida"), NARANJA)
 		sonar("capitulo")

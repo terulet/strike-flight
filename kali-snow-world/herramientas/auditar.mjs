@@ -257,6 +257,44 @@ if (D && R && Number(D[1]) > Number(R[1])) {
 }
 
 // ---------------------------------------------------------------- 8
+titulo("LA MARCA DICE LA VERDAD");
+
+// El abanico que pinta el cliente tiene que salir de las MISMAS tres
+// medidas con las que muerde el servidor. Si el cliente se inventara sus
+// numeros, la marca ensenaria un sitio y la pala se llevaria otro: peor
+// que no poner marca.
+const medidas = ["cerca", "lejos", "angulo"];
+const enServidor = medidas.filter((m) => servidor.includes(`def.${m}`));
+const enCliente = medidas.filter((m) => cliente.includes(`PALA.${m}`));
+if (enServidor.length === 3 && enCliente.length === 3) {
+  bien("cliente y servidor dibujan y muerden con las mismas tres medidas");
+} else {
+  mal(
+    `la marca y el mordisco no usan lo mismo (servidor: ${enServidor.join("/")}, ` +
+      `cliente: ${enCliente.join("/")})`,
+  );
+}
+const sueltos2 = [...cliente.matchAll(/radio\s*=\s*\d|alcance\s*=\s*\d/g)];
+if (sueltos2.length === 0) {
+  bien("y el cliente no se inventa ninguna medida propia");
+} else {
+  mal("el cliente tiene medidas de la pala escritas a mano");
+}
+
+// El boton redondo es de movil. En PC estorba y con mando no lo pulsa
+// nadie: tiene que depender de con que se este jugando.
+if (/botonCavar\.Visible = mando == "tactil"/.test(cliente)) {
+  bien("el boton gigante solo sale en tactil");
+} else {
+  mal("el boton de cavar no depende del trasto con el que se juega");
+}
+if (cliente.includes("ButtonR2")) {
+  bien("y el gatillo derecho del mando tambien cava");
+} else {
+  mal("con mando no hay forma de cavar");
+}
+
+// ---------------------------------------------------------------- 9
 titulo("LA VERSION SE DICE EN VOZ ALTA");
 
 const version = (ajustes.match(/Ajustes\.version = "([^"]+)"/) || [])[1];

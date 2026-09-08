@@ -360,7 +360,8 @@ while reloj < LIMITE do
 					ax, az, largo = ox - x, oz - z, math.max(0.001, math.sqrt((ox - x) ^ 2 + (oz - z) ^ 2))
 				end
 				ax, az = ax / largo, az / largo
-				andarHasta(x - ax * def.alcance, z - az * def.alcance)
+				local paso = (def.cerca + def.lejos) / 2
+				andarHasta(x - ax * paso, z - az * paso)
 				jugador:Mirar(ax, az)
 				-- Cinco paladas y a buscar otro sitio, no siete: la cuchara
 				-- apuntada vacia su circulo antes que la de antes, y
@@ -624,7 +625,8 @@ else
 				dx, dz, largo = 0, 1, 1
 			end
 			dx, dz = dx / largo, dz / largo
-			andarCon(quien, mx - dx * (def.alcance or 6), mz - dz * (def.alcance or 6))
+			local paso = def.lejos and (def.cerca + def.lejos) / 2 or 6
+			andarCon(quien, mx - dx * paso, mz - dz * paso)
 			quien:Mirar(dx, dz)
 			task.wait(def.golpe * 4)
 			golpes = golpes + 1
