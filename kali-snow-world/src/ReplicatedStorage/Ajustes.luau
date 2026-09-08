@@ -31,7 +31,7 @@
 
 local Ajustes = {}
 
-Ajustes.version = "KALI SNOW WORLD MASTER 1.1"
+Ajustes.version = "KALI SNOW WORLD MASTER 1.1.1"
 Ajustes.idiomaFijo = nil
 
 -- Version del GUARDADO, aparte de la del juego. Si cambia la forma del
@@ -416,6 +416,12 @@ Ajustes.descarga = {
 	tamanoMinimo = 12,
 	tamanoMaximo = 46,
 	porCapa = 90,        -- capas echadas por cada stud que crece
+	-- A que distancia se ve volcar una carretilla. Hace falta porque los
+	-- montones estan FUERA del borde de la parcela: quien se acerca
+	-- contigo a vaciar deja de "estar en tu parcela" segun el modelo,
+	-- aunque este a dos pasos mirandolo. Las parcelas van a 360 studs
+	-- unas de otras, asi que con esto no puede alcanzar a nadie de otra.
+	miran = 90,
 }
 
 

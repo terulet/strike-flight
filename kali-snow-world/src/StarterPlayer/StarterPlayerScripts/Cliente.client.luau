@@ -987,6 +987,11 @@ local function volcarCarretilla(pers, monton)
 	c.vuelcoObjetivo = C.inclinacion
 	local desde = c.marco and c.marco.Position or nil
 	task.delay(C.vuelca, function()
+		-- Si se ha ido a media animacion, su carretilla ya no existe:
+		-- ni nieve que soltar ni nada que enderezar.
+		if carretillas[pers] ~= c or not c.grupo.Parent then
+			return
+		end
 		if desde and monton then
 			for i = 1, 4 do
 				local bola = trocito("NieveQueCae", Vector3.new(1.4, 1.4, 1.4),
@@ -999,6 +1004,10 @@ local function volcarCarretilla(pers, monton)
 				local t0 = os.clock()
 				local hilo
 				hilo = Correr.Heartbeat:Connect(function()
+					if not bola.Parent then
+						hilo:Disconnect()
+						return
+					end
 					local p = math.clamp((os.clock() - t0) / 0.42, 0, 1)
 					bola.CFrame = CFrame.new(salida:Lerp(caida, p) + Vector3.new(0, 3 * p * (1 - p), 0))
 					bola.Transparency = p > 0.75 and (p - 0.75) * 4 or 0
@@ -1471,15 +1480,24 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 		celebrar(T("descubierto") .. "  " .. A.nombre(datos.nombre, idioma), ORO, false)
 		sonar("hallazgo")
 	elseif datos.tipo == "descarga" then
-		aviso("+" .. tostring(datos.cantidad or 0), ORO)
-		sonar("descarga")
-		-- Y la carretilla se vuelca de verdad: se inclina, suelta la
-		-- nieve en varias masas sobre el monton, aguanta un momento y se
+		-- El "+dinero" y el sonido son de quien vacia: el dinero es suyo.
+		if datos.quien == jugador then
+			aviso("+" .. tostring(datos.cantidad or 0), ORO)
+			sonar("descarga")
+		end
+		-- La carretilla se vuelca a la vista de TODOS los que esten en la
+		-- parcela, la del que vacia: se inclina, suelta la nieve en
+		-- varias masas sobre el monton, aguanta un momento y se
 		-- endereza. Ese momento de aguante es lo que hace que vaciar se
 		-- sienta como haber terminado algo y no como que un numero se
-		-- ponga a cero.
-		if jugador.Character then
-			volcarCarretilla(jugador.Character, datos.monton)
+		-- ponga a cero, y verselo hacer al otro es lo que explica de
+		-- donde ha salido esa nieve.
+		--
+		-- Puede llegar cuando el que vaciaba ya se ha ido: entonces no
+		-- hay personaje al que inclinar y no pasa nada.
+		local suyo = datos.quien and datos.quien.Character
+		if suyo then
+			volcarCarretilla(suyo, datos.monton)
 		end
 	elseif datos.tipo == "cogida" then
 		aviso(T("cogida"), NARANJA)

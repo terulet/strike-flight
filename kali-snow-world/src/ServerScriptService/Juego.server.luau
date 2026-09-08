@@ -843,6 +843,38 @@ local function aTodos(parcela, datos)
 	end
 end
 
+-- Solo a los que ESTAN pisando la parcela ahora mismo, no al dueno este
+-- donde este. Para un titulo del guion vale avisar al dueno aunque ande
+-- fuera (es su historia); para algo que se VE en un sitio concreto, no:
+-- quien no esta delante no puede ver nada, y mandarselo seria mandarle
+-- una animacion de una carretilla que no tiene a la vista.
+--
+-- Y se manda con pcall: entre que se recorre la lista y se manda, a
+-- alguien le puede haber dado por cerrar el juego.
+local function aLosDeLaParcela(parcela, datos, cerca)
+	for jugador, estado in pairs(estados) do
+		local suyo = estado.parcela == parcela.id
+		-- Y tambien a quien este AHI DELANTE aunque el modelo diga que no
+		-- pisa la parcela. No es un parche: los montones donde se vacia
+		-- estan fuera del borde, asi que el que se acerca contigo a
+		-- verlo deja de contar como "en tu parcela" justo en el momento
+		-- en que hay algo que ver. Las parcelas van a 360 studs unas de
+		-- otras: por cercania no puede colarse nadie de otra.
+		if not suyo and cerca then
+			local pers = jugador.Character
+			local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
+			if raiz and (raiz.Position - cerca).Magnitude <= A.descarga.miran then
+				suyo = true
+			end
+		end
+		if suyo and jugador.Parent then
+			pcall(function()
+				RemotoAviso:FireClient(jugador, datos)
+			end)
+		end
+	end
+end
+
 local REACCION = {
 	puerta = abrirPuerta,
 	garaje = function(parcela)
@@ -1824,10 +1856,11 @@ local function descargarPara(jugador, estado, pos)
 		return
 	end
 
-	local ganado = estado.carga * A.dinero.porCapa
+	local capas = estado.carga
+	local ganado = capas * A.dinero.porCapa
 	estado.dinero = estado.dinero + ganado
-	estado.nieveTotal = estado.nieveTotal + estado.carga
-	elegido.echado = elegido.echado + estado.carga
+	estado.nieveTotal = estado.nieveTotal + capas
+	elegido.echado = elegido.echado + capas
 	estado.carga = 0
 	verLaCarga(jugador, estado)
 
@@ -1850,12 +1883,24 @@ local function descargarPara(jugador, estado, pos)
 		elegido.bola.Position = Vector3.new(centro.X, crecido * 0.18, centro.Z)
 	end
 
-	RemotoAviso:FireClient(jugador, {
+	-- UN SOLO AVISO, Y A TODOS LOS QUE ESTEN EN LA PARCELA. Antes iba
+	-- solo a quien vaciaba: el que estaba al lado echando una mano veia
+	-- crecer el monton y subir el dinero, pero no veia volcarse la
+	-- carretilla, que es lo unico que explica de donde ha salido esa
+	-- nieve. Va uno solo (no uno personal mas otro para el resto) para
+	-- que quien vacia no vea la animacion dos veces.
+	--
+	-- Lleva QUIEN vacia, DONDE y CUANTA nieve: con eso el cliente sabe
+	-- a que carretilla inclinar y hacia donde tirar la nieve, y quien lo
+	-- recibe sabe si el "+dinero" es suyo o de otro.
+	aLosDeLaParcela(parcela, {
 		tipo = "descarga",
+		quien = jugador,
+		capas = capas,
 		cantidad = ganado,
 		donde = elegido.sitio,
 		monton = elegido.bola and elegido.bola.Position or elegido.sitio,
-	})
+	}, elegido.sitio)
 end
 
 

@@ -541,6 +541,68 @@ comprobar(estadoDe(beto).mia ~= estadoDe(ana).mia, "Beto sigue con su parcela y 
 
 
 -------------------------------------------------------------------
+titulo("VACIAR SE VE DESDE TODA LA PARCELA")
+-------------------------------------------------------------------
+
+-- El que esta al lado echando una mano tiene que VER volcarse la
+-- carretilla del otro. Antes el aviso iba solo a quien vaciaba: se veia
+-- crecer el monton y subir el dinero, pero no de donde salia esa nieve.
+-- Y el que esta en su propia parcela, a trescientos studs, no tiene por
+-- que enterarse de nada.
+do
+	-- Beto se planta en la parcela de Ana; Caro se queda en la suya.
+	local caroPruebas = nuevoJugador("CaroPruebas")
+	entra(caroPruebas)
+	avanzar(4)
+	local eCaro = estadoDe(caroPruebas)
+	comprobar(eCaro ~= nil and eCaro.mia ~= pA.id, "(Caro tiene otra parcela)")
+
+	-- Ana se llena la carretilla y se va al monton.
+	rellenar(pA, 30, 36, 38, 44, A.nieve.capasMaximas)
+	local xL, zL = pA:centro(34, 40)
+	local medio = (A.herramientas.pala.cerca + A.herramientas.pala.lejos) / 2
+	ana:Mover(xL - medio, 3, zL)
+	ana:Mirar(1, 0)
+	RemotoCavar.OnServerEvent:Fire(ana, true)
+	avanzar(3)
+	RemotoCavar.OnServerEvent:Fire(ana, false)
+	comprobar((estadoDe(ana).carga or 0) > 0, "(Ana lleva algo en la carretilla)")
+
+	-- Beto, a su lado. Caro, en la suya.
+	local dondeVacia = pA.descargas[1].sitio
+	beto:Mover(dondeVacia.X + 6, 3, dondeVacia.Z + 6)
+	avanzar(1)
+
+	local antesAna = #avisosDe(ana, "descarga")
+	local antesBeto = #avisosDe(beto, "descarga")
+	local antesCaro = #avisosDe(caroPruebas, "descarga")
+
+	ana:Mover(dondeVacia.X, 3, dondeVacia.Z)
+	avanzar(1.5)
+
+	local deAna = avisosDe(ana, "descarga")
+	local deBeto = avisosDe(beto, "descarga")
+	comprobarIgual(#deAna - antesAna, 1, "quien vacia lo recibe UNA vez, no dos")
+	comprobarIgual(#deBeto - antesBeto, 1, "y el que esta a su lado tambien, una vez")
+	comprobarIgual(#avisosDe(caroPruebas, "descarga") - antesCaro, 0,
+		"y el que esta en otra parcela no recibe nada")
+
+	local ultimo = deBeto[#deBeto]
+	comprobarIgual(ultimo.quien, ana, "el aviso dice QUIEN vacia")
+	comprobar(ultimo.donde ~= nil and ultimo.monton ~= nil, "y DONDE")
+	comprobar((ultimo.capas or 0) > 0,
+		("y CUANTA nieve vacia (%d capas)"):format(ultimo.capas or 0))
+	comprobarIgual(ultimo.capas, deAna[#deAna].capas,
+		"y los dos reciben exactamente lo mismo")
+
+	-- Y si el que vaciaba se va, el aviso ya mandado no rompe nada.
+	sale(caroPruebas)
+	avanzar(1)
+	comprobar(true, "que alguien se vaya no revienta la descarga")
+end
+
+
+-------------------------------------------------------------------
 titulo("EL VECINO PIDE AYUDA, Y LA DEVUELVE")
 -------------------------------------------------------------------
 

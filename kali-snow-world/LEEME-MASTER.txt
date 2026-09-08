@@ -1,6 +1,6 @@
 ===========================================
   KALI SNOW WORLD
-  MASTER 1.1
+  MASTER 1.1.1
 ===========================================
 
 Una sola version. Un solo archivo. Se abre, se
@@ -12,7 +12,7 @@ fin sin cambiar de mapa ni abrir nada mas.
 Al arrancar, lo primero que sale por el Output:
 
     =====================================
-      KALI SNOW WORLD MASTER 1.1
+      KALI SNOW WORLD MASTER 1.1.1
       esquema de guardado 1 · almacen KaliSnowWorld_v1_DEV
     =====================================
 
@@ -148,6 +148,14 @@ VACIAR
   de aguante es lo que hace que vaciar se sienta
   como haber terminado algo y no como que un
   numero se ponga a cero.
+
+  Y lo ve TODO EL QUE ESTE DELANTE, no solo quien
+  vacia (eso se arreglo en la 1.1.1). El aviso
+  sale una vez y dice quien vacia, donde y
+  cuantas capas: quien lo recibe sabe a que
+  carretilla mirar, y el "+dinero" sale solo al
+  dueno del dinero. A quien esta en otra parcela
+  no le llega nada.
 
 HUELLAS
   Hundidas, no puestas encima: el cuerpo de la

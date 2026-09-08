@@ -1,5 +1,5 @@
 ===========================================
-  KALI SNOW WORLD MASTER 1.1
+  KALI SNOW WORLD MASTER 1.1.1
   LISTA PARA JUGAR UNA PARTIDA ENTERA
   EN ROBLOX STUDIO
 ===========================================
@@ -40,7 +40,7 @@ calma al principio. Ten un cronometro a mano.
 [ ]  5. Lo primero que sale por el Output:
 
           =============================
-            KALI SNOW WORLD MASTER 1.1
+            KALI SNOW WORLD MASTER 1.1.1
             esquema de guardado 1 ·
             almacen KaliSnowWorld_v1_DEV
           =============================
@@ -346,25 +346,37 @@ Test > Clients and Servers > 2 players > Start.
         llevas tu, y no le rompes nada.
 
 [ ] 68. Ves las HUELLAS del otro, no solo las
-        tuyas.
+        tuyas. Y su CARRETILLA, con su nieve
+        dentro.
 
-[ ] 69. Estando en su parcela, si el ya ha
+[ ] 69. Que el otro vacie su carretilla estando
+        tu delante: tienes que VERLA inclinarse y
+        soltar la nieve. Una sola vez.
+        (Esto es lo que se arreglo en la 1.1.1.)
+
+[ ] 70. Y el "+dinero" sale solo a quien vacia:
+        no te aparece a ti el suyo.
+
+[ ] 71. Vete a TU parcela y que el otro vacie
+        alli: desde aqui no ves nada suyo.
+
+[ ] 72. Estando en su parcela, si el ya ha
         desenterrado su sopladora, pulsa Q: te la
         presta. Al volver a la tuya se te cae de
         la mano y vuelves a la pala.
 
-[ ] 70. Cavad los dos a la vez en casillas
+[ ] 73. Cavad los dos a la vez en casillas
         pegadas: no se duplica nieve ni dinero, y
         no queda ningun pozo.
 
-[ ] 71. Los descubrimientos y los desbloqueos son
+[ ] 74. Los descubrimientos y los desbloqueos son
         del DUENO de la parcela, no del que cava.
 
-[ ] 72. Cronometra la tormenta entre dos: deberia
+[ ] 75. Cronometra la tormenta entre dos: deberia
         salir mas corta que jugando solo (7 a 9
         minutos). Apunta el numero.
 
-[ ] 73. Sal a mitad de tormenta con uno de los
+[ ] 76. Sal a mitad de tormenta con uno de los
         dos y vuelve a entrar: conserva historia,
         herramientas, parcela y reputacion.
 
@@ -373,7 +385,7 @@ Test > Clients and Servers > 2 players > Start.
   Y LO ULTIMO
 -------------------------------------------
 
-[ ] 74. Cavar con la pala, ahora que se apunta y
+[ ] 77. Cavar con la pala, ahora que se apunta y
         que se ve la carretilla llenarse,
         ¿se siente como cavar?
 

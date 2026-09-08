@@ -55,7 +55,7 @@
 
 local Ajustes = {}
 
-Ajustes.version = "KALI SNOW WORLD MASTER 1.1"
+Ajustes.version = "KALI SNOW WORLD MASTER 1.1.1"
 Ajustes.idiomaFijo = nil
 
 -- Version del GUARDADO, aparte de la del juego. Si cambia la forma del
@@ -440,6 +440,12 @@ Ajustes.descarga = {
 	tamanoMinimo = 12,
 	tamanoMaximo = 46,
 	porCapa = 90,        -- capas echadas por cada stud que crece
+	-- A que distancia se ve volcar una carretilla. Hace falta porque los
+	-- montones estan FUERA del borde de la parcela: quien se acerca
+	-- contigo a vaciar deja de "estar en tu parcela" segun el modelo,
+	-- aunque este a dos pasos mirandolo. Las parcelas van a 360 studs
+	-- unas de otras, asi que con esto no puede alcanzar a nadie de otra.
+	miran = 90,
 }
 
 
@@ -4251,6 +4257,38 @@ local function aTodos(parcela, datos)
 	end
 end
 
+-- Solo a los que ESTAN pisando la parcela ahora mismo, no al dueno este
+-- donde este. Para un titulo del guion vale avisar al dueno aunque ande
+-- fuera (es su historia); para algo que se VE en un sitio concreto, no:
+-- quien no esta delante no puede ver nada, y mandarselo seria mandarle
+-- una animacion de una carretilla que no tiene a la vista.
+--
+-- Y se manda con pcall: entre que se recorre la lista y se manda, a
+-- alguien le puede haber dado por cerrar el juego.
+local function aLosDeLaParcela(parcela, datos, cerca)
+	for jugador, estado in pairs(estados) do
+		local suyo = estado.parcela == parcela.id
+		-- Y tambien a quien este AHI DELANTE aunque el modelo diga que no
+		-- pisa la parcela. No es un parche: los montones donde se vacia
+		-- estan fuera del borde, asi que el que se acerca contigo a
+		-- verlo deja de contar como "en tu parcela" justo en el momento
+		-- en que hay algo que ver. Las parcelas van a 360 studs unas de
+		-- otras: por cercania no puede colarse nadie de otra.
+		if not suyo and cerca then
+			local pers = jugador.Character
+			local raiz = pers and pers:FindFirstChild("HumanoidRootPart")
+			if raiz and (raiz.Position - cerca).Magnitude <= A.descarga.miran then
+				suyo = true
+			end
+		end
+		if suyo and jugador.Parent then
+			pcall(function()
+				RemotoAviso:FireClient(jugador, datos)
+			end)
+		end
+	end
+end
+
 local REACCION = {
 	puerta = abrirPuerta,
 	garaje = function(parcela)
@@ -5232,10 +5270,11 @@ local function descargarPara(jugador, estado, pos)
 		return
 	end
 
-	local ganado = estado.carga * A.dinero.porCapa
+	local capas = estado.carga
+	local ganado = capas * A.dinero.porCapa
 	estado.dinero = estado.dinero + ganado
-	estado.nieveTotal = estado.nieveTotal + estado.carga
-	elegido.echado = elegido.echado + estado.carga
+	estado.nieveTotal = estado.nieveTotal + capas
+	elegido.echado = elegido.echado + capas
 	estado.carga = 0
 	verLaCarga(jugador, estado)
 
@@ -5258,12 +5297,24 @@ local function descargarPara(jugador, estado, pos)
 		elegido.bola.Position = Vector3.new(centro.X, crecido * 0.18, centro.Z)
 	end
 
-	RemotoAviso:FireClient(jugador, {
+	-- UN SOLO AVISO, Y A TODOS LOS QUE ESTEN EN LA PARCELA. Antes iba
+	-- solo a quien vaciaba: el que estaba al lado echando una mano veia
+	-- crecer el monton y subir el dinero, pero no veia volcarse la
+	-- carretilla, que es lo unico que explica de donde ha salido esa
+	-- nieve. Va uno solo (no uno personal mas otro para el resto) para
+	-- que quien vacia no vea la animacion dos veces.
+	--
+	-- Lleva QUIEN vacia, DONDE y CUANTA nieve: con eso el cliente sabe
+	-- a que carretilla inclinar y hacia donde tirar la nieve, y quien lo
+	-- recibe sabe si el "+dinero" es suyo o de otro.
+	aLosDeLaParcela(parcela, {
 		tipo = "descarga",
+		quien = jugador,
+		capas = capas,
 		cantidad = ganado,
 		donde = elegido.sitio,
 		monton = elegido.bola and elegido.bola.Position or elegido.sitio,
-	})
+	}, elegido.sitio)
 end
 
 
@@ -7357,6 +7408,11 @@ local function volcarCarretilla(pers, monton)
 	c.vuelcoObjetivo = C.inclinacion
 	local desde = c.marco and c.marco.Position or nil
 	task.delay(C.vuelca, function()
+		-- Si se ha ido a media animacion, su carretilla ya no existe:
+		-- ni nieve que soltar ni nada que enderezar.
+		if carretillas[pers] ~= c or not c.grupo.Parent then
+			return
+		end
 		if desde and monton then
 			for i = 1, 4 do
 				local bola = trocito("NieveQueCae", Vector3.new(1.4, 1.4, 1.4),
@@ -7369,6 +7425,10 @@ local function volcarCarretilla(pers, monton)
 				local t0 = os.clock()
 				local hilo
 				hilo = Correr.Heartbeat:Connect(function()
+					if not bola.Parent then
+						hilo:Disconnect()
+						return
+					end
 					local p = math.clamp((os.clock() - t0) / 0.42, 0, 1)
 					bola.CFrame = CFrame.new(salida:Lerp(caida, p) + Vector3.new(0, 3 * p * (1 - p), 0))
 					bola.Transparency = p > 0.75 and (p - 0.75) * 4 or 0
@@ -7841,15 +7901,24 @@ RemotoAviso.OnClientEvent:Connect(function(datos)
 		celebrar(T("descubierto") .. "  " .. A.nombre(datos.nombre, idioma), ORO, false)
 		sonar("hallazgo")
 	elseif datos.tipo == "descarga" then
-		aviso("+" .. tostring(datos.cantidad or 0), ORO)
-		sonar("descarga")
-		-- Y la carretilla se vuelca de verdad: se inclina, suelta la
-		-- nieve en varias masas sobre el monton, aguanta un momento y se
+		-- El "+dinero" y el sonido son de quien vacia: el dinero es suyo.
+		if datos.quien == jugador then
+			aviso("+" .. tostring(datos.cantidad or 0), ORO)
+			sonar("descarga")
+		end
+		-- La carretilla se vuelca a la vista de TODOS los que esten en la
+		-- parcela, la del que vacia: se inclina, suelta la nieve en
+		-- varias masas sobre el monton, aguanta un momento y se
 		-- endereza. Ese momento de aguante es lo que hace que vaciar se
 		-- sienta como haber terminado algo y no como que un numero se
-		-- ponga a cero.
-		if jugador.Character then
-			volcarCarretilla(jugador.Character, datos.monton)
+		-- ponga a cero, y verselo hacer al otro es lo que explica de
+		-- donde ha salido esa nieve.
+		--
+		-- Puede llegar cuando el que vaciaba ya se ha ido: entonces no
+		-- hay personaje al que inclinar y no pasa nada.
+		local suyo = datos.quien and datos.quien.Character
+		if suyo then
+			volcarCarretilla(suyo, datos.monton)
 		end
 	elseif datos.tipo == "cogida" then
 		aviso(T("cogida"), NARANJA)
