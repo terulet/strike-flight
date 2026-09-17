@@ -15,6 +15,7 @@ import { formatScore, rivalAhead, rivalBehind, type Leaderboard } from '../meta/
 import { targetForChallenge } from '../meta/session';
 import type { App } from './app';
 import { button, el } from './dom';
+import { copyInvite, shareInvite } from './invite';
 import { promptText } from './modal';
 
 export function renderHome(app: App): HTMLElement {
@@ -118,34 +119,9 @@ function renderGroup(app: App): HTMLElement | null {
   if (app.mode !== 'group' || !snapshot) return null;
   const myId = app.sync.playerId;
 
-  const copy = button('COPIAR', 'group__mini', async () => {
-    try {
-      await navigator.clipboard.writeText(snapshot.group.code);
-      app.toaster.show('CODIGO COPIADO', 'good', 1600);
-    } catch {
-      app.toaster.show(snapshot.group.code, 'neutral', 2600);
-    }
-    app.audio.play('tap');
-  });
-
-  const share = button('COMPARTIR', 'group__mini', async () => {
-    const nav = navigator as Navigator & {
-      share?: (data: { title?: string; text?: string }) => Promise<void>;
-    };
-    if (typeof nav.share !== 'function') {
-      await navigator.clipboard?.writeText?.(snapshot.group.code).catch(() => undefined);
-      app.toaster.show('CODIGO COPIADO', 'good', 1600);
-      return;
-    }
-    try {
-      await nav.share({
-        title: 'PLAYZONE RUSH',
-        text: `Entra en mi grupo de PLAYZONE RUSH con el codigo ${snapshot.group.code}`,
-      });
-    } catch {
-      /* cancelado */
-    }
-  });
+  const code = snapshot.group.code;
+  const copy = button('COPIAR', 'group__mini', () => void copyInvite(app, code));
+  const share = button('COMPARTIR', 'group__mini', () => void shareInvite(app, code));
 
   return el('div', { class: 'group' }, [
     el('div', { class: 'group__head' }, [

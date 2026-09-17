@@ -57,6 +57,28 @@
   text-align: center;
 }
 
+/* El enlace de invitacion se ensena entero: es largo y no puede desbordar. */
+.onboarding__link {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 0 4px;
+}
+
+/* Como dejarselo instalado. Discreto, pero siempre a la vista al entrar. */
+.onboarding__install {
+  margin: 18px auto 4px;
+  max-width: 320px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  text-align: center;
+}
+
 .onboarding__solo {
   margin-top: 6px;
 }

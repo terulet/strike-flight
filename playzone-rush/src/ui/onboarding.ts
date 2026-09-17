@@ -7,12 +7,17 @@
 import { ApiError, NetworkError } from '../net/client';
 import type { App } from './app';
 import { button, el } from './dom';
+import { currentInstallText } from '../core/install';
+import { LOCAL_WARNING, copyInvite, inviteLink, inviteOnlyWorksHere, shareInvite } from './invite';
+import { normalizeGroupCode } from '../meta/invite';
 
 type Step = 'welcome' | 'create' | 'join' | 'code';
 
-export function renderOnboarding(app: App): HTMLElement {
+export function renderOnboarding(app: App, inviteCode?: string | null): HTMLElement {
   const screen = el('div', { class: 'screen onboarding' });
-  let step: Step = 'welcome';
+  // Quien abre un enlace de invitacion no elige camino: ya sabemos cual es.
+  const invited = normalizeGroupCode(inviteCode);
+  let step: Step = invited ? 'join' : 'welcome';
   let createdCode = '';
 
   const body = el('div', { class: 'onboarding__body' });
@@ -99,6 +104,7 @@ export function renderOnboarding(app: App): HTMLElement {
         'aria-label': 'Codigo del grupo',
       },
     }) as HTMLInputElement;
+    if (invited) codeField.value = invited;
     codeField.addEventListener('input', () => {
       codeField.value = codeField.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
@@ -130,7 +136,10 @@ export function renderOnboarding(app: App): HTMLElement {
 
     return el('div', { class: 'onboarding__panel' }, [
       backLink(() => goto('welcome')),
-      el('div', { class: 'onboarding__kicker', text: 'CODIGO DEL GRUPO' }),
+      el('div', {
+        class: 'onboarding__kicker',
+        text: invited ? `TE HAN INVITADO AL GRUPO ${invited}` : 'CODIGO DEL GRUPO',
+      }),
       codeField,
       el('div', { class: 'onboarding__kicker', text: 'TU NOMBRE' }),
       input,
@@ -141,37 +150,20 @@ export function renderOnboarding(app: App): HTMLElement {
 
   function renderCode(): HTMLElement {
     const code = createdCode || (app.save.get().account.groupCode ?? '');
-    const feedback = el('div', { class: 'onboarding__hint' });
+    const feedback = el('div', { class: 'onboarding__hint onboarding__link' });
 
-    const copy = button('COPIAR', 'btn btn--block', async () => {
-      const ok = await copyToClipboard(code);
-      feedback.textContent = ok ? 'Codigo copiado.' : 'Copialo a mano: ' + code;
-      app.audio.play('tap');
-    });
+    const copy = button('COPIAR ENLACE', 'btn btn--block', () => void copyInvite(app, code));
+    const share = button('COMPARTIR', 'btn btn--block', () => void shareInvite(app, code));
 
-    const share = button('COMPARTIR', 'btn btn--block', async () => {
-      const nav = navigator as Navigator & {
-        share?: (data: { title?: string; text?: string }) => Promise<void>;
-      };
-      if (typeof nav.share === 'function') {
-        try {
-          await nav.share({
-            title: 'PLAYZONE RUSH',
-            text: `Entra en mi grupo de PLAYZONE RUSH con el codigo ${code}`,
-          });
-        } catch {
-          /* el usuario ha cancelado el menu de compartir */
-        }
-      } else {
-        const ok = await copyToClipboard(code);
-        feedback.textContent = ok ? 'Codigo copiado.' : code;
-      }
-    });
+    // Se ensena el enlace tal cual: asi se ve que lo que se manda lleva
+    // dentro el grupo, y se nota enseguida si no saldria de esta Wi-Fi.
+    const link = inviteLink(code);
+    feedback.textContent = inviteOnlyWorksHere() ? LOCAL_WARNING : (link ?? '');
 
     return el('div', { class: 'onboarding__panel' }, [
       el('div', { class: 'onboarding__kicker', text: 'TU GRUPO' }),
       el('div', { class: 'onboarding__code num', text: code }),
-      el('div', { class: 'onboarding__hint', text: 'COMPARTELO CON TUS AMIGOS' }),
+      el('div', { class: 'onboarding__hint', text: 'MANDALES EL ENLACE: ENTRAN DIRECTOS' }),
       el('div', { class: 'onboarding__row' }, [copy, share]),
       feedback,
       button('ENTRAR A PLAYZONE', 'btn btn--play btn--lg btn--block', () => {
@@ -213,6 +205,12 @@ export function renderOnboarding(app: App): HTMLElement {
     ]),
   );
   screen.appendChild(body);
+
+  // Quien llega por un enlace esta en una pestana del navegador. Si nadie le
+  // dice como dejarselo instalado, no vuelve.
+  const install = currentInstallText();
+  if (install) screen.appendChild(el('div', { class: 'onboarding__install', text: install }));
+
   render();
   return screen;
 }
@@ -235,14 +233,4 @@ export function describeError(error: unknown): string {
     }
   }
   return 'Algo ha fallado. Intentalo otra vez.';
-}
-
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Safari sin permisos: al menos dejamos el codigo seleccionable.
-    return false;
-  }
 }

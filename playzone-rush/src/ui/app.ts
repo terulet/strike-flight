@@ -19,6 +19,7 @@ import { buildDailyPlan, findChallenge, type ChallengeSpec, type DailyPlan } fro
 import { myBestFor, remoteStandings } from '../meta/contenders';
 import { buildLeaderboard, type RankingContext, type Standing } from '../meta/ranking';
 import { commitResult, type ScoreOutcome } from '../meta/scoring';
+import { readInviteCode } from '../meta/invite';
 import { evaluateSecretUnlock, isChaosEnabled, secretStatus, type SecretStatus } from '../meta/secret';
 import {
   detectOvertakes,
@@ -63,6 +64,9 @@ export class App {
   private play: PlayScreen | null = null;
   private onChangeListeners: (() => void)[] = [];
   private screen: 'onboarding' | 'home' = 'home';
+  /** Codigo con el que se abrio la app desde un enlace (`?g=RYXX`). */
+  readonly inviteCode: string | null =
+    typeof location === 'undefined' ? null : readInviteCode(location.search);
 
   constructor(root: HTMLElement, save = new SaveManager(), sync?: SyncEngine) {
     this.root = root;
@@ -203,11 +207,28 @@ export class App {
       if (this.screen === 'home' && !this.play) this.renderHome();
     });
 
+    // Se ha abierto un enlace de invitacion: el codigo ya no hace falta en la
+    // barra de direcciones, y si sigue ahi vuelve a saltar en cada recarga.
+    if (this.inviteCode) this.clearInviteFromUrl();
+
     if (this.mode === 'none') {
       this.renderOnboarding();
       return;
     }
+    // Invitacion abierta jugando en solitario: se venia a entrar en el grupo.
+    if (this.inviteCode && this.mode === 'solo') {
+      this.renderOnboarding();
+      return;
+    }
     if (this.mode === 'group') this.sync.start();
+    // Invitacion a un grupo distinto del propio: solo se puede estar en uno,
+    // asi que se avisa en vez de dejar la pantalla como si no hubiera pasado.
+    if (this.inviteCode && this.mode === 'group') {
+      const mine = this.save.get().account.groupCode;
+      if (mine && mine !== this.inviteCode) {
+        this.toaster.show(`YA ESTAS EN EL GRUPO ${mine}`, 'neutral', 3600);
+      }
+    }
     this.telemetry.track('app_open');
     this.renderHome();
   }
@@ -221,11 +242,21 @@ export class App {
     }
   }
 
-  renderOnboarding(): void {
+  private clearInviteFromUrl(): void {
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete('g');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch {
+      /* sin history (o en pruebas): da igual, el codigo ya esta leido */
+    }
+  }
+
+  renderOnboarding(inviteCode?: string | null): void {
     this.screen = 'onboarding';
     document.body.classList.remove('is-playing');
     clear(this.shell);
-    this.shell.appendChild(renderOnboarding(this));
+    this.shell.appendChild(renderOnboarding(this, inviteCode ?? this.inviteCode));
   }
 
   renderHome(): void {

@@ -45,7 +45,7 @@ npm run dev          # solo frontend (el modo PROBAR SOLO funciona sin backend)
 npm run server       # solo backend
 npm run build        # comprueba tipos y genera dist/ (estático)
 npm run preview      # sirve la build de producción (con service worker)
-npm test             # 221 pruebas (cliente + backend)
+npm test             # 245 pruebas (cliente + backend)
 npm run test:server  # solo backend
 npm run typecheck
 ```
@@ -59,9 +59,9 @@ Esta es la prueba que importa en este milestone.
    `ipconfig` en Windows → "Dirección IPv4".
 2. **Móvil A**: abre esa dirección → CREAR GRUPO → nombre → sale un código de
    cuatro caracteres (por ejemplo `7K4D`) → COMPARTIR (se abre el menú de iOS)
-   o COPIAR.
-3. **Móvil B**: misma dirección → UNIRME A UN GRUPO → escribe el código y su
-   nombre → ENTRAR.
+   o COPIAR ENLACE.
+3. **Móvil B**: abre el enlace recibido → ya trae el código puesto → escribe su
+   nombre → ENTRAR. (A mano también vale: misma dirección → UNIRME A UN GRUPO.)
 4. Los dos veis la misma clasificación. Jugad el mismo reto: cuando uno supere
    al otro, el que ha perdido el primer puesto verá aparecer
    **"🔥 X TE HA QUITADO EL #1"** con un botón de REVANCHA que entra directo al
@@ -71,6 +71,32 @@ Esta es la prueba que importa en este milestone.
 Si no carga: es casi siempre el firewall de Windows. Permite Node.js en redes
 privadas, o abre los puertos 5173 y 8787. Comprueba también que la red esté
 marcada como privada y que el router no tenga aislamiento de clientes.
+
+---
+
+## Cómo entra alguien nuevo
+
+No hay tienda de aplicaciones ni instalador: se entra por un enlace.
+
+COMPARTIR manda **el enlace con el código dentro** (`https://…/?g=RYXX`), no el
+código suelto. Quien lo recibe toca el enlace, ve **"TE HAN INVITADO AL GRUPO
+RYXX"** con el código ya puesto, escribe su nombre y está dentro. Un mensaje,
+un toque, cero explicaciones por tu parte.
+
+El código sale de la barra de direcciones en cuanto se lee, así que recargar no
+lo vuelve a disparar. Escribirlo a mano sigue funcionando igual que siempre.
+
+El origen del enlace es el de la dirección desde la que estés jugando, así que
+es correcto tanto en el despliegue público como en casa — y si estás en una
+dirección local, la propia pantalla avisa de que **ese enlace solo funciona en
+esa Wi-Fi**. `VITE_PUBLIC_URL` fija el origen en la build para cuando la app
+también se abre por una dirección interna que los demás no alcanzan.
+
+**Instalarlo** es el segundo paso, y en iOS nadie lo adivina: no hay botón. Por
+eso el onboarding lleva abajo la instrucción exacta según el móvil, y
+desaparece sola cuando la app ya se abre desde la pantalla de inicio.
+
+---
 
 Recomendado: **Compartir → Añadir a pantalla de inicio**. Se abre a pantalla
 completa, sin barra de Safari, y con la build de producción (`npm run preview`)
@@ -598,7 +624,7 @@ Además muestra FPS del juego y de la UI en una esquina.
 ## Pruebas
 
 ```bash
-npm test                       # 221 pruebas (cliente + backend)
+npm test                       # 245 pruebas (cliente + backend)
 node tools/alfa.mjs            # ⭐ la prueba de este milestone (42 checks)
 node tools/duel.mjs            # dos navegadores compitiendo de verdad (16 checks)
 node tools/resilience.mjs      # offline, cola, servidor caído, ghost (20 checks)
