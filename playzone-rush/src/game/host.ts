@@ -53,6 +53,8 @@ export class GameHost {
   private current: MiniGame | null = null;
   private currentDef: GameDefinition | null = null;
   private offs: (() => void)[] = [];
+  /** Escala de pantalla ya aplicada al contexto. Se reaplica cada frame. */
+  private dpr = 1;
   private cssWidth = 0;
   private cssHeight = 0;
   private hudFrame = 0;
@@ -250,6 +252,12 @@ export class GameHost {
     this.fx.update(dt);
 
     const { ctx } = this;
+    // La escala se reaplica en cada frame, no solo al cambiar de tamano.
+    // Fijandola solo en resize() se perdia en un caso muy concreto y muy
+    // visible: al entrar en una partida se monta un canvas nuevo y, si las
+    // medidas no habian cambiado, resize() salia antes de tocarlo. El juego
+    // quedaba dibujado en un cuarto de la pantalla, con el resto en negro.
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const w = this.cssWidth;
     const h = this.cssHeight;
     ctx.save();
@@ -295,6 +303,7 @@ export class GameHost {
     const height = Math.max(1, Math.round(rect.height));
     if (width === this.cssWidth && height === this.cssHeight) return;
     const dpr = Math.min(MAX_DPR, globalThis.devicePixelRatio || 1);
+    this.dpr = dpr;
     this.cssWidth = width;
     this.cssHeight = height;
     this.canvas.width = Math.round(width * dpr);
