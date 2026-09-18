@@ -45,7 +45,7 @@ npm run dev          # solo frontend (el modo PROBAR SOLO funciona sin backend)
 npm run server       # solo backend
 npm run build        # comprueba tipos y genera dist/ (estático)
 npm run preview      # sirve la build de producción (con service worker)
-npm test             # 245 pruebas (cliente + backend)
+npm test             # 259 pruebas (cliente + backend)
 npm run test:server  # solo backend
 npm run typecheck
 npm run ios          # build nativa + sync del proyecto de Xcode
@@ -231,17 +231,62 @@ El host presta al juego: `canvas`, `ctx`, tamaño, **insets** (la franja que ocu
 y que el juego debe dejar libre), `input`, `audio`, `haptics` y `fx`.
 Los minijuegos **no tocan el DOM**: dibujan en el canvas y emiten eventos.
 
-### Los cuatro juegos
+### Los 21 minijuegos
 
-| | Habilidad | Regla | Formato |
-|---|---|---|---|
-| **PULSE** | Reflejos | Toca los nodos azules antes de que se apaguen; los rojos quitan vida | 30 s, 3 vidas |
-| **DRIFT** | Supervivencia | Pasa por los huecos; rozar sin chocar da bonus. **Aquí vive el fantasma** | 40 s, 1 vida |
-| **SNAP** | Precisión | 18 disparos, no tiempo: acierta lo más cerca del centro | 18 balas / 30 s |
-| **MEMORY** | Memoria | Se encienden casillas, se apagan, tócalas todas. Cada ronda una más | 30 s, 3 vidas |
+Veintiuno no es un número redondo elegido al azar: son **7 días × 3 retos**. Con
+ese catálogo, una semana entera sale sin repetir ni un juego.
 
-Cada día la rotación elige **3 de los 4**. El pool sale del registro: registrar
-un quinto juego lo mete en la rotación sin tocar nada más.
+**Los cuatro originales**
+
+| | Habilidad | Regla |
+|---|---|---|
+| **PULSE** | Reflejos | Toca los nodos azules antes de que se apaguen; los rojos quitan vida |
+| **DRIFT** | Supervivencia | Pasa por los huecos; rozar sin chocar da bonus. **Aquí vive el fantasma** |
+| **SNAP** | Precisión | 18 disparos, no tiempo: acierta lo más cerca del centro |
+| **MEMORY** | Memoria | Se encienden casillas, se apagan, tócalas todas |
+
+**Arcade**
+
+| | Habilidad | Regla |
+|---|---|---|
+| **CRUZA** | Supervivencia | Un toque, un carril. Cruzar el tráfico sin que te pillen |
+| **SALTO** | Supervivencia | El muñeco te sigue con el dedo y rebota solo; sube sin caerte |
+| **TUNEL** | Supervivencia | Toca para subir, la gravedad hace el resto. Pasa por los huecos |
+| **SERPIENTE** | Supervivencia | Toca a un lado y gira a ese lado. Come y crece |
+| **CORREDOR** | Reflejos | Arriba saltas, abajo te deslizas. Elegir mal es tan malo como tardar |
+| **INVASORES** | Precisión | La nave dispara sola: todo el juego es dónde te pones |
+| **LADRILLOS** | Reflejos | Pala, bola y muro. Cada muro limpiado estrecha la pala |
+| **ASTEROIDES** | Supervivencia | Disparar no quita la roca: la parte en dos más rápidas |
+
+**Pulso y puntería**
+
+| | Habilidad | Regla |
+|---|---|---|
+| **DIANA** | Precisión | Dianas que se encogen. El centro vale el triple |
+| **CORTA** | Precisión | El dedo es la cuchilla. Un trazo puede partir varias; las bombas no |
+| **APILA** | Precisión | Suelta el bloque encima. Lo que sobresale se cae y la torre se estrecha |
+| **GRUA** | Precisión | La pinza tarda en bajar: apunta a donde va a estar, no a donde está |
+
+**Cabeza**
+
+| | Habilidad | Regla |
+|---|---|---|
+| **SEMAFORO** | Reflejos | Toca en cuanto se ponga verde. Ni antes: la salida falsa cuesta vida |
+| **STROOP** | Reflejos | Sale "ROJO" escrito en azul. Toca el color, no la palabra |
+| **TECLAS** | Reflejos | Las fichas bajan en orden. La de más abajo, siempre |
+| **CLASIFICA** | Reflejos | Azul a la izquierda, rojo a la derecha. Rápido |
+| **SIMON** | Memoria | Mira la secuencia y repítela. Una más cada ronda |
+
+Para probar cualquiera sin esperar al día que toque: `?debug` (o tres toques en
+el logo) → pestaña **JUEGOS**.
+
+El reparto no baraja por día: baraja **por semana** (de lunes a domingo) y
+reparte de tres en tres. Barajando cada día por separado, dos días seguidos
+podían sacar el mismo juego aunque hubiera cincuenta en el catálogo.
+
+**Una regla de diseño que comparten todos:** las vidas se pagan por equivocarse,
+no por despistarse. Que se te escape una ficha rompe la racha; tocar donde no
+toca cuesta vida. Sin eso, mirar el móvil cuatro segundos te eliminaba.
 
 ### Añadir un minijuego
 
@@ -632,13 +677,13 @@ Además muestra FPS del juego y de la UI en una esquina.
 ## Pruebas
 
 ```bash
-npm test                       # 245 pruebas (cliente + backend)
+npm test                       # 259 pruebas (cliente + backend)
 node tools/alfa.mjs            # ⭐ la prueba de este milestone (42 checks)
 node tools/duel.mjs            # dos navegadores compitiendo de verdad (16 checks)
 node tools/resilience.mjs      # offline, cola, servidor caído, ghost (20 checks)
 node tools/ghost.mjs           # traza real de DRIFT y su fallback (6 checks)
 node tools/flows.mjs           # producto en modo solo (33 checks)
-node tools/playtest.mjs        # un bot juega a los cuatro juegos y mide las marcas
+node tools/playtest.mjs        # un bot juega y mide las marcas
 node tools/shots-social.mjs    # capturas del milestone social
 node tools/screenshots.mjs     # capturas del modo solo
 ```

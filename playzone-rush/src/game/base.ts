@@ -252,6 +252,15 @@ export abstract class BaseMiniGame implements MiniGame {
     return this.mut.invertControls ? this.height - y : y;
   }
 
+  /** Toques de este frame, con los controles invertidos ya aplicados. */
+  protected tapPoints(): { x: number; y: number }[] {
+    return this.services.input.taps.map((tap) =>
+      this.mut.invertControls
+        ? { x: this.width - tap.x, y: this.height - tap.y }
+        : { x: tap.x, y: tap.y },
+    );
+  }
+
   protected announce(text: string, tone: 'good' | 'bad' = 'good'): void {
     this.events.emit('milestone', { text, tone });
   }

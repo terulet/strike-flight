@@ -115,6 +115,95 @@ function makeChallenge(
 const DIFFICULTIES = [0.15, 0.38, 0.62];
 const MUTATOR_COUNTS = [0, 1, 2];
 
+/** Retos por dia y dias por vuelta: 7 x 3 = 21 juegos sin repetir. */
+export const CHALLENGES_PER_DAY = 3;
+export const DAYS_PER_WEEK = 7;
+
+/** Dias enteros desde 1970 para una clave AAAA-MM-DD. */
+function dayNumber(dayKey: string): number {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  if (!y || !m || !d) return 0;
+  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+}
+
+/**
+ * Dia 0 de 1970 fue jueves, asi que sumando 3 las semanas empiezan en lunes.
+ * Importa: "esta semana" tiene que significar lo mismo para el reparto que
+ * para la persona que juega.
+ */
+function weekAndSlot(dayKey: string): { week: number; slot: number } {
+  const shifted = dayNumber(dayKey) + 3;
+  const week = Math.floor(shifted / DAYS_PER_WEEK);
+  return { week, slot: ((shifted % DAYS_PER_WEEK) + DAYS_PER_WEEK) % DAYS_PER_WEEK };
+}
+
+/** La baraja de una semana, sin mirar lo que paso en la anterior. */
+function rawDeck(week: number, catalog: GameCatalogEntry[]): GameCatalogEntry[] {
+  const need = DAYS_PER_WEEK * CHALLENGES_PER_DAY;
+  const deck: GameCatalogEntry[] = [];
+  for (let pass = 0; deck.length < need; pass++) {
+    const bag = new Rng(seedFrom('week', week, pass)).shuffle(catalog);
+    while (bag.length > 0 && deck.length < need) {
+      // Lo que ya ha caido hoy: se salta para no repetir dentro del dia.
+      const dayStart = Math.floor(deck.length / CHALLENGES_PER_DAY) * CHALLENGES_PER_DAY;
+      const today = deck.slice(dayStart).map((g) => g.id);
+      let i = bag.findIndex((g) => !today.includes(g.id));
+      if (i < 0) i = 0; // catalogo diminuto: no queda otra que repetir
+      deck.push(bag.splice(i, 1)[0] as GameCatalogEntry);
+    }
+  }
+  return deck;
+}
+
+/**
+ * Los 21 retos de una semana, repartidos de tres en tres.
+ *
+ * Antes cada dia barajaba el catalogo entero por su cuenta y cogia tres: dos
+ * dias seguidos podian sacar el mismo juego aunque hubiera cincuenta en el
+ * catalogo. Aqui se reparte una sola baraja para toda la semana, asi que con
+ * 21 juegos la semana entera sale sin repetir ni uno.
+ *
+ * El lunes se corrige aparte: se mira la cola del domingo anterior y, si algo
+ * coincide, se cambia por un juego del medio de la semana. Sin esto, la unica
+ * repeticion visible seria justo la de dos dias seguidos, que es la que canta.
+ *
+ * Con menos juegos que 21 se barajan pasadas sucesivas: se agotan todos antes
+ * de que ninguno vuelva a salir, y dentro de un mismo dia nunca se repite.
+ */
+function weekDeck(week: number, catalog: GameCatalogEntry[]): GameCatalogEntry[] {
+  const deck = rawDeck(week, catalog);
+  if (catalog.length <= CHALLENGES_PER_DAY * 2) return deck; // no hay margen para cambiar nada
+  const ayer = rawDeck(week - 1, catalog)
+    .slice(-CHALLENGES_PER_DAY)
+    .map((g) => g.id);
+
+  for (let i = 0; i < CHALLENGES_PER_DAY; i++) {
+    const actual = deck[i] as GameCatalogEntry;
+    if (!ayer.includes(actual.id)) continue;
+    const lunes = deck.slice(0, CHALLENGES_PER_DAY).map((g) => g.id);
+    // Se busca recambio en el medio: tocar los ultimos tres cambiaria la cola
+    // que la semana siguiente va a mirar, y el arreglo se perseguiria la cola.
+    const j = deck.findIndex(
+      (g, k) =>
+        k >= CHALLENGES_PER_DAY &&
+        k < deck.length - CHALLENGES_PER_DAY &&
+        !ayer.includes(g.id) &&
+        !lunes.includes(g.id),
+    );
+    if (j < 0) continue;
+    deck[i] = deck[j] as GameCatalogEntry;
+    deck[j] = actual;
+  }
+  return deck;
+}
+
+/** Los tres juegos que tocan hoy. */
+export function picksForDay(dayKey: string, catalog: GameCatalogEntry[]): GameCatalogEntry[] {
+  const { week, slot } = weekAndSlot(dayKey);
+  const deck = weekDeck(week, catalog);
+  return deck.slice(slot * CHALLENGES_PER_DAY, (slot + 1) * CHALLENGES_PER_DAY);
+}
+
 /**
  * Construye el dia completo. Determinista: buildDailyPlan(k) === buildDailyPlan(k).
  */
@@ -123,16 +212,24 @@ export function buildDailyPlan(dayKey: string, catalog: GameCatalogEntry[] = cat
 
   const seed = seedFrom('day', dayKey);
   const rng = new Rng(seed);
-  const shuffled = rng.shuffle(catalog);
-  const picks: GameCatalogEntry[] = [];
-  for (let i = 0; i < 3; i++) picks.push(shuffled[i % shuffled.length] as GameCatalogEntry);
+  const picks = picksForDay(dayKey, catalog);
 
   // Mutadores del dia: distintos entre si para que los tres retos no rimen.
+  //
+  // Se reparten mirando lo que cada juego entiende. Cogiendo a ciegas y
+  // filtrando despues, un reto cuyo juego no soportara el mutador que le tocaba
+  // se quedaba sin ninguno: anunciado como reto con mutador, y luego pelado.
   const pool = rng.shuffle(DAILY_MUTATOR_POOL);
-  let poolIndex = 0;
-  const takeMutators = (count: number): string[] => {
+  const usados = new Set<string>();
+  const takeMutators = (count: number, game: GameCatalogEntry): string[] => {
     const out: string[] = [];
-    while (out.length < count && poolIndex < pool.length) out.push(pool[poolIndex++] as string);
+    for (const id of pool) {
+      if (out.length >= count) break;
+      if (usados.has(id)) continue;
+      if (supportedFor(game, [id]).length === 0) continue;
+      usados.add(id);
+      out.push(id);
+    }
     return out;
   };
 
@@ -145,7 +242,7 @@ export function buildDailyPlan(dayKey: string, catalog: GameCatalogEntry[] = cat
       'daily',
       game,
       DIFFICULTIES[i] as number,
-      takeMutators(MUTATOR_COUNTS[i] as number),
+      takeMutators(MUTATOR_COUNTS[i] as number, game),
       DAILY_ATTEMPTS,
       true,
     ),
