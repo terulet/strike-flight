@@ -47,5 +47,7 @@ export function isStandalone(): boolean {
 /** El aviso que toca aqui y ahora. */
 export function currentInstallText(): string | null {
   if (typeof navigator === 'undefined') return null;
+  // En la app de TestFlight ya esta instalada por definicion.
+  if (import.meta.env?.VITE_NATIVE) return null;
   return installText(installAdvice(navigator.userAgent, isStandalone()));
 }

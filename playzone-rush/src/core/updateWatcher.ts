@@ -49,6 +49,11 @@ function unref(handle: unknown): void {
  * salten las dos senales). No hace falta pararlo: vive con la pagina.
  */
 export function watchForUpdate(onAvailable: () => void): void {
+  // En la app nativa el frontend viaja dentro del binario: que el servidor
+  // tenga otro build no significa que aqui haya nada que recargar, y el aviso
+  // saldria sin poder cumplirse. Ahi las versiones las anuncia TestFlight.
+  if (import.meta.env?.VITE_NATIVE) return;
+
   let fired = false;
   const trigger = (): void => {
     if (fired) return;

@@ -34,12 +34,33 @@ function emitBuildId(): Plugin {
   };
 }
 
+/**
+ * Quita el atributo `crossorigin` de las etiquetas que genera Vite.
+ *
+ * Dentro de la app nativa la pagina se sirve desde `capacitor://localhost`, y
+ * ahi WebKit trata una peticion marcada como CORS de forma distinta: el modulo
+ * principal no llega a ejecutarse y la app se queda en una pantalla negra, sin
+ * un solo error visible. Servido por HTTP no pasa, asi que esto solo se aplica
+ * a la build nativa y la web se queda como estaba.
+ */
+function sinCrossOrigin(): Plugin {
+  return {
+    name: 'playzone-sin-crossorigin',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      return html.replace(/\s+crossorigin(?=[\s>])/g, '');
+    },
+  };
+}
+
 // Base relativa: el build sale como ficheros estaticos que funcionan servidos
 // por HTTP y tambien empaquetados dentro de un WKWebView (Capacitor) sin tocar
 // una sola linea del juego.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [emitBuildId()],
+  // `--mode ios` es la build que se empaqueta en la app (ver `.env.ios`).
+  plugins: mode === 'ios' ? [emitBuildId(), sinCrossOrigin()] : [emitBuildId()],
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
@@ -70,4 +91,4 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 8192,
   },
-});
+}));

@@ -99,7 +99,9 @@ document.addEventListener(
 
 // Service worker solo en la build de produccion: en desarrollo estorba mas
 // que ayuda (cachea codigo viejo). Sirve para que la app abra sin cobertura.
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// En la app nativa sobra: los ficheros ya viajan dentro del binario, y ahi el
+// origen es `capacitor://`, donde el service worker ni siquiera esta soportado.
+if (import.meta.env.PROD && !import.meta.env.VITE_NATIVE && 'serviceWorker' in navigator) {
   globalThis.addEventListener('load', () => {
     void navigator.serviceWorker
       .register('./sw.js')

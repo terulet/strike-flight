@@ -17,7 +17,7 @@ entera solo de que hay versión nueva, registra sus errores, y tiene un panel de
 métricas de solo lectura para responder a la única pregunta que importa esta
 semana — **¿vuelve la gente sola, y vuelve por lo que hace otro?**
 
-- [Cómo desplegarlo](docs/DESPLIEGUE.md) · [Protocolo de la alfa de 7 días](docs/ALFA-7-DIAS.md) · [Features congeladas](docs/CONGELADO.md)
+- [Cómo desplegarlo](docs/DESPLIEGUE.md) · [App de iOS (TestFlight)](docs/TESTFLIGHT.md) · [Protocolo de la alfa de 7 días](docs/ALFA-7-DIAS.md) · [Features congeladas](docs/CONGELADO.md)
 
 Es un proyecto **independiente**. No toca ni depende de los demás juegos de PLAYZONE
 (001, 002, 003…), que siguen viviendo en sus propios repositorios. La idea es que más
@@ -48,6 +48,8 @@ npm run preview      # sirve la build de producción (con service worker)
 npm test             # 245 pruebas (cliente + backend)
 npm run test:server  # solo backend
 npm run typecheck
+npm run ios          # build nativa + sync del proyecto de Xcode
+npm run ios:open     # lo mismo, y abre Xcode para archivar y subir
 ```
 
 ### Probarlo con DOS móviles (misma Wi-Fi)
@@ -95,6 +97,12 @@ también se abre por una dirección interna que los demás no alcanzan.
 **Instalarlo** es el segundo paso, y en iOS nadie lo adivina: no hay botón. Por
 eso el onboarding lleva abajo la instrucción exacta según el móvil, y
 desaparece sola cuando la app ya se abre desde la pantalla de inicio.
+
+Y para quien prefiera una app de verdad, el mismo juego se empaqueta para iOS
+con Capacitor y se reparte por TestFlight: [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md).
+El juego viaja dentro del binario y solo la API sale a la red, así que abre sin
+cobertura. Compartir sigue mandando el enlace web, que es lo que le sirve a
+quien todavía no tiene nada instalado.
 
 ---
 
