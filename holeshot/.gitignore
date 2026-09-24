@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-crazygames
+release
+*.log
+# El .gitignore de la raiz excluye package*.json y assets/ en todo el repo: aqui si van.
+!package.json
+!package-lock.json
+!src/assets/

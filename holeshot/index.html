@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0f16" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>HOLESHOT — Gira Mundial del Barro</title>
+    <meta name="description" content="Motocross 2D de físicas en el navegador. Una pista nueva cada día, la misma para todo el mundo: haz tu tiempo y reta a tus amigos con tu fantasma." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="HOLESHOT — ¿Me ganas?" />
+    <meta property="og:description" content="Una pista de motocross nueva cada día, la misma para todo el mundo. Corre contra el fantasma de tus amigos." />
+    <meta property="og:image" content="./og.jpg" />
+    <meta property="og:url" content="./" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui">
+      <div id="hud" class="hidden">
+        <div class="hud-tl">
+          <div class="hud-mission" id="hMission"></div>
+          <div class="hud-time" id="hTime">0:00.00</div>
+          <div class="hud-target" id="hTarget"></div>
+          <div class="hud-pos" id="hPos"></div>
+        </div>
+        <div class="hud-tc">
+          <div class="progress">
+            <div class="progress-fill" id="hProg"></div>
+            <div class="progress-ticks" id="hTicks"></div>
+            <div class="progress-rider" id="hRider"></div>
+            <div class="progress-storm" id="hStorm"></div>
+          </div>
+          <div class="hud-section" id="hSection"></div>
+          <div class="hud-delta" id="hDelta"></div>
+        </div>
+        <div class="hud-tr">
+          <div class="obj-label" id="hObjLabel"></div>
+          <div class="obj-value" id="hObj"></div>
+          <div class="combo" id="hCombo">
+            <div class="combo-x" id="hComboX"></div>
+            <div class="combo-bar"><div id="hComboBar"></div></div>
+          </div>
+        </div>
+        <div class="hud-bl">
+          <div class="speed" id="hSpeed">0</div>
+          <div class="speed-unit">KM/H</div>
+        </div>
+        <div class="hud-br">
+          <div class="tearoffs" id="hTear"></div>
+          <div class="nitro-label">NITRO</div>
+          <div class="nitro"><div id="hNitro"></div></div>
+        </div>
+        <div class="countdown" id="hCount"></div>
+        <div class="rev" id="hRev">
+          <div class="rev-label">GAS JUSTO ANTES DE QUE CAIGA LA PARRILLA</div>
+          <div class="rev-bar"><div class="rev-zone"></div><div class="rev-fill" id="hRevFill"></div></div>
+        </div>
+        <button class="pause-btn" id="hPause" aria-label="Pausa">II</button>
+        <div class="danger" id="hDanger"></div>
+        <div class="rotate-hint">GIRA EL MÓVIL PARA VER MÁS PISTA ⟳</div>
+      </div>
+      <div id="cine"><div class="cine-top"></div><div class="cine-bot"></div><div class="cine-tag">CÁMARA LENTA</div></div>
+      <div id="touch" class="hidden">
+        <div class="touch-left">
+          <button class="tbtn" data-touch="back" aria-label="Cuerpo atrás">◀</button>
+          <button class="tbtn" data-touch="fwd" aria-label="Cuerpo adelante">▶</button>
+          <button class="tbtn tbtn-tear" id="tTear" aria-label="Tear-off">TEAR</button>
+        </div>
+        <div class="touch-right">
+          <button class="tbtn tbtn-nitro" data-touch="nitro">N₂O</button>
+          <button class="tbtn tbtn-brake" data-touch="brake">FRENO</button>
+          <button class="tbtn tbtn-gas" data-touch="gas">GAS</button>
+        </div>
+      </div>
+      <div id="popups"></div>
+      <div id="screen"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

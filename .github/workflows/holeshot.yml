@@ -1,0 +1,35 @@
+# HOLESHOT: en cada push que toque holeshot/, pruebas + builds + paquetes.
+# Los paquetes (zip de CrazyGames, zip web y HTML de un solo archivo) quedan
+# como artefacto descargable del run.
+name: HOLESHOT build
+
+on:
+  push:
+    paths:
+      - 'holeshot/**'
+      - '.github/workflows/holeshot.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: holeshot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: holeshot/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run release
+        env:
+          VITE_PUBLIC_URL: https://terulet.github.io/strike-flight/holeshot/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: holeshot-release
+          path: holeshot/release/
+          if-no-files-found: error

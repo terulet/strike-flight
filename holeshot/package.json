@@ -1,0 +1,21 @@
+{
+  "name": "holeshot",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "HOLESHOT — motocross 2D de fisicas. Gira mundial en cinco pruebas.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "build:crazygames": "tsc --noEmit && vite build --mode crazygames",
+    "release": "npm run build && npm run build:crazygames && node scripts/release.mjs",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}
