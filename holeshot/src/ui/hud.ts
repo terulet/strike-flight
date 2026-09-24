@@ -1,7 +1,8 @@
 /** HUD en DOM: solo escribe cuando algo cambia. */
 import { Race, RACE } from '../game/race';
 import { TEAR_OFFS } from '../render/lens';
-import { fmtInt, fmtTime } from './screens';
+import { fmtDecimal, ordinal, t as tr } from '../i18n';
+import { fmtInt, fmtTime, missionName } from './screens';
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 
@@ -19,20 +20,28 @@ export class Hud {
   setup(race: Race): void {
     const m = race.mission;
     document.documentElement.style.setProperty('--accent', m.theme.accent);
-    $('hMission').textContent = m.daily ? m.name : `PRUEBA ${m.id} · ${m.name}`;
     const t = race.track;
     const span = t.finishX - t.startX;
     $('hTicks').innerHTML = t.checkpoints
       .slice(1)
       .map((x, i) => `<span data-i="${i + 1}" style="left:${(((x - t.startX) / span) * 100).toFixed(2)}%"></span>`)
       .join('');
-    $('hObjLabel').textContent = { time: 'PUNTOS', plates: 'PLACAS', tricks: 'PUNTOS DE TRUCO', storm: 'TORMENTA', final: 'PUESTO' }[m.objective];
-    $('hStorm').style.display = m.objective === 'storm' ? '' : 'none';
-    this.cache.clear();
     this.sectionIdx = -1;
+    this.relabel(race);
+    $('hStorm').style.display = m.objective === 'storm' ? '' : 'none';
     this.lastCount = -1;
     $('hCount').textContent = '';
     $('hSection').classList.remove('show');
+  }
+
+  /** Textos fijos del HUD en el idioma activo (tambien al cambiarlo en la pausa). */
+  relabel(race: Race): void {
+    const m = race.mission;
+    $('hMission').textContent = m.daily ? missionName(m) : `${tr('PRUEBA {n}', { n: m.id })} · ${missionName(m)}`;
+    $('hObjLabel').textContent = { time: tr('PUNTOS'), plates: tr('PLACAS'), tricks: tr('PUNTOS DE TRUCO'), storm: tr('TORMENTA'), final: tr('PUESTO') }[m.objective];
+    const sec = race.track.sections[this.sectionIdx];
+    if (sec) $('hSection').textContent = tr(sec.name);
+    this.cache.clear();
   }
 
   private set(id: string, value: string, prop: 'text' | 'html' | 'width' | 'left' = 'text'): void {
@@ -59,10 +68,10 @@ export class Hud {
     const b = race.bike;
     this.set('hTime', fmtTime(race.time));
     const md = m.medals;
-    if (m.objective === 'tricks') this.set('hTarget', `ORO ${fmtInt(md.goldScore ?? 0)} PTS`);
+    if (m.objective === 'tricks') this.set('hTarget', tr('ORO {n} PTS', { n: fmtInt(md.goldScore ?? 0) }));
     else {
       const gold = race.time <= md.gold;
-      this.set('hTarget', gold ? `ORO ${fmtTime(md.gold)}` : `PLATA ${fmtTime(md.silver)}`);
+      this.set('hTarget', gold ? tr('ORO {t}', { t: fmtTime(md.gold) }) : tr('PLATA {t}', { t: fmtTime(md.silver) }));
       this.toggle('hTarget', 'lost', !gold);
     }
     const pct = (race.progress * 100).toFixed(2) + '%';
@@ -95,17 +104,17 @@ export class Hud {
         break;
       }
       case 'final':
-        this.set('hObj', `${race.position}º/${race.riders}`);
+        this.set('hObj', `${ordinal(race.position)}/${race.riders}`);
         break;
       default:
         this.set('hObj', fmtInt(race.score));
     }
-    this.set('hPos', race.rivals.length && m.objective !== 'final' ? `${race.position}º<small>/ ${race.riders}</small>` : '', 'html');
+    this.set('hPos', race.rivals.length && m.objective !== 'final' ? `${ordinal(race.position)}<small>/ ${race.riders}</small>` : '', 'html');
 
     // Diferencia con el fantasma del reto (o con tu mejor vuelta).
     if (ghost) {
       const d = ghost.delta;
-      const txt = `${d <= 0 ? '−' : '+'}${Math.abs(d).toFixed(2).replace('.', ',')} s`;
+      const txt = `${d <= 0 ? '−' : '+'}${fmtDecimal(Math.abs(d), 2)} s`;
       this.set('hDelta', `vs ${ghost.label} ${txt}`);
       this.toggle('hDelta', 'ahead', d <= 0);
       this.toggle('hDelta', 'behind', d > 0);
@@ -117,7 +126,7 @@ export class Hud {
       this.cache.set('tear', tearKey);
       const el = $('hTear');
       el.classList.toggle('dirty', lens.coverage > 0.2 && lens.left > 0);
-      el.innerHTML = `<span>${lens.coverage > 0.2 && lens.left > 0 ? 'T · LIMPIAR' : 'TEAR-OFFS'}</span>` + Array.from({ length: TEAR_OFFS }, (_, i) => `<i class="${i < lens.left ? '' : 'used'}"></i>`).join('');
+      el.innerHTML = `<span>${lens.coverage > 0.2 && lens.left > 0 ? tr('T · LIMPIAR') : 'TEAR-OFFS'}</span>` + Array.from({ length: TEAR_OFFS }, (_, i) => `<i class="${i < lens.left ? '' : 'used'}"></i>`).join('');
     }
 
     // Medidor de salida en la parrilla.
@@ -142,7 +151,7 @@ export class Hud {
     for (let i = 0; i < secs.length; i++) if (b.x >= secs[i].x - 4) idx = i;
     if (idx !== this.sectionIdx && idx >= 0) {
       this.sectionIdx = idx;
-      this.set('hSection', secs[idx].name);
+      this.set('hSection', tr(secs[idx].name));
       $('hSection').classList.add('show');
       this.sectionTimer = 2.4;
     }
@@ -166,7 +175,7 @@ export class Hud {
       }
     } else if (this.lastCount > 0) {
       this.lastCount = 0;
-      cd.textContent = '¡YA!';
+      cd.textContent = tr('¡YA!');
       cd.className = 'countdown go tick';
       changed = 0;
       window.setTimeout(() => {

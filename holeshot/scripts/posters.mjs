@@ -4,7 +4,8 @@
  *
  *   node scripts/posters.mjs
  *
- * Salida: public/og.jpg (1200x630) y store/*.png.
+ * Salida: public/og.jpg (1200x630, en español, como las etiquetas de la web)
+ * y store/*.jpg (en inglés, para los portales).
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -26,15 +27,15 @@ const base = `http://localhost:${PORT}/`;
 
 const shots = [
   // [archivo, ancho, alto, url, segundos]
-  ['public/og.jpg', 1200, 630, '?mission=5&autoplay=1&poster=1', 8.2],
-  ['store/cover-1920x1080.jpg', 1920, 1080, '?mission=5&autoplay=1&poster=1', 8.2],
-  ['store/cover-1280x720.jpg', 1280, 720, '?mission=5&autoplay=1&poster=1', 8.2],
-  ['store/portrait-800x1200.jpg', 800, 1200, '?mission=1&autoplay=1&poster=1', 9],
-  ['store/square-800x800.jpg', 800, 800, '?mission=3&autoplay=1&poster=1', 9.5],
-  ['store/screenshot-1-final.jpg', 1920, 1080, '?mission=5&autoplay=1', 5.5],
-  ['store/screenshot-2-bosque.jpg', 1920, 1080, '?mission=3&autoplay=1', 14],
-  ['store/screenshot-3-diario.jpg', 1920, 1080, '?daily=1&autoplay=1', 10],
-  ['store/screenshot-4-tormenta.jpg', 1920, 1080, '?mission=4&autoplay=1', 12],
+  ['public/og.jpg', 1200, 630, '?mission=5&autoplay=1&poster=1&lang=es', 8.2],
+  ['store/cover-1920x1080.jpg', 1920, 1080, '?mission=5&autoplay=1&poster=1&lang=en', 8.2],
+  ['store/cover-1280x720.jpg', 1280, 720, '?mission=5&autoplay=1&poster=1&lang=en', 8.2],
+  ['store/portrait-800x1200.jpg', 800, 1200, '?mission=1&autoplay=1&poster=1&lang=en', 9],
+  ['store/square-800x800.jpg', 800, 800, '?mission=3&autoplay=1&poster=1&lang=en', 9.5],
+  ['store/screenshot-1-final.jpg', 1920, 1080, '?mission=5&autoplay=1&lang=en', 5.5],
+  ['store/screenshot-2-bosque.jpg', 1920, 1080, '?mission=3&autoplay=1&lang=en', 14],
+  ['store/screenshot-3-diario.jpg', 1920, 1080, '?daily=1&autoplay=1&lang=en', 10],
+  ['store/screenshot-4-tormenta.jpg', 1920, 1080, '?mission=4&autoplay=1&lang=en', 12],
 ];
 
 fs.mkdirSync('store', { recursive: true });

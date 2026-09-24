@@ -5,12 +5,14 @@
  * barras.
  */
 import { makeRng } from '../core/math';
+import { fmtDecimal, lang, ordinal, t } from '../i18n';
 
 const W = 600;
 const H = 800;
 const DISPLAY = '"Russo One", "Arial Black", Impact, sans-serif';
 const COND = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const MONTHS = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+const MONTHS_EN = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 
 /** Recorta del lienzo del juego una foto vertical centrada en el piloto. */
 export function capturePhoto(src: HTMLCanvasElement, cssX: number, cssY: number, dpr: number): HTMLCanvasElement {
@@ -49,21 +51,22 @@ export interface CoverData {
 
 function headline(d: CoverData): [string, string] {
   const who = `${d.riderName} (#${d.riderNumber})`;
-  if (d.position === 1) return ['¡CAMPEÓN!', `${who} se corona en ${d.missionName}`];
-  if (d.flips >= 2) return ['¡DOBLE MORTAL!', `${who} gira dos veces en ${d.missionName}`];
-  if (d.flips === 1) return ['¡MORTAL!', `${who} se da la vuelta en ${d.missionName}`];
-  if (d.airTime >= 1.2) return [`${d.airTime.toFixed(1).replace('.', ',')} SEGUNDOS`, `de vuelo de ${who}`];
-  return ['A FONDO', `${who} cruza ${d.missionName}`];
+  const v = { who, m: d.missionName };
+  if (d.position === 1) return [t('¡CAMPEÓN!'), t('{who} se corona en {m}', v)];
+  if (d.flips >= 2) return [t('¡DOBLE MORTAL!'), t('{who} gira dos veces en {m}', v)];
+  if (d.flips === 1) return [t('¡MORTAL!'), t('{who} se da la vuelta en {m}', v)];
+  if (d.airTime >= 1.2) return [t('{n} SEGUNDOS', { n: fmtDecimal(d.airTime) }), t('de vuelo de {who}', v)];
+  return [t('A FONDO'), t('{who} cruza {m}', v)];
 }
 
 function coverLines(d: CoverData): string[] {
   const out: string[] = [];
-  if (d.holeshot) out.push('Se lleva el HOLESHOT');
-  else if (d.perfectStart) out.push('Salida perfecta en la parrilla');
-  if (d.position !== null) out.push(`Termina ${d.position}º de ${d.riders}`);
-  out.push(`${d.time} en ${d.place}`);
-  if (d.mud > 0.35) out.push(`Barro hasta el casco (${Math.round(d.mud * 100)} %)`);
-  out.push(d.crashes === 0 ? 'Cero caídas' : `${d.crashes} ${d.crashes === 1 ? 'caída' : 'caídas'} y vuelta a subir`);
+  if (d.holeshot) out.push(t('Se lleva el HOLESHOT'));
+  else if (d.perfectStart) out.push(t('Salida perfecta en la parrilla'));
+  if (d.position !== null) out.push(t('Termina {p} de {n}', { p: ordinal(d.position), n: d.riders }));
+  out.push(t('{t} en {place}', { t: d.time, place: d.place }));
+  if (d.mud > 0.35) out.push(t('Barro hasta el casco ({n} %)', { n: Math.round(d.mud * 100) }));
+  out.push(d.crashes === 0 ? t('Cero caídas') : d.crashes === 1 ? t('1 caída y vuelta a subir') : t('{n} caídas y vuelta a subir', { n: d.crashes }));
   return out.slice(0, 4);
 }
 
@@ -118,9 +121,9 @@ export function renderCover(photo: HTMLCanvasElement | null, d: CoverData): HTML
   const now = new Date();
   g.font = `800 17px ${COND}`;
   g.fillStyle = '#ffffff';
-  g.fillText(`LA REVISTA DEL BARRO · Nº ${100 + d.missionId} · ${MONTHS[now.getMonth()]} ${now.getFullYear()}`, 28, 162);
+  g.fillText(`${t('LA REVISTA DEL BARRO · Nº {n}', { n: 100 + d.missionId })} · ${(lang() === 'en' ? MONTHS_EN : MONTHS)[now.getMonth()]} ${now.getFullYear()}`, 28, 162);
   g.textAlign = 'right';
-  g.fillText('4,95 €', W - 28, 162);
+  g.fillText(lang() === 'en' ? '$4.95' : '4,95 €', W - 28, 162);
   g.textAlign = 'left';
 
   // Titulares laterales.
@@ -138,7 +141,7 @@ export function renderCover(photo: HTMLCanvasElement | null, d: CoverData): HTML
   });
 
   // Pegatina.
-  const medalName = ['', 'BRONCE', 'PLATA', 'ORO'][d.medal] ?? '';
+  const medalName = ['', t('BRONCE'), t('PLATA'), t('ORO')][d.medal] ?? '';
   const stickerColor = d.medal === 3 ? '#ffcf3f' : d.medal === 2 ? '#dfe5ec' : d.medal === 1 ? '#d88a4a' : d.accent;
   g.save();
   g.translate(W - 96, 262);
@@ -155,9 +158,9 @@ export function renderCover(photo: HTMLCanvasElement | null, d: CoverData): HTML
   g.fillStyle = '#1a1206';
   g.textAlign = 'center';
   g.font = `800 15px ${COND}`;
-  g.fillText(medalName ? 'MEDALLA' : 'EXCLUSIVA', 0, -8);
+  g.fillText(medalName ? t('MEDALLA') : t('EXCLUSIVA'), 0, -8);
   g.font = `400 22px ${DISPLAY}`;
-  g.fillText(medalName || '¡YA!', 0, 18);
+  g.fillText(medalName || t('¡YA!'), 0, 18);
   g.restore();
 
   // Titular principal.

@@ -4,6 +4,7 @@
  * fantasma de tu vuelta. Quien lo abre corre la misma pista contra ti.
  */
 import type { SectionMark } from '../game/race';
+import { fmtDecimal, t } from '../i18n';
 
 /** Direccion publica del juego publicado en claude.ai (fuera de ahi, la propia pagina). */
 const ARTIFACT_URL = 'https://claude.ai/artifact/VFMHnruZ3K1KjwTD2EkHfr';
@@ -38,11 +39,14 @@ export function shareText(s: ShareInput): string {
   const lines = [`HOLESHOT · ${s.title}`];
   const extra: string[] = [];
   if (s.flips) extra.push(`🔄 ${s.flips}`);
-  if (s.maxAir >= 1.5) extra.push(`🪂 ${s.maxAir.toFixed(1).replace('.', ',')} s`);
-  extra.push(s.crashes ? `💥 ${s.crashes}` : '0 caídas');
+  if (s.maxAir >= 1.5) extra.push(`🪂 ${fmtDecimal(s.maxAir)} s`);
+  extra.push(s.crashes ? `💥 ${s.crashes}` : t('0 caídas'));
   lines.push(`⏱️ ${s.time} ${MEDAL_EMOJI[s.medal] ?? ''}`.trim() + ' · ' + extra.join(' · '));
   lines.push(s.marks.map((m) => MARK_EMOJI[m]).join(''));
-  if (s.versus) lines.push(s.versus.won ? `🏆 Le he ganado a ${s.versus.name} por ${s.versus.diff}` : `😤 ${s.versus.name} me ha ganado por ${s.versus.diff}`);
-  if (s.link) lines.push(`¿Me ganas? ${s.link}`);
+  if (s.versus) {
+    const v = { name: s.versus.name, diff: s.versus.diff };
+    lines.push(s.versus.won ? `🏆 ${t('Le he ganado a {name} por {diff}', v)}` : `😤 ${t('{name} me ha ganado por {diff}', v)}`);
+  }
+  if (s.link) lines.push(`${t('¿Me ganas?')} ${s.link}`);
   return lines.join('\n');
 }

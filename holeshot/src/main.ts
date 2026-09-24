@@ -25,7 +25,8 @@ import { toScreen } from './render/view';
 import { capturePhoto, renderCover } from './ui/cover';
 import { Hud } from './ui/hud';
 import { Action, Input } from './ui/input';
-import { briefingHTML, garageHTML, pauseHTML, resultsHTML, selectHTML, titleHTML, fmtInt, fmtTime } from './ui/screens';
+import { briefingHTML, garageHTML, pauseHTML, resultsHTML, selectHTML, titleHTML, fmtDate, fmtInt, fmtTime, missionName } from './ui/screens';
+import { applyStatic, fmtDecimal, lang, ordinal, setLang, t as tr } from './i18n';
 import { REPLAY_RATE, ReplayFrame, clipSupported, makeClip } from './ui/clip';
 import { challengeLink, shareText } from './ui/share';
 
@@ -96,6 +97,8 @@ class Game {
 
   constructor() {
     this.sfx.muted = this.progress.muted;
+    this.localizeDefaultName();
+    applyStatic();
     this.touch = matchMedia('(pointer: coarse)').matches;
     document.body.classList.toggle('touch', this.touch);
     window.addEventListener('resize', () => this.resize());
@@ -130,7 +133,7 @@ class Game {
       document.body.classList.add('poster');
       const el = document.createElement('div');
       el.className = 'poster-logo';
-      el.innerHTML = '<div class="logo"><span class="hole">HOLE</span><span class="shot">SHOT</span></div><div class="poster-tag">UNA PISTA NUEVA CADA DÍA · ¿ME GANAS?</div>';
+      el.innerHTML = `<div class="logo"><span class="hole">HOLE</span><span class="shot">SHOT</span></div><div class="poster-tag">${tr('UNA PISTA NUEVA CADA DÍA · ¿ME GANAS?')}</div>`;
       document.getElementById('ui')?.appendChild(el);
     }
     const route = this.routeFromLink();
@@ -192,43 +195,43 @@ class Game {
             onCrash: () => this.onCrash(),
             onRespawn: () => this.scene.onRespawn(),
             onCheckpoint: () => {
-              this.hud.popup('', 'CHECKPOINT');
+              this.hud.popup('', tr('CHECKPOINT'));
               this.sfx.checkpoint();
             },
             onPickup: (k) => {
               this.sfx.pickup(k);
-              if (k === 'plate') this.hud.popup('', `PLACA ${this.race.platesCollected}/${this.race.track.pickups.filter((p) => p.kind === 'plate').length}`);
-              else this.hud.popup('', 'NITRO +');
+              if (k === 'plate') this.hud.popup('', tr('PLACA {a}/{b}', { a: this.race.platesCollected, b: this.race.track.pickups.filter((p) => p.kind === 'plate').length }));
+              else this.hud.popup('', tr('NITRO +'));
             },
             onFinish: () => {
               const r = this.race;
-              this.hud.popup(r.rivals.length ? `${r.position}º` : '¡META!', r.rivals.length ? (r.position === 1 ? '¡GANAS LA CARRERA!' : 'EN META') : '');
+              this.hud.popup(r.rivals.length ? ordinal(r.position) : tr('¡META!'), r.rivals.length ? (r.position === 1 ? tr('¡GANAS LA CARRERA!') : tr('EN META')) : '');
               this.endTimer = 1.6;
             },
             onTakeoff: () => this.onTakeoff(),
             onStart: (k) => {
-              if (k === 'perfect') this.hud.popup('', '¡SALIDA PERFECTA!', 'perfect');
-              else if (k === 'spin') this.hud.popup('', 'DEMASIADO GAS: PATINA', 'rough');
-              else if (k === 'late') this.hud.popup('', 'SALIDA LENTA', 'rough');
+              if (k === 'perfect') this.hud.popup('', tr('¡SALIDA PERFECTA!'), 'perfect');
+              else if (k === 'spin') this.hud.popup('', tr('DEMASIADO GAS: PATINA'), 'rough');
+              else if (k === 'late') this.hud.popup('', tr('SALIDA LENTA'), 'rough');
             },
             onHoleshot: (rv) => {
               if (!rv) {
-                this.hud.popup('¡HOLESHOT!', `+${fmtInt(500)} · NITRO`, 'perfect');
+                this.hud.popup(tr('¡HOLESHOT!'), `+${fmtInt(500)} · NITRO`, 'perfect');
                 this.sfx.holeshot();
                 this.platform.happytime();
-              } else this.hud.popup('', `HOLESHOT PARA #${rv.spec.number} ${rv.spec.name}`, 'rough');
+              } else this.hud.popup('', tr('HOLESHOT PARA #{n} {name}', { n: rv.spec.number, name: rv.spec.name }), 'rough');
             },
             onRivalCrash: (rv) => {
               this.scene.onRivalCrash(rv);
-              if (Math.abs(rv.bike.x - this.race.bike.x) < 30) this.hud.popup('', `¡SE CAE #${rv.spec.number} ${rv.spec.name}!`);
+              if (Math.abs(rv.bike.x - this.race.bike.x) < 30) this.hud.popup('', tr('¡SE CAE #{n} {name}!', { n: rv.spec.number, name: rv.spec.name }));
             },
             onRivalRespawn: (rv) => this.scene.onRivalRespawn(rv),
             onRivalOut: (rv) => {
               this.scene.onRivalCrash(rv);
-              this.hud.popup('', `LA TORMENTA SE TRAGA A #${rv.spec.number}`, 'bad');
+              this.hud.popup('', tr('LA TORMENTA SE TRAGA A #{n}', { n: rv.spec.number }), 'bad');
             },
             onFail: (reason) => {
-              this.hud.popup('¡FUERA!', reason.toUpperCase(), 'bad');
+              this.hud.popup(tr('¡FUERA!'), tr(reason).toUpperCase(), 'bad');
               this.sfx.fail();
               this.endTimer = 1.8;
             },
@@ -265,10 +268,10 @@ class Game {
   private ghostsFor(ref: Ref): Array<{ player: GhostPlayer; label: string }> {
     const key = refKey(ref);
     const list: Array<{ player: GhostPlayer; label: string }> = [];
-    if (this.challenge && this.challenge.track === key) list.push({ player: new GhostPlayer(this.challenge), label: `RETO · ${this.challenge.name} ${fmtTime(this.challenge.time)}` });
+    if (this.challenge && this.challenge.track === key) list.push({ player: new GhostPlayer(this.challenge), label: `${tr('RETO')} · ${this.challenge.name} ${fmtTime(this.challenge.time)}` });
     const own = loadGhostToken(key);
     const g = own ? decodeGhost(own) : null;
-    if (g && g.track === key) list.push({ player: new GhostPlayer(g), label: `TU MEJOR ${fmtTime(g.time)}` });
+    if (g && g.track === key) list.push({ player: new GhostPlayer(g), label: tr('TU MEJOR {t}', { t: fmtTime(g.time) }) });
     return list;
   }
 
@@ -276,14 +279,15 @@ class Game {
     this.scene.onLand(e);
     this.sfx.land(0.3 + e.airTime * 0.5 + (e.quality === 'ROUGH' ? 0.4 : 0));
     if (e.flips > 0) {
-      const name = `${e.flips > 1 ? `DOBLE ` : ''}${e.direction === 'back' ? 'BACKFLIP' : 'FRONTFLIP'}`;
-      this.hud.popup(name, `+${fmtInt(e.points)} ${e.quality === 'PERFECT' ? '· PERFECTO' : e.quality === 'ROUGH' ? '· CRUZADO' : ''}${e.combo > 1 ? ` · COMBO x${Math.min(5, e.combo + 1)}` : ''}`, e.quality === 'PERFECT' ? 'perfect' : '');
+      const trick = e.direction === 'back' ? 'BACKFLIP' : 'FRONTFLIP';
+      const name = e.flips > 1 ? tr('DOBLE {trick}', { trick }) : trick;
+      this.hud.popup(name, `+${fmtInt(e.points)} ${e.quality === 'PERFECT' ? `· ${tr('PERFECTO')}` : e.quality === 'ROUGH' ? `· ${tr('CRUZADO')}` : ''}${e.combo > 1 ? ` · COMBO x${Math.min(5, e.combo + 1)}` : ''}`, e.quality === 'PERFECT' ? 'perfect' : '');
       this.sfx.trick(e.flips);
     } else if (e.quality === 'PERFECT' && e.airTime > 0.9) {
-      this.hud.popup('', `PERFECTO +${fmtInt(e.points)} · PUMP`, 'perfect');
+      this.hud.popup('', `${tr('PERFECTO')} +${fmtInt(e.points)} · PUMP`, 'perfect');
       this.sfx.cheer(0.3);
     } else if (e.quality === 'ROUGH' && e.airTime > 0.45) {
-      this.hud.popup('', 'RECEPCIÓN CRUZADA', 'rough');
+      this.hud.popup('', tr('RECEPCIÓN CRUZADA'), 'rough');
     }
   }
 
@@ -334,7 +338,7 @@ class Game {
   private onCrash(): void {
     this.scene.onCrash();
     this.sfx.crash();
-    this.hud.popup('¡CAÍDA!', 'VUELVES AL CHECKPOINT', 'bad');
+    this.hud.popup(tr('¡CAÍDA!'), tr('VUELVES AL CHECKPOINT'), 'bad');
   }
 
   // --------------------------------------------------------------- pantallas
@@ -476,10 +480,10 @@ class Game {
       try {
         cover = renderCover(this.photo, {
           missionId: m.daily ? 200 + m.daily.number : m.id,
-          missionName: m.name,
+          missionName: missionName(m),
           riderNumber: this.progress.rider.number,
           riderName: this.progress.rider.name,
-          place: m.place,
+          place: m.daily ? fmtDate(m.daily.key) : tr(m.place),
           accent: m.theme.accent,
           airTime: r.maxAirTime,
           flips: r.flips,
@@ -507,7 +511,7 @@ class Game {
       token = encodeGhost({ track: key, time: r.time, colors: rider.colors, number: rider.number, name: rider.name, samples: this.recorder.samples });
       if (this.challenge && this.challenge.track === key) {
         const d = r.time - this.challenge.time;
-        versus = { name: `#${this.challenge.number} ${this.challenge.name}`, won: d < 0, diff: `${Math.abs(d).toFixed(2).replace('.', ',')} s` };
+        versus = { name: `#${this.challenge.number} ${this.challenge.name}`, won: d < 0, diff: `${fmtDecimal(Math.abs(d), 2)} s` };
       }
     }
     if (finished && !this.autoplay) {
@@ -522,7 +526,7 @@ class Game {
     let share: { text: string; canNative: boolean; canSaveCover: boolean; canClip: boolean } | null = null;
     if (finished) {
       this.lastShare = shareText({
-        title: m.daily ? `Barro del Día #${m.daily.number}` : m.name,
+        title: missionName(m),
         time: fmtTime(r.time),
         medal,
         crashes: r.crashes,
@@ -605,10 +609,10 @@ class Game {
         sel?.removeAllRanges();
         sel?.addRange(range);
       }
-      this.note('Selecciónalo y cópialo (Cmd/Ctrl + C).');
+      this.note(tr('Selecciónalo y cópialo (Cmd/Ctrl + C).'));
     };
     try {
-      navigator.clipboard.writeText(text).then(() => this.note('¡Copiado! Pégalo en el chat: quien abra el enlace correrá contra tu fantasma.'), fallback);
+      navigator.clipboard.writeText(text).then(() => this.note(tr('¡Copiado! Pégalo en el chat: quien abra el enlace correrá contra tu fantasma.')), fallback);
     } catch {
       fallback();
     }
@@ -629,14 +633,14 @@ class Game {
         frames: this.replay,
         apex: this.apexTime,
         rider: this.progress.rider,
-        title: m.daily ? `Barro del Día #${m.daily.number}` : m.name,
+        title: missionName(m),
         time: fmtTime(this.race.time),
-        onProgress: (p) => this.note(`Montando tu clip vertical… ${Math.round(p * 100)} %`),
+        onProgress: (p) => this.note(tr('Montando tu clip vertical… {n} %', { n: Math.round(p * 100) })),
       });
-      this.note(`Clip listo (${(this.clip.blob.size / 1e6).toFixed(1).replace('.', ',')} MB). Súbelo con el texto de arriba como descripción.`);
+      this.note(tr('Clip listo ({n} MB). Súbelo con el texto de arriba como descripción.', { n: fmtDecimal(this.clip.blob.size / 1e6) }));
       btn.removeAttribute('disabled');
       btn.dataset.act = 'save-clip';
-      btn.textContent = 'GUARDAR CLIP';
+      btn.textContent = tr('GUARDAR CLIP');
       const file = new File([this.clip.blob], this.clipName(), { type: this.clip.blob.type });
       let topLevel = true;
       try {
@@ -647,12 +651,12 @@ class Game {
       if (topLevel && navigator.canShare?.({ files: [file] })) {
         const share = document.createElement('button');
         share.className = 'ghost-btn';
-        share.textContent = 'COMPARTIR CLIP';
+        share.textContent = tr('COMPARTIR CLIP');
         share.addEventListener('click', () => this.shareClip());
         btn.after(share);
       }
     } catch {
-      this.note('Este navegador no puede grabar el clip.');
+      this.note(tr('Este navegador no puede grabar el clip.'));
       btn.removeAttribute('disabled');
     } finally {
       this.clipBusy = false;
@@ -671,9 +675,9 @@ class Game {
     if (this.downloads) {
       try {
         await this.downloads.save({ filename, data: this.clip.blob });
-        this.note('Clip guardado.');
+        this.note(tr('Clip guardado.'));
       } catch {
-        this.note('No se ha guardado el clip.');
+        this.note(tr('No se ha guardado el clip.'));
       }
       return;
     }
@@ -687,13 +691,13 @@ class Game {
   private async saveCover(): Promise<void> {
     if (!this.lastCover) return;
     const blob = await (await fetch(this.lastCover)).blob();
-    const filename = `holeshot-portada-${refKey(this.current).replace(':', '-')}.jpg`;
+    const filename = `holeshot-${tr('portada')}-${refKey(this.current).replace(':', '-')}.jpg`;
     if (this.downloads) {
       try {
         await this.downloads.save({ filename, data: blob });
-        this.note('Portada guardada.');
+        this.note(tr('Portada guardada.'));
       } catch {
-        this.note('No se ha guardado la portada.');
+        this.note(tr('No se ha guardado la portada.'));
       }
       return;
     }
@@ -702,6 +706,23 @@ class Game {
     a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  /** El nombre por defecto sigue al idioma mientras nadie lo haya cambiado. */
+  private localizeDefaultName(): void {
+    const r = this.progress.rider;
+    if (r.name === 'PILOTO' || r.name === 'RIDER') r.name = lang() === 'en' ? 'RIDER' : 'PILOTO';
+  }
+
+  private switchLang(): void {
+    setLang(lang() === 'es' ? 'en' : 'es');
+    this.localizeDefaultName();
+    applyStatic();
+    if (this.mode === 'title') this.setScreen(titleHTML(this.touch, this.today));
+    else if (this.mode === 'paused') {
+      this.hud.relabel(this.race);
+      this.setScreen(pauseHTML(this.sfx.muted));
+    }
   }
 
   private onButton(act: string, el: HTMLElement): void {
@@ -723,7 +744,7 @@ class Game {
         if (!isLiveryUnlocked(this.progress, id)) {
           const l = SPECIAL_LIVERIES.find((x) => x.id === id);
           this.pendingLivery = id;
-          if (info) info.textContent = `${l?.name ?? ''}: ${l?.how ?? ''}.`;
+          if (info) info.textContent = `${tr(l?.name ?? '')}: ${tr(l?.how ?? '')}.`;
           ad?.classList.remove('hidden');
           break;
         }
@@ -751,7 +772,7 @@ class Game {
         const id = Number(el.dataset.id);
         if (id === 0) this.openBriefing({ daily: this.today });
         else if (id <= this.progress.unlocked) this.openBriefing(id);
-        else this.hud.popup('', 'CONSIGUE UNA MEDALLA EN LA ANTERIOR', 'rough');
+        else this.hud.popup('', tr('CONSIGUE UNA MEDALLA EN LA ANTERIOR'), 'rough');
         break;
       }
       case 'go':
@@ -769,6 +790,9 @@ class Game {
         break;
       case 'next':
         this.afterBreak(() => this.openBriefing(Math.min(MISSION_COUNT, this.race.mission.id + 1)));
+        break;
+      case 'lang':
+        this.switchLang();
         break;
       case 'mute':
         this.toggleMute();
@@ -809,7 +833,7 @@ class Game {
     const ok = await this.platform.rewardedAd(this.adHooks);
     if (!ok) {
       const info = document.getElementById('garageUnlock');
-      if (info) info.textContent = 'No se ha podido ver el anuncio. Inténtalo más tarde.';
+      if (info) info.textContent = tr('No se ha podido ver el anuncio. Inténtalo más tarde.');
       return;
     }
     if (!this.progress.liveries.includes(id)) this.progress.liveries.push(id);

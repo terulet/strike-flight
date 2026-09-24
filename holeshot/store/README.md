@@ -46,9 +46,10 @@ alguno no coincide, cambia la lista de `scripts/posters.mjs` y vuelve a generarl
 3. Rellena la ficha con los textos de abajo y sube las imágenes de esta carpeta.
 4. Prueba la versión de previsualización que te dan y envíala a revisión.
 
-**Importante:** el juego está solo en español. CrazyGames tiene sobre todo
-público en inglés: traducir la interfaz al inglés es lo siguiente que más va a
-ayudar a que funcione allí.
+**Idiomas:** inglés y español. El juego elige solo según el idioma del
+navegador (español si es `es-*`, inglés en cualquier otro caso) y se puede
+cambiar con el botón EN/ES del título o desde la pausa. Las imágenes de esta
+carpeta están en inglés; para forzar un idioma en una URL: `?lang=en` o `?lang=es`.
 
 ## Textos de la ficha
 
@@ -56,13 +57,15 @@ ayudar a que funcione allí.
 
 **Categoría:** Driving / Racing — Bike
 
+**Idiomas:** English, Spanish
+
 **Etiquetas:** motocross, dirt bike, physics, stunts, racing, daily challenge, ghost race, 2D
 
 **Descripción corta (EN):**
 Physics motocross with a brand-new track every day. Nail the gate drop, flip over the pits and race your friends' ghosts.
 
 **Descripción (EN):**
-HOLESHOT is a 2D physics motocross game. Real suspension, real wheel spin, a rider who shifts his weight — and mud that sticks to you and your goggles.
+HOLESHOT is a 2D physics motocross game. Real suspension, real wheel spin, a rider who shifts their weight — and mud that sticks to you and your goggles.
 - DAILY MUD: a new track every day, the same for everyone. Set your time and share your result.
 - GHOST CHALLENGES: send a link and your friends race against your actual run.
 - 5 WORLD TOUR EVENTS: red canyon time trial, quarry gold plates, foggy forest tricks, a sandstorm chasing you and the night stadium final against three rivals.

@@ -21,7 +21,7 @@ import { Race } from './race';
 const EPOCH = Date.UTC(2026, 8, 24);
 const THEME_ORDER = ['canyon', 'forest', 'quarry', 'stadium', 'dunes'];
 
-const NAMES = [
+export const SECTION_NAMES = [
   'EL LATIGAZO', 'LA LAVADORA', 'EL TOBOGÁN', 'LA ESCALERA', 'EL AGUJERO', 'LA MONTAÑA RUSA',
   'EL TRAMPOLÍN', 'LA CICATRIZ', 'EL SERRUCHO', 'LA RATONERA', 'EL PRECIPICIO', 'LA JOROBA',
   'EL DESCALABRO', 'LA TRINCHERA', 'EL COHETE', 'LA PISCINA', 'EL ACORDEÓN', 'LA PARED',
@@ -84,7 +84,7 @@ export function buildDailyTrack(key: string): TrackData {
   const ri = (a: number, b: number): number => a + Math.floor(rnd() * (b - a + 1));
   const { theme } = dailyTheme(key);
   const props = theme.props ?? ['boulder'];
-  const names = [...NAMES];
+  const names = [...SECTION_NAMES];
   const takeName = (): string => names.splice(Math.floor(rnd() * names.length), 1)[0];
 
   // Secuencia: 11 piezas, 2-3 huecos grandes, al menos un charco.

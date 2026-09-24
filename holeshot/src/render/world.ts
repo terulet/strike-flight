@@ -11,6 +11,7 @@ import { TERRAIN_STEP } from '../physics/terrain';
 import { mix, rgba, shade } from './color';
 import { TRACK_BAND, laneOffset } from './lanes';
 import { View } from './view';
+import { t as tr } from '../i18n';
 
 const TAU = Math.PI * 2;
 
@@ -23,16 +24,27 @@ function hazeHex(theme: Theme): string {
  * Texto en coordenadas de mundo (la Y esta invertida). Se rasteriza a 100x
  * y se escala: una fuente web pedida a 0,3 px sale como un borron.
  */
+const worldFont = (size: number): string => `700 ${Math.round(size * 100)}px "Russo One", "Arial Black", Impact, sans-serif`;
+
 export function worldText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = 'center'): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(0.01, -0.01);
-  ctx.font = `700 ${Math.round(size * 100)}px "Russo One", "Arial Black", Impact, sans-serif`;
+  ctx.font = worldFont(size);
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
   ctx.fillText(text, 0, 0);
   ctx.restore();
+}
+
+/** Ancho en metros de un texto de `worldText`. */
+export function worldTextWidth(ctx: CanvasRenderingContext2D, text: string, size: number): number {
+  ctx.save();
+  ctx.font = worldFont(size);
+  const w = ctx.measureText(text).width * 0.01;
+  ctx.restore();
+  return w;
 }
 
 export class WorldArt {
@@ -744,12 +756,13 @@ export class WorldArt {
       const y = this.h(s.x) + TRACK_BAND + 0.15;
       ctx.fillStyle = '#3b2c20';
       ctx.fillRect(s.x - 0.05, y, 0.1, 2.2);
-      const w = Math.max(2.2, s.name.length * 0.24);
+      const name = tr(s.name);
+      const w = Math.max(2.2, worldTextWidth(ctx, name, 0.34) + 0.5);
       ctx.fillStyle = '#1a1c22';
       ctx.fillRect(s.x - w / 2, y + 1.9, w, 0.6);
       ctx.fillStyle = this.theme.accent;
       ctx.fillRect(s.x - w / 2, y + 1.9, 0.12, 0.6);
-      worldText(ctx, s.name, s.x + 0.05, y + 2.2, 0.34, '#f5f2ea');
+      worldText(ctx, name, s.x + 0.05, y + 2.2, 0.34, '#f5f2ea');
     }
   }
 
@@ -801,7 +814,7 @@ export class WorldArt {
       }
       ctx.fillStyle = this.theme.accent;
       ctx.fillRect(fx - 3.2, top + 1.05, 6.4, 0.5);
-      worldText(ctx, 'META', fx, top + 1.3, 0.42, '#ffffff');
+      worldText(ctx, tr('META'), fx, top + 1.3, 0.42, '#ffffff');
     }
   }
 

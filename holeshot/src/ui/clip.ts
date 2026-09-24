@@ -5,6 +5,7 @@
  * Se graba en tiempo real con MediaRecorder sobre un lienzo aparte.
  */
 import { clamp } from '../core/math';
+import { t as tr } from '../i18n';
 import { Mission } from '../game/missions';
 import { RiderProfile } from '../game/progress';
 import { BikeState, cloneBike } from '../physics/bike';
@@ -181,7 +182,7 @@ function overlay(ctx: CanvasRenderingContext2D, o: ClipOptions, slow: boolean): 
   if (slow) {
     ctx.font = `800 italic 34px ${COND}`;
     ctx.fillStyle = o.mission.theme.accent;
-    ctx.fillText('CÁMARA LENTA', W / 2, H - 200);
+    ctx.fillText(tr('CÁMARA LENTA'), W / 2, H - 200);
   }
   ctx.font = `800 28px ${COND}`;
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -204,9 +205,9 @@ function endOverlay(ctx: CanvasRenderingContext2D, o: ClipOptions, k: number): v
   ctx.fillText(`#${o.rider.number} ${o.rider.name}`, W / 2, H * 0.54);
   ctx.font = `400 64px ${DISPLAY}`;
   ctx.fillStyle = o.mission.theme.accent;
-  ctx.fillText('¿ME GANAS?', W / 2, H * 0.66);
+  ctx.fillText(tr('¿ME GANAS?'), W / 2, H * 0.66);
   ctx.font = `800 28px ${COND}`;
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillText('ENLACE DEL RETO EN LA DESCRIPCIÓN', W / 2, H * 0.71);
+  ctx.fillText(tr('ENLACE DEL RETO EN LA DESCRIPCIÓN'), W / 2, H * 0.71);
   ctx.globalAlpha = 1;
 }
