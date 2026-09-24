@@ -27,7 +27,7 @@ jobs:
       - run: npm test
       - run: npm run release
         env:
-          VITE_PUBLIC_URL: https://terulet.github.io/strike-flight/holeshot/
+          VITE_PUBLIC_URL: https://terulet.github.io/holeshot/
       - uses: actions/upload-artifact@v4
         with:
           name: holeshot-release
